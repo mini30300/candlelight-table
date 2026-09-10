@@ -14,7 +14,13 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
+      - name: Restore signing key
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /home/runner/candlelight.jks
       - run: gradle assembleRelease --no-daemon
+        env:
+          KEYSTORE_PATH: /home/runner/candlelight.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       - uses: actions/upload-artifact@v4
         with:
           name: candlelight-table-apk
