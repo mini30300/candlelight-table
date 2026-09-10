@@ -4,6 +4,14 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -61,7 +69,11 @@ class Session(ctx: Context) {
     var code: String? get() = p.getString("code", null); set(v) { p.edit().putString("code", v).apply() }
     var playerId: String? get() = p.getString("pid", null); set(v) { p.edit().putString("pid", v).apply() }
     var name: String get() = p.getString("name", "") ?: ""; set(v) { p.edit().putString("name", v).apply() }
+    var token: String? get() = p.getString("token", null); set(v) { p.edit().putString("token", v).apply() }
+    var userName: String get() = p.getString("userName", "") ?: ""; set(v) { p.edit().putString("userName", v).apply() }
+    var userSub: String? get() = p.getString("userSub", null); set(v) { p.edit().putString("userSub", v).apply() }
     fun clear() { p.edit().remove("code").remove("pid").apply() }
+    fun signOut() { p.edit().remove("token").remove("userName").remove("userSub").remove("code").remove("pid").apply() }
 }
 
 class MainActivity : ComponentActivity() {
@@ -81,22 +93,83 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun App(session: Session) {
+    var token by remember { mutableStateOf(session.token) }
     var code by remember { mutableStateOf(session.code) }
     var playerId by remember { mutableStateOf(session.playerId) }
+    Api.authToken = token
     Box(Modifier.fillMaxSize().background(Ground)) {
-        if (code != null && playerId != null) {
-            GameScreen(code!!, playerId!!, onLeave = { session.clear(); code = null; playerId = null })
-        } else {
-            LobbyScreen(session) { c, p -> session.code = c; session.playerId = p; code = c; playerId = p }
+        when {
+            token == null -> LoginScreen(session) { token = it }
+            code != null && playerId != null ->
+                GameScreen(code!!, playerId!!, mySub = session.userSub, onLeave = { session.clear(); code = null; playerId = null })
+            else -> LobbyScreen(session,
+                onEnter = { c, p -> session.code = c; session.playerId = p; code = c; playerId = p },
+                onSignOut = { session.signOut(); Api.authToken = null; token = null })
         }
+    }
+}
+
+// ---------------------------------------------------------------- login
+@Composable
+fun LoginScreen(session: Session, onLoggedIn: (String) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    Column(Modifier.fillMaxSize().statusBarsPadding().padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(14.dp, 22.dp).background(Amber, RoundedCornerShape(50)))
+        Spacer(Modifier.height(18.dp))
+        Text("CANDLELIGHT TABLE", color = Amber, fontSize = 14.sp, letterSpacing = 4.sp, fontFamily = FontFamily.Monospace)
+        Spacer(Modifier.height(8.dp))
+        Text("โต๊ะผจญภัยที่ Claude เป็นผู้เล่าเรื่อง", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 30.sp)
+        Spacer(Modifier.height(6.dp))
+        Text("เข้าสู่ระบบเพื่อให้ตัวละครและโต๊ะของคุณติดตามไปทุกเครื่อง", color = Muted, fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
+        Spacer(Modifier.height(36.dp))
+        Button(
+            onClick = {
+                busy = true; error = null
+                scope.launch {
+                    try {
+                        val cm = CredentialManager.create(context)
+                        val option = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID).build()
+                        val req = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                        val result = cm.getCredential(context, req)
+                        val cred = result.credential
+                        if (cred is CustomCredential && cred.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                            val idToken = GoogleIdTokenCredential.createFrom(cred.data).idToken
+                            val (tok, user) = Api.loginGoogle(idToken)
+                            session.token = tok; session.userName = user.name; session.userSub = user.sub
+                            if (session.name.isBlank()) session.name = user.name
+                            Api.authToken = tok
+                            onLoggedIn(tok)
+                        } else error = "ไม่ได้รับข้อมูลจาก Google"
+                    } catch (e: GetCredentialCancellationException) {
+                        error = null
+                    } catch (e: ApiException) {
+                        error = e.message
+                    } catch (e: Exception) {
+                        error = "เข้าสู่ระบบด้วย Google ไม่สำเร็จ: " + (e.message ?: e.javaClass.simpleName)
+                    } finally { busy = false }
+                }
+            },
+            enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(8.dp),
+        ) { Text(if (busy) "กำลังเข้าสู่ระบบ…" else "เข้าสู่ระบบด้วย Google", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        error?.let { Spacer(Modifier.height(12.dp)); Text(it, color = Blood, fontSize = 13.sp, textAlign = TextAlign.Center) }
     }
 }
 
 // ---------------------------------------------------------------- lobby
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit) {
+fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: () -> Unit) {
     var name by remember { mutableStateOf(session.name) }
+    var myRooms by remember { mutableStateOf<List<MyRoom>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        try { val (u, rooms) = Api.me(); session.userName = u.name; session.userSub = u.sub; myRooms = rooms }
+        catch (e: ApiException) { if (e.message?.contains("เข้าสู่ระบบ") == true) onSignOut() }
+        catch (e: Exception) { }
+    }
     var race by remember { mutableStateOf(RACES[0]) }
     var cls by remember { mutableStateOf(CLASSES[0]) }
     var bg by remember { mutableStateOf("") }
@@ -108,8 +181,27 @@ fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit) {
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("CANDLELIGHT TABLE", color = Amber, fontSize = 13.sp, letterSpacing = 3.sp, fontFamily = FontFamily.Monospace)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("CANDLELIGHT TABLE", color = Amber, fontSize = 13.sp, letterSpacing = 3.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
+            Text(session.userName, color = Muted, fontSize = 12.sp)
+            TextButton(onClick = { scope.launch { Api.logout(); onSignOut() } }, contentPadding = PaddingValues(6.dp, 0.dp)) { Text("ออกจากระบบ", color = Muted, fontSize = 12.sp) }
+        }
         Text("สร้างตัวละคร แล้วนั่งลงที่โต๊ะ", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 32.sp)
+
+        val resumable = myRooms.filter { it.playerId != null }
+        if (resumable.isNotEmpty()) Panel {
+            Label("โต๊ะของฉัน · กลับเข้าเล่นต่อ")
+            resumable.forEach { r ->
+                OutlinedButton(onClick = { onEnter(r.code, r.playerId!!) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Ground, contentColor = Ink), border = androidx.compose.foundation.BorderStroke(1.dp, if (r.owner) AmberDim else Line)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(r.scene, fontSize = 14.sp, maxLines = 1)
+                        Text("ห้อง ${r.code} · ${r.players} ผู้เล่น" + if (r.owner) " · เจ้าของ" else "", color = Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    }
+                    Text("เข้า", color = Amber, fontSize = 13.sp)
+                }
+            }
+        }
         Text("Claude เป็นผู้เล่าเรื่อง คุมศัตรู และตัดสินผลของทุกการกระทำ พิมพ์สิ่งที่ตัวละครอยากทำ ทอยเต๋าเมื่อ DM ขอ",
             color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
 
@@ -173,7 +265,8 @@ fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit) {
 // ---------------------------------------------------------------- game
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameScreen(code: String, playerId: String, onLeave: () -> Unit) {
+fun GameScreen(code: String, playerId: String, mySub: String?, onLeave: () -> Unit) {
+    var confirmClose by remember { mutableStateOf(false) }
     var room by remember { mutableStateOf<Room?>(null) }
     var log by remember { mutableStateOf(listOf<Entry>()) }
     var seq by remember { mutableStateOf(0) }
@@ -207,7 +300,7 @@ fun GameScreen(code: String, playerId: String, onLeave: () -> Unit) {
     }
     LaunchedEffect(log.size) { if (log.isNotEmpty()) listState.animateScrollToItem(log.size - 1) }
 
-    val me = room?.players?.find { it.id == playerId }
+    val isOwner = mySub != null && room?.ownerSub == mySub
     val waiting = (room?.pending ?: 0) > 0
 
     Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
@@ -282,8 +375,25 @@ fun GameScreen(code: String, playerId: String, onLeave: () -> Unit) {
                         scope.launch { try { apply(Api.setHp(code, playerId, newHp)) } catch (e: Exception) { error = e.message } }
                     }
                 }
+                if (isOwner) {
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(onClick = { confirmClose = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Blood), border = androidx.compose.foundation.BorderStroke(1.dp, Blood)) {
+                        Icon(Icons.Default.DeleteForever, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("ปิดโต๊ะ (ลบห้องนี้ถาวร)")
+                    }
+                }
             }
         }
+    }
+    if (confirmClose) {
+        AlertDialog(
+            onDismissRequest = { confirmClose = false },
+            containerColor = Surface, titleContentColor = Ink, textContentColor = Muted,
+            title = { Text("ปิดโต๊ะ $code ?") },
+            text = { Text("เรื่องราวและตัวละครในห้องนี้จะถูกลบทั้งหมด ผู้เล่นคนอื่นจะถูกส่งกลับหน้าแรก") },
+            confirmButton = { TextButton(onClick = { confirmClose = false; scope.launch { try { Api.closeRoom(code); showParty = false; onLeave() } catch (e: Exception) { error = e.message } } }) { Text("ปิดโต๊ะ", color = Blood) } },
+            dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("ยกเลิก", color = Ink) } },
+        )
     }
 }
 

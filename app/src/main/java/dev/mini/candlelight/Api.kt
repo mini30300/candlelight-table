@@ -9,6 +9,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 const val SERVER = "https://candlelight-table.mini3030023450.workers.dev"
+const val WEB_CLIENT_ID = "59633844460-7o8qv78qos5amd8abcipnoqptnb2fr04.apps.googleusercontent.com"
+
+data class User(val sub: String, val email: String, val name: String, val picture: String)
+data class MyRoom(val code: String, val scene: String, val players: Int, val playerId: String?, val owner: Boolean, val updated: Long)
 
 data class Player(
     val id: String, val name: String, val race: String, val cls: String, val bg: String,
@@ -20,13 +24,17 @@ data class Entry(
 )
 
 data class Room(
-    val code: String, val scene: String, val players: List<Player>, val seq: Int,
+    val code: String, val scene: String, val ownerSub: String?, val players: List<Player>, val seq: Int,
     val pending: Int, val log: List<Entry>,
 )
 
 class ApiException(msg: String) : Exception(msg)
 
 object Api {
+    /** session token from Google login; set by the app at startup and after login */
+    @Volatile var authToken: String? = null
+
+    private fun parseUser(o: JSONObject) = User(o.optString("sub"), o.optString("email"), o.optString("name"), o.optString("picture"))
     private fun parsePlayer(id: String, o: JSONObject): Player {
         val st = o.optJSONObject("stats") ?: JSONObject()
         val stats = listOf("STR", "DEX", "CON", "INT", "WIS", "CHA").associateWith { st.optInt(it, 10) }
@@ -47,7 +55,8 @@ object Api {
             Entry(e.optInt("seq"), e.optLong("ts"), e.optString("t"), e.optString("who"), e.optString("text"),
                 (0 until ch.length()).map { ch.getString(it) })
         }
-        return Room(o.optString("code"), o.optString("scene"), players, o.optInt("seq"), o.optInt("pending"), log)
+        val owner = if (o.isNull("ownerSub")) null else o.optString("ownerSub")
+        return Room(o.optString("code"), o.optString("scene"), owner, players, o.optInt("seq"), o.optInt("pending"), log)
     }
 
     private suspend fun request(method: String, path: String, body: JSONObject? = null): JSONObject = withContext(Dispatchers.IO) {
@@ -55,6 +64,7 @@ object Api {
             requestMethod = method
             connectTimeout = 15000; readTimeout = 20000
             setRequestProperty("Accept", "application/json")
+            authToken?.let { setRequestProperty("Authorization", "Bearer $it") }
             if (body != null) {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -103,6 +113,26 @@ object Api {
         val r = request("POST", "/api/rooms/$code/hp", JSONObject().put("playerId", playerId).put("hp", hp))
         return parseRoom(r.getJSONObject("room"))
     }
+
+    /** exchange a Google ID token for our session token */
+    suspend fun loginGoogle(idToken: String): Pair<String, User> {
+        val r = request("POST", "/api/auth/google", JSONObject().put("idToken", idToken))
+        return r.getString("token") to parseUser(r.getJSONObject("user"))
+    }
+
+    suspend fun me(): Pair<User, List<MyRoom>> {
+        val r = request("GET", "/api/me")
+        val arr = r.optJSONArray("rooms") ?: JSONArray()
+        val rooms = (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            MyRoom(o.optString("code"), o.optString("scene"), o.optInt("players"), if (o.isNull("playerId")) null else o.optString("playerId"), o.optBoolean("owner"), o.optLong("updated"))
+        }
+        return parseUser(r.getJSONObject("user")) to rooms
+    }
+
+    suspend fun logout() { runCatching { request("POST", "/api/logout", JSONObject()) } }
+
+    suspend fun closeRoom(code: String) { request("POST", "/api/rooms/$code/close", JSONObject()) }
 
     suspend fun leave(code: String, playerId: String) {
         runCatching { request("POST", "/api/rooms/$code/leave", JSONObject().put("playerId", playerId)) }
