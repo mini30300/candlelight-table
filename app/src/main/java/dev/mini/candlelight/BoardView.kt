@@ -52,6 +52,9 @@ class BoardController {
     }
     fun flush() { ready = true; status.value = null; val w = web ?: return; val q = ArrayList(queue); queue.clear(); w.post { q.forEach { w.evaluateJavascript(it, null) } } }
     fun reload() { ready = false; status.value = "โหลดใหม่…"; web?.post { web?.loadUrl(SERVER + "/board") } }
+    private var inset = -1
+    /** dp (= CSS px) of app UI covering the bottom of the board; the page parks the joystick just above it */
+    fun setInset(dp: Int) { if (dp != inset) { inset = dp; call("window.setInset && window.setInset($dp)") } }
 }
 
 private fun jsStr(s: String): String = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""

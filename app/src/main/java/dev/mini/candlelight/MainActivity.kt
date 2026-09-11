@@ -39,7 +39,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -48,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------- palette
 val Ground = Color(0xFF16141C)
@@ -365,6 +370,16 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val board = remember { BoardController() }
+    // joystick parks just above whatever covers the bottom of the board (story panel, tabs, keyboard)
+    val density = LocalDensity.current
+    val insetRefs = remember { arrayOfNulls<LayoutCoordinates>(2) } // [board, spacer above the bottom panel]
+    fun syncInset() {
+        val bc = insetRefs[0] ?: return
+        val sc = insetRefs[1] ?: return
+        if (!bc.isAttached || !sc.isAttached) return
+        val covered = bc.size.height - bc.localPositionOf(sc, Offset(0f, sc.size.height.toFloat())).y
+        board.setInset(with(density) { covered.toDp().value }.roundToInt().coerceAtLeast(0))
+    }
 
     fun apply(r: Room) {
         room = r
@@ -415,7 +430,7 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
 
     Box(Modifier.fillMaxSize()) {
         // 3D board always alive underneath
-        BoardView(Modifier.fillMaxSize(), board,
+        BoardView(Modifier.fillMaxSize().onGloballyPositioned { insetRefs[0] = it; syncInset() }, board,
             onMove = { x, z -> scope.launch { try { Api.move(code, playerId, x, z) } catch (e: ApiException) { error = e.message } catch (e: Exception) { } } },
             onTapToken = { id -> tappedToken = id })
 
@@ -434,7 +449,7 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
             when (tab) {
                 "board" -> {
                     if (!board.ready && boardHint != null) Text(boardHint!!, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(16.dp, 4.dp))
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.weight(1f).onGloballyPositioned { insetRefs[1] = it; syncInset() })
                     if (inCombat) Row(Modifier.padding(16.dp, 4.dp)) {
                         Text(if (myTurn) "▶ เทิร์นของคุณ · เดินได้ 30 ft" else "เทิร์นของ ${b?.currentName ?: "…"}", color = if (myTurn) Amber else Ink, fontSize = 13.sp,
                             modifier = Modifier.background(Surface.copy(alpha = .92f), RoundedCornerShape(8.dp)).border(1.dp, if (myTurn) Amber else Line, RoundedCornerShape(8.dp)).padding(10.dp, 6.dp))
