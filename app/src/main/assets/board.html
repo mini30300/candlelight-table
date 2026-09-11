@@ -7,8 +7,8 @@
 <style>
   html,body{margin:0;height:100%;background:#0B0B0E;overflow:hidden;font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif;color:#C9C4B8;-webkit-tap-highlight-color:transparent;touch-action:none}
   #c{position:fixed;left:0;top:0;display:block;touch-action:none;z-index:0}
-  #joy{position:absolute;left:18px;bottom:18px;width:120px;height:120px;border-radius:60px;background:rgba(20,20,25,.55);border:1px solid rgba(236,233,224,.25);display:none;touch-action:none;z-index:5}
-  #joy .knob{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:22px;background:rgba(236,233,224,.18);border:1px solid rgba(236,233,224,.7);box-shadow:0 0 12px rgba(236,233,224,.35)}
+  #joy{position:fixed;left:16px;top:56%;width:120px;height:120px;border-radius:60px;background:rgba(18,18,23,.66);border:1px solid rgba(236,233,224,.5);box-shadow:0 0 18px rgba(0,0,0,.6),inset 0 0 14px rgba(236,233,224,.07);display:none;touch-action:none;z-index:5}
+  #joy .knob{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:22px;background:rgba(236,233,224,.3);border:1.5px solid rgba(255,252,244,.95);box-shadow:0 0 16px rgba(236,233,224,.5)}
   #toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(20,20,25,.9);border:1px solid #26262E;color:#C9C4B8;font-size:12px;padding:6px 10px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;z-index:6}
   #err{position:absolute;left:8px;right:8px;top:8px;z-index:9;color:#E0B26A;font:12px monospace;white-space:pre-wrap;pointer-events:none}
 </style>
@@ -399,7 +399,10 @@
   let me = null, board = null, control = "tap", canMove = true, preview = false, turnStart = null;
   let marker = { x:0, z:0, a:0 };
   const joyEl = document.getElementById("joy");
-  function showJoy(){ joyEl.style.display = (control==="joystick" && me && !preview) ? "block" : "none"; }
+  let bottomInset = 0;
+  function placeJoy(){ if (bottomInset > 0) { joyEl.style.top = "auto"; joyEl.style.bottom = (bottomInset + 16) + "px"; } else { joyEl.style.bottom = "auto"; joyEl.style.top = "56%"; } }
+  function showJoy(){ placeJoy(); joyEl.style.display = (control==="joystick" && me && !preview) ? "block" : "none"; }
+  window.setInset = function(px){ bottomInset = Math.max(0, Number(px) || 0); placeJoy(); };
   window.setBoard = function(json){
     try { board = typeof json === "string" ? JSON.parse(json) : json; } catch(e) { return; }
     if (!board) return; preview = false;
