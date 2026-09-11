@@ -28,6 +28,7 @@ class BoardBridge(
 class BoardController {
     var web: WebView? = null
     var ready: Boolean = false
+    @Volatile var lastError: String? = null
     private val queue = ArrayList<String>()
     fun call(js: String) {
         val w = web
@@ -57,10 +58,24 @@ fun BoardView(
                 settings.domStorageEnabled = true
                 settings.allowFileAccess = true
                 settings.mediaPlaybackRequiresUserGesture = false
-                webViewClient = WebViewClient()
+                settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                WebView.setWebContentsDebuggingEnabled(true)
+                webViewClient = object : WebViewClient() {
+                    override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                        if (request?.isForMainFrame == true) controller.lastError = "โหลดกระดานไม่ได้: ${error?.description}"
+                    }
+                }
+                webChromeClient = object : android.webkit.WebChromeClient() {
+                    override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
+                        m?.let { android.util.Log.d("BoardJS", "${it.messageLevel()} ${it.message()} @${it.lineNumber()}"); if (it.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) controller.lastError = it.message() }
+                        return true
+                    }
+                }
                 addJavascriptInterface(bridge, "Android")
                 controller.web = this
-                loadUrl("file:///android_asset/board.html")
+                loadUrl(SERVER + "/board")
             }
         },
         onRelease = { controller.web = null; controller.ready = false },

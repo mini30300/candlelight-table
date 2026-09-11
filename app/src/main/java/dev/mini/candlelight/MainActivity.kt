@@ -386,6 +386,8 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
     }
     LaunchedEffect(log.size) { if (log.isNotEmpty() && tab == "story") listState.animateScrollToItem(log.size - 1) }
     BoardSync(board, playerId, room?.board, control)
+    var boardHint by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { delay(10000); if (!board.ready) boardHint = board.lastError ?: "กระดาน 3D ยังไม่ตอบสนอง (ต้องต่ออินเทอร์เน็ต) — เล่นต่อได้ที่แท็บเรื่องราว" }
 
     val isOwner = mySub != null && room?.ownerSub == mySub
     val waiting = (room?.pending ?: 0) > 0
@@ -431,6 +433,7 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
 
             when (tab) {
                 "board" -> {
+                    if (!board.ready && boardHint != null) Text(boardHint!!, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(16.dp, 4.dp))
                     Spacer(Modifier.weight(1f))
                     if (inCombat) Row(Modifier.padding(16.dp, 4.dp)) {
                         Text(if (myTurn) "▶ เทิร์นของคุณ · เดินได้ 30 ft" else "เทิร์นของ ${b?.currentName ?: "…"}", color = if (myTurn) Amber else Ink, fontSize = 13.sp,

@@ -17,6 +17,8 @@
 <div id="loading">กำลังโหลดกระดาน…</div>
 <div id="joy"><div class="knob"></div></div>
 <div id="toast"></div>
+<div id="err" style="position:absolute;left:8px;right:8px;top:8px;z-index:9;color:#E0B26A;font:12px monospace;white-space:pre-wrap;pointer-events:none"></div>
+<script>window.onerror=function(m,src,l,c){var e=document.getElementById("err"); e.textContent+=m+" @"+l+":"+c+"\n"; try{ if(window.Android&&window.Android.log) window.Android.log("JS error: "+m+" @"+l+":"+c);}catch(_){} };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
