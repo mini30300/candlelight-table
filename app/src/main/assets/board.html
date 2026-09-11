@@ -103,6 +103,13 @@
   function wbush(g, x, z, r, s){ wring(g,x,0.05,z,r,7,s||FAINT); wring(g,x,r*0.6,z,r*0.7,6,s||FAINT); seg(g,V(x-r,0.05,z),V(x,r*1.1,z),s||FAINT); seg(g,V(x+r,0.05,z),V(x,r*1.1,z),s||FAINT); }
   function wrock(g, x, z, w, h, d, s, seed){ const r = rnd(seed||1); const st = s||DIM; const b = [V(x-w/2,0,z-d/2),V(x+w/2*(0.7+r()*0.5),0,z-d/2*(0.6+r()*0.6)),V(x+w/2,0,z+d/2),V(x-w/2*(0.6+r()*0.6),0,z+d/2*(0.7+r()*0.5))]; const t = b.map((p,i) => V((p.x+x)/2 + (r()-0.5)*0.2, h*(0.7+r()*0.4), (p.z+z)/2)); polyline(g,b,st,true); polyline(g,t,st,true); for (let i=0;i<4;i++) seg(g,b[i],t[i],st); }
   function fill(g, pts, c, a){ g.fills.push({ pts, c, a }); }
+  function fillH(g, pts, c, a){ g.fills.push({ pts, c, a, hull: true }); }
+  function silIdx(ring){ let lo = 0, hi = 0, lx = 1e9, hx = -1e9; for (let i=0;i<ring.length;i++){ const q = proj(ring[i]); if (!q) continue; if (q.x < lx) { lx = q.x; lo = i; } if (q.x > hx) { hx = q.x; hi = i; } } return [lo, hi]; }
+  function mixDark(rgb, k){ const p = String(rgb).split(",").map(Number); return p.map(v => Math.round(v*k)).join(","); }
+  function hull2(ps){ if (ps.length < 3) return ps; const pts = ps.slice().sort((a,b) => a.x-b.x || a.y-b.y); const cr = (o,a,b) => (a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x); const lo = [], up = [];
+    for (const q of pts){ while (lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], q) <= 0) lo.pop(); lo.push(q); }
+    for (let i=pts.length-1;i>=0;i--){ const q = pts[i]; while (up.length >= 2 && cr(up[up.length-2], up[up.length-1], q) <= 0) up.pop(); up.push(q); }
+    lo.pop(); up.pop(); return lo.concat(up); }
   function flame(g, x, y, z, r, h){ g.flames.push({ x, y, z, r, h }); }
   function floorSlab(g, Wd, D, style){ const s = style||WHITE; const y = 0;
     fill(g, [V(-Wd/2,y,-D/2),V(Wd/2,y,-D/2),V(Wd/2,y,D/2),V(-Wd/2,y,D/2)], "236,233,224", 0.035);
@@ -294,31 +301,66 @@
     const P = (x,y,z) => { const c = Math.cos(p.rot), s = Math.sin(p.rot); return V(p.pos.x + (x*c + z*s)*scale, (y+bob)*scale, p.pos.z + (-x*s + z*c)*scale); };
     // base ring
     wring(g, p.pos.x, 0.01, p.pos.z, 0.42*scale, 16, isMe ? AMB : enemy ? styleOf(RED.c,1,0.7) : DIM);
-    // ---- silhouette (pawn: skirt body, shoulder capsule, round head) ----
+    // ---- solid silhouette: opaque fills first so scene lines cannot cut through ----
     const cR = cam.r; const bb = (x,y,z,w) => [add(P(x,y,z), mul(cR,-w*scale)), add(P(x,y,z), mul(cR,w*scale))];
     const O = P(0,0,0), sideAx = norm(sub(P(1,0,0), O)), fwdAx = norm(sub(P(0,0,1), O)), upAx = V(0,1,0);
     const HR = 0.21*scale, HCen = P(0,1.19,0);
-    // soft colour fills
-    if (look.cloak && look.cloak!=="none") { const back = mul(cam.f, 0.12); const c0 = bb(0,0.1,0,0.38), c1 = bb(0,0.95,0,0.42); fill(g, [add(c0[0],back),add(c0[1],back),add(c1[1],back),add(c1[0],back)], cloakC, 0.26); }
-    const f0 = bb(0,0.05,0,0.33), f1 = bb(0,0.76,0,0.28), f2 = bb(0,0.94,0,0.4);
-    fill(g, [f0[0],f0[1],f1[1],f1[0]], tunicC, 0.3); fill(g, [f1[0],f1[1],f2[1],f2[0]], tunicC, 0.26);
-    fill(g, circPts(HCen, cR, cam.u, HR*0.96, 12), skinC, 0.32);
-    // skirt body
+    const HP = (u, v, d) => add(HCen, add(add(mul(cR, u*HR), mul(cam.u, v*HR)), mul(cam.f, -(d||0)*HR)));
+    const facingCam = -dot(fwdAx, cam.f);
+    // resolve hair / hat first (their fills must be layered in the right order)
+    const rawHair = look.hair || "short", hat0 = look.hat || "none";
+    const HALIAS = { ponytail:"tied", braid:"tied", bun:"tied", tail:"tied", curly:"short", mohawk:"short", spiky:"short", messy:"short", bald:"shaved", none:"shaved" };
+    const hs = HALIAS[rawHair] || rawHair;
+    const hat = (rawHair === "hood") ? "hood" : hat0;
+    const domed = hs !== "shaved" && hs !== "hood" && hat !== "hood" && hat !== "helm";
+    const hairS = styleOf(main.c, 1.3, 1), hairSoft = styleOf(main.c, 0.9, 0.6);
+    // body rings
     const BODIES = { pawn:{rb:0.33,rw:0.27,wy:0.76,s1:0.43,s1z:0.25,s2:0.33,s2z:0.19},
                      slim:{rb:0.29,rw:0.29,wy:0.80,s1:0.36,s1z:0.23,s2:0.30,s2z:0.19},
                      robe:{rb:0.46,rw:0.20,wy:0.82,s1:0.30,s1z:0.20,s2:0.24,s2z:0.16},
                      broad:{rb:0.38,rw:0.34,wy:0.72,s1:0.50,s1z:0.28,s2:0.38,s2z:0.22} };
     const B = BODIES[look.body] || BODIES.pawn;
-    const bot = [], waist = [];
+    const bot = [], waist = [], sh1 = [], sh2 = [];
     for (let i=0;i<10;i++){ const a = i/10*Math.PI*2; bot.push(P(Math.cos(a)*B.rb, 0.05, Math.sin(a)*B.rb)); waist.push(P(Math.cos(a)*B.rw, B.wy, Math.sin(a)*B.rw)); }
-    polyline(g, bot, main, true); polyline(g, waist, soft, true);
-    for (let i=0;i<10;i+=2) seg(g, bot[i], waist[i], main);
-    polyline(g, [0,1,2,3,4,5,6,7,8,9].map(i => { const a = i/10*Math.PI*2; const rr = (B.rb+B.rw)/2; return P(Math.cos(a)*rr, 0.42, Math.sin(a)*rr); }), FAINT, true);
-    // shoulder capsule (wide, shallow)
-    const sh1 = [], sh2 = [];
     for (let i=0;i<12;i++){ const a = i/12*Math.PI*2; sh1.push(P(Math.cos(a)*B.s1, 0.80, Math.sin(a)*B.s1z)); sh2.push(P(Math.cos(a)*B.s2, 0.96, Math.sin(a)*B.s2z)); }
+    const cl = look.cloak || "none";
+    // 1. cloak behind the body
+    if (cl !== "none") { const back = mul(cam.f, 0.16);
+      const c0 = bb(0,0.03,0,B.rb*1.18), cm = bb(0,0.5,0,B.rb*1.12), c1 = bb(0,0.94,0,B.s1*0.82);
+      const cp = [c0[0], cm[0], c1[0], c1[1], cm[1], c0[1]].map(q => add(q, back));
+      fill(g, cp, mixDark(cloakC, 0.42), 1); polyline(g, cp, styleOf(cloakC, 1, 0.85), true); }
+    // 2. body
+    fillH(g, bot.concat(waist, sh1, sh2), mixDark(tunicC, 0.5), 1);
+    // 3. hood (before the head, so the face sits inside it)
+    let hoodArc = null;
+    if (hat === "hood") { hoodArc = arcPts(HCen, cR, cam.u, HR*1.45, 14, -12, 192);
+      fillH(g, hoodArc.concat([P(0.38,0.86,-0.04), P(-0.38,0.86,-0.04)]), mixDark(cloakC, 0.55), 1); }
+    // 4. head
+    fillH(g, circPts(HCen, cR, cam.u, hat === "hood" ? HR*0.9 : HR, 14), mixDark(skinC, 0.55), 1);
+    // 5. hair mass on top of the head
+    let hairOuter = null;
+    if (domed) { hairOuter = arcPts(HCen, cR, cam.u, HR*1.2, 14, 6, 174);
+      fill(g, hairOuter.concat(arcPts(HCen, cR, cam.u, HR*0.88, 14, 174, 6)), mixDark(hairC, 0.95), 1); }
+    if (hs === "long") { for (const sx of [-1, 1]) { const pn = [HP(sx*1.18, 0.5, 0.15), HP(sx*1.42, -1.2, 0.15), HP(sx*1.34, -2.8, 0.15), HP(sx*0.72, -3.0, 0.15), HP(sx*0.76, -1.0, 0.15), HP(sx*0.92, 0.35, 0.15)];
+        fill(g, pn, mixDark(hairC, 0.8), 1); polyline(g, pn, hairS, true); } }
+    if (hs === "tied" && facingCam <= 0.5) {
+      const base = add(add(HCen, mul(fwdAx, -HR*0.85)), mul(upAx, HR*0.25));
+      const tip = add(add(base, mul(fwdAx, -HR*0.75)), mul(upAx, -HR*1.9));
+      const midp = add(add(base, mul(fwdAx, -HR*0.95)), mul(upAx, -HR*0.8));
+      const off = mul(cR, HR*0.22), off2 = mul(cR, HR*0.12);
+      const tl = [add(base, off), add(midp, off), add(tip, off2), add(tip, mul(off2,-1)), add(midp, mul(off,-1)), add(base, mul(off,-1))];
+      fill(g, tl, mixDark(hairC, 0.8), 1); polyline(g, tl, hairS, true);
+      wcircle(g, add(base, mul(cam.f, HR*0.2)), cR, cam.u, HR*0.15, 8, styleOf(accentC, 1.2, 1)); }
+    // 6. hat fills
+    if (hat === "helm") { const dome = arcPts(HCen, cR, cam.u, HR*1.14, 12, 0, 180); fill(g, dome.concat(arcPts(HCen, cR, cam.u, HR*0.9, 12, 180, 0)), mixDark(accentC, 0.8), 1); }
+    if (hat === "bandana") fill(g, [HP(-1.02,0.46,0.5), HP(1.02,0.46,0.5), HP(1.02,0.0,0.5), HP(-1.02,0.0,0.5)], mixDark(accentC, 0.8), 1);
+    if (hat === "wide") { fill(g, circPts(add(HCen, mul(upAx, HR*1.0)), sideAx, fwdAx, 0.42*scale, 14), mixDark(accentC, 0.7), 1); }
+    if (hat === "pointed") { const tipP = P(0, 2.16, 0), br = circPts(add(HCen, mul(upAx, HR*0.95)), sideAx, fwdAx, 0.4*scale, 12); fillH(g, br.concat([tipP]), mixDark(accentC, 0.7), 1); }
+    // ---- outlines ----
+    polyline(g, bot, main, true); polyline(g, waist, soft, true);
+    { const [i0, i1] = silIdx(bot); seg(g, bot[i0], waist[i0], main); seg(g, bot[i1], waist[i1], main); }
     polyline(g, sh1, main, true); polyline(g, sh2, main, true);
-    for (let i=0;i<12;i+=2) seg(g, sh1[i], sh2[i], soft);
+    { const [j0, j1] = silIdx(sh1); seg(g, sh1[j0], sh2[j0], main); seg(g, sh1[j1], sh2[j1], main); }
     if (tk.kind === "player") { const aS = styleOf(accentC, 1.5, 1); seg(g, P(-0.24,0.93,0.12), P(-0.02,0.7,0.26), aS); seg(g, P(-0.02,0.7,0.26), P(0.12,0.66,0.24), aS); } // sash
     // round head (camera-facing outline + equator + meridian)
     wcircle(g, HCen, cR, cam.u, HR, 16, main);
@@ -339,63 +381,31 @@
     if (race==="tiefling") { polyline(g, [P(-0.12,hy1,0),P(-0.16,hy1+0.14,-0.02),P(-0.1,hy1+0.26,-0.06)], main); polyline(g, [P(0.12,hy1,0),P(0.16,hy1+0.14,-0.02),P(0.1,hy1+0.26,-0.06)], main); }
     if (race==="dragonborn") { polyline(g, [P(-0.12,1.1,hz),P(-0.1,1.1,hz+0.22),P(0.1,1.1,hz+0.22),P(0.12,1.1,hz)], main); polyline(g, [P(-0.1,1.22,hz),P(-0.08,1.2,hz+0.2),P(0.08,1.2,hz+0.2),P(0.1,1.22,hz)], soft); }
     if (race==="orc" || race==="goblin") { seg(g, P(-0.07,1.1,hz+0.01), P(-0.07,1.17,hz+0.03), main); seg(g, P(0.07,1.1,hz+0.01), P(0.07,1.17,hz+0.03), main); if (race==="goblin") { seg(g, P(-hx,1.25,0), P(-hx-0.18,1.22,-0.04), main); seg(g, P(hx,1.25,0), P(hx+0.18,1.22,-0.04), main); } }
-    // ---- hair: a real mass with outline + fill, drawn around the head ball ----
-    const rawHair = look.hair || "short", hat0 = look.hat || "none";
-    const HALIAS = { ponytail:"tied", braid:"tied", bun:"tied", tail:"tied", curly:"short", mohawk:"short", spiky:"short", messy:"short", bald:"shaved", none:"shaved" };
-    const hs = HALIAS[rawHair] || rawHair;
-    const hat = (rawHair === "hood") ? "hood" : hat0;
-    const hairS = styleOf(main.c, 1.3, 1), hairSoft = styleOf(main.c, 0.9, 0.6);
-    // camera-space point around the head: u = sideways, v = up, d = toward camera (units of head radius)
-    const HP = (u, v, d) => add(HCen, add(add(mul(cR, u*HR), mul(cam.u, v*HR)), mul(cam.f, -(d||0)*HR)));
-    const facingCam = -dot(fwdAx, cam.f);
-    const domed = hs !== "shaved" && hat !== "hood" && hat !== "helm";
-    if (domed) {
-      const outer = arcPts(HCen, cR, cam.u, HR*1.2, 14, 6, 174), inner = arcPts(HCen, cR, cam.u, HR*0.9, 14, 174, 6);
-      fill(g, outer.concat(inner), hairC, 0.8); polyline(g, outer, hairS);
-      seg(g, outer[0], inner[inner.length-1], hairSoft); seg(g, outer[outer.length-1], inner[0], hairSoft);
-      // fringe (front) or nape mass (when the pawn faces away)
+    // ---- hair details (the mass itself is filled above) ----
+    if (domed && hairOuter) {
+      polyline(g, hairOuter, hairS);
+      const inn = arcPts(HCen, cR, cam.u, HR*0.88, 14, 174, 6);
+      seg(g, hairOuter[0], inn[inn.length-1], hairSoft); seg(g, hairOuter[hairOuter.length-1], inn[0], hairSoft);
       if (facingCam > -0.2 && hs !== "tied") { const fr = []; for (let i=0;i<=7;i++) fr.push(HP(-0.95 + 1.9*i/7, (i%2 ? 0.3 : 0.62), 0.95)); polyline(g, fr, hairS); }
-      else { const nb = [HP(-0.95,0.35,-0.5), HP(-0.85,-0.95,-0.5), HP(0.85,-0.95,-0.5), HP(0.95,0.35,-0.5)]; fill(g, nb, hairC, 0.45); polyline(g, nb, hairSoft); }
-      for (const sx of [-1, 1]) seg(g, HP(sx*1.1, 0.15, 0.35), HP(sx*1.0, -0.35, 0.35), hairSoft); // sideburns
+      if (facingCam <= -0.2) { const nb = [HP(-0.95,0.35,-0.5), HP(-0.85,-0.95,-0.5), HP(0.85,-0.95,-0.5), HP(0.95,0.35,-0.5)]; polyline(g, nb, hairSoft, true); }
+      for (const sx of [-1, 1]) seg(g, HP(sx*1.1, 0.15, 0.35), HP(sx*1.0, -0.35, 0.35), hairSoft);
+      if (hs === "tied") for (let k=0;k<3;k++) warc(g, HCen, cR, cam.u, HR*(1.0+k*0.07), 6, 28+k*9, 152-k*9, hairSoft);
     }
-    if (hs === "shaved") { warc(g, HCen, cR, cam.u, HR*1.04, 10, 20, 160, styleOf(hairC, 1, 0.45)); for (let i=0;i<3;i++) seg(g, HP(-0.4+i*0.4, 0.72, 0.9), HP(-0.32+i*0.4, 0.78, 0.9), styleOf(hairC, 0.8, 0.35)); }
-    if (hs === "long") {
-      for (const sx of [-1, 1]) { const pn = [HP(sx*1.18, 0.5, 0.15), HP(sx*1.42, -1.2, 0.15), HP(sx*1.34, -2.8, 0.15), HP(sx*0.72, -3.0, 0.15), HP(sx*0.76, -1.0, 0.15), HP(sx*0.92, 0.35, 0.15)];
-        fill(g, pn, hairC, 0.6); polyline(g, pn, hairS, true); }
-      const back = [HP(-0.9, 0.2, -0.6), HP(0.9, 0.2, -0.6), HP(0.95, -2.2, -0.6), HP(-0.95, -2.2, -0.6)];
-      fill(g, back, hairC, 0.4); polyline(g, back, hairSoft, true);
-    }
-    if (hs === "tied" && facingCam <= 0.5) {
-      const base = add(add(HCen, mul(fwdAx, -HR*0.85)), mul(upAx, HR*0.25));
-      const tip = add(add(base, mul(fwdAx, -HR*0.75)), mul(upAx, -HR*1.9));
-      const midp = add(add(base, mul(fwdAx, -HR*0.95)), mul(upAx, -HR*0.8));
-      const off = mul(cR, HR*0.22), off2 = mul(cR, HR*0.12);
-      const tl = [add(base, off), add(midp, off), add(tip, off2), add(tip, mul(off2,-1)), add(midp, mul(off,-1)), add(base, mul(off,-1))];
-      fill(g, tl, hairC, 0.45); polyline(g, tl, hairS, true);
-      wcircle(g, add(base, mul(cam.f, HR*0.2)), cR, cam.u, HR*0.15, 8, styleOf(accentC, 1.2, 1)); // tie
-    }
-    if (hs === "tied") for (let k=0;k<3;k++) warc(g, HCen, cR, cam.u, HR*(1.0+k*0.07), 6, 28+k*9, 152-k*9, hairSoft); // swept-back strands
-    // hats
+    if (hs === "shaved") { warc(g, HCen, cR, cam.u, HR*1.02, 10, 20, 160, styleOf(main.c, 0.9, 0.4)); }
+    // hats (outlines)
     const hatS = styleOf(accentC, 1.3, 1);
-    if (hat==="hood") {
-      const outer = arcPts(HCen, cR, cam.u, HR*1.45, 14, -12, 192);
-      fill(g, outer.concat([P(0.36,0.9,-0.06), P(-0.36,0.9,-0.06)]), cloakC, 0.62);
-      polyline(g, outer, styleOf(cloakC, 1.4, 1));
-      seg(g, outer[0], P(0.36,0.9,-0.02), styleOf(cloakC, 1.2, 1)); seg(g, outer[outer.length-1], P(-0.36,0.9,-0.02), styleOf(cloakC, 1.2, 1));
-      const op = []; for (let i=0;i<12;i++){ const a = i/12*Math.PI*2; op.push(HP(Math.cos(a)*0.78, Math.sin(a)*0.92, 0.9)); }
-      polyline(g, op, styleOf(cloakC, 1.1, 0.85), true);
-    }
-    if (hat==="wide") { wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.4*scale, 12, hatS); wcyl(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.16*scale, 0.2*scale, 0.22*scale, 8, hatS, 3); }
-    if (hat==="pointed") { wcone(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.28*scale, 0.72*scale, 7, hatS); wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.38*scale, 10, hatS); }
-    if (hat==="helm") { const dome = arcPts(HCen, cR, cam.u, HR*1.12, 12, 2, 178); fill(g, dome.concat(arcPts(HCen, cR, cam.u, HR*0.94, 12, 178, 2)), accentC, 0.45); polyline(g, dome, hatS);
-      warc(g, HCen, cR, cam.u, HR*1.12, 10, 178, 200, hatS); warc(g, HCen, cR, cam.u, HR*1.12, 10, -20, 2, hatS);
-      seg(g, HP(0, 1.12, 0.6), HP(0, -0.55, 0.95), hatS); } // nose guard
-    if (hat==="bandana") { const bd = [HP(-1.0,0.45,0.55), HP(1.0,0.45,0.55), HP(1.0,0.02,0.55), HP(-1.0,0.02,0.55)]; fill(g, bd, accentC, 0.5); polyline(g, bd, hatS, true);
+    if (hat==="hood" && hoodArc) { polyline(g, hoodArc, styleOf(cloakC, 1.4, 1));
+      seg(g, hoodArc[0], P(0.38,0.88,-0.02), styleOf(cloakC, 1.2, 1)); seg(g, hoodArc[hoodArc.length-1], P(-0.38,0.88,-0.02), styleOf(cloakC, 1.2, 1));
+      const op = []; for (let i=0;i<12;i++){ const a = i/12*Math.PI*2; op.push(HP(Math.cos(a)*0.78, Math.sin(a)*0.92, 0.9)); } polyline(g, op, styleOf(main.c, 1, 0.8), true); }
+    if (hat==="wide") { wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.42*scale, 12, hatS); wcyl(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.16*scale, 0.2*scale, 0.22*scale, 8, hatS, 3); }
+    if (hat==="pointed") { wcone(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.3*scale, 0.76*scale, 7, hatS); wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.4*scale, 10, hatS); }
+    if (hat==="helm") { warc(g, HCen, cR, cam.u, HR*1.14, 12, 0, 180, hatS); seg(g, HP(-1.14, 0, 0), HP(1.14, 0, 0), hatS); seg(g, HP(0, 1.14, 0.6), HP(0, -0.5, 0.95), hatS); }
+    if (hat==="bandana") { polyline(g, [HP(-1.02,0.46,0.5), HP(1.02,0.46,0.5), HP(1.02,0.0,0.5), HP(-1.02,0.0,0.5)], hatS, true);
       polyline(g, [add(add(HCen, mul(fwdAx,-HR*0.9)), mul(upAx, HR*0.2)), add(add(HCen, mul(fwdAx,-HR*1.3)), mul(upAx,-HR*0.6)), add(add(HCen, mul(fwdAx,-HR*1.1)), mul(upAx,-HR*1.5))], hatS); }
     if (hat==="crown") { wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.2*scale, 8, AMB); for (let i=0;i<8;i++){ const a = i/8*Math.PI*2; seg(g, P(Math.cos(a)*0.2,hy1,Math.sin(a)*0.2), P(Math.cos(a)*0.2, hy1+(i%2?0.18:0.1), Math.sin(a)*0.2), AMB); } }
     if (hat==="circlet") wring(g, p.pos.x, (1.3+bob)*scale, p.pos.z, 0.21*scale, 10, AMB);
     // cloak
-    const cl = look.cloak || "cloak", clS = styleOf(cloakC, 1.1, 1);
+    const clS = styleOf(cloakC, 1.1, 1);
     if (cl==="cloak") { polyline(g, [P(-0.3,0.95,-0.1),P(-0.36,0.5,-0.25),P(-0.34,0.12,-0.3)], clS); polyline(g, [P(0.3,0.95,-0.1),P(0.36,0.5,-0.25),P(0.34,0.12,-0.3)], clS); polyline(g, [P(-0.34,0.12,-0.3),P(-0.1,0.16,-0.36),P(0.12,0.14,-0.36),P(0.34,0.12,-0.3)], clS); polyline(g, [P(-0.3,0.95,-0.1),P(0,0.98,0.02),P(0.3,0.95,-0.1)], clS); }
     if (cl==="cape") { polyline(g, [P(-0.3,0.95,-0.1),P(-0.36,0.7,-0.25),P(-0.34,0.55,-0.3)], clS); polyline(g, [P(0.3,0.95,-0.1),P(0.36,0.7,-0.25),P(0.34,0.55,-0.3)], clS); polyline(g, [P(-0.34,0.55,-0.3),P(0,0.52,-0.36),P(0.34,0.55,-0.3)], clS); polyline(g, [P(-0.3,0.95,-0.1),P(0,0.98,0.02),P(0.3,0.95,-0.1)], clS); }
     if (cl==="armor") { polyline(g, [P(-0.34,0.95,-0.08),P(-0.4,0.9,0),P(-0.34,0.95,0.08)], main); polyline(g, [P(0.34,0.95,-0.08),P(0.4,0.9,0),P(0.34,0.95,0.08)], main); seg(g, P(0,0.92,0.28), P(0,0.55,0.32), soft); seg(g, P(-0.2,0.75,0.27), P(0.2,0.75,0.27), soft); }
@@ -433,11 +443,11 @@
       ctx.beginPath(); ctx.moveTo(b.x - f.r*s, b.y); ctx.quadraticCurveTo(b.x - f.r*s*0.6 + jit*s, b.y - f.h*s*0.55, b.x + jit*s*2, b.y - f.h*s*(1+jit)); ctx.quadraticCurveTo(b.x + f.r*s*0.6 + jit*s, b.y - f.h*s*0.55, b.x + f.r*s, b.y);
       ctx.strokeStyle = "rgba(224,178,106,"+(0.95*a)+")"; ctx.lineWidth = 1.4; ctx.stroke(); ctx.strokeStyle = "rgba(224,178,106,"+(0.25*a)+")"; ctx.lineWidth = 5; ctx.stroke(); }
   }
-  function render(gs, t){
-    // fills first (far → near)
+  function render(gs, t, keepOrder){
+    // fills first (far → near, or in insertion order for one object)
     const fl = [];
-    for (const g of gs) for (const f of g.fills){ const pp = []; let z = 0; for (const p of f.pts){ const q = proj(p); if (!q) { pp.length = 0; break; } pp.push(q); z += q.z; } if (pp.length) fl.push({ pp, c: f.c, a: f.a*fogA(z/pp.length), z: z/pp.length }); }
-    fl.sort((a,b) => b.z - a.z);
+    for (const g of gs) for (const f of g.fills){ let pp = []; let z = 0; for (const p of f.pts){ const q = proj(p); if (!q) { pp = null; break; } pp.push(q); z += q.z; } if (!pp || !pp.length) continue; z /= pp.length; if (f.hull) pp = hull2(pp); fl.push({ pp, c: f.c, a: f.a*(f.a >= 1 ? 1 : fogA(z)), z }); }
+    if (!keepOrder) fl.sort((a,b) => b.z - a.z);
     for (const f of fl){ ctx.beginPath(); ctx.moveTo(f.pp[0].x, f.pp[0].y); for (let i=1;i<f.pp.length;i++) ctx.lineTo(f.pp[i].x, f.pp[i].y); ctx.closePath(); ctx.fillStyle = "rgba("+f.c+","+f.a.toFixed(3)+")"; ctx.fill(); }
     // lines bucketed by colour / alpha / width
     const buckets = new Map();
@@ -542,9 +552,10 @@
     const dyn = G();
     if (marker.a > 0.03) wring(dyn, marker.x, 0.02, marker.z, 0.4, 16, styleOf(TEAL.c, 1.2, marker.a));
     if (turnStart) { wring(dyn, turnStart.pos.x, 0.02, turnStart.pos.z, 6, 48, TEAL); wring(dyn, turnStart.pos.x, 0.02, turnStart.pos.z, 3, 32, styleOf(TEAL.c, 0.8, 0.4)); }
-    for (const p of pawns.values()) drawPawn(dyn, p, tAcc, now);
     render([geo, dyn], tAcc);
     drawFlames(geo, tAcc);
+    const order = [...pawns.values()].map(p => { const q = proj(V(p.pos.x, 0.6, p.pos.z)); return { p, z: q ? q.z : 1e9 }; }).sort((a,b) => b.z - a.z);
+    for (const o of order) { const pg = G(); drawPawn(pg, o.p, tAcc, now); render([pg], tAcc, true); }
     drawLabels(now);
   }
   buildScene("tavern", "night");
