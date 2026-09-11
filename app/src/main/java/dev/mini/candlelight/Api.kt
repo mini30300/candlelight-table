@@ -23,9 +23,30 @@ data class Entry(
     val seq: Int, val ts: Long, val t: String, val who: String, val text: String, val choices: List<String>,
 )
 
+data class Look(
+    var race: String = "human", var hair: String = "short", var face: String = "plain", var cloak: String = "cloak",
+    var weapon: String = "sword", var hat: String = "none", var hairColor: String = "#2A2420", var skin: String = "#B9A48E",
+    var tunic: String = "#6B6258", var cloakColor: String = "#3E3A47", var accent: String = "#8A6420",
+) {
+    fun toJson(): JSONObject = JSONObject().put("race", race).put("hair", hair).put("face", face).put("cloak", cloak)
+        .put("weapon", weapon).put("hat", hat).put("hairColor", hairColor).put("skin", skin).put("tunic", tunic)
+        .put("cloakColor", cloakColor).put("accent", accent)
+    companion object {
+        fun from(o: JSONObject?): Look { val l = Look(); if (o == null) return l
+            l.race = o.optString("race", l.race); l.hair = o.optString("hair", l.hair); l.face = o.optString("face", l.face); l.cloak = o.optString("cloak", l.cloak)
+            l.weapon = o.optString("weapon", l.weapon); l.hat = o.optString("hat", l.hat)
+            if (!o.isNull("hairColor")) l.hairColor = o.optString("hairColor", l.hairColor); if (!o.isNull("skin")) l.skin = o.optString("skin", l.skin)
+            if (!o.isNull("tunic")) l.tunic = o.optString("tunic", l.tunic); if (!o.isNull("cloakColor")) l.cloakColor = o.optString("cloakColor", l.cloakColor)
+            if (!o.isNull("accent")) l.accent = o.optString("accent", l.accent); return l }
+        fun fromString(s: String?): Look = try { from(JSONObject(s ?: "{}")) } catch (e: Exception) { Look() }
+    }
+}
+
+data class Board(val json: String, val seq: Int, val scene: String, val time: String, val mode: String, val round: Int, val currentId: String?, val currentName: String?)
+
 data class Room(
     val code: String, val scene: String, val ownerSub: String?, val players: List<Player>, val seq: Int,
-    val pending: Int, val log: List<Entry>,
+    val pending: Int, val log: List<Entry>, val board: Board?,
 )
 
 class ApiException(msg: String) : Exception(msg)
@@ -56,7 +77,22 @@ object Api {
                 (0 until ch.length()).map { ch.getString(it) })
         }
         val owner = if (o.isNull("ownerSub")) null else o.optString("ownerSub")
-        return Room(o.optString("code"), o.optString("scene"), owner, players, o.optInt("seq"), o.optInt("pending"), log)
+        return Room(o.optString("code"), o.optString("scene"), owner, players, o.optInt("seq"), o.optInt("pending"), log, parseBoard(o.optJSONObject("board")))
+    }
+
+    fun parseBoard(b: JSONObject?): Board? {
+        if (b == null) return null
+        val combat = b.optJSONObject("combat")
+        var curId: String? = null; var curName: String? = null; var round = 0
+        if (combat != null) {
+            round = combat.optInt("round", 1)
+            val order = combat.optJSONArray("order"); val turn = combat.optInt("turn", 0)
+            if (order != null && turn in 0 until order.length()) {
+                curId = order.getJSONObject(turn).optString("id")
+                curName = b.optJSONObject("tokens")?.optJSONObject(curId)?.optString("name")
+            }
+        }
+        return Board(b.toString(), b.optInt("seq"), b.optString("scene", "tavern"), b.optString("time", "night"), b.optString("mode", "explore"), round, curId, curName)
     }
 
     private suspend fun request(method: String, path: String, body: JSONObject? = null): JSONObject = withContext(Dispatchers.IO) {
@@ -81,19 +117,29 @@ object Api {
         } finally { conn.disconnect() }
     }
 
-    private fun playerJson(name: String, race: String, cls: String, bg: String, stats: Map<String, Int>, maxHp: Int) =
+    private fun playerJson(name: String, race: String, cls: String, bg: String, stats: Map<String, Int>, maxHp: Int, look: Look) =
         JSONObject().put("name", name).put("race", race).put("cls", cls).put("bg", bg)
-            .put("stats", JSONObject(stats as Map<*, *>)).put("maxHp", maxHp).put("hp", maxHp)
+            .put("stats", JSONObject(stats as Map<*, *>)).put("maxHp", maxHp).put("hp", maxHp).put("look", look.toJson())
 
     /** returns (code, playerId, room) */
-    suspend fun createRoom(name: String, race: String, cls: String, bg: String, stats: Map<String, Int>, maxHp: Int): Triple<String, String, Room> {
-        val r = request("POST", "/api/rooms", JSONObject().put("player", playerJson(name, race, cls, bg, stats, maxHp)))
+    suspend fun createRoom(name: String, race: String, cls: String, bg: String, stats: Map<String, Int>, maxHp: Int, look: Look): Triple<String, String, Room> {
+        val r = request("POST", "/api/rooms", JSONObject().put("player", playerJson(name, race, cls, bg, stats, maxHp, look)))
         return Triple(r.getString("code"), r.getString("playerId"), parseRoom(r.getJSONObject("room")))
     }
 
-    suspend fun joinRoom(code: String, name: String, race: String, cls: String, bg: String, stats: Map<String, Int>, maxHp: Int): Triple<String, String, Room> {
-        val r = request("POST", "/api/rooms/$code/join", JSONObject().put("player", playerJson(name, race, cls, bg, stats, maxHp)))
+    suspend fun joinRoom(code: String, name: String, race: String, cls: String, bg: String, stats: Map<String, Int>, maxHp: Int, look: Look): Triple<String, String, Room> {
+        val r = request("POST", "/api/rooms/$code/join", JSONObject().put("player", playerJson(name, race, cls, bg, stats, maxHp, look)))
         return Triple(r.getString("code"), r.getString("playerId"), parseRoom(r.getJSONObject("room")))
+    }
+
+    suspend fun move(code: String, playerId: String, x: Double, z: Double): Board? {
+        val r = request("POST", "/api/rooms/$code/move", JSONObject().put("playerId", playerId).put("x", x).put("z", z))
+        return parseBoard(r.optJSONObject("board"))
+    }
+
+    suspend fun setLook(code: String, playerId: String, look: Look): Room {
+        val r = request("POST", "/api/rooms/$code/look", JSONObject().put("playerId", playerId).put("look", look.toJson()))
+        return parseRoom(r.getJSONObject("room"))
     }
 
     suspend fun getRoom(code: String, since: Int = 0): Room = parseRoom(request("GET", "/api/rooms/$code?since=$since"))

@@ -12,6 +12,12 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -72,6 +78,8 @@ class Session(ctx: Context) {
     var token: String? get() = p.getString("token", null); set(v) { p.edit().putString("token", v).apply() }
     var userName: String get() = p.getString("userName", "") ?: ""; set(v) { p.edit().putString("userName", v).apply() }
     var userSub: String? get() = p.getString("userSub", null); set(v) { p.edit().putString("userSub", v).apply() }
+    var look: String? get() = p.getString("look", null); set(v) { p.edit().putString("look", v).apply() }
+    var control: String get() = p.getString("control", "tap") ?: "tap"; set(v) { p.edit().putString("control", v).apply() }
     fun clear() { p.edit().remove("code").remove("pid").apply() }
     fun signOut() { p.edit().remove("token").remove("userName").remove("userSub").remove("code").remove("pid").apply() }
 }
@@ -101,7 +109,7 @@ fun App(session: Session) {
         when {
             token == null -> LoginScreen(session) { token = it }
             code != null && playerId != null ->
-                GameScreen(code!!, playerId!!, mySub = session.userSub, onLeave = { session.clear(); code = null; playerId = null })
+                GameScreen(code!!, playerId!!, mySub = session.userSub, session = session, onLeave = { session.clear(); code = null; playerId = null })
             else -> LobbyScreen(session,
                 onEnter = { c, p -> session.code = c; session.playerId = p; code = c; playerId = p },
                 onSignOut = { session.signOut(); Api.authToken = null; token = null })
@@ -159,7 +167,18 @@ fun LoginScreen(session: Session, onLoggedIn: (String) -> Unit) {
     }
 }
 
-// ---------------------------------------------------------------- lobby
+// ---------------------------------------------------------------- lobby + character wizard
+val HAIRS = listOf("short" to "สั้น", "long" to "ยาว", "tied" to "มัด", "shaved" to "โกน", "hood" to "ฮู้ด")
+val FACES = listOf("plain" to "เรียบ", "scar" to "แผลเป็น", "beard" to "เครา", "mustache" to "หนวด", "tattoo" to "รอยสัก")
+val CLOAKS = listOf("none" to "ไม่ใส่", "cloak" to "เสื้อคลุม", "cape" to "ผ้าคลุมไหล่")
+val HATS = listOf("none" to "ไม่ใส่", "helm" to "หมวกเกราะ", "hood" to "ฮู้ด", "crown" to "มงกุฎ", "bandana" to "ผ้าโพก")
+val WEAPONS = listOf("none" to "ไม่มี", "sword" to "ดาบ", "staff" to "ไม้เท้า", "bow" to "ธนู", "dagger" to "มีดสั้น", "axe" to "ขวาน", "shield" to "โล่")
+val HAIR_COLORS = listOf("#2A2420", "#4A3A2E", "#6B6258", "#8C7A5E", "#7A2E2A", "#3A3A44")
+val SKIN_COLORS = listOf("#B9A48E", "#9E8468", "#7A5F48", "#5A4536", "#8A8C90", "#7C6F86")
+val TUNIC_COLORS = listOf("#6B6258", "#4B5A55", "#5A3F48", "#4F4A2F", "#3A3A44", "#5A4A3A", "#B8862F", "#5E8F8A")
+val CLOAK_COLORS = listOf("#3E3A47", "#2E3A36", "#4A2E2E", "#3A3128", "#26262E", "#2E3542")
+val CLASS_DEFAULT_WEAPON = mapOf("Fighter" to "sword", "Wizard" to "staff", "Rogue" to "dagger", "Cleric" to "shield", "Ranger" to "bow", "Bard" to "none", "Paladin" to "sword")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: () -> Unit) {
@@ -170,15 +189,21 @@ fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: 
         catch (e: ApiException) { if (e.message?.contains("เข้าสู่ระบบ") == true) onSignOut() }
         catch (e: Exception) { }
     }
+    var step by remember { mutableStateOf(1) }
     var race by remember { mutableStateOf(RACES[0]) }
     var cls by remember { mutableStateOf(CLASSES[0]) }
     var bg by remember { mutableStateOf("") }
     var stats by remember { mutableStateOf(ABIL.associateWith { roll4d6() }) }
+    var look by remember { mutableStateOf(Look.fromString(session.look)) }
+    var lookVersion by remember { mutableStateOf(0) }
     var mode by remember { mutableStateOf("host") }
     var joinCode by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val preview = remember { BoardController() }
+    fun updateLook(f: (Look) -> Unit) { val l = look.copy(); f(l); look = l; lookVersion++; session.look = l.toJson().toString() }
+    LaunchedEffect(lookVersion, race) { look.race = race.lowercase(); preview.setPreview(look.toJson().toString()) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -202,70 +227,128 @@ fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: 
                 }
             }
         }
-        Text("Claude เป็นผู้เล่าเรื่อง คุมศัตรู และตัดสินผลของทุกการกระทำ พิมพ์สิ่งที่ตัวละครอยากทำ ทอยเต๋าเมื่อ DM ขอ",
-            color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
 
-        Panel {
-            Label("Character sheet")
-            OutlinedTextField(name, { name = it.take(40) }, label = { Text("ชื่อตัวละคร") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Dropdown("เผ่าพันธุ์", race, RACES, Modifier.weight(1f)) { race = it }
-                Dropdown("อาชีพ", cls, CLASSES, Modifier.weight(1f)) { cls = it }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Label("Ability scores · 4d6 drop lowest", Modifier.weight(1f))
-                TextButton(onClick = { stats = ABIL.associateWith { roll4d6() } }) {
-                    Icon(Icons.Default.Refresh, null, tint = Amber, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("ทอยใหม่", color = Amber)
+        // step indicator
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("เผ่า·อาชีพ", "ค่าสเตตัส", "รูปลักษณ์").forEachIndexed { i, l ->
+                val n = i + 1; val on = n == step
+                Row(Modifier.weight(1f).clip(RoundedCornerShape(6.dp)).background(if (on) Amber.copy(alpha = .14f) else Surface).border(1.dp, if (on) Amber else Line, RoundedCornerShape(6.dp))
+                    .clickable { step = n }.padding(8.dp, 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Text("$n", color = if (on) Amber else Muted, fontFamily = FontFamily.Monospace, fontSize = 12.sp); Spacer(Modifier.width(6.dp))
+                    Text(l, color = if (on) Amber else Muted, fontSize = 12.sp, maxLines = 1)
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ABIL.forEach { a -> StatBox(a, stats[a] ?: 10, Modifier.weight(1f)) }
-            }
-            val hp = (CLASS_HP[cls] ?: 8) + Math.floorDiv((stats["CON"] ?: 10) - 10, 2)
-            Text("HP เริ่มต้น $hp  ·  $cls ${CLASS_HP[cls]} + CON ${mod(stats["CON"] ?: 10)}", color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            OutlinedTextField(bg, { bg = it.take(120) }, label = { Text("ปูมหลังสั้น ๆ (ไม่บังคับ)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
         }
 
-        Panel {
-            Label("โต๊ะ")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ModeButton("เปิดห้องใหม่", mode == "host", Modifier.weight(1f)) { mode = "host" }
-                ModeButton("เข้าห้องเพื่อน", mode == "join", Modifier.weight(1f)) { mode = "join" }
+        // live pawn preview (shared across steps)
+        Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, Line, RoundedCornerShape(10.dp))) {
+            BoardView(Modifier.fillMaxSize(), preview)
+            Text("หมุนดูได้", color = Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
+        }
+
+        when (step) {
+            1 -> Panel {
+                Label("เผ่าพันธุ์")
+                ChipRow(RACES.map { it to it }, race) { race = it }
+                Label("อาชีพ")
+                ChipRow(CLASSES.map { it to it }, cls) { cls = it; updateLook { l -> l.weapon = CLASS_DEFAULT_WEAPON[it] ?: l.weapon } }
+                Text("HP เริ่มต้น ${CLASS_HP[cls]} + CON · ความเร็ว 30 ft", color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                Button(onClick = { step = 2 }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(8.dp)) { Text("ถัดไป", fontWeight = FontWeight.Bold) }
             }
-            if (mode == "join") {
-                OutlinedTextField(joinCode, { joinCode = it.uppercase().filter { c -> c.isLetter() }.take(5) }, label = { Text("รหัสห้อง 5 ตัว") },
-                    singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors(),
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters))
-            } else {
-                Text("ระบบจะสร้างรหัสห้องให้ ส่งรหัสให้เพื่อนเพื่อมานั่งโต๊ะเดียวกัน หรือเล่นคนเดียวก็ได้", color = Muted, fontSize = 13.sp)
-            }
-            error?.let { Text(it, color = Blood, fontSize = 13.sp) }
-            Button(
-                onClick = {
-                    if (name.isBlank()) { error = "ตั้งชื่อตัวละครก่อน"; return@Button }
-                    if (mode == "join" && joinCode.length < 5) { error = "ใส่รหัสห้องให้ครบ"; return@Button }
-                    error = null; busy = true
-                    scope.launch {
-                        try {
-                            session.name = name
-                            val hp = (CLASS_HP[cls] ?: 8) + Math.floorDiv((stats["CON"] ?: 10) - 10, 2)
-                            val (c, p, _) = if (mode == "join") Api.joinRoom(joinCode, name, race, cls, bg, stats, hp)
-                                            else Api.createRoom(name, race, cls, bg, stats, hp)
-                            onEnter(c, p)
-                        } catch (e: Exception) { error = e.message ?: "เชื่อมต่อไม่ได้" } finally { busy = false }
+            2 -> Panel {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Label("Ability scores · 4d6 drop lowest", Modifier.weight(1f))
+                    TextButton(onClick = { stats = ABIL.associateWith { roll4d6() } }) {
+                        Icon(Icons.Default.Refresh, null, tint = Amber, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("ทอยใหม่", color = Amber)
                     }
-                },
-                enabled = !busy, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(8.dp),
-            ) { Text(if (busy) "กำลังเชื่อมต่อ…" else "นั่งลงที่โต๊ะ", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { ABIL.forEach { a -> StatBox(a, stats[a] ?: 10, Modifier.weight(1f)) } }
+                val hp = (CLASS_HP[cls] ?: 8) + Math.floorDiv((stats["CON"] ?: 10) - 10, 2)
+                Text("HP เริ่มต้น $hp  ·  $cls ${CLASS_HP[cls]} + CON ${mod(stats["CON"] ?: 10)}", color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { step = 1 }, modifier = Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Muted), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) { Text("ย้อนกลับ") }
+                    Button(onClick = { step = 3 }, modifier = Modifier.weight(2f).height(48.dp), shape = RoundedCornerShape(8.dp)) { Text("ถัดไป", fontWeight = FontWeight.Bold) }
+                }
+            }
+            else -> Panel {
+                Label("ทรงผม"); ChipRow(HAIRS, look.hair) { v -> updateLook { it.hair = v; if (v == "hood") it.cloak = "cloak" } }
+                Label("สีผม"); Swatches(HAIR_COLORS, look.hairColor) { v -> updateLook { it.hairColor = v } }
+                Label("ใบหน้า"); ChipRow(FACES, look.face) { v -> updateLook { it.face = v } }
+                Label("สีผิว"); Swatches(SKIN_COLORS, look.skin) { v -> updateLook { it.skin = v } }
+                Label("เสื้อ"); Swatches(TUNIC_COLORS, look.tunic) { v -> updateLook { it.tunic = v } }
+                Label("เสื้อคลุม"); ChipRow(CLOAKS, look.cloak) { v -> updateLook { it.cloak = v } }
+                if (look.cloak != "none") Swatches(CLOAK_COLORS, look.cloakColor) { v -> updateLook { it.cloakColor = v } }
+                Label("หมวก"); ChipRow(HATS, look.hat) { v -> updateLook { it.hat = v } }
+                Label("อาวุธ"); ChipRow(WEAPONS, look.weapon) { v -> updateLook { it.weapon = v } }
+                OutlinedTextField(name, { name = it.take(40) }, label = { Text("ชื่อตัวละคร") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
+                OutlinedTextField(bg, { bg = it.take(120) }, label = { Text("ปูมหลังสั้น ๆ (ไม่บังคับ)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors())
+
+                HorizontalDivider(color = Line)
+                Label("โต๊ะ")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ModeButton("เปิดห้องใหม่", mode == "host", Modifier.weight(1f)) { mode = "host" }
+                    ModeButton("เข้าห้องเพื่อน", mode == "join", Modifier.weight(1f)) { mode = "join" }
+                }
+                if (mode == "join") {
+                    OutlinedTextField(joinCode, { joinCode = it.uppercase().filter { c -> c.isLetter() }.take(5) }, label = { Text("รหัสห้อง 5 ตัว") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors(),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters))
+                }
+                error?.let { Text(it, color = Blood, fontSize = 13.sp) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { step = 2 }, modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Muted), border = androidx.compose.foundation.BorderStroke(1.dp, Line)) { Text("ย้อนกลับ") }
+                    Button(
+                        onClick = {
+                            if (name.isBlank()) { error = "ตั้งชื่อตัวละครก่อน"; return@Button }
+                            if (mode == "join" && joinCode.length < 5) { error = "ใส่รหัสห้องให้ครบ"; return@Button }
+                            error = null; busy = true
+                            scope.launch {
+                                try {
+                                    session.name = name
+                                    val hp = (CLASS_HP[cls] ?: 8) + Math.floorDiv((stats["CON"] ?: 10) - 10, 2)
+                                    look.race = race.lowercase()
+                                    val (c, p, _) = if (mode == "join") Api.joinRoom(joinCode, name, race, cls, bg, stats, hp, look)
+                                                    else Api.createRoom(name, race, cls, bg, stats, hp, look)
+                                    onEnter(c, p)
+                                } catch (e: Exception) { error = e.message ?: "เชื่อมต่อไม่ได้" } finally { busy = false }
+                            }
+                        },
+                        enabled = !busy, modifier = Modifier.weight(2f).height(50.dp), shape = RoundedCornerShape(8.dp),
+                    ) { Text(if (busy) "กำลังเชื่อมต่อ…" else "นั่งลงที่โต๊ะ", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+                }
+            }
         }
         Spacer(Modifier.height(20.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable fun ChipRow(options: List<Pair<String, String>>, value: String, onPick: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        options.forEach { (v, l) ->
+            val on = v == value
+            Box(Modifier.clip(RoundedCornerShape(6.dp)).background(if (on) Amber.copy(alpha = .14f) else Raised).border(1.dp, if (on) Amber else Line, RoundedCornerShape(6.dp))
+                .clickable { onPick(v) }.defaultMinSize(minHeight = 40.dp).padding(12.dp, 8.dp), contentAlignment = Alignment.Center) {
+                Text(l, color = if (on) Amber else Ink, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable fun Swatches(colors: List<String>, value: String, onPick: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        colors.forEach { c ->
+            val on = c.equals(value, ignoreCase = true)
+            Box(Modifier.size(36.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(c))).border(if (on) 2.dp else 1.dp, if (on) Ink else Line, CircleShape).clickable { onPick(c) })
+        }
     }
 }
 
 // ---------------------------------------------------------------- game
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameScreen(code: String, playerId: String, mySub: String?, onLeave: () -> Unit) {
+fun GameScreen(code: String, playerId: String, mySub: String?, session: Session, onLeave: () -> Unit) {
     var confirmClose by remember { mutableStateOf(false) }
     var room by remember { mutableStateOf<Room?>(null) }
     var log by remember { mutableStateOf(listOf<Entry>()) }
@@ -275,9 +358,13 @@ fun GameScreen(code: String, playerId: String, mySub: String?, onLeave: () -> Un
     var lastRoll by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
-    var showParty by remember { mutableStateOf(false) }
+    var tab by remember { mutableStateOf("board") }
+    var control by remember { mutableStateOf(session.control) }
+    var showSettings by remember { mutableStateOf(false) }
+    var tappedToken by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val board = remember { BoardController() }
 
     fun apply(r: Room) {
         room = r
@@ -289,101 +376,140 @@ fun GameScreen(code: String, playerId: String, mySub: String?, onLeave: () -> Un
         seq = maxOf(seq, r.seq)
     }
 
-    // initial load + polling
     LaunchedEffect(code) {
         while (true) {
             try { apply(Api.getRoom(code, seq)); error = null }
             catch (e: ApiException) { error = e.message; if (e.message?.contains("ไม่พบห้อง") == true) { delay(4000); onLeave(); return@LaunchedEffect } }
             catch (e: Exception) { error = "ออฟไลน์ — กำลังลองใหม่" }
-            delay(3000)
+            delay(if (tab == "board") 2000 else 3000)
         }
     }
-    LaunchedEffect(log.size) { if (log.isNotEmpty()) listState.animateScrollToItem(log.size - 1) }
+    LaunchedEffect(log.size) { if (log.isNotEmpty() && tab == "story") listState.animateScrollToItem(log.size - 1) }
+    BoardSync(board, playerId, room?.board, control)
 
     val isOwner = mySub != null && room?.ownerSub == mySub
     val waiting = (room?.pending ?: 0) > 0
+    val b = room?.board
+    val inCombat = b?.mode == "combat"
+    val myTurn = inCombat && b?.currentId == playerId
 
-    Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
-        // header
-        Row(Modifier.fillMaxWidth().padding(16.dp, 12.dp, 8.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("SCENE · ห้อง $code", color = Muted, fontSize = 11.sp, letterSpacing = 2.sp, fontFamily = FontFamily.Monospace)
-                Text(room?.scene ?: "…", color = Amber, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-            }
-            IconButton(onClick = { showParty = true }) { Icon(Icons.Default.Groups, "Party", tint = Ink) }
-            IconButton(onClick = { scope.launch { Api.leave(code, playerId); onLeave() } }) { Icon(Icons.Default.Logout, "ออก", tint = Muted) }
+    fun send() {
+        val t = input.trim(); if (t.isEmpty() || sending) return
+        sending = true
+        scope.launch {
+            try { apply(Api.act(code, playerId, t, pendingRolls)); input = ""; pendingRolls = emptyList(); lastRoll = null }
+            catch (e: Exception) { error = e.message } finally { sending = false }
         }
-        HorizontalDivider(color = AmberDim, thickness = 1.dp)
-        error?.let { Text(it, color = Blood, fontSize = 12.sp, modifier = Modifier.padding(16.dp, 6.dp)) }
+    }
+    fun roll(d: Int) {
+        scope.launch {
+            try {
+                val (v, r) = Api.roll(code, playerId, d)
+                lastRoll = "d$d → $v" + if (d == 20 && v == 20) " ✦" else if (d == 20 && v == 1) " ✗" else ""
+                pendingRolls = pendingRolls + "d$d=$v"; apply(r)
+            } catch (e: Exception) { error = e.message }
+        }
+    }
 
-        // log
-        LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp, 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(log, key = { it.seq }) { e ->
-                LogEntry(e, isLast = e.seq == log.lastOrNull()?.seq) { choice -> input = choice }
-            }
-            if (waiting) item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    Box(Modifier.size(8.dp, 12.dp).background(Amber, RoundedCornerShape(50)))
-                    Spacer(Modifier.width(10.dp))
-                    Text("ส่งถึง DM แล้ว รอผู้เล่าเรื่อง…", color = Muted, fontSize = 13.sp)
+    Box(Modifier.fillMaxSize()) {
+        // 3D board always alive underneath
+        BoardView(Modifier.fillMaxSize(), board,
+            onMove = { x, z -> scope.launch { try { Api.move(code, playerId, x, z) } catch (e: ApiException) { error = e.message } catch (e: Exception) { } } },
+            onTapToken = { id -> tappedToken = id })
+
+        Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            // header (transparent over board)
+            Row(Modifier.fillMaxWidth().background(if (tab == "board") Color.Transparent else Ground).padding(16.dp, 12.dp, 8.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("SCENE · ห้อง $code" + if (inCombat) " · ต่อสู้ รอบ ${b?.round}" else "", color = if (inCombat) Blood else Muted, fontSize = 11.sp, letterSpacing = 2.sp, fontFamily = FontFamily.Monospace)
+                    Text(room?.scene ?: "…", color = Amber, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                 }
+                IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Settings, "ตั้งค่า", tint = Muted) }
+                IconButton(onClick = { scope.launch { Api.leave(code, playerId); onLeave() } }) { Icon(Icons.Default.Logout, "ออก", tint = Muted) }
             }
-        }
+            error?.let { Text(it, color = Blood, fontSize = 12.sp, modifier = Modifier.background(Ground.copy(alpha = .8f)).padding(16.dp, 6.dp)) }
 
-        // action bar
-        Column(Modifier.fillMaxWidth().background(Surface).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Casino, null, tint = Muted, modifier = Modifier.size(18.dp))
-                listOf(4, 6, 8, 10, 12, 20).forEach { d ->
-                    DieButton("d$d") {
-                        scope.launch {
-                            try {
-                                val (v, r) = Api.roll(code, playerId, d)
-                                lastRoll = "d$d → $v" + if (d == 20 && v == 20) " ✦" else if (d == 20 && v == 1) " ✗" else ""
-                                pendingRolls = pendingRolls + "d$d=$v"; apply(r)
-                            } catch (e: Exception) { error = e.message }
+            when (tab) {
+                "board" -> {
+                    Spacer(Modifier.weight(1f))
+                    if (inCombat) Row(Modifier.padding(16.dp, 4.dp)) {
+                        Text(if (myTurn) "▶ เทิร์นของคุณ · เดินได้ 30 ft" else "เทิร์นของ ${b?.currentName ?: "…"}", color = if (myTurn) Amber else Ink, fontSize = 13.sp,
+                            modifier = Modifier.background(Surface.copy(alpha = .92f), RoundedCornerShape(8.dp)).border(1.dp, if (myTurn) Amber else Line, RoundedCornerShape(8.dp)).padding(10.dp, 6.dp))
+                    }
+                    if (waiting) Text("ส่งถึง DM แล้ว รอผู้เล่าเรื่อง…", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(16.dp, 2.dp).background(Surface.copy(alpha = .85f), RoundedCornerShape(6.dp)).padding(8.dp, 4.dp))
+                    Column(Modifier.fillMaxWidth().background(Surface.copy(alpha = .94f)).padding(12.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        log.lastOrNull { it.t == "dm" }?.let { e ->
+                            Text(e.text, color = Ink, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 3, modifier = Modifier.clickable { tab = "story" })
+                        }
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(input, { input = it.take(600) }, placeholder = { Text("ทำอะไร…", color = Muted) }, modifier = Modifier.weight(1f), maxLines = 2, colors = fieldColors())
+                            DieButton("d20") { roll(20) }
+                            FilledIconButton(onClick = { send() }, enabled = !sending, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(8.dp)) { Icon(Icons.Default.Send, "ส่งให้ DM") }
+                        }
+                        lastRoll?.let { Text(it, color = Teal, fontFamily = FontFamily.Monospace, fontSize = 12.sp) }
+                    }
+                }
+                "story" -> Column(Modifier.weight(1f).fillMaxWidth().background(Ground)) {
+                    LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp, 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(log, key = { it.seq }) { e -> LogEntry(e, isLast = e.seq == log.lastOrNull()?.seq) { choice -> input = choice } }
+                        if (waiting) item {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                                Box(Modifier.size(8.dp, 12.dp).background(Amber, RoundedCornerShape(50))); Spacer(Modifier.width(10.dp))
+                                Text("ส่งถึง DM แล้ว รอผู้เล่าเรื่อง…", color = Muted, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                    Column(Modifier.fillMaxWidth().background(Surface).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Casino, null, tint = Muted, modifier = Modifier.size(18.dp))
+                            listOf(4, 6, 8, 10, 12, 20).forEach { d -> DieButton("d$d") { roll(d) } }
+                            Spacer(Modifier.weight(1f))
+                            lastRoll?.let { Text(it, color = Teal, fontFamily = FontFamily.Monospace, fontSize = 13.sp) }
+                        }
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(input, { input = it.take(600) }, placeholder = { Text("ตัวละครของคุณทำอะไร…", color = Muted) }, modifier = Modifier.weight(1f), maxLines = 4, colors = fieldColors())
+                            FilledIconButton(onClick = { send() }, enabled = !sending, modifier = Modifier.size(52.dp), shape = RoundedCornerShape(8.dp)) { Icon(Icons.Default.Send, "ส่งให้ DM") }
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                lastRoll?.let { Text(it, color = Teal, fontFamily = FontFamily.Monospace, fontSize = 13.sp) }
+                else -> Column(Modifier.weight(1f).fillMaxWidth().background(Ground).verticalScroll(rememberScrollState()).padding(16.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Label("Party · ${room?.players?.size ?: 0}")
+                    room?.players?.forEach { p ->
+                        PartyCard(p, mine = p.id == playerId) { newHp -> scope.launch { try { apply(Api.setHp(code, playerId, newHp)) } catch (e: Exception) { error = e.message } } }
+                    }
+                    if (isOwner) OutlinedButton(onClick = { confirmClose = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Blood), border = androidx.compose.foundation.BorderStroke(1.dp, Blood)) {
+                        Icon(Icons.Default.DeleteForever, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("ปิดโต๊ะ (ลบห้องนี้ถาวร)")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
             }
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(input, { input = it.take(600) }, placeholder = { Text("ตัวละครของคุณทำอะไร…", color = Muted) },
-                    modifier = Modifier.weight(1f), maxLines = 4, colors = fieldColors())
-                FilledIconButton(
-                    onClick = {
-                        val t = input.trim(); if (t.isEmpty() || sending) return@FilledIconButton
-                        sending = true
-                        scope.launch {
-                            try { apply(Api.act(code, playerId, t, pendingRolls)); input = ""; pendingRolls = emptyList(); lastRoll = null }
-                            catch (e: Exception) { error = e.message } finally { sending = false }
-                        }
-                    },
-                    enabled = !sending, modifier = Modifier.size(52.dp), shape = RoundedCornerShape(8.dp),
-                ) { Icon(Icons.Default.Send, "ส่งให้ DM") }
+
+            // bottom tabs
+            Row(Modifier.fillMaxWidth().background(Surface).border(1.dp, Line).padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                listOf("board" to "กระดาน", "story" to "เรื่องราว", "party" to "ปาร์ตี้").forEach { (k, l) ->
+                    TextButton(onClick = { tab = k }) { Text(l, color = if (tab == k) Amber else Muted, fontFamily = FontFamily.Monospace, fontSize = 12.sp) }
+                }
             }
         }
     }
 
-    if (showParty && room != null) {
-        ModalBottomSheet(onDismissRequest = { showParty = false }, containerColor = Surface) {
-            Column(Modifier.padding(16.dp, 0.dp, 16.dp, 28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Label("Party · ${room!!.players.size}")
-                room!!.players.forEach { p ->
-                    PartyCard(p, mine = p.id == playerId) { newHp ->
-                        scope.launch { try { apply(Api.setHp(code, playerId, newHp)) } catch (e: Exception) { error = e.message } }
-                    }
-                }
-                if (isOwner) {
-                    Spacer(Modifier.height(4.dp))
-                    OutlinedButton(onClick = { confirmClose = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Blood), border = androidx.compose.foundation.BorderStroke(1.dp, Blood)) {
-                        Icon(Icons.Default.DeleteForever, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("ปิดโต๊ะ (ลบห้องนี้ถาวร)")
-                    }
-                }
-            }
-        }
+    tappedToken?.let { id ->
+        val name = room?.board?.json?.let { try { org.json.JSONObject(it).optJSONObject("tokens")?.optJSONObject(id)?.optString("name") } catch (e: Exception) { null } } ?: id
+        AlertDialog(onDismissRequest = { tappedToken = null }, containerColor = Surface, titleContentColor = Ink, textContentColor = Muted,
+            title = { Text(name) }, text = { Text("อยากทำอะไรกับ $name ?") },
+            confirmButton = { TextButton(onClick = { input = "พูดคุยกับ$name: "; tappedToken = null; tab = "story" }) { Text("พูดคุย", color = Amber) } },
+            dismissButton = { TextButton(onClick = { input = "โจมตี$name"; tappedToken = null; send() }) { Text("โจมตี", color = Blood) } })
+    }
+    if (showSettings) {
+        AlertDialog(onDismissRequest = { showSettings = false }, containerColor = Surface, titleContentColor = Ink, textContentColor = Muted,
+            title = { Text("ตั้งค่า") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Label("วิธีเดินบนกระดาน")
+                ChipRow(listOf("tap" to "แตะพื้นเพื่อเดิน", "joystick" to "จอยสติ๊กวงกลม"), control) { control = it; session.control = it }
+                Text("จอยสติ๊กจะโผล่มุมล่างซ้ายของกระดาน ลากเพื่อเดินตามทิศกล้อง", color = Muted, fontSize = 12.sp)
+            } },
+            confirmButton = { TextButton(onClick = { showSettings = false }) { Text("ปิด", color = Amber) } })
     }
     if (confirmClose) {
         AlertDialog(
@@ -391,7 +517,7 @@ fun GameScreen(code: String, playerId: String, mySub: String?, onLeave: () -> Un
             containerColor = Surface, titleContentColor = Ink, textContentColor = Muted,
             title = { Text("ปิดโต๊ะ $code ?") },
             text = { Text("เรื่องราวและตัวละครในห้องนี้จะถูกลบทั้งหมด ผู้เล่นคนอื่นจะถูกส่งกลับหน้าแรก") },
-            confirmButton = { TextButton(onClick = { confirmClose = false; scope.launch { try { Api.closeRoom(code); showParty = false; onLeave() } catch (e: Exception) { error = e.message } } }) { Text("ปิดโต๊ะ", color = Blood) } },
+            confirmButton = { TextButton(onClick = { confirmClose = false; scope.launch { try { Api.closeRoom(code); onLeave() } catch (e: Exception) { error = e.message } } }) { Text("ปิดโต๊ะ", color = Blood) } },
             dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("ยกเลิก", color = Ink) } },
         )
     }
