@@ -103,6 +103,9 @@
   function wbush(g, x, z, r, s){ wring(g,x,0.05,z,r,7,s||FAINT); wring(g,x,r*0.6,z,r*0.7,6,s||FAINT); seg(g,V(x-r,0.05,z),V(x,r*1.1,z),s||FAINT); seg(g,V(x+r,0.05,z),V(x,r*1.1,z),s||FAINT); }
   function wrock(g, x, z, w, h, d, s, seed){ const r = rnd(seed||1); const st = s||DIM; const b = [V(x-w/2,0,z-d/2),V(x+w/2*(0.7+r()*0.5),0,z-d/2*(0.6+r()*0.6)),V(x+w/2,0,z+d/2),V(x-w/2*(0.6+r()*0.6),0,z+d/2*(0.7+r()*0.5))]; const t = b.map((p,i) => V((p.x+x)/2 + (r()-0.5)*0.2, h*(0.7+r()*0.4), (p.z+z)/2)); polyline(g,b,st,true); polyline(g,t,st,true); for (let i=0;i<4;i++) seg(g,b[i],t[i],st); }
   function fill(g, pts, c, a){ g.fills.push({ pts, c, a }); }
+  const TUNE = window.TUNE = Object.assign({ hairOut: 1.24, hairIn: 0.82, hairA: 1, sheen: 0.42, hairLine: 1.25, tailA: 0.9 }, window.TUNE || {});
+  function mixDark(rgb, k){ return String(rgb).split(",").map(v => Math.round(Number(v)*k)).join(","); }
+  function mixLite(rgb, k){ return String(rgb).split(",").map(v => Math.round(Number(v) + (255-Number(v))*k)).join(","); }
   function flame(g, x, y, z, r, h){ g.flames.push({ x, y, z, r, h }); }
   function floorSlab(g, Wd, D, style){ const s = style||WHITE; const y = 0;
     fill(g, [V(-Wd/2,y,-D/2),V(Wd/2,y,-D/2),V(Wd/2,y,D/2),V(-Wd/2,y,D/2)], "236,233,224", 0.035);
@@ -280,7 +283,8 @@
 
   // ---------- pawns ----------
   const pawns = new Map(); // id -> { t, pos:{x,z}, target:{x,z}, rot, isMe, hit:{x,y,r,top} }
-  function drawPawn(g, p, t, now){
+  function drawPawn(g, p, t, now, ovl){
+    const og = ovl || g;
     const tk = p.t, look = tk.look || {}, isMe = p.isMe, enemy = tk.kind === "enemy", npc = tk.kind === "npc";
     const h = hashStr(tk.id || tk.name || "x");
     const tunicC = hexRgb(look.tunic || (enemy ? "#5A2A2A" : npc ? ["#6B6258","#4B5A55","#5A3F48","#4F4A2F","#3A3A44"][(h>>5)%5] : "#6B6258"));
@@ -339,42 +343,46 @@
     if (race==="tiefling") { polyline(g, [P(-0.12,hy1,0),P(-0.16,hy1+0.14,-0.02),P(-0.1,hy1+0.26,-0.06)], main); polyline(g, [P(0.12,hy1,0),P(0.16,hy1+0.14,-0.02),P(0.1,hy1+0.26,-0.06)], main); }
     if (race==="dragonborn") { polyline(g, [P(-0.12,1.1,hz),P(-0.1,1.1,hz+0.22),P(0.1,1.1,hz+0.22),P(0.12,1.1,hz)], main); polyline(g, [P(-0.1,1.22,hz),P(-0.08,1.2,hz+0.2),P(0.08,1.2,hz+0.2),P(0.1,1.22,hz)], soft); }
     if (race==="orc" || race==="goblin") { seg(g, P(-0.07,1.1,hz+0.01), P(-0.07,1.17,hz+0.03), main); seg(g, P(0.07,1.1,hz+0.01), P(0.07,1.17,hz+0.03), main); if (race==="goblin") { seg(g, P(-hx,1.25,0), P(-hx-0.18,1.22,-0.04), main); seg(g, P(hx,1.25,0), P(hx+0.18,1.22,-0.04), main); } }
-    // ---- hair: a real mass with outline + fill, drawn around the head ball ----
+    // ---- hair: the only solid part — opaque mass with a sheen, drawn over everything ----
     const rawHair = look.hair || "short", hat0 = look.hat || "none";
     const HALIAS = { ponytail:"tied", braid:"tied", bun:"tied", tail:"tied", curly:"short", mohawk:"short", spiky:"short", messy:"short", bald:"shaved", none:"shaved" };
     const hs = HALIAS[rawHair] || rawHair;
     const hat = (rawHair === "hood") ? "hood" : hat0;
-    const hairS = styleOf(main.c, 1.3, 1), hairSoft = styleOf(main.c, 0.9, 0.6);
+    const hairS = styleOf(mixLite(hairC, 0.55), TUNE.hairLine, 1), hairSoft = styleOf(mixLite(hairC, 0.3), 0.9, 0.75);
     // camera-space point around the head: u = sideways, v = up, d = toward camera (units of head radius)
     const HP = (u, v, d) => add(HCen, add(add(mul(cR, u*HR), mul(cam.u, v*HR)), mul(cam.f, -(d||0)*HR)));
     const facingCam = -dot(fwdAx, cam.f);
     const domed = hs !== "shaved" && hat !== "hood" && hat !== "helm";
+    const hairBase = mixDark(hairC, 0.85), hairHi = mixLite(hairC, 0.35);
     if (domed) {
-      const outer = arcPts(HCen, cR, cam.u, HR*1.2, 14, 6, 174), inner = arcPts(HCen, cR, cam.u, HR*0.9, 14, 174, 6);
-      fill(g, outer.concat(inner), hairC, 0.8); polyline(g, outer, hairS);
-      seg(g, outer[0], inner[inner.length-1], hairSoft); seg(g, outer[outer.length-1], inner[0], hairSoft);
-      // fringe (front) or nape mass (when the pawn faces away)
-      if (facingCam > -0.2 && hs !== "tied") { const fr = []; for (let i=0;i<=7;i++) fr.push(HP(-0.95 + 1.9*i/7, (i%2 ? 0.3 : 0.62), 0.95)); polyline(g, fr, hairS); }
-      else { const nb = [HP(-0.95,0.35,-0.5), HP(-0.85,-0.95,-0.5), HP(0.85,-0.95,-0.5), HP(0.95,0.35,-0.5)]; fill(g, nb, hairC, 0.45); polyline(g, nb, hairSoft); }
-      for (const sx of [-1, 1]) seg(g, HP(sx*1.1, 0.15, 0.35), HP(sx*1.0, -0.35, 0.35), hairSoft); // sideburns
+      const outer = arcPts(HCen, cR, cam.u, HR*TUNE.hairOut, 16, 4, 176), inner = arcPts(HCen, cR, cam.u, HR*TUNE.hairIn, 16, 176, 4);
+      fill(og, outer.concat(inner), hairBase, TUNE.hairA);                                     // solid hair
+      fill(og, arcPts(HCen, cR, cam.u, HR*(TUNE.hairOut-0.03), 8, 96, 158).concat(arcPts(HCen, cR, cam.u, HR*(TUNE.hairIn+0.16), 8, 158, 96)), hairHi, TUNE.sheen); // sheen = 3D feel
+      polyline(og, outer, hairS);
+      seg(og, outer[0], inner[inner.length-1], hairS); seg(og, outer[outer.length-1], inner[0], hairS);
+      polyline(og, inner, hairSoft);
+      if (facingCam > -0.2 && hs !== "tied") { const fr = []; for (let i=0;i<=7;i++) fr.push(HP(-0.9 + 1.8*i/7, (i%2 ? 0.26 : 0.6), 0.95)); polyline(og, fr, hairS); }
+      if (facingCam <= -0.2) { const nb = [HP(-0.95,0.35,-0.5), HP(-0.85,-0.95,-0.5), HP(0.85,-0.95,-0.5), HP(0.95,0.35,-0.5)]; fill(og, nb, hairBase, TUNE.hairA*0.9); polyline(og, nb, hairSoft, true); }
+      for (const sx of [-1, 1]) seg(og, HP(sx*1.12, 0.12, 0.3), HP(sx*1.0, -0.4, 0.3), hairSoft); // sideburns
     }
-    if (hs === "shaved") { warc(g, HCen, cR, cam.u, HR*1.04, 10, 20, 160, styleOf(hairC, 1, 0.45)); for (let i=0;i<3;i++) seg(g, HP(-0.4+i*0.4, 0.72, 0.9), HP(-0.32+i*0.4, 0.78, 0.9), styleOf(hairC, 0.8, 0.35)); }
+    if (hs === "shaved") { warc(g, HCen, cR, cam.u, HR*1.04, 10, 20, 160, styleOf(hairC, 1, 0.5)); }
     if (hs === "long") {
-      for (const sx of [-1, 1]) { const pn = [HP(sx*1.18, 0.5, 0.15), HP(sx*1.42, -1.2, 0.15), HP(sx*1.34, -2.8, 0.15), HP(sx*0.72, -3.0, 0.15), HP(sx*0.76, -1.0, 0.15), HP(sx*0.92, 0.35, 0.15)];
-        fill(g, pn, hairC, 0.6); polyline(g, pn, hairS, true); }
+      for (const sx of [-1, 1]) { const pn = [HP(sx*1.2, 0.5, 0.15), HP(sx*1.44, -1.2, 0.15), HP(sx*1.36, -2.8, 0.15), HP(sx*0.7, -3.0, 0.15), HP(sx*0.74, -1.0, 0.15), HP(sx*0.94, 0.35, 0.15)];
+        fill(og, pn, hairBase, TUNE.hairA); polyline(og, pn, hairS, true);
+        seg(og, HP(sx*1.06, 0.1, 0.2), HP(sx*1.16, -2.3, 0.2), hairSoft); }
       const back = [HP(-0.9, 0.2, -0.6), HP(0.9, 0.2, -0.6), HP(0.95, -2.2, -0.6), HP(-0.95, -2.2, -0.6)];
-      fill(g, back, hairC, 0.4); polyline(g, back, hairSoft, true);
+      fill(og, back, hairBase, TUNE.hairA*0.85); polyline(og, back, hairSoft, true);
     }
     if (hs === "tied" && facingCam <= 0.5) {
       const base = add(add(HCen, mul(fwdAx, -HR*0.85)), mul(upAx, HR*0.25));
       const tip = add(add(base, mul(fwdAx, -HR*0.75)), mul(upAx, -HR*1.9));
       const midp = add(add(base, mul(fwdAx, -HR*0.95)), mul(upAx, -HR*0.8));
-      const off = mul(cR, HR*0.22), off2 = mul(cR, HR*0.12);
+      const off = mul(cR, HR*0.24), off2 = mul(cR, HR*0.12);
       const tl = [add(base, off), add(midp, off), add(tip, off2), add(tip, mul(off2,-1)), add(midp, mul(off,-1)), add(base, mul(off,-1))];
-      fill(g, tl, hairC, 0.45); polyline(g, tl, hairS, true);
-      wcircle(g, add(base, mul(cam.f, HR*0.2)), cR, cam.u, HR*0.15, 8, styleOf(accentC, 1.2, 1)); // tie
+      fill(og, tl, hairBase, TUNE.tailA); polyline(og, tl, hairS, true);
+      wcircle(og, add(base, mul(cam.f, HR*0.2)), cR, cam.u, HR*0.15, 8, styleOf(accentC, 1.2, 1)); // tie
     }
-    if (hs === "tied") for (let k=0;k<3;k++) warc(g, HCen, cR, cam.u, HR*(1.0+k*0.07), 6, 28+k*9, 152-k*9, hairSoft); // swept-back strands
+    if (hs === "tied") for (let k=0;k<3;k++) warc(og, HCen, cR, cam.u, HR*(1.02+k*0.07), 6, 28+k*9, 152-k*9, hairSoft); // swept-back strands
     // hats
     const hatS = styleOf(accentC, 1.3, 1);
     if (hat==="hood") {
@@ -542,9 +550,11 @@
     const dyn = G();
     if (marker.a > 0.03) wring(dyn, marker.x, 0.02, marker.z, 0.4, 16, styleOf(TEAL.c, 1.2, marker.a));
     if (turnStart) { wring(dyn, turnStart.pos.x, 0.02, turnStart.pos.z, 6, 48, TEAL); wring(dyn, turnStart.pos.x, 0.02, turnStart.pos.z, 3, 32, styleOf(TEAL.c, 0.8, 0.4)); }
-    for (const p of pawns.values()) drawPawn(dyn, p, tAcc, now);
+    const ov = G();
+    for (const p of pawns.values()) drawPawn(dyn, p, tAcc, now, ov);
     render([geo, dyn], tAcc);
     drawFlames(geo, tAcc);
+    render([ov], tAcc);
     drawLabels(now);
   }
   buildScene("tavern", "night");
