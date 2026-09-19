@@ -3,7 +3,13 @@ package dev.mini.candlelight
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import android.annotation.SuppressLint
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.runtime.key
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -109,17 +115,110 @@ fun App(session: Session) {
     var token by remember { mutableStateOf(session.token) }
     var code by remember { mutableStateOf(session.code) }
     var playerId by remember { mutableStateOf(session.playerId) }
+    // what the player picked after logging in; null means the pick has not been made this launch
+    var play by remember { mutableStateOf<String?>(null) }
     Api.authToken = token
     Box(Modifier.fillMaxSize().background(Ground)) {
         when {
             token == null -> LoginScreen(session) { token = it }
+            // already sitting at a table: go straight back to it rather than asking again
             code != null && playerId != null ->
                 GameScreen(code!!, playerId!!, mySub = session.userSub, session = session, onLeave = { session.clear(); code = null; playerId = null })
+            play == null -> PickPlayScreen(session, onPick = { play = it },
+                onSignOut = { session.signOut(); Api.authToken = null; token = null; play = null })
+            play == "tabletop" -> TabletopScreen(onBack = { play = null })
             else -> LobbyScreen(session,
                 onEnter = { c, p -> session.code = c; session.playerId = p; code = c; playerId = p },
-                onSignOut = { session.signOut(); Api.authToken = null; token = null })
+                onSignOut = { session.signOut(); Api.authToken = null; token = null; play = null },
+                onBack = { play = null })
         }
     }
+}
+
+// ---------------------------------------------------------------- pick what to play
+@Composable
+fun PickPlayScreen(session: Session, onPick: (String) -> Unit, onSignOut: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("CANDLELIGHT TABLE", color = Amber, fontSize = 13.sp, letterSpacing = 3.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
+            Text(session.userName, color = Muted, fontSize = 12.sp)
+            TextButton(onClick = { scope.launch { Api.logout(); onSignOut() } }, contentPadding = PaddingValues(6.dp, 0.dp)) { Text("ออกจากระบบ", color = Muted, fontSize = 12.sp) }
+        }
+        Text("จะเล่นอะไรดี", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 32.sp)
+        PickCard("D&D", "เล่นกับเพื่อน มี Claude เป็นผู้เล่าเรื่อง สร้างตัวละคร นั่งลงที่โต๊ะ ทอยเต๋า",
+            "ต้องต่ออินเทอร์เน็ต") { onPick("dnd") }
+        PickCard("เทเบิลท็อป", "โต๊ะรบสามมิติ แผนที่โลก ถาดลูกเต๋า วางหน่วยแล้วสั่งให้เดิน วัดระยะเป็นนิ้ว",
+            "เล่นคนเดียว ไม่ต้องต่อเน็ต") { onPick("tabletop") }
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun PickCard(title: String, body: String, foot: String, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).border(1.dp, Line, RoundedCornerShape(12.dp))
+        .clickable { onClick() }.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = Amber, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(body, color = Ink, fontSize = 14.sp, lineHeight = 21.sp)
+        Text(foot, color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+    }
+}
+
+// ---------------------------------------------------------------- tabletop: the bundled 3D pages
+/** asset file, name, one line about it */
+private val TOOLS = listOf(
+    Triple("battle-table.html", "โต๊ะรบ", "วางหน่วย ลากให้เดินจริง วัดระยะเป็นนิ้ว หมุนกล้องรอบโต๊ะ"),
+    Triple("worldmap.html", "แผนที่โลก", "แผนที่ยุทธศาสตร์สุ่ม ไม่มีขอบ ซูมได้ไม่จำกัด"),
+    Triple("dice-tray.html", "ถาดลูกเต๋า", "d4–d20 ฟิสิกส์จริง นับผลแบบ 40k"),
+    Triple("skeleton-rig-v4.html", "โครงกระดูก", "หน้าจูนท่าเดิน–วิ่ง–ตี และชุดเกราะ 3 แบบ"),
+)
+
+@Composable
+fun TabletopScreen(onBack: () -> Unit) {
+    var open by remember { mutableStateOf<String?>(null) }
+    BackHandler(enabled = true) { if (open != null) open = null else onBack() }
+    if (open != null) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().background(Ground).padding(8.dp, 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { open = null }) { Text("‹ กลับ", color = Amber, fontSize = 14.sp) }
+                Text(TOOLS.first { it.first == open }.second, color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            }
+            // keyed so switching pages builds a fresh WebView instead of leaving the old one loaded
+            key(open) { AssetPage(open!!, Modifier.weight(1f).fillMaxWidth()) }
+        }
+        return
+    }
+    Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp, 0.dp)) { Text("‹ กลับ", color = Muted, fontSize = 13.sp) }
+            Spacer(Modifier.weight(1f))
+        }
+        Text("เทเบิลท็อป", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("ทุกหน้าอยู่ในแอพแล้ว เปิดได้โดยไม่ต้องต่อเน็ต", color = Muted, fontSize = 13.sp)
+        TOOLS.forEach { (asset, title, body) -> PickCard(title, body, asset) { open = asset } }
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
+/** A bundled page on its own, with no bridge: none of the 3D pages calls back into the app. */
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+fun AssetPage(asset: String, modifier: Modifier = Modifier) {
+    AndroidView(modifier = modifier, factory = { ctx ->
+        WebView(ctx).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#0B0B0E"))
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = true
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+            webViewClient = WebViewClient()
+            WebView.setWebContentsDebuggingEnabled(true)
+            loadUrl("file:///android_asset/$asset")
+        }
+    }, onRelease = { it.destroy() })
 }
 
 // ---------------------------------------------------------------- login
@@ -186,7 +285,7 @@ val CLASS_DEFAULT_WEAPON = mapOf("Fighter" to "sword", "Wizard" to "staff", "Rog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: () -> Unit) {
+fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: () -> Unit, onBack: (() -> Unit)? = null) {
     var name by remember { mutableStateOf(session.name) }
     var myRooms by remember { mutableStateOf<List<MyRoom>>(emptyList()) }
     LaunchedEffect(Unit) {
@@ -212,6 +311,7 @@ fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: 
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onBack != null) TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp, 0.dp)) { Text("‹ ", color = Muted, fontSize = 13.sp) }
             Text("CANDLELIGHT TABLE", color = Amber, fontSize = 13.sp, letterSpacing = 3.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
             Text(session.userName, color = Muted, fontSize = 12.sp)
             TextButton(onClick = { scope.launch { Api.logout(); onSignOut() } }, contentPadding = PaddingValues(6.dp, 0.dp)) { Text("ออกจากระบบ", color = Muted, fontSize = 12.sp) }
