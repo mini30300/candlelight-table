@@ -24,6 +24,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 
+/**
+ * The board page ships inside the APK, so it opens with no network round-trip and works offline.
+ * It used to be fetched from the Worker's /board; the Worker copy is now only a fallback, and updating
+ * the board means shipping a build rather than deploying the Worker.
+ */
+const val BOARD_ASSET = "file:///android_asset/board.html"
+
 /** Bridge the board page calls (window.Android.*). Callbacks run on a WebView thread → hop to main. */
 class BoardBridge(
     private val onMove: (Double, Double) -> Unit,
@@ -51,7 +58,9 @@ class BoardController {
         w.post { w.evaluateJavascript(js, null) }
     }
     fun flush() { ready = true; status.value = null; val w = web ?: return; val q = ArrayList(queue); queue.clear(); w.post { q.forEach { w.evaluateJavascript(it, null) } } }
-    fun reload() { ready = false; status.value = "โหลดใหม่…"; web?.post { web?.loadUrl(SERVER + "/board") } }
+    /** set once the Worker copy has been tried, so a second failure cannot bounce between the two forever */
+    var usedServer: Boolean = false
+    fun reload() { ready = false; usedServer = false; status.value = "โหลดใหม่…"; web?.post { web?.loadUrl(BOARD_ASSET) } }
     private var inset = -1
     /** dp (= CSS px) of app UI covering the bottom of the board; the page parks the joystick just above it */
     fun setInset(dp: Int) { if (dp != inset) { inset = dp; call("window.setInset && window.setInset($dp)") } }
@@ -85,10 +94,18 @@ fun BoardView(
                     settings.loadWithOverviewMode = true
                     WebView.setWebContentsDebuggingEnabled(true)
                     webViewClient = object : WebViewClient() {
-                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) { if (!controller.ready) controller.status.value = "กำลังโหลดหน้า /board…" }
+                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) { if (!controller.ready) controller.status.value = "กำลังเปิดกระดาน…" }
                         override fun onPageFinished(view: WebView?, url: String?) { if (!controller.ready) controller.status.value = "โหลดหน้าเสร็จ รอสคริปต์วาด…" }
                         override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
-                            if (request?.isForMainFrame == true) { controller.lastError = "โหลดกระดานไม่ได้: ${error?.description}"; controller.status.value = controller.lastError }
+                            if (request?.isForMainFrame != true) return
+                            // the page is bundled, so this should not happen — but rather than sit on a dead board, try the Worker copy once
+                            if (!controller.usedServer) {
+                                controller.usedServer = true
+                                controller.status.value = "ใช้สำเนาบนเซิร์ฟเวอร์…"
+                                view?.loadUrl(SERVER + "/board")
+                                return
+                            }
+                            controller.lastError = "โหลดกระดานไม่ได้: ${error?.description}"; controller.status.value = controller.lastError
                         }
                         override fun onReceivedHttpError(view: WebView?, request: android.webkit.WebResourceRequest?, errorResponse: android.webkit.WebResourceResponse?) {
                             if (request?.isForMainFrame == true) { controller.lastError = "เซิร์ฟเวอร์ตอบ HTTP ${errorResponse?.statusCode}"; controller.status.value = controller.lastError }
@@ -103,7 +120,7 @@ fun BoardView(
                     }
                     addJavascriptInterface(bridge, "Android")
                     controller.web = this
-                    loadUrl(SERVER + "/board")
+                    loadUrl(BOARD_ASSET)
                 }
             },
             onRelease = { controller.web = null; controller.ready = false },

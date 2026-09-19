@@ -1,10 +1,10 @@
 // Measures walking pieces on the battle table without a browser:
-//   node bt_walk.js [battle-table.html]
+//   node bt_walk.js [path/to/battle-table.html]   (defaults to the page in app/src/main/assets/)
 // The rig's own harnesses (h3.js, sync_baked.js) check the gait in the rig's local frame. This one checks the half the
 // table adds: a piece is carried across the TABLE by its gait, and turns pivot about the planted foot, so a foot in
 // contact must not move in TABLE coordinates either — including while the piece is turning.
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(process.argv[2] || path.join(__dirname, 'battle-table.html'), 'utf8');
+const src = fs.readFileSync(process.argv[2] || path.join(__dirname, '..', 'app', 'src', 'main', 'assets', 'battle-table.html'), 'utf8');
 const a = src.indexOf('// ==MODULES-BEGIN=='), b = src.indexOf('// ==MODULES-END==');
 if (a < 0 || b < 0) throw new Error('module markers not found in the page');
 const M = new Function(src.slice(a, b) + ';return { SKRIG:SKRIG, MINI:MINI, WALKER:WALKER };')();

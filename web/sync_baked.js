@@ -1,5 +1,5 @@
 const fs=require('fs');
-const s=fs.readFileSync(require('path').join(__dirname,'skeleton-rig-v4.html'),'utf8');
+const s=fs.readFileSync(require('path').join(__dirname,'..','app','src','main','assets','skeleton-rig-v4.html'),'utf8');
 const a=s.indexOf('// ==RIG-BEGIN=='), b=s.indexOf('// ==RIG-END==');
 const R=new Function(s.slice(a,b)+';return SKRIG;')();
 const DT=1/60;
