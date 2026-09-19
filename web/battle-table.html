@@ -1,0 +1,1261 @@
+<title>โต๊ะรบ</title>
+<style>
+#bt{--bg:#0B0B0E;--ink:#ECE9E0;--sub:#9C968A;--chip:#15151A;--chipB:#2A2A32;--on:#E0B26A;--onInk:#0B0B0E;
+  font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif;background:var(--bg);color:var(--ink);max-width:560px;margin:0 auto;min-height:100vh;
+  box-sizing:border-box;padding:6px 8px 12px;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#bt *{box-sizing:border-box}
+#bt .cap{display:flex;justify-content:space-between;gap:8px;font-size:13px;line-height:18px;color:var(--sub);padding:0 2px 4px;white-space:nowrap;overflow:hidden}
+#bt .cap b{color:var(--ink);font-weight:600}
+#bt .wrap{position:relative}
+#bt canvas{display:block;width:100%;height:480px;border-radius:14px;touch-action:none;background:#07080A;border:1px solid var(--chipB)}
+#bt .hud{position:absolute;left:10px;top:10px;font-size:12px;line-height:17px;background:rgba(11,11,14,0.5);padding:4px 8px;border-radius:8px;pointer-events:none;font-variant-numeric:tabular-nums}
+#bt .hud i{font-style:normal;color:var(--on)}
+#bt .row{display:flex;gap:6px;margin-top:6px}
+#bt .grp{display:flex;gap:4px;flex:1;min-width:0}
+#bt button{flex:1;min-width:0;min-height:44px;border-radius:10px;border:1px solid var(--chipB);background:var(--chip);color:var(--ink);font:inherit;font-size:14px;padding:0 4px;cursor:pointer;touch-action:manipulation}
+#bt button.on{background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:600}
+#bt .sl{display:flex;align-items:center;gap:8px;flex:1;font-size:13px;color:var(--sub)}
+#bt input[type=range]{flex:1;min-width:0;accent-color:var(--on)}
+#bt .note{font-size:12px;color:var(--sub);padding:6px 2px 0;line-height:17px}
+</style>
+<div id="bt">
+  <div class="cap"><span><b>โต๊ะรบ</b> · ลากหมุน บีบซูม</span><span id="btSeed">สนาม #1</span></div>
+  <div class="wrap"><canvas id="btCv"></canvas><div class="hud" id="btHud"></div></div>
+  <div class="row"><div class="grp" id="btTheme">
+    <button data-t="ruin" class="on">เมืองพัง</button><button data-t="forest">ป่าเนินเขา</button><button data-t="desert">ทะเลทราย</button><button data-t="ice">ที่ราบหิมะ</button>
+  </div></div>
+  <div class="row"><div class="grp" id="btMode">
+    <button data-m="look" class="on">ดู</button><button data-m="place">วางหน่วย</button><button data-m="measure">วัดระยะ</button><button data-m="erase">ลบ</button>
+  </div></div>
+  <div class="row"><div class="grp" id="btKit">
+    <button data-k="heavy" class="on">เกราะหนัก</button><button data-k="infantry">ทหารราบ</button><button data-k="hoplite">กรีก</button><button data-k="enemy">ศัตรู</button>
+  </div></div>
+  <div class="row"><label class="sl">โต๊ะ <input type="range" id="btSize" min="30" max="260" step="5" value="100"><em id="btSizeV" style="font-style:normal;color:var(--ink);min-width:70px;text-align:right">100×72 ม.</em></label></div>
+  <div class="row"><button id="btNew">สุ่มสนามใหม่</button><button id="btTop">มุมสูง</button><button id="btEye">มุมต่ำ</button></div>
+  <div class="note">1 นิ้วเกม = 1 ม. ในสนาม (สเกลมินิเจอร์) · ลากนิ้วเดียว = หมุนกล้อง · สองนิ้ว = ซูม · โหมดวางหน่วยแล้วลากตัวเพื่อย้าย จะบอกระยะที่เดินเป็นนิ้ว</div>
+</div>
+<script>
+// ===== the skeleton rig (same module as สติกแมน v4) =====
+var SKRIG = (function(){
+"use strict";
+var D = Math.PI/180, TAU = Math.PI*2;
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function frac(x){ return x-Math.floor(x); }
+function sstep(t){ t=clamp(t,0,1); return t*t*(3-2*t); }
+function inOut3(t){ t=clamp(t,0,1); return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+function add(a,b){ return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]; }
+function sub(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
+function mul(a,s){ return [a[0]*s,a[1]*s,a[2]*s]; }
+function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function len(a){ return Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]); }
+function norm(a){ var l=len(a)||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+
+// ---- quaternions [x,y,z,w] ----
+var QI = [0,0,0,1];
+function qmul(a,b){ var ax=a[0],ay=a[1],az=a[2],aw=a[3],bx=b[0],by=b[1],bz=b[2],bw=b[3];
+  return [aw*bx+ax*bw+ay*bz-az*by, aw*by-ax*bz+ay*bw+az*bx, aw*bz+ax*by-ay*bx+az*bw, aw*bw-ax*bx-ay*by-az*bz]; }
+function qconj(q){ return [-q[0],-q[1],-q[2],q[3]]; }
+function qrot(q,v){ var x=q[0],y=q[1],z=q[2],w=q[3];
+  var ux=y*v[2]-z*v[1], uy=z*v[0]-x*v[2], uz=x*v[1]-y*v[0];
+  var vx=y*uz-z*uy, vy=z*ux-x*uz, vz=x*uy-y*ux;
+  return [v[0]+2*(w*ux+vx), v[1]+2*(w*uy+vy), v[2]+2*(w*uz+vz)]; }
+function qx(a){ return [Math.sin(a/2),0,0,Math.cos(a/2)]; }
+function qy(a){ return [0,Math.sin(a/2),0,Math.cos(a/2)]; }
+function qz(a){ return [0,0,Math.sin(a/2),Math.cos(a/2)]; }
+// Euler in DEGREES, R = Ry(y) * Rx(x) * Rz(z). X = flex (sagittal), Y = twist/turn, Z = side bend / abduction.
+function eul(x,y,z){ return qmul(qmul(qy((y||0)*D), qx((x||0)*D)), qz((z||0)*D)); }
+function qnorm(q){ var l=Math.sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3])||1; return [q[0]/l,q[1]/l,q[2]/l,q[3]/l]; }
+function qdot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3]; }
+function qslerp(a,b,t){
+  var d=qdot(a,b), bb=b; if (d<0){ d=-d; bb=[-b[0],-b[1],-b[2],-b[3]]; }
+  if (d>0.9995) return qnorm([lerp(a[0],bb[0],t),lerp(a[1],bb[1],t),lerp(a[2],bb[2],t),lerp(a[3],bb[3],t)]);
+  var th=Math.acos(d), s=Math.sin(th), wa=Math.sin((1-t)*th)/s, wb=Math.sin(t*th)/s;
+  return [a[0]*wa+bb[0]*wb, a[1]*wa+bb[1]*wb, a[2]*wa+bb[2]*wb, a[3]*wa+bb[3]*wb]; }
+function qslerpRaw(a,b,t){   // slerp without choosing the short hemisphere (caller picks the sign of b)
+  var d = clamp(qdot(a,b),-1,1);
+  if (d > 0.9995) return qnorm([lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t),lerp(a[3],b[3],t)]);
+  var th=Math.acos(d), s=Math.sin(th), wa=Math.sin((1-t)*th)/s, wb=Math.sin(t*th)/s;
+  return [a[0]*wa+b[0]*wb, a[1]*wa+b[1]*wb, a[2]*wa+b[2]*wb, a[3]*wa+b[3]*wb]; }
+function qangle(a,b){ return 2*Math.acos(Math.min(1,Math.abs(qdot(a,b)))); }
+function matToQ(X,Y,Z){ // rotation matrix given by its columns
+  var m00=X[0],m10=X[1],m20=X[2],m01=Y[0],m11=Y[1],m21=Y[2],m02=Z[0],m12=Z[1],m22=Z[2], tr=m00+m11+m22, s;
+  if (tr>0){ s=0.5/Math.sqrt(tr+1); return qnorm([(m21-m12)*s,(m02-m20)*s,(m10-m01)*s,0.25/s]); }
+  if (m00>m11 && m00>m22){ s=2*Math.sqrt(1+m00-m11-m22); return qnorm([0.25*s,(m10+m01)/s,(m02+m20)/s,(m21-m12)/s]); }
+  if (m11>m22){ s=2*Math.sqrt(1+m11-m00-m22); return qnorm([(m10+m01)/s,0.25*s,(m21+m12)/s,(m02-m20)/s]); }
+  s=2*Math.sqrt(1+m22-m00-m11); return qnorm([(m02+m20)/s,(m21+m12)/s,0.25*s,(m10-m01)/s]); }
+function qToEul(q){ // inverse of eul(): degrees [x,y,z]
+  var x=q[0],y=q[1],z=q[2],w=q[3];
+  var m02=2*(x*z+y*w), m12=2*(y*z-x*w), m22=1-2*(x*x+y*y), m10=2*(x*y+z*w), m11=1-2*(x*x+z*z);
+  if (Math.abs(m12) > 0.999999){   // gimbal lock at x = ±90: y and z share one axis, put it all in y
+    var m00=1-2*(y*y+z*z), m20=2*(x*z-y*w);
+    return [m12 < 0 ? 90 : -90, Math.atan2(-m20,m00)/D, 0]; }
+  return [Math.asin(clamp(-m12,-1,1))/D, Math.atan2(m02,m22)/D, Math.atan2(m10,m11)/D]; }
+
+// ---- skeleton: +Y up, figure faces +Z, figure's LEFT is +X. 1 unit = 1 m, 1.60 tall (7.5 heads) ----
+var B = { spine:0.17, chest:0.25, neck:0.06, head:0.115, headR:0.105, shX:0.18, shY:-0.02, upper:0.29, fore:0.235, hand:0.085,
+          hipX:0.085, hipY:-0.05, thigh:0.39, shin:0.39, ankH:0.07, heel:0.05, ball:0.13 };
+var STAND_H = -B.hipY + B.thigh + B.shin + B.ankH;   // pelvis height with straight legs = 0.90
+// [name, parent, offset in parent's frame]. Every joint carries a local quaternion; children inherit it.
+var J = [
+  ['pelvis',null,[0,0,0]], ['spine','pelvis',[0,B.spine,0]], ['chest','spine',[0,B.chest,0]], ['neck','chest',[0,B.neck,0]], ['head','neck',[0,B.head,0]],
+  ['shoulderL','chest',[B.shX,B.shY,0]], ['elbowL','shoulderL',[0,-B.upper,0]], ['wristL','elbowL',[0,-B.fore,0]], ['handL','wristL',[0,-B.hand,0]],
+  ['shoulderR','chest',[-B.shX,B.shY,0]], ['elbowR','shoulderR',[0,-B.upper,0]], ['wristR','elbowR',[0,-B.fore,0]], ['handR','wristR',[0,-B.hand,0]],
+  ['hipL','pelvis',[B.hipX,B.hipY,0]], ['kneeL','hipL',[0,-B.thigh,0]], ['ankleL','kneeL',[0,-B.shin,0]], ['toeL','ankleL',[0,-B.ankH,B.ball]], ['heelL','ankleL',[0,-B.ankH,-B.heel]],
+  ['hipR','pelvis',[-B.hipX,B.hipY,0]], ['kneeR','hipR',[0,-B.thigh,0]], ['ankleR','kneeR',[0,-B.shin,0]], ['toeR','ankleR',[0,-B.ankH,B.ball]], ['heelR','ankleR',[0,-B.ankH,-B.heel]]
+];
+var PARENT = {}; J.forEach(function(j){ PARENT[j[0]] = j[1]; });
+
+// Limits in degrees for the L side / centre joints: [xmin,xmax, ymin,ymax, zmin,zmax]. R side mirrors y and z.
+var LIM = {
+  pelvis:[-30,30,-90,90,-20,20], spine:[-30,45,-40,40,-30,30], neck:[-45,50,-70,70,-35,35],
+  shoulderL:[-175,60,-70,70,-30,175], elbowL:[-150,0,0,0,0,0], wristL:[-60,60,0,0,-30,30],
+  hipL:[-125,30,-50,50,-27,45], kneeL:[0,150,0,0,0,0], ankleL:[-40,50,-15,15,-20,20]
+};
+function limits(n){
+  if (LIM[n]) return LIM[n];
+  var l = LIM[n.slice(0,-1)+'L']; if (!l) return null;
+  return [l[0],l[1], -l[3],-l[2], -l[5],-l[4]];
+}
+function clampJoint(n,e){ var l=limits(n); if(!l) return e; return [clamp(e[0],l[0],l[1]), clamp(e[1],l[2],l[3]), clamp(e[2],l[4],l[5])]; }
+
+function newPose(){ return { root:[0,STAND_H,0], q:{}, breath:0, sword:0, v:0, contact:null }; }
+function fk(pose){
+  var W = {};
+  for (var i=0;i<J.length;i++){
+    var j=J[i], n=j[0], lq=pose.q[n]||QI;
+    if (!j[1]){ W[n] = { p:pose.root.slice(), q:lq }; continue; }
+    var P=W[j[1]], o=j[2];
+    if (pose.breath){ if (n==='chest') o=[0,o[1]+pose.breath*0.008,0]; else if (n==='shoulderL'||n==='shoulderR') o=[o[0],o[1]+pose.breath*0.006,o[2]]; }
+    W[n] = { p:add(P.p, qrot(P.q,o)), q:qmul(P.q,lq) };
+  }
+  return W;
+}
+function footQ(yaw,pitch){ return qmul(qy(yaw*D), qx(-pitch*D)); }   // pitch > 0 = toes up
+var FOOT_HEEL=[0,-B.ankH,-B.heel], FOOT_BALL=[0,-B.ankH,B.ball];
+
+// Two-bone analytic IK. Writes hip (ball joint), knee (one-way hinge about local X, flex >= 0) and ankle rotations.
+function legIK(pose, side, target, fq){
+  var s = side==='L'?1:-1, pq=pose.q.pelvis||QI;
+  var hip = add(pose.root, qrot(pq,[s*B.hipX,B.hipY,0]));
+  var dv = sub(target,hip), d = len(dv), dir = mul(dv,1/(d||1));
+  var L1=B.thigh, L2=B.shin, dc=clamp(d, 0.08, (L1+L2)*0.9999);
+  var a = Math.acos(clamp((L1*L1+dc*dc-L2*L2)/(2*L1*dc),-1,1));
+  var knee = Math.PI - Math.acos(clamp((L1*L1+L2*L2-dc*dc)/(2*L1*L2),-1,1));
+  // Knee aims mostly where the FOOT points (not the pelvis), a touch outward, so a turned stance doesn't twist the ankle.
+  var fF = qrot(fq,[0,0,1]), fh = Math.hypot(fF[0],fF[2]) || 1, pF = qrot(pq,[0,0,1]);
+  var pole = [0.3*pF[0] + 0.7*fF[0]/fh + s*0.10, 0.3*pF[1], 0.3*pF[2] + 0.7*fF[2]/fh];
+  pole = sub(pole, mul(dir,dot(pole,dir)));
+  var pl = len(pole);
+  if (pl < 0.25){   // target nearly along the pole (leg raised far forward): fade toward "knee up" so the knee plane never flips
+    var up = qrot(pq,[0,1,0]); up = sub(up, mul(dir,dot(up,dir)));
+    var k = 1 - pl/0.25; pole = add(mul(pole, (1-k)/(pl||1)), mul(norm(up), k));
+  }
+  pole = norm(pole);
+  var t = add(mul(dir,Math.cos(a)), mul(pole,Math.sin(a)));
+  var Zw = add(mul(dir,-Math.sin(a)), mul(pole,Math.cos(a)));
+  var Yw = mul(t,-1), Xw = cross(Yw,Zw);
+  var qThigh = matToQ(Xw,Yw,Zw);
+  pose.q['hip'+side] = qmul(qconj(pq), qThigh);
+  pose.q['knee'+side] = qx(knee);
+  pose.q['ankle'+side] = qmul(qconj(qmul(qThigh, qx(knee))), fq);
+  return d/(L1+L2);
+}
+function stabilizeHead(pose, pitch, yaw, k){
+  var W = fk(pose);
+  var local = qmul(qconj(W.chest.q), eul(pitch, yaw, 0));
+  pose.q.neck = qslerp(pose.q.neck||QI, local, k);
+}
+
+// ---- gait (walk / run share one generator) ----
+// hip motion baked at the "no sway" setting มินิ picked (18 ก.ย. 69): no lateral shift, no pelvic drop, only a trace of
+// pelvic rotation, a narrow stance, and a torso that counter-rotates less. The page's สาย row can still dial it back up.
+var WALK = { T:1.0, S:1.15, d:0.60, zS:0.25, footX:0.036, ur1:0.12, ur2:0.60, th:8, tt:35, lift:0.05,
+  h:0.87, bob:0.018, bobPh:0, yaw:1.5, tilt:0, sway:0, swayPh:0.05, lean:4, spLean:1, chLean:0, spYaw:0.9, chYaw:0.7,
+  armC:3, armA:17, armLag:-0.03, elb:14, elbA:12, abd:7, headPitch:1 };
+var RUN  = { T:0.68, S:1.95, d:0.34, zS:0.14, footX:0.0234, ur1:0.10, ur2:0.45, th:6, tt:45, lift:0.16,
+  h:0.85, bob:0.025, bobPh:0.17, yaw:2.4, tilt:0, sway:0, swayPh:-0.08, lean:12, spLean:4, chLean:1, spYaw:1.17, chYaw:0.875,
+  armC:13, armA:38, armLag:-0.2, elb:88, elbA:10, abd:10, headPitch:-4 };
+
+function gaitFoot(G, t, side){
+  var off = side==='R'?0:0.5, x = t/G.T+off, c = Math.floor(x), ph = x-c;
+  var fx = (side==='L'?1:-1)*G.footX, Lhb = B.heel+B.ball;
+  function stance(cyc,u){
+    var Hz = (cyc-off)*G.S + G.zS, p, q;
+    if (u < G.ur1){ var r=1-u/G.ur1; p=G.th*r*r; q=footQ(0,p); return { a:sub([fx,0,Hz], qrot(q,FOOT_HEEL)), p:p, c:'heel' }; }
+    if (u <= G.ur2) return { a:[fx,B.ankH,Hz+B.heel], p:0, c:'flat' };
+    var w=(u-G.ur2)/(1-G.ur2); p=-G.tt*w*w; q=footQ(0,p);
+    return { a:sub([fx,0,Hz+Lhb], qrot(q,FOOT_BALL)), p:p, c:'ball' };
+  }
+  if (ph < G.d){ var st = stance(c, ph/G.d); st.stance = true; return st; }
+  var s = (ph-G.d)/(1-G.d), e = 1e-4, k = (1-G.d)/G.d/e;
+  var A0 = stance(c,1), A0b = stance(c,1-e), A1 = stance(c+1,0), A1b = stance(c+1,e);
+  var h00=2*s*s*s-3*s*s+1, h10=s*s*s-2*s*s+s, h01=-2*s*s*s+3*s*s, h11=s*s*s-s*s;
+  function H(p0,p0b,p1,p1b){ return h00*p0 + h10*(p0-p0b)*k + h01*p1 + h11*(p1b-p1)*k; }
+  var a = [ fx, H(A0.a[1],A0b.a[1],A1.a[1],A1b.a[1]), H(A0.a[2],A0b.a[2],A1.a[2],A1b.a[2]) ];
+  a[1] += G.lift*28.94*s*s*(1-s)*(1-s)*(1-s);   // clearance bump: zero slope at toe-off AND heel strike, peak = lift at s=0.4
+  return { a:a, p:H(A0.p,A0b.p,A1.p,A1b.p), c:null, stance:false, sw:s };
+}
+
+function solveLeg(p, S, a, q, stance){
+  var r = legIK(p, S, a, q);
+  if (!stance){ var ae = qToEul(p.q['ankle'+S]), ac = clampJoint('ankle'+S, ae);   // swing foot: keep the ankle inside its range
+    if (ac[0]!==ae[0]||ac[1]!==ae[1]||ac[2]!==ae[2]) p.q['ankle'+S] = eul(ac[0],ac[1],ac[2]); }
+  return r;
+}
+
+function gaitPose(G, t){
+  var p = newPose(), ph = frac(t/G.T), w = TAU*ph, v = G.S/G.T;
+  var yaw = G.yaw*Math.cos(w), tilt = -G.tilt*Math.sin(w-TAU*G.swayPh);
+  p.root = [ -G.sway*Math.sin(w-TAU*G.swayPh), G.h - G.bob*Math.cos(2*(w-TAU*G.bobPh)), 0 ];
+  p.q.pelvis = eul(G.lean, yaw, tilt);
+  p.q.spine  = eul(G.spLean, -yaw*G.spYaw, -tilt*0.6);
+  p.q.chest  = eul(G.chLean, -yaw*G.chYaw, -tilt*0.3);
+  var aw = w - TAU*G.armLag;
+  p.se = {};
+  [['R',-Math.cos(aw),-1],['L',Math.cos(aw),1]].forEach(function(A){
+    var f=A[1], s=A[2];
+    p.se['shoulder'+A[0]] = [-(G.armC+G.armA*f), s*-6, s*G.abd];
+    p.q['shoulder'+A[0]] = eul(-(G.armC+G.armA*f), s*-6, s*G.abd);
+    p.q['elbow'+A[0]] = eul(-(G.elb + G.elbA*(f+1)/2), 0, 0);
+    p.q['wrist'+A[0]] = eul(-6, 0, 0);
+  });
+  p.contact = {}; p.feet = {};
+  ['R','L'].forEach(function(S){
+    var f = gaitFoot(G,t,S), a = [f.a[0], f.a[1], f.a[2]-v*t], q = footQ(0,f.p);
+    solveLeg(p, S, a, q, f.stance);
+    p.contact[S] = f.c;
+    p.feet[S] = { a:a, q:q, st:f.stance, c:f.c, rem: f.stance ? 0 : (1-f.sw)*(1-G.d)*G.T };
+  });
+  stabilizeHead(p, G.headPitch, 0, 0.85);
+  p.v = v;
+  return p;
+}
+
+function idlePose(t){
+  var p = newPose(), b = 0.5-0.5*Math.cos(TAU*t/4.2), ws = Math.sin(TAU*t/7), sw = Math.sin(TAU*t/4.2+1.1);
+  p.breath = b;
+  p.root = [0.02*ws, STAND_H-0.012-0.002*Math.abs(ws), 0.005];
+  p.q.pelvis = eul(1, 1.5*ws, 2.2*ws);
+  p.q.spine = eul(1.5-1.2*b, -1*ws, -1.8*ws);
+  p.q.chest = eul(-1.8*b, -0.5*ws, -0.6*ws);
+  p.se = {};
+  [['L',1],['R',-1]].forEach(function(A){ var s=A[1];
+    p.se['shoulder'+A[0]] = [-3 - 1.5*sw*s, s*-10, s*(6+1.5*b)];
+    p.q['shoulder'+A[0]] = eul(-3 - 1.5*sw*s, s*-10, s*(6+1.5*b));
+    p.q['elbow'+A[0]] = eul(-(13+2*b+1.5*sw*s), 0, 0);
+    p.q['wrist'+A[0]] = eul(-8, 0, s*-4);
+  });
+  var aL = [0.11,B.ankH,0.03], qL = footQ(8,0), aR = [-0.11,B.ankH,-0.02], qR = footQ(-10,0);
+  legIK(p,'L',aL,qL); legIK(p,'R',aR,qR);
+  stabilizeHead(p, 1+1.5*Math.sin(TAU*t/9), 7*Math.sin(TAU*t/11), 0.9);
+  p.contact = { L:'flat', R:'flat' };
+  p.feet = { L:{ a:aL, q:qL, st:true, c:'flat' }, R:{ a:aR, q:qR, st:true, c:'flat' } };
+  return p;
+}
+
+// ---- attack: right-hand overhead sword strike, left foot forward ----
+var AK = {
+  ready:  { rx:-0.01, ry:0.845, rz:0.00, pY:-20, pX:5,  pZ:0, sY:5,   sX:5,  sZ:0, cY:5,  cX:3,  cZ:0,
+            aRX:-35, aRY:0,   aRZ:-15, eR:80,  wR:10,  aLX:-30, aLY:0, aLZ:20, eL:70, fBz:0.346, fLy:0, fLp:0,   bP:0 },
+  windup: { rx:-0.04, ry:0.82,  rz:-0.07, pY:-42, pX:0, pZ:-3, sY:-14, sX:-8, sZ:-4, cY:-14, cX:-6, cZ:0,
+            aRX:-165, aRY:-10, aRZ:-25, eR:60,  wR:60,  aLX:-75, aLY:0, aLZ:10, eL:20, fBz:0.346, fLy:0, fLp:-18, bP:0 },
+  strike: { rx:0.00,  ry:0.79,  rz:0.09, pY:16,  pX:12, pZ:3, sY:14,  sX:14, sZ:3, cY:10, cX:8,  cZ:0,
+            aRX:-115, aRY:0,  aRZ:-8,  eR:6,   wR:45,  aLX:-10, aLY:0, aLZ:16, eL:65, fBz:0.46,  fLy:0, fLp:0,   bP:-20 },
+  follow: { rx:0.02,  ry:0.775, rz:0.12, pY:26,  pX:16, pZ:4, sY:20,  sX:22, sZ:4, cY:12, cX:10, cZ:0,
+            aRX:-50, aRY:0,   aRZ:14,  eR:22,  wR:10,  aLX:4,  aLY:0, aLZ:12, eL:75, fBz:0.46,  fLy:0, fLp:0,   bP:-28 }
+};
+var AG_HIPS = ['rx','ry','rz','pY','pX','pZ','bP'], AG_TORSO = ['sY','sX','sZ','cY','cX','cZ'],
+    AG_ARM = ['aRX','aRY','aRZ','eR','wR','aLX','aLY','aLZ','eL'];
+// hold: arm waits at the top while hips (lead 0.10 s) and torso (lead 0.07 s) start the swing. step: front-foot step length.
+var ATK = { T:2.01, windup:[0.15,0.60], hold:[0.60,0.70], strike:[0.70,0.92], follow:[0.92,1.14], recover:[1.14,1.76],
+            leadH:0.10, leadT:0.05, step:0.12, impact:0.875 };
+function mixK(a,b,keys,u,out){ keys.forEach(function(k){ out[k] = lerp(a[k],b[k],u); }); }
+var BACK_ANK = [-0.14,B.ankH,-0.22], BACK_YAW = -25, FRONT_X = 0.12, FRONT_YAW = 15;
+var BACK_BALL = add(BACK_ANK, qrot(footQ(BACK_YAW,0), FOOT_BALL));
+function strikeProg(tau){
+  var T1=ATK.strike[1]-ATK.strike[0], T2=ATK.follow[1]-ATK.follow[0], m=9, s;   // m = progress/s at the strike key
+  if (tau<=0) return 0;
+  if (tau<T1){ s=tau/T1; return (-2*s*s*s+3*s*s) + (s*s*s-s*s)*m*T1; }
+  if (tau<T1+T2){ s=(tau-T1)/T2; return 1 + (s*s*s-2*s*s+s)*m*T2 + (-2*s*s*s+3*s*s); }
+  return 2;
+}
+// C1 key curve per channel through windup (Pr 0), strike (Pr 1), follow (Pr 2): no velocity cliff at the strike key.
+function chanCurve(v0,v1,v2,Pr){
+  var d1=v1-v0, d2=v2-v1, m=0, a, b, ma, mb, s;
+  if (d1*d2 > 0) m = (d1>0?1:-1)*Math.min(Math.abs(v2-v0)/2, 3*Math.min(Math.abs(d1),Math.abs(d2)));
+  if (Pr<=1){ a=v0; b=v1; ma=0; mb=m; s=clamp(Pr,0,1); } else { a=v1; b=v2; ma=m; mb=0; s=clamp(Pr-1,0,1); }
+  var s2=s*s, s3=s2*s;
+  return (2*s3-3*s2+1)*a + (s3-2*s2+s)*ma + (-2*s3+3*s2)*b + (s3-s2)*mb;
+}
+function mixProg(keys,Pr,out){ keys.forEach(function(k){ out[k] = chanCurve(AK.windup[k],AK.strike[k],AK.follow[k],Pr); }); }
+function bump2(u){ var s = Math.sin(Math.PI*clamp(u,0,1)); return s*s; }   // zero slope at both ends
+function attackParams(t){
+  var tt = frac(t/ATK.T)*ATK.T, P = {}, A=AK.ready, Bk=AK.ready, u=0, phase='ready';
+  P.fBz = AK.ready.fBz; P.fLp = 0; P.lift = 0;
+  if (tt >= ATK.windup[0] && tt < ATK.windup[1]){
+    A=AK.ready; Bk=AK.windup; u=inOut3((tt-ATK.windup[0])/(ATK.windup[1]-ATK.windup[0])); phase='windup';
+    P.fBz = lerp(A.fBz,Bk.fBz,u); P.fLp = lerp(A.fLp,Bk.fLp,u);
+  } else if (tt >= ATK.hold[0] && tt < ATK.follow[1]){
+    // One velocity-continuous progress curve windup(0) -> strike(1) -> follow-through(2).
+    // Hips lead, torso next, arm last: the kinetic chain.
+    var tau = tt-ATK.strike[0];
+    var Ph = strikeProg(tau+ATK.leadH), Pt = strikeProg(tau+ATK.leadT), Pa = strikeProg(tau);
+    mixProg(AG_HIPS,Ph,P); mixProg(AG_TORSO,Pt,P); mixProg(AG_ARM,Pa,P);
+    // the front foot steps on its own clock and is planted before the hips peak
+    var fu = clamp((tt-ATK.hold[0])/ATK.step,0,1), sf = sstep(fu);
+    P.lift = 0.05*bump2(fu); P.fBz = lerp(AK.windup.fBz, AK.strike.fBz, sf); P.fLp = lerp(AK.windup.fLp, 0, sf);
+    P.phase = tt < ATK.strike[0] ? 'windup' : tt < ATK.impact ? 'strike' : 'follow'; P.prog = [Ph,Pt,Pa];
+    P.stepRem = fu < 1 ? (1-fu)*ATK.step : 0;
+    return P;
+  } else if (tt >= ATK.recover[0] && tt < ATK.recover[1]){
+    var dur = ATK.recover[1]-ATK.recover[0], r=(tt-ATK.recover[0])/dur; A=AK.follow; Bk=AK.ready; phase='recover';
+    u=inOut3(r);
+    var fr = clamp((r-0.15)/0.6,0,1);
+    mixK(A,Bk,AG_HIPS,u,P); mixK(A,Bk,AG_TORSO,u,P); mixK(A,Bk,AG_ARM,u,P);
+    P.fBz = lerp(A.fBz,Bk.fBz,sstep(fr)); P.fLp = 0; P.lift = 0.045*bump2(fr); P.phase=phase;
+    P.stepRem = fr > 0 && fr < 1 ? (1-fr)*0.6*dur : 0;
+    return P;
+  } else if (tt >= ATK.windup[1]) { A=AK.ready; Bk=AK.ready; }
+  mixK(A,Bk,AG_HIPS,u,P); mixK(A,Bk,AG_TORSO,u,P); mixK(A,Bk,AG_ARM,u,P); P.phase=phase;
+  return P;
+}
+function attackPose(t){
+  var K = attackParams(t), p = newPose();
+  p.root = [K.rx, K.ry, K.rz];
+  p.q.pelvis = eul(K.pX, K.pY, K.pZ);
+  p.q.spine = eul(K.sX, K.sY, K.sZ);
+  p.q.chest = eul(K.cX, K.cY, K.cZ);
+  p.se = { shoulderR:[K.aRX, K.aRY, K.aRZ], shoulderL:[K.aLX, K.aLY, K.aLZ] };
+  p.q.shoulderR = eul(K.aRX, K.aRY, K.aRZ); p.q.elbowR = eul(-K.eR,0,0); p.q.wristR = eul(K.wR,0,0);
+  p.q.shoulderL = eul(K.aLX, K.aLY, K.aLZ); p.q.elbowL = eul(-K.eL,0,0); p.q.wristL = eul(-10,0,0);
+  var fq = footQ(FRONT_YAW, K.fLp);                       // fLp < 0 = heel raised, pivoting on the ball
+  var fa = sub([FRONT_X, K.lift, K.fBz], qrot(fq, FOOT_BALL)), fst = K.lift < 1e-6;
+  solveLeg(p,'L', fa, fq, fst);
+  var bq = footQ(BACK_YAW, K.bP), ba = sub(BACK_BALL, qrot(bq, FOOT_BALL));
+  legIK(p,'R', ba, bq);
+  stabilizeHead(p, 2, 0, 0.8);
+  p.sword = 1; p.phase = K.phase;
+  p.contact = { L: fst ? 'ball' : null, R:'ball' };
+  p.feet = { L:{ a:fa, q:fq, st:fst, c:fst?'ball':null, rem:K.stepRem||0 }, R:{ a:ba, q:bq, st:true, c:'ball' } };
+  return p;
+}
+
+var MOTIONS = {
+  idle:   { f:idlePose, v:0, start:0, gait:null },
+  walk:   { f:function(t){ return gaitPose(WALK,t); }, v:WALK.S/WALK.T, start:0.28*WALK.T, gait:WALK },
+  run:    { f:function(t){ return gaitPose(RUN,t); }, v:RUN.S/RUN.T, start:0.12*RUN.T, gait:RUN },
+  attack: { f:attackPose, v:0, start:0, gait:null }
+};
+// ==== v4 controller: ONE travel speed (a scalar with acceleration limits), gait derived from speed, feet ground-tracked ====
+// Nothing ever crossfades two independent walking loops. The stance foot is pinned to a ground point; the swing foot flies
+// to the landing point of the *current* speed; the body (pelvis, spine, arms) reads its phase from the right foot.
+// Idle / attack only blend the UPPER body and the root; feet get there by explicit steps. A step, once started, always lands.
+var V_WALK = WALK.S/WALK.T, V_RUN = RUN.S/RUN.T;
+var ACC = 6.0, DEC = 7.0, JERK = 70;               // m/s^2, m/s^3 — run reaches full speed in ~0.55 s, stops from run in ~0.5 s, no step in acceleration
+var STEP_T = 0.22, SETTLE_TOL = 0.05, FLIGHT_B = 0.5, REACH_MAX = 0.9993;
+var IDLE_FT = { L:{ a:[0.11,B.ankH,0.03], yaw:8 }, R:{ a:[-0.11,B.ankH,-0.02], yaw:-10 } };
+var ATK_FT  = { L:{ a:sub([FRONT_X,0,AK.ready.fBz], qrot(footQ(FRONT_YAW,0),FOOT_BALL)), yaw:FRONT_YAW }, R:{ a:BACK_ANK.slice(), yaw:BACK_YAW } };
+var UPPER = ['pelvis','spine','chest','neck','shoulderL','elbowL','wristL','shoulderR','elbowR','wristR'];
+var FADE = 0.3;   // kept for the export
+
+function footLow(a,q){ return a[1] + Math.min(qrot(q,FOOT_HEEL)[1], qrot(q,FOOT_BALL)[1]); }
+function h3(p0,m0,p1,m1,s){ var s2=s*s, s3=s2*s; return (2*s3-3*s2+1)*p0 + (s3-2*s2+s)*m0 + (-2*s3+3*s2)*p1 + (s3-s2)*m1; }
+function bumpC(s){ return 28.94*s*s*(1-s)*(1-s)*(1-s); }   // zero slope both ends, peak 1 at s=0.4
+
+// Blended walk/run numbers for a travel speed. Above walking speed the two tables mix; below it the cadence slows
+// (frequency ~ sqrt(speed)) and the stride shrinks with it, so a slow stroll takes short slow steps, not tiny fast ones.
+function gaitParams(v){
+  var b = clamp((v - V_WALK)/(V_RUN - V_WALK), 0, 1), G = {};
+  for (var k in WALK) G[k] = lerp(WALK[k], RUN[k], b);
+  if (v < V_WALK){ var f = (1/WALK.T) * Math.sqrt(Math.max(v, 0.03)/V_WALK); G.T = 1/f; }
+  G.S = Math.max(v, 0.03) * G.T;
+  G.b = b; G.g = v < V_WALK ? sstep(v/V_WALK) : 1;   // g = how much the body moves like a walker
+  return G;
+}
+// Upper body of the gait at phase ph (right foot phase, 0 = right heel strike). g scales every sway to nothing at speed 0.
+function gaitBody(G, ph, p){
+  var w = TAU*ph, g = G.g, yaw = G.yaw*Math.cos(w)*g, tilt = -G.tilt*Math.sin(w-TAU*G.swayPh)*g;
+  p.root = [ -G.sway*Math.sin(w-TAU*G.swayPh)*g, lerp(STAND_H-0.012, G.h - G.bob*Math.cos(2*(w-TAU*G.bobPh)), g), 0 ];
+  p.q.pelvis = eul(G.lean*g, yaw, tilt);
+  p.q.spine  = eul(G.spLean*g, -yaw*G.spYaw, -tilt*0.6);
+  p.q.chest  = eul(G.chLean*g, -yaw*G.chYaw, -tilt*0.3);
+  var aw = w - TAU*G.armLag;
+  [['R',-Math.cos(aw),-1],['L',Math.cos(aw),1]].forEach(function(A){
+    var f=A[1], s=A[2], armC = lerp(3, G.armC, g), armA = G.armA*g, elb = lerp(13, G.elb, g), elbA = G.elbA*g;
+    p.q['shoulder'+A[0]] = eul(-(armC+armA*f), s*-6*g + s*-10*(1-g), s*lerp(6, G.abd, g));
+    p.q['elbow'+A[0]] = eul(-(elb + elbA*(f+1)/2), 0, 0);
+    p.q['wrist'+A[0]] = eul(lerp(-8,-6,g), 0, s*-4*(1-g));
+  });
+  stabilizeHead(p, G.headPitch*g + 1*(1-g), 0, 0.85);
+}
+function blendUpper(a, b, w, out){ UPPER.forEach(function(n){ out.q[n] = w<=0 ? (a.q[n]||QI) : w>=1 ? (b.q[n]||QI) : qslerp(a.q[n]||QI, b.q[n]||QI, w); }); }
+
+// ---- one foot ----
+// st: 'plant' (ground pinned) | 'swing' (gait flight to a landing point) | 'step' (scripted move to a body-relative spot) | 'ext' (pose supplies it)
+function Foot(side){ this.S = side; this.s = side==='L'?1:-1; this.st = 'plant'; this.gz = 0; this.gx = 0; this.yaw = 0; this.pitch = 0;
+  this.gait = false; this.zRef = 0; this.a = IDLE_FT[side].a.slice(); this.q = footQ(IDLE_FT[side].yaw, 0); this.c = 'flat'; this.u = 0; this.sw = 0; }
+Foot.prototype.plantHere = function(travel, gait, zRef, G){   // pin the foot where it is now (ankle a, orientation q)
+  var heel = add(this.a, qrot(this.q, FOOT_HEEL)), e = qToEul(this.q);
+  this.st = 'plant'; this.gz = heel[2] + travel; this.gx = heel[0]; this.gait = !!gait; this.zRef = zRef; this.u = 0; this.c = 'flat';
+  this.G = G || WALK; this.dS = Math.max(this.G.d*this.G.S, 0.35);   // stance length fixed at plant time: u is then continuous whatever the taps
+  this.yaw = e[1]; this.ph = gait ? 0 : -e[0]; this.kh = 1; this.kp = 1; this.pitch = this.ph;
+  if (this.ph < 0){ var ball = add(this.a, qrot(this.q, FOOT_BALL)), hb = qrot(qy(this.yaw*D), [0,0,B.heel+B.ball]); this.gz = ball[2] - hb[2] + travel; this.gx = ball[0] - hb[0]; }   // heel raised: the ball is the pivot; heel = ball - yawed (heel->ball)
+};
+// dt, flat: while standing still the rockers relax to a flat foot (kp -> 0); a pitch inherited from a pose relaxes too (kh -> 0)
+Foot.prototype.planted = function(Gv, travel, dt, flat){
+  var G = this.G, heelZ = this.gz - travel, Lhb = B.heel+B.ball;
+  var u = clamp((this.zRef - heelZ)/this.dS, 0, 1); this.u = u;
+  this.kp += ((flat ? 0 : 1) - this.kp) * Math.min(1, dt/0.15); this.kh = Math.max(0, this.kh - dt/0.15);
+  var yawq = qy(this.yaw*D), pf = 0, br = 'flat';
+  if (this.gait && u < G.ur1){ var r = 1-u/G.ur1; pf = G.th*r*r; br = 'heel'; }
+  else if (u > G.ur2){ var w = (u-G.ur2)/(1-G.ur2); pf = -G.tt*w*w; br = 'ball'; }
+  var p = pf*this.kp + this.ph*this.kh, q = qmul(yawq, qx(-p*D)), a;
+  if (p > 1e-6){ a = sub([this.gx,0,heelZ], qrot(q,FOOT_HEEL)); this.c = 'heel'; }
+  else if (p < -1e-6){ a = sub(add([this.gx,0,heelZ], qrot(yawq,[0,0,Lhb])), qrot(q,FOOT_BALL)); this.c = 'ball'; }
+  else { q = yawq; a = sub([this.gx,0,heelZ], qrot(q,FOOT_HEEL)); this.c = 'flat'; }
+  this.pitch = p; this.a = a; this.q = q;
+};
+Foot.prototype.toeOff = function(G, v, Tsw){
+  this.st = 'swing'; this.sw = 0; this.T = Tsw; this.rate = 1; this.d = G.d; this.Gs = { lift:G.lift, th:G.th }; this.a0 = this.a.slice(); this.p0 = this.pitch; this.y0 = this.yaw; this.v0 = v; this.c = null;
+};
+Foot.prototype.swing = function(G, dt, v, travel, footX, zS){
+  // targets follow the current gait with a short lag, so a tap mid-swing bends the flight path instead of jumping it
+  var Gs = this.Gs, kf = Math.min(1, dt/0.2); if (Gs.zS === undefined){ Gs.zS = zS; Gs.footX = footX; }
+  Gs.lift += (G.lift-Gs.lift)*kf; Gs.th += (G.th-Gs.th)*kf; Gs.zS += (zS-Gs.zS)*kf; Gs.footX += (footX-Gs.footX)*kf;
+  this.sw = Math.min(1, this.sw + dt*this.rate/this.T); var s = this.sw, k = this.T/this.rate;
+  var yaw = lerp(this.y0, 0, s), tq = footQ(0, Gs.th), a1 = sub([Gs.footX,0,Gs.zS], qrot(tq,FOOT_HEEL));
+  var a = [ h3(this.a0[0],0,a1[0],0,s), h3(this.a0[1],0,a1[1],0,s) + Gs.lift*bumpC(s), h3(this.a0[2],-this.v0*k,a1[2],-v*k,s) ];
+  var p = h3(this.p0,0,Gs.th,0,s);
+  this.a = a; this.pitch = p; this.yaw = yaw; this.q = qmul(qy(yaw*D), qx(-p*D));
+  if (s >= 1-1e-9){ this.a = a1; this.pitch = Gs.th; this.yaw = 0; this.q = tq; this.plantHere(travel, true, Gs.zS, G); this.pitch = Gs.th; }
+  return this.st === 'plant';
+};
+Foot.prototype.stepTo = function(a1, yaw1, T, lift){ this.st = 'step'; this.sw = 0; this.T = T; this.a0 = this.a.slice(); this.a1 = a1.slice(); this.y0 = this.yaw; this.y1 = yaw1; this.lift = lift||0.045; this.c = null; };
+Foot.prototype.stepping = function(dt, travel){
+  this.sw = Math.min(1, this.sw + dt/this.T); var s = sstep(this.sw), u = this.sw;
+  this.a = [ lerp(this.a0[0],this.a1[0],s), lerp(this.a0[1],this.a1[1],s) + this.lift*bump2(u), lerp(this.a0[2],this.a1[2],s) ];
+  this.yaw = lerp(this.y0, this.y1, s); this.pitch = 0; this.q = qy(this.yaw*D);
+  if (this.sw >= 1-1e-9){ this.a = this.a1.slice(); this.yaw = this.y1; this.q = qy(this.yaw*D); this.plantHere(travel, false, 0, WALK); }
+  return this.sw >= 1;
+};
+
+// ---- controller ----
+function Controller(){
+  this.mode = 'walk'; this.cur = 'walk'; this.speed = V_WALK; this.travel = 0; this.travelX = 0; this.v = V_WALK;
+  this.L = new Foot('L'); this.R = new Foot('R'); this.wi = 0; this.wa = 0; this.atk = null; this.tAtk = 0; this.settled = false; this.seq = null;
+  this.idleT = 0; this.tree = null; this.pose = null; this.feet = {};
+  // start mid-walk like the old demo: right foot just planted at its strike point, left foot at the phase-0.28 spot
+  var fR = gaitFoot(WALK,0,'R'), fL = gaitFoot(WALK,0,'L'), self = this;
+  [['R',fR],['L',fL]].forEach(function(x){ var F = self[x[0]], f = x[1]; F.a = f.a.slice(); F.q = footQ(0,f.p); F.pitch = f.p; F.yaw = 0; F.plantHere(0, true, WALK.zS, WALK); });
+}
+Controller.prototype.set = function(m){ if (MOTIONS[m]) this.mode = m; };
+Controller.prototype.target = function(){ return this.mode==='walk' ? V_WALK : this.mode==='run' ? V_RUN : 0; };
+// "out of leg": the foot trails the hip and the leg is at full stretch (a foot ahead of the hip can be at full stretch legitimately at heel strike)
+Controller.prototype.overreach = function(F, root, pq){ var hip = add(root, qrot(pq,[F.s*B.hipX,B.hipY,0])); return F.a[2] < hip[2]-0.1 && len(sub(F.a,hip))/(B.thigh+B.shin) > REACH_MAX; };
+
+Controller.prototype.step = function(dt){
+  dt = clamp(dt, 0, 1/30);
+  var m = this.mode, vT = this.target(), v = this.speed, stopping = vT === 0, self = this;
+  // --- 1. speed: one scalar, accelerate / brake with limits, never overshoots ---
+  var aT = this.atk ? 0 : v < vT - 1e-9 ? ACC : v > vT + 1e-9 ? -DEC : 0, a = this.acc||0;
+  // near the target, the acceleration must already be tapering: cap |a| so v lands on vT without overshoot (a^2 <= 2*J*|vT-v|)
+  var room = Math.sqrt(2*JERK*Math.abs(vT - v)); aT = clamp(aT, -room, room);
+  a += clamp(aT - a, -JERK*dt, JERK*dt); if (vT === 0 && a > 0) a = 0; if (v <= 0 && a < 0) a = 0; this.acc = a;
+  if (this.atk || this.postAtk){ v = 0; this.acc = 0; } else { var v2 = v + a*dt; if ((v < vT && v2 > vT) || (v > vT && v2 < vT) || Math.abs(v2-vT) < 1e-4){ v2 = vT; this.acc = 0; } if (v2 < 0){ v2 = 0; this.acc = 0; } v = v2; }
+  this.speed = v; this.travel += v*dt; this.v = v;
+  this.vBody = (this.vBody===undefined ? v : this.vBody) + (v - (this.vBody===undefined ? v : this.vBody))*Math.min(1, dt/0.22);   // the upper body follows the speed with a short lag: walk<->run arm changes ease in
+  var vRef = stopping ? v : Math.max(v, vT), G = gaitParams(vRef), Gv = gaitParams(this.vBody), P = newPose(), L = this.L, R = this.R;
+  var braking = stopping && v > 0;
+
+  // --- 2. feet ---
+  if (this.atk){ this.atkFeet(P, dt); }
+  else {
+    var moving = v > 0 || !stopping;
+    if (moving && this.settled){ this.settled = false; this.seq = null; var back = L.a[2] < R.a[2] ? L : R, fr = back===L ? R : L;
+      back.toeOff(G, 0, (1-G.d)*G.T); fr.plantHere(this.travel, true, G.zS, G); }
+    var Tsw = clamp((1-G.d)*G.T, 0.15, 0.45); if (braking) Tsw = Math.min(Tsw, 0.22);
+    var kb = stopping ? clamp(v/V_WALK,0,1) : 1, zLand = lerp(0.0, G.zS, kb), footXL = lerp(0.11, G.footX, kb);
+    [L,R].forEach(function(F){ var O = F===L ? R : L;
+      if (F.st==='swing'){ if (braking){ var rT = Math.max(F.rate, (1-F.sw)*F.T/0.22); F.rate += (rT - F.rate)*Math.min(1, dt/0.08); }   // land within ~0.22 s when stopping; the speed-up itself ramps
+        F.swing(G, dt, v, self.travel, F.s*footXL, zLand); }
+      else if (F.st==='step'){ F.stepping(dt, self.travel); }
+    });
+    // planted feet: pin, then decide toe-off (never while stopping unless the leg runs out of reach)
+    var body = newPose(); gaitBody(Gv, this.phaseR(Gv), body);
+    [R,L].forEach(function(F){ var O = F===L ? R : L; if (F.st!=='plant') return;
+      F.planted(Gv, self.travel, dt, stopping && v < 0.05);
+      var over = self.overreach(F, body.root, body.q.pelvis||QI), want = F.u >= 1 || over;
+      var allowed = (!stopping || over) && (O.st==='plant' || G.b >= FLIGHT_B || over) && v > 0;
+      // the two legs must stay half a cycle apart: never let a foot leave while the other has only just left
+      // (without this, feet that happen to plant in phase — e.g. coming out of the attack stance — hop together forever)
+      if (allowed && !over && O.st==='swing' && O.sw < 0.55) allowed = false;
+      if (want && allowed) F.toeOff(G, v, Tsw);
+    });
+    // stopped: settle the feet onto the idle stance with explicit steps, one at a time
+    if (v === 0 && (stopping || this.postAtk) && !this.settled && L.st==='plant' && R.st==='plant') this.settle();
+  }
+
+  // --- 3. body: gait body (phase from the right foot) <-> idle <-> attack, upper body + root only ---
+  var gb = newPose(); gaitBody(Gv, this.phaseR(Gv), gb);
+  this.wi = clamp(this.wi + (this.settled && !this.atk && !this.seq && this.mode !== 'attack' ? dt/0.3 : -dt/0.25), 0, 1);
+  this.idleT += dt; var ib = idlePose(this.idleT);
+  var wi = sstep(this.wi);
+  P.root = [lerp(gb.root[0], ib.root[0], wi), lerp(gb.root[1], ib.root[1], wi), lerp(gb.root[2], ib.root[2], wi)];
+  blendUpper(gb, ib, wi, P); P.breath = ib.breath*wi;
+  if (this.wa > 0 || this.atk){ var ap = this.atk ? this.atkPose : (this.seq === 'in' ? attackPose(0) : (this.atkHold || attackPose(0))), w = sstep(this.wa);
+    P.root = [lerp(P.root[0],ap.root[0],w), lerp(P.root[1],ap.root[1],w), lerp(P.root[2],ap.root[2],w)];
+    var tmp = newPose(); for (var n in P.q) tmp.q[n] = P.q[n]; blendUpper(tmp, ap, w, P); P.breath *= (1-w); P.phase = ap.phase; }
+  P.sword = sstep(this.wa);
+  var leanT = braking && !this.atk ? -4*D*clamp(v/V_WALK,0,1) : 0; this.lean = (this.lean||0) + clamp(leanT - (this.lean||0), -40*D*dt, 40*D*dt);
+  if (this.lean) P.q.spine = qmul(qx(this.lean), P.q.spine||QI);
+  // --- 4. legs from the tracked feet. A planted foot is never pulled by the IK clamp: the pelvis dips instead (knees bend) ---
+  var pq = P.q.pelvis||QI, LEG = (B.thigh+B.shin)*0.995, dip = 0;
+  [L,R].forEach(function(F){ var pl = F.st==='plant' || (F.st==='ext' && F.stx); if (!pl) return;
+    var hip = add(P.root, qrot(pq,[F.s*B.hipX,B.hipY,0])), dh = Math.hypot(F.a[0]-hip[0], F.a[2]-hip[2]);
+    var maxV = Math.sqrt(Math.max(0, LEG*LEG - dh*dh)), ex = (hip[1]-F.a[1]) - maxV; if (ex > dip) dip = ex; });
+  var dp = this.dip||0; dp += (dip - dp)*Math.min(1, dt/0.12); if (dip > dp) dp = dip;   // needed dip applies at once, a released dip eases out
+  if (dp > 0) P.root[1] -= dp;
+  this.dip = dp;
+  P.contact = {}; this.feet = {};
+  [L,R].forEach(function(F){ var a = F.a.slice(), q = F.q, lw = footLow(a,q); if (lw < 0) a[1] -= lw;
+    var pl = F.st==='plant' || (F.st==='ext' && F.stx);
+    solveLeg(P, F.S, a, q, pl); P.contact[F.S] = pl ? (F.c||'flat') : null; self.feet[F.S] = { a:a, q:q, st:pl }; });
+  P.v = v; this.cur = this.atk ? 'attack' : this.settled ? 'idle' : (G.b > 0.5 ? 'run' : 'walk');
+  this.pose = P; this.travelX = 0;
+  // --- 5. attack entry / exit sequencing ---
+  this.atkSeq(dt);
+  return P;
+};
+Controller.prototype.phaseR = function(G){ var F = this.R, ph = this.lastPh||0, d = G.d;   // d of the CURRENT speed: u and sw are continuous, so ph is
+  if (F.st==='plant') ph = F.u*d; else if (F.st==='swing') ph = d + F.sw*(1-d);
+  this.lastPh = ph; return ph; };
+Controller.prototype.settle = function(){
+  var L = this.L, R = this.R, self = this, need = [];
+  [L,R].forEach(function(F){ var t = IDLE_FT[F.S]; if (Math.hypot(F.a[0]-t.a[0], F.a[2]-t.a[2]) > SETTLE_TOL) need.push(F); });
+  if (!need.length){ this.settled = true; this.postAtk = false; return; }
+  need.sort(function(a,b){ var ta=IDLE_FT[a.S].a, tb=IDLE_FT[b.S].a; return Math.hypot(b.a[0]-tb[0],b.a[2]-tb[2]) - Math.hypot(a.a[0]-ta[0],a.a[2]-ta[2]); });
+  var F = need[0], t = IDLE_FT[F.S]; F.stepTo(t.a, t.yaw, STEP_T, 0.04);
+};
+// attack: enter only from a settled stand (R steps back, L steps forward while the upper body blends); leave at a safe point
+Controller.prototype.leaveAttack = function(){
+  var L = this.L, R = this.R; this.atkHold = this.atkPose || attackPose(0); this.holdRun = !!this.atk; this.atk = null; this.seq = 'out'; this.settled = false;
+  // Always walk the feet home first (settle), then let the normal gait start from that stance. Starting a gait straight out of
+  // the attack lunge put the back foot's landing right beside the far-forward front foot, and the two legs then hopped in phase.
+  L.plantHere(this.travel,false,0,WALK); R.plantHere(this.travel,false,0,WALK); this.stepQ = null; this.postAtk = true;
+};
+// attack: enter only from a settled stand (R steps back, L steps forward while the upper body blends); leave at a safe point
+Controller.prototype.atkSeq = function(dt){
+  var L = this.L, R = this.R;
+  if (this.atk){
+    this.tAtk += dt; this.atkPose = attackPose(this.tAtk);
+    var tt = frac(this.tAtk/ATK.T)*ATK.T, safe = tt < ATK.windup[0] || tt >= ATK.impact;
+    if (this.mode !== 'attack' && safe){ L.a = this.atkPose.feet.L.a.slice(); L.q = this.atkPose.feet.L.q; R.a = this.atkPose.feet.R.a.slice(); R.q = this.atkPose.feet.R.q; this.leaveAttack(); }
+    this.wa = clamp(this.wa + dt/0.3, 0, 1);
+    return;
+  }
+  if (this.seq === 'in'){
+    if (this.mode !== 'attack'){ this.leaveAttack(); return; }   // cancelled before the swing started: walk the feet back, no loop
+    this.wa = clamp(this.wa + dt/0.44, 0, 1);
+    if (L.st==='plant' && R.st==='plant'){ if (this.stepQ.length){ var F = this.stepQ.shift(), t = ATK_FT[F.S]; F.stepTo(t.a, t.yaw, 0.18, 0.045); }
+      else if (this.wa >= 1){ this.seq = null; this.atk = 'loop'; this.tAtk = ATK.windup[0]; this.atkPose = attackPose(this.tAtk); } }
+    return;
+  }
+  if (this.seq === 'out'){ if (this.holdRun){ this.tAtk += dt; this.atkHold = attackPose(this.tAtk); }   // the swing finishes its recovery while it fades out: no frozen arm
+    this.wa = clamp(this.wa - dt/0.45, 0, 1); if (this.wa <= 0){ this.seq = null; this.tAtk = 0; } return; }
+  this.wa = clamp(this.wa - dt/0.3, 0, 1);
+  if (this.mode === 'attack' && this.settled && L.st==='plant' && R.st==='plant'){ this.seq = 'in'; this.stepQ = [R, L]; this.settled = false; }
+};
+Controller.prototype.atkFeet = function(P, dt){ var ap = this.atkPose || attackPose(this.tAtk), L = this.L, R = this.R;
+  [L,R].forEach(function(F){ var f = ap.feet[F.S]; F.st = 'ext'; F.stx = !!f.st; F.a = f.a.slice(); F.q = f.q; F.c = f.c; }); };
+
+return { D:D, B:B, J:J, PARENT:PARENT, STAND_H:STAND_H, LIM:LIM, limits:limits, clampJoint:clampJoint,
+  add:add, sub:sub, mul:mul, dot:dot, cross:cross, len:len, norm:norm, clamp:clamp, lerp:lerp, frac:frac,
+  QI:QI, qmul:qmul, qconj:qconj, qrot:qrot, eul:eul, qToEul:qToEul, qslerp:qslerp, qangle:qangle,
+  newPose:newPose, fk:fk, footQ:footQ, legIK:legIK, gaitFoot:gaitFoot, gaitPose:gaitPose, idlePose:idlePose,
+  attackPose:attackPose, attackParams:attackParams, ATK:ATK, WALK:WALK, RUN:RUN, MOTIONS:MOTIONS, FADE:FADE,
+  Controller:Controller, gaitParams:gaitParams, gaitBody:gaitBody, Foot:Foot, footLow:footLow, solveLeg:solveLeg, chanCurve:chanCurve,
+  FOOT_HEEL:FOOT_HEEL, FOOT_BALL:FOOT_BALL, IDLE_FT:IDLE_FT, ATK_FT:ATK_FT, V_WALK:V_WALK, V_RUN:V_RUN };
+})();
+// ===== miniatures: the rig's armour kits, built as geometry and handed to this page's renderer =====
+var MINI = (function(){
+"use strict";
+var R = SKRIG, Bm = R.B, D = R.D, DEG = Math.PI/180, KIT = 'heavy', TAU = Math.PI*2, st = { style:'game', solid:true, posing:false };
+// ---------- armour: real geometry anchored to joint frames (never camera-facing cards) ----------
+// Every piece is a small mesh built in a joint's local frame and carried by that joint's world rotation, so it stays
+// glued to the body from any camera angle. Faces are depth-sorted with the bones (pass 1), back faces culled, flat-shaded
+// from a fixed world light, drawn as a soft fill plus a rim/edge line in the page's line-art language.
+var ARM_LIGHT = R.norm([-0.5, 0.8, 0.45]);
+var ARM_KEYS = ['helm','chest','pauld','arms','legs','skirt','pack'];
+var ARM_TH = { helm:'หมวก', chest:'เกราะอก', pauld:'บ่า', arms:'แขน', legs:'ขา', skirt:'กระโปรง', pack:'เป้หลัง' };
+var FACES = [], FACE_POOL = [];
+function armFace(pts, n, kind, rim){ var f = FACE_POOL[FACES.length] || (FACE_POOL[FACES.length] = { p:[], n:null, k:0, z:0 }); f.p = pts; f.n = n; f.k = kind; f.rim = rim || RIM_ALL; FACES.push(f); }
+var RIM_ALL = [1,1,1,1], RIM_RING = [1,0,1,0], RIM_NONE = [0,0,0,0], RIM_BOT = [1,0,0,0], RIM_TOP = [0,0,1,0];
+// local -> world for a joint frame
+function fw(Wj, l){ return R.add(Wj.p, R.qrot(Wj.q, l)); }
+function armQuad(Wj, a, b, c, d, kind, rim){   // local corners, counter-clockwise seen from outside
+  var A = fw(Wj,a), Bq = fw(Wj,b), Cq = fw(Wj,c), Dq = fw(Wj,d);
+  var n = R.norm(R.cross(R.sub(Bq,A), R.sub(Dq,A)));
+  armFace([A,Bq,Cq,Dq], n, kind, rim);
+}
+// tube along local -Y or +Y between y0 and y1, elliptical radii (rx,rz) at each end, arc from a0..a1 (radians, full ring by default)
+var LROT = null, LCEN = null;   // optional local rotation / centre applied to every primitive point (set by withRot)
+function lp(p){ if (!LROT) return p; var q = R.qrot(LROT, p); return LCEN ? R.add(LCEN, q) : q; }
+function withRot(rot, cen, fn){ var pr = LROT, pc = LCEN; LROT = rot; LCEN = cen || null; fn(); LROT = pr; LCEN = pc; }
+function armTube(Wj, y0, r0x, r0z, y1, r1x, r1z, seg, a0, a1, kind, xoff){
+  a0 = a0==null ? 0 : a0; a1 = a1==null ? Math.PI*2 : a1; xoff = xoff||0;
+  var full = Math.abs(a1-a0-Math.PI*2) < 1e-6, n = seg, step = (a1-a0)/n;
+  for (var i=0;i<n;i++){ var t0 = a0+i*step, t1 = a0+(i+1)*step, c0=Math.cos(t0), s0=Math.sin(t0), c1=Math.cos(t1), s1=Math.sin(t1);
+    var p00=lp([xoff+r0x*s0, y0, r0z*c0]), p01=lp([xoff+r0x*s1, y0, r0z*c1]), p10=lp([xoff+r1x*s0, y1, r1z*c0]), p11=lp([xoff+r1x*s1, y1, r1z*c1]);
+    if (y1 > y0) armQuad(Wj, p00, p01, p11, p10, kind, RIM_RING); else armQuad(Wj, p01, p00, p10, p11, kind, RIM_RING); }
+}
+// spherical cap: centre c (local), radius r, latitude from lat0..lat1 (deg, 90 = top), longitudes skipping [skip0,skip1] (deg, 0 = +Z front)
+// lonA..lonB (deg, optional) limits the longitudes; thick (optional) adds a visible rim band of that thickness along the lower edge
+function armDome(Wj, c, r, lat0, lat1, nLon, nLat, skipLon, kind, sy, lonA, lonB, thick){
+  sy = sy||1; var LA = lonA==null ? -180 : lonA, LB = lonB==null ? 180 : lonB;
+  var f = function(la, lo, rr){ lo *= D; rr = rr||r; return lp([c[0]+rr*Math.cos(la)*Math.sin(lo), c[1]+sy*rr*Math.sin(la), c[2]+rr*Math.cos(la)*Math.cos(lo)]); };
+  for (var j=0;j<nLat;j++){ var la0 = (lat0 + (lat1-lat0)*j/nLat)*D, la1 = (lat0 + (lat1-lat0)*(j+1)/nLat)*D;
+    for (var i=0;i<nLon;i++){ var lo0 = LA + (LB-LA)*i/nLon, lo1 = LA + (LB-LA)*(i+1)/nLon;
+      if (skipLon && lo0 >= skipLon[0] && lo1 <= skipLon[1] && la1 < skipLon[2]*D) continue;
+      armQuad(Wj, f(la0,lo0), f(la0,lo1), f(la1,lo1), f(la1,lo0), kind, j===0 ? RIM_BOT : RIM_NONE);
+      if (thick && j===0) armQuad(Wj, f(la0,lo0), f(la0,lo0,r-thick), f(la0,lo1,r-thick), f(la0,lo1), kind, RIM_ALL);
+      if (thick && LB-LA < 359 && i===0) armQuad(Wj, f(la0,lo0), f(la1,lo0), f(la1,lo0,r-thick), f(la0,lo0,r-thick), kind, RIM_ALL);
+      if (thick && LB-LA < 359 && i===nLon-1) armQuad(Wj, f(la0,lo1,r-thick), f(la1,lo1,r-thick), f(la1,lo1), f(la0,lo1), kind, RIM_ALL); } }
+}
+function armBox(Wj, c, hx, hy, hz, kind){
+  var x0=c[0]-hx, x1=c[0]+hx, y0=c[1]-hy, y1=c[1]+hy, z0=c[2]-hz, z1=c[2]+hz, P = function(x,y,z){ return lp([x,y,z]); };
+  armQuad(Wj,P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1),kind); armQuad(Wj,P(x1,y0,z0),P(x0,y0,z0),P(x0,y1,z0),P(x1,y1,z0),kind);
+  armQuad(Wj,P(x1,y0,z1),P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),kind); armQuad(Wj,P(x0,y0,z0),P(x0,y0,z1),P(x0,y1,z1),P(x0,y1,z0),kind);
+  armQuad(Wj,P(x0,y1,z1),P(x1,y1,z1),P(x1,y1,z0),P(x0,y1,z0),kind); armQuad(Wj,P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1),kind);
+}
+// a quad given in the current local rotation
+function armQuadL(Wj, a, b, c, d, kind, rim){ armQuad(Wj, lp(a), lp(b), lp(c), lp(d), kind, rim); }
+var Bm = R.B, DEG = Math.PI/180, STL_K = 0.025;   // mm of the miniature -> metres on the rig
+var MESH_VIS = [];
+// a decimated STL part in a joint frame: faces filled + shaded, lines only on creases and on the silhouette (front/back boundary)
+var ARM_COL = {
+  sketch:{ helm:[112,132,160], plate:[104,126,158], pauld:[92,116,150], limb:[118,136,164], pack:[96,108,130], visor:[40,48,70], trim:[150,140,110], boot:[80,86,100], cloth:[120,130,120], pouch:[100,108,96], edge:'42,58,85', edgeA:0.55, fillA:0.88 },
+  game:  { helm:[236,233,224], plate:[236,233,224], pauld:[236,233,224], limb:[236,233,224], pack:[236,233,224], visor:[224,178,106], trim:[224,178,106], boot:[236,233,224], cloth:[236,233,224], pouch:[236,233,224], edge:'255,252,244', edgeA:0.85, fillA:0.14 }
+};
+// solid look (shaded plates): one palette per kit, used in both page styles
+var SOLID = {
+  heavy:    { helm:[92,112,150], plate:[88,110,150], pauld:[84,106,146], limb:[78,98,134], pack:[66,74,90], visor:[28,30,40], trim:[196,168,92], boot:[54,56,66], cloth:[90,100,120], pouch:[70,76,88] },
+  infantry: { helm:[84,94,62], plate:[96,104,72], pauld:[96,104,72], limb:[92,100,70], pack:[76,82,58], visor:[30,30,30], trim:[112,120,86], boot:[56,50,44], cloth:[98,106,74], pouch:[76,82,58] },
+  hoplite:  { helm:[184,134,66], plate:[214,204,182], pauld:[214,204,182], limb:[200,152,118], pack:[110,80,50], visor:[20,20,24], trim:[184,134,66], boot:[96,68,42], cloth:[158,40,40], pouch:[46,56,96], red:[160,36,36], flesh:[200,152,118], wood:[120,86,54], shield:[46,56,96] }
+};
+
+// ---------- kits: whole figures built from primitives, anchored to joint frames ----------
+// 'heavy'    = original heavy power-armour trooper   'infantry' = original line infantry   'hoplite' = bronze-age spearman
+var KIT = 'heavy';
+// per-kit arm overrides applied to the controller's pose before drawing (a hoplite carries the shield across the body, spear upright)
+function kitPose(P){
+  if (KIT !== 'hoplite') return;
+  P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-30, -90, 15), 0.92);   // upper arm turned in: the forearm crosses the chest
+  P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.eul(0, 0, 0);
+  P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-12, 0, -8), 0.7); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-20,0,0), 0.7);
+}
+var Q = { qx:function(a){ return [Math.sin(a/2),0,0,Math.cos(a/2)]; }, qy:function(a){ return [0,Math.sin(a/2),0,Math.cos(a/2)]; }, qz:function(a){ return [0,0,Math.sin(a/2),Math.cos(a/2)]; } };
+
+// withRot builds in a local frame; the primitives take the joint frame as the first argument, so wrap them:
+var CUR_J = null;
+function J(Wj, fn){ var p = CUR_J; CUR_J = Wj; fn(); CUR_J = p; }
+var _armQuad = armQuad;
+armQuad = function(Wj, a, b, c, d, kind, rim){ _armQuad(Wj || CUR_J, a, b, c, d, kind, rim); };
+
+
+// A pauldron that reads as a plate, not a cap: a shell whose axis tilts outboard, so the rim rides high by the neck and
+// hangs low over the upper arm; a visible edge thickness; an optional second plate (lame) hanging off the outboard side.
+function pauldron(C, s, r, tilt, thick, lame, kind, trimKind, dx, dy){
+  var c = [s*(Bm.shX+(dx==null?0.03:dx)), Bm.shY+(dy==null?0.02:dy), 0];
+  var rot = R.qmul(Q.qz(-s*tilt*DEG), Q.qy(s*90*DEG));      // local +z -> outboard, local +y -> up tilted outboard
+  J(C, function(){ withRot(rot, c, function(){
+    armDome(null, [0,0,0], r, -14, 90, 12, 3, null, kind, 0.9, -125, 125, thick);   // open toward the neck
+    if (lame) armDome(null, [0,-0.012,0], r*1.02, -48, -18, 8, 1, null, trimKind||kind, 0.9, -85, 85, thick*0.8);
+  }); });
+}
+function kitHeavy(Wd){
+  var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
+  // ---- helmet: skull dome open at the face, an angular two-facet faceplate with a visor slot, chin block, side cheeks, collar
+  J(H, function(){
+    var r = hr*1.2, la = 22*DEG, lo = 48*DEG;
+    armDome(H, [0,0.005,0], r, -30, 90, 12, 5, [-48,48,22], 'helm');
+    var tl = [-r*Math.cos(la)*Math.sin(lo), 0.005+r*Math.sin(la), r*Math.cos(la)*Math.cos(lo)], tr = [-tl[0], tl[1], tl[2]], tc = [0, tl[1]+0.01, r*1.02];
+    var ml = [-0.074, -0.012, 0.118], mr = [0.074, -0.012, 0.118], mc = [0, -0.02, 0.15];
+    var bl = [-0.056, -0.095, 0.085], br = [0.056, -0.095, 0.085], bc = [0, -0.105, 0.105];
+    armQuad(H, tl, tc, mc, ml, 'helm'); armQuad(H, tc, tr, mr, mc, 'helm');           // upper facets
+    armQuad(H, ml, mc, bc, bl, 'helm'); armQuad(H, mc, mr, br, bc, 'helm');           // lower facets
+    var sl = [-r*Math.cos(30*DEG)*Math.sin(lo), 0.005-r*Math.sin(30*DEG), r*Math.cos(30*DEG)*Math.cos(lo)], sr = [-sl[0], sl[1], sl[2]];
+    armQuad(H, sl, bl, ml, tl, 'helm'); armQuad(H, tr, mr, br, sr, 'helm');           // cheeks close the sides
+    armQuad(H, bl, bc, [0,-0.12,0.06], [-0.05,-0.115,0.045], 'helm'); armQuad(H, bc, br, [0.05,-0.115,0.045], [0,-0.12,0.06], 'helm');   // chin
+    armBox(H, [0,0.018,0.128], 0.052, 0.006, 0.012, 'visor');                          // visor slot
+    armBox(H, [0,hr*1.15,-0.01], 0.012, 0.025, 0.085, 'helm');                         // top ridge
+  });
+  armTube(C, 0.08, 0.075, 0.07, 0.12, 0.085, 0.078, 10, 0, Math.PI*2, 'trim');       // collar ring at the neck
+  armTube(C, 0.0, 0.055, 0.05, 0.09, 0.055, 0.05, 8, 0, Math.PI*2, 'visor');          // neck seal (dark)
+  // ---- torso
+  armTube(Sp, 0.0, 0.17, 0.125, 0.16, 0.20, 0.14, 12, 0, Math.PI*2, 'plate');
+  armTube(Sp, 0.16, 0.20, 0.14, 0.30, 0.24, 0.155, 12, 0, Math.PI*2, 'plate');
+  armQuad(Sp, [0,0.12,0.155],[0.13,0.13,0.135],[0.115,0.29,0.15],[0,0.30,0.172], 'plate');
+  armQuad(Sp, [-0.13,0.13,0.135],[0,0.12,0.155],[0,0.30,0.172],[-0.115,0.29,0.15], 'plate');
+  armTube(Pv, 0.02, 0.155, 0.115, 0.15, 0.165, 0.12, 12, 0, Math.PI*2, 'plate');
+  armBox(Pv, [0,0.02,0.0], 0.17, 0.02, 0.125, 'trim');
+  armTube(Pv, 0.0, 0.12, 0.09, -0.14, 0.10, 0.075, 10, 0, Math.PI*2, 'limb');
+  armDome(Pv, [0,-0.14,0], 0.10, -90, 0, 10, 2, null, 'limb', 0.75);
+  // ---- shoulders: tilted plates with thickness and a lame
+  pauldron(C, 1, 0.135, 25, 0.016, true, 'pauld', 'trim'); pauldron(C, -1, 0.135, 25, 0.016, true, 'pauld', 'trim');
+  // ---- arms
+  ['L','R'].forEach(function(S){
+    armTube(Wd['shoulder'+S], -0.10, 0.068, 0.068, -0.26, 0.06, 0.06, 8, 0, Math.PI*2, 'limb');
+    armTube(Wd['elbow'+S], -0.02, 0.058, 0.058, -0.20, 0.075, 0.07, 8, 0, Math.PI*2, 'limb');
+    armDome(Wd['wrist'+S], [0,-0.06,0.01], 0.055, -90, 90, 8, 4, null, 'limb'); });
+  // ---- legs
+  ['L','R'].forEach(function(S){
+    armTube(Wd['hip'+S], -0.05, 0.10, 0.095, -0.36, 0.085, 0.085, 8, 0, Math.PI*2, 'limb');
+    armQuad(Wd['hip'+S], [-0.07,-0.08,0.10],[0.07,-0.08,0.10],[0.06,-0.32,0.09],[-0.06,-0.32,0.09], 'plate');
+    armDome(Wd['knee'+S], [0,0,0.03], 0.075, -70, 70, 8, 3, null, 'plate', 1);
+    armTube(Wd['knee'+S], -0.06, 0.085, 0.09, -0.37, 0.08, 0.082, 8, 0, Math.PI*2, 'limb');
+    armBox(Wd['ankle'+S], [0,-0.04,0.045], 0.07, 0.05, 0.125, 'boot');
+    armDome(Wd['ankle'+S], [0,-0.05,0.14], 0.065, -60, 60, 8, 2, null, 'boot', 0.8); });
+  for (var i=0;i<6;i++){ var a0 = (i*60-24)*DEG, a1 = (i*60+24)*DEG; if (i===1||i===4) continue; armTube(Pv, -0.01, 0.17, 0.125, -0.19, 0.21, 0.16, 2, a0, a1, 'plate'); }
+  // ---- power pack
+  armBox(C, [0,0.07,-0.215], 0.135, 0.135, 0.075, 'pack');
+  armTube(C, 0.20, 0.04, 0.04, 0.29, 0.036, 0.036, 8, 0, Math.PI*2, 'pack', -0.085); armTube(C, 0.20, 0.04, 0.04, 0.29, 0.036, 0.036, 8, 0, Math.PI*2, 'pack', 0.085);
+  armBox(C, [0,-0.09,-0.20], 0.10, 0.03, 0.06, 'pack');
+}
+
+function kitInfantry(Wd){
+  var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
+  armDome(H, [0,0.01,0], hr*1.15, -12, 90, 12, 4, null, 'helm');
+  armTube(H, -0.025, hr*1.22, hr*1.24, -0.005, hr*1.16, hr*1.16, 12, 0, Math.PI*2, 'trim');
+  armTube(Sp, 0.02, 0.15, 0.115, 0.15, 0.165, 0.125, 10, 0, Math.PI*2, 'cloth');
+  armTube(Sp, 0.15, 0.165, 0.125, 0.27, 0.18, 0.13, 10, 0, Math.PI*2, 'cloth');
+  armBox(Sp, [-0.075,0.08,0.13], 0.035, 0.045, 0.028, 'pouch'); armBox(Sp, [0,0.075,0.135], 0.035, 0.045, 0.028, 'pouch'); armBox(Sp, [0.075,0.08,0.13], 0.035, 0.045, 0.028, 'pouch');
+  armTube(Pv, 0.03, 0.14, 0.10, 0.14, 0.15, 0.108, 10, 0, Math.PI*2, 'cloth');
+  armBox(Pv, [0,0.03,0.0], 0.15, 0.015, 0.108, 'trim');
+  armTube(Pv, 0.01, 0.11, 0.085, -0.13, 0.095, 0.07, 10, 0, Math.PI*2, 'cloth');
+  armDome(Pv, [0,-0.13,0], 0.095, -90, 0, 10, 2, null, 'cloth', 0.7);
+  armTube(C, 0.0, 0.05, 0.045, 0.10, 0.045, 0.04, 8, 0, Math.PI*2, 'boot');
+  pauldron(C, 1, 0.085, 25, 0.01, false, 'cloth', null, 0.01, 0.005); pauldron(C, -1, 0.085, 25, 0.01, false, 'cloth', null, 0.01, 0.005);
+  ['L','R'].forEach(function(S){
+    armTube(Wd['shoulder'+S], -0.09, 0.052, 0.052, -0.27, 0.046, 0.046, 8, 0, Math.PI*2, 'cloth');
+    armTube(Wd['elbow'+S], -0.02, 0.046, 0.046, -0.215, 0.04, 0.04, 8, 0, Math.PI*2, 'cloth');
+    armDome(Wd['wrist'+S], [0,-0.055,0.005], 0.042, -90, 90, 8, 3, null, 'boot'); });
+  ['L','R'].forEach(function(S){
+    armTube(Wd['hip'+S], -0.05, 0.08, 0.078, -0.37, 0.07, 0.07, 8, 0, Math.PI*2, 'cloth');
+    armDome(Wd['knee'+S], [0,0,0.02], 0.058, -60, 60, 8, 2, null, 'pouch', 1);
+    armTube(Wd['knee'+S], -0.05, 0.068, 0.07, -0.30, 0.062, 0.064, 8, 0, Math.PI*2, 'cloth');
+    armTube(Wd['ankle'+S], 0.09, 0.062, 0.064, -0.045, 0.064, 0.066, 8, 0, Math.PI*2, 'boot');
+    armBox(Wd['ankle'+S], [0,-0.045,0.045], 0.06, 0.03, 0.11, 'boot'); });
+  armBox(C, [0,0.03,-0.19], 0.11, 0.12, 0.06, 'pouch');
+  armRollX(C, [0,0.19,-0.19], 0.13, 0.045, 8, 'cloth');
+}
+
+function kitHoplite(Wd){
+  var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
+  // ---- helmet: bronze dome with cheek guards, a nasal bar, a tall horsehair crest front-to-back
+  var r = hr*1.18;
+  armDome(H, [0,0.01,0], r, -48, 90, 12, 5, [-40,40,4], 'helm');
+  [-1,1].forEach(function(s){ armQuad(H, [s*0.078,0.0,0.086],[s*0.03,-0.005,0.112],[s*0.026,-0.105,0.09],[s*0.07,-0.09,0.055], 'helm'); });
+  armBox(H, [0,-0.04,0.118], 0.011, 0.055, 0.008, 'helm');
+  J(H, function(){ var n = 10, rb = r*1.02, x = 0.014, prev = null;
+    for (var i=0;i<=n;i++){ var a = (55 - 205*i/n)*DEG, h = 0.045 + 0.10*Math.sin(Math.PI*i/n), d = [0, Math.cos(a), Math.sin(a)];
+      var b0 = [ x, 0.01+rb*d[1], rb*d[2] ], t0 = [ x*0.6, 0.01+(rb+h)*d[1], (rb+h)*d[2] ], b1 = [-x, b0[1], b0[2]], t1 = [-x*0.6, t0[1], t0[2]];
+      if (prev){ armQuad(H, prev.b0, b0, t0, prev.t0, 'red'); armQuad(H, b1, prev.b1, prev.t1, t1, 'red'); armQuad(H, prev.t0, t0, t1, prev.t1, 'red'); }
+      prev = { b0:b0, t0:t0, b1:b1, t1:t1 }; } });
+  // ---- cuirass: stiff linen torso, shoulder flaps, waist band; hanging strips (pteruges) over a red skirt
+  armTube(Sp, 0.03, 0.15, 0.11, 0.17, 0.165, 0.12, 12, 0, Math.PI*2, 'plate');
+  armTube(Sp, 0.17, 0.165, 0.12, 0.30, 0.185, 0.125, 12, 0, Math.PI*2, 'plate');
+  [-1,1].forEach(function(s){ armQuad(C, [s*0.07,0.05,-0.11],[s*0.17,0.04,-0.07],[s*0.17,0.03,0.07],[s*0.07,0.05,0.12], 'plate'); });
+  armBox(Pv, [0,0.03,0.0], 0.155, 0.018, 0.112, 'red');
+  for (var i=0;i<10;i++){ var a0 = (i*36-14)*DEG, a1 = (i*36+14)*DEG; armTube(Pv, 0.015, 0.155, 0.115, -0.16, 0.175, 0.13, 1, a0, a1, 'plate'); }
+  armTube(Pv, 0.0, 0.135, 0.1, -0.22, 0.15, 0.11, 12, 0, Math.PI*2, 'cloth');
+  armTube(Pv, 0.0, 0.11, 0.085, -0.10, 0.10, 0.075, 10, 0, Math.PI*2, 'cloth');
+  armTube(C, 0.0, 0.05, 0.045, 0.10, 0.045, 0.04, 8, 0, Math.PI*2, 'flesh');
+  // ---- bare arms with bronze wrist bands
+  ['L','R'].forEach(function(S){
+    armTube(Wd['shoulder'+S], -0.03, 0.056, 0.056, -0.27, 0.046, 0.046, 8, 0, Math.PI*2, 'flesh');
+    armTube(Wd['elbow'+S], -0.02, 0.046, 0.046, -0.15, 0.04, 0.04, 8, 0, Math.PI*2, 'flesh');
+    armTube(Wd['elbow'+S], -0.15, 0.046, 0.046, -0.215, 0.046, 0.046, 8, 0, Math.PI*2, 'helm');
+    armDome(Wd['wrist'+S], [0,-0.055,0.005], 0.04, -90, 90, 8, 3, null, 'flesh'); });
+  // ---- bare thighs, bronze greaves, sandals
+  ['L','R'].forEach(function(S){
+    armTube(Wd['hip'+S], -0.04, 0.078, 0.076, -0.37, 0.066, 0.066, 8, 0, Math.PI*2, 'flesh');
+    armDome(Wd['knee'+S], [0,0,0.015], 0.06, -60, 60, 8, 2, null, 'helm', 1);
+    armTube(Wd['knee'+S], -0.05, 0.07, 0.074, -0.36, 0.06, 0.064, 8, 0, Math.PI*2, 'helm');
+    armTube(Wd['ankle'+S], 0.0, 0.05, 0.05, -0.05, 0.048, 0.048, 8, 0, Math.PI*2, 'flesh');
+    armBox(Wd['ankle'+S], [0,-0.062,0.045], 0.052, 0.01, 0.11, 'boot');
+    armBox(Wd['ankle'+S], [0,-0.03,0.09], 0.05, 0.006, 0.01, 'boot'); armBox(Wd['ankle'+S], [0,-0.045,0.03], 0.05, 0.006, 0.01, 'boot'); });
+  // ---- round shield on the left forearm: shallow bowl, bronze rim, central boss
+  J(Wd.elbowL, function(){ var rot = Q.qz(-90*DEG), cen = [0.075,-0.14,0];   // disc normal = forearm's +x = forward once the arm is across the chest
+    withRot(rot, cen, function(){
+      armDome(null, [0,-1.56,0], 1.6, 77, 90, 16, 2, null, 'shield');
+      armTube(null, 0.0, 0.365, 0.365, 0.03, 0.355, 0.355, 16, 0, Math.PI*2, 'trim');
+      armDome(null, [0,0.03,0], 0.08, 0, 90, 8, 2, null, 'trim'); }); });
+  // ---- spear in the right hand: ash shaft through the fist, bronze head
+  J(Wd.wristR, function(){ armTube(Wd.wristR, -0.95, 0.014, 0.014, 1.25, 0.014, 0.014, 6, 0, Math.PI*2, 'wood');
+    armTube(Wd.wristR, 1.25, 0.03, 0.02, 1.47, 0.002, 0.002, 6, 0, Math.PI*2, 'helm'); armTube(Wd.wristR, -0.95, 0.02, 0.02, -1.0, 0.006, 0.006, 6, 0, Math.PI*2, 'helm'); });
+}
+function armRollX(Wj, c, hx, r, seg, kind){
+  for (var i=0;i<seg;i++){ var t0 = i/seg*Math.PI*2, t1 = (i+1)/seg*Math.PI*2;
+    var y0 = c[1]+r*Math.cos(t0), z0 = c[2]+r*Math.sin(t0), y1 = c[1]+r*Math.cos(t1), z1 = c[2]+r*Math.sin(t1);
+    armQuad(Wj, [c[0]-hx,y0,z0],[c[0]-hx,y1,z1],[c[0]+hx,y1,z1],[c[0]+hx,y0,z0], kind, RIM_RING); }
+}
+
+function build(kit, Wd){ KIT = kit; FACES.length = 0;
+  if (kit === 'heavy' || kit === 'enemy') kitHeavy(Wd); else if (kit === 'infantry') kitInfantry(Wd); else if (kit === 'hoplite') kitHoplite(Wd);
+  return FACES; }
+function pose(kit, P){ var k = KIT; KIT = kit; kitPose(P); KIT = k; }
+return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS };
+})();
+
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var TAU = Math.PI*2, DEG = Math.PI/180;
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+// ---------- deterministic noise ----------
+var SEED = 1;
+function hash2(ix, iy){ var h = (ix|0)*374761393 + (iy|0)*668265263 + SEED*1274126177; h = (h ^ (h>>>13))*1274126177; h = h ^ (h>>>16); return ((h>>>0)%65536)/65536; }
+function hash3(ix, iy, k){ return hash2(ix*3+k*7919, iy*5-k*104729); }
+function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+function vnoise(x, y){ var ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy, u=fade(fx), v=fade(fy);
+  return lerp(lerp(hash2(ix,iy),hash2(ix+1,iy),u), lerp(hash2(ix,iy+1),hash2(ix+1,iy+1),u), v)*2-1; }
+function fbm(x,y,oct){ var s=0,a=1,n=0,f=1; for(var i=0;i<oct;i++){ s+=a*vnoise(x*f,y*f); n+=a; a*=0.5; f*=2; } return s/n; }
+
+// ---------- themes ----------
+var THEMES = {
+  ruin:   { sky:['#242331','#0C0C12'], ground:[112,104,94], ground2:[68,64,62], rock:[138,134,128], relief:3.4, rough:1.2,
+            wood:[126,96,62], name:'เมืองพัง' },
+  forest: { sky:['#1D2B24','#0A0F0C'], ground:[94,124,64], ground2:[104,88,52], rock:[118,116,106], relief:7.5, rough:1.4,
+            wood:[126,96,62], name:'ป่าเนินเขา' },
+  desert: { sky:['#3A2B1C','#0E0B08'], ground:[194,160,108], ground2:[142,114,76], rock:[162,138,104], relief:5.0, rough:0.9,
+            wood:[126,96,62], name:'ทะเลทราย' },
+  ice:    { sky:['#24303F','#0B0E13'], ground:[218,226,236], ground2:[146,160,180], rock:[136,146,160], relief:4.2, rough:1.0,
+            wood:[126,96,62], name:'ที่ราบหิมะ' }
+};
+var theme = 'ruin';
+function TH(){ return THEMES[theme]; }
+
+// ---------- table + terrain ----------
+var table = { w:100, d:72 };           // metres of ground (1 game inch = 1 m)
+var CELL = 2, HG = null, hw = 0, hd = 0;   // heightfield (samples at cell corners)
+function buildTerrain(){
+  CELL = Math.max(2, Math.round(table.w/42*2)/2);
+  hw = Math.round(table.w/CELL); hd = Math.round(table.d/CELL);
+  HG = new Float32Array((hw+1)*(hd+1));
+  var t = TH();
+  for (var j=0;j<=hd;j++) for (var i=0;i<=hw;i++){
+    var x = -table.w/2 + i*CELL, z = -table.d/2 + j*CELL;
+    var h = fbm(x/34+3.7, z/34-1.1, 2)*t.relief + fbm(x/12+9.1, z/12+4.4, 2)*t.relief*0.42 + fbm(x/4.5+2.5, z/4.5+6.5, 2)*0.5*t.rough + fbm(x/1.6, z/1.6, 2)*0.16*t.rough;
+    if (theme === 'desert'){ h += Math.sin((x*0.18 + fbm(x/40,z/40,2)*2.2))*0.9; }        // dune ridges
+    // flatten a road / clearing band through the middle of a ruined city
+    if (theme === 'ruin'){ var band = Math.abs(z + fbm(x/18+21.1, 0.5, 2)*5) ; if (band < 5) h *= 0.35 + 0.65*(band/5); }
+    HG[j*(hw+1)+i] = h;
+  }
+}
+function heightAt(x, z){    // bilinear over the field, clamped to the table
+  var fx = clamp((x + table.w/2)/CELL, 0, hw), fz = clamp((z + table.d/2)/CELL, 0, hd);
+  var i = Math.min(Math.floor(fx), hw-1), j = Math.min(Math.floor(fz), hd-1), u = fx-i, v = fz-j;
+  return lerp(lerp(HG[j*(hw+1)+i], HG[j*(hw+1)+i+1], u), lerp(HG[(j+1)*(hw+1)+i], HG[(j+1)*(hw+1)+i+1], u), v);
+}
+
+// ---------- camera ----------
+var cam = { yaw: 0.6, pitch: 32*DEG, dist: 78, tx:0, tz:0 };
+var cv = $('btCv'), ctx = cv.getContext('2d'), W=0, H=0, DPR=1, FL=1;
+function resize(){ var r = cv.getBoundingClientRect(); W = Math.round(r.width); H = Math.round(r.height); DPR = Math.min(2, window.devicePixelRatio||1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); FL = H*1.15; dirty = true; }
+var EYE=[0,0,0], RT=[0,0,0], UP=[0,0,0], FW=[0,0,0];
+function setupCam(){
+  var cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  EYE = [ cam.tx + cam.dist*cp*Math.sin(cam.yaw), cam.dist*sp, cam.tz + cam.dist*cp*Math.cos(cam.yaw) ];
+  var gy = heightAt(EYE[0], EYE[2]) + 1.2; if (EYE[1] < gy) EYE[1] = gy;      // never sink into the ground
+  var tg = [cam.tx, 0, cam.tz], f = [tg[0]-EYE[0], tg[1]-EYE[1], tg[2]-EYE[2]], fl = Math.hypot(f[0],f[1],f[2]);
+  FW = [f[0]/fl, f[1]/fl, f[2]/fl];
+  var r = [ FW[2], 0, -FW[0] ], rl = Math.hypot(r[0],r[2]) || 1; RT = [r[0]/rl, 0, r[2]/rl];
+  // up = cross(forward, right)
+  UP = [ FW[1]*RT[2] - FW[2]*RT[1], FW[2]*RT[0] - FW[0]*RT[2], FW[0]*RT[1] - FW[1]*RT[0] ];
+}
+function proj(p){    // world -> [sx, sy, depth]; depth <= 0 means behind the camera
+  var vx = p[0]-EYE[0], vy = p[1]-EYE[1], vz = p[2]-EYE[2];
+  var cz = vx*FW[0] + vy*FW[1] + vz*FW[2];
+  if (cz < 0.4) return [0,0,cz];
+  var cx = vx*RT[0] + vy*RT[1] + vz*RT[2], cy = vx*UP[0] + vy*UP[1] + vz*UP[2];
+  return [ W/2 + cx*FL/cz, H/2 - cy*FL/cz, cz ];
+}
+function groundHit(sx, sy){   // screen point -> point on the ground plane (y from the heightfield, iterated twice)
+  var ndx = (sx - W/2)/FL, ndy = -(sy - H/2)/FL;
+  var d = [ FW[0] + RT[0]*ndx + UP[0]*ndy, FW[1] + RT[1]*ndx + UP[1]*ndy, FW[2] + RT[2]*ndx + UP[2]*ndy ];
+  var y = 0, p = null;
+  for (var k=0;k<3;k++){ if (d[1] >= -1e-4) return null; var t = (y - EYE[1])/d[1]; if (t < 0) return null;
+    p = [EYE[0]+d[0]*t, y, EYE[2]+d[2]*t]; y = heightAt(p[0], p[2]); }
+  return p;
+}
+
+// ---------- faces: everything drawn goes through this list, sorted far -> near ----------
+var FACES = [], LIGHT = (function(){ var v=[-0.45,0.78,0.44], l=Math.hypot(v[0],v[1],v[2]); return [v[0]/l,v[1]/l,v[2]/l]; })();
+function shade(col, n, amb){
+  var nl = n ? (n[0]*LIGHT[0] + n[1]*LIGHT[1] + n[2]*LIGHT[2]) : 1;
+  var a0 = (amb == null ? 0.6 : amb), k = a0 + (1-a0)*Math.max(0, nl)*1.08;
+  return 'rgb(' + (col[0]*k|0) + ',' + (col[1]*k|0) + ',' + (col[2]*k|0) + ')';
+}
+function normal(a, b, c){ var u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+  var n=[u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]], l=Math.hypot(n[0],n[1],n[2])||1; return [n[0]/l,n[1]/l,n[2]/l]; }
+function face(pts, col, opt){    // pts: world points (3 or 4), col: [r,g,b]
+  var n = pts.length > 2 ? normal(pts[0], pts[1], pts[2]) : null, sp = [], d = 0, i, cx=0, cy=0, cz=0;
+  for (i=0;i<pts.length;i++){ var q = proj(pts[i]); if (q[2] < 0.4) return; sp.push(q); d += q[2]; cx+=pts[i][0]; cy+=pts[i][1]; cz+=pts[i][2]; }
+  if (n && opt && opt.cull !== false){    // back-face cull: skip faces pointing away from the eye
+    var m = pts.length, ex = cx/m-EYE[0], ey = cy/m-EYE[1], ez = cz/m-EYE[2];
+    if (n[0]*ex + n[1]*ey + n[2]*ez > 0) return;
+  }
+  FACES.push({ d: d/pts.length + ((opt && opt.bias) || 0), sp: sp, fill: (opt && opt.flat) ? 'rgb('+col[0]+','+col[1]+','+col[2]+')' : shade(col, n, opt && opt.amb),
+    line: opt && opt.line, lw: (opt && opt.lw) || 1, alpha: (opt && opt.alpha) ? opt.a : null });
+}
+function decalXY(cx, cy, cz, ax, az, hu, hv, col, rotY){   // window on a wall whose face points along local z
+  var c = Math.cos(rotY||0), s2 = Math.sin(rotY||0);
+  function P(x,y,z){ return [cx + x*c + z*s2, cy + y, cz - x*s2 + z*c]; }
+  face([P(ax-hu,-hv,az), P(ax+hu,-hv,az), P(ax+hu,hv,az), P(ax-hu,hv,az)], col, { flat:true, cull:false, bias:-0.05 });
+}
+function decalZY(cx, cy, cz, ax, az, hu, hv, col, rotY){   // window on a wall whose face points along local x
+  var c = Math.cos(rotY||0), s2 = Math.sin(rotY||0);
+  function P(x,y,z){ return [cx + x*c + z*s2, cy + y, cz - x*s2 + z*c]; }
+  face([P(ax,-hv,az-hu), P(ax,-hv,az+hu), P(ax,hv,az+hu), P(ax,hv,az-hu)], col, { flat:true, cull:false, bias:-0.05 });
+}
+function box(cx, cy, cz, hx, hy, hz, col, rotY){    // an axis box (optionally spun about y), 5 visible faces
+  var c = Math.cos(rotY||0), s = Math.sin(rotY||0);
+  function P(x,y,z){ return [cx + x*c + z*s, cy + y, cz - x*s + z*c]; }
+  var a=P(-hx,-hy,-hz), b=P(hx,-hy,-hz), d=P(hx,-hy,hz), e=P(-hx,-hy,hz);
+  var a2=P(-hx,hy,-hz), b2=P(hx,hy,-hz), d2=P(hx,hy,hz), e2=P(-hx,hy,hz);
+  face([a2,b2,d2,e2], col);                 // top
+  face([a,a2,e2,e], col); face([b,d,d2,b2], col);
+  face([a,b,b2,a2], col); face([e,e2,d2,d], col);
+}
+function prism(cx, cy, cz, r, h, n, col, rotY, taper){   // n-gon column: sides + cap
+  var top = [], bot = [], i, tp = taper == null ? 1 : taper;
+  for (i=0;i<n;i++){ var a = rotY + i*TAU/n; bot.push([cx+Math.cos(a)*r, cy, cz+Math.sin(a)*r]); top.push([cx+Math.cos(a)*r*tp, cy+h, cz+Math.sin(a)*r*tp]); }
+  for (i=0;i<n;i++){ var k=(i+1)%n; face([bot[i], bot[k], top[k], top[i]], col); }
+  face(top, col);
+}
+
+// ---------- the table itself: ground mesh + wooden rails ----------
+function pointAt(i, j){ var x = -table.w/2 + i*CELL, z = -table.d/2 + j*CELL; return [x, HG[j*(hw+1)+i], z]; }
+function drawGround(step){
+  var t = TH(), i, j;
+  for (j=0;j<hd;j+=step) for (i=0;i<hw;i+=step){
+    var i2 = Math.min(i+step, hw), j2 = Math.min(j+step, hd);
+    var a = pointAt(i,j), b = pointAt(i2,j), c = pointAt(i2,j2), d = pointAt(i,j2);
+    var hh = (a[1]+b[1]+c[1]+d[1])/4, m = clamp(0.5 + hh/(t.relief*2.2), 0, 1);
+    var px = (a[0]+c[0])/2, pz = (a[2]+c[2])/2, patch = fbm(px/5.5+41.3, pz/5.5+17.7, 2);
+    var col = [ lerp(t.ground2[0], t.ground[0], m), lerp(t.ground2[1], t.ground[1], m), lerp(t.ground2[2], t.ground[2], m) ];
+    if (patch > 0.18){ var w2 = clamp((patch-0.18)*2.4, 0, 1); col = [ lerp(col[0], t.ground2[0]*0.82, w2), lerp(col[1], t.ground2[1]*0.82, w2), lerp(col[2], t.ground2[2]*0.8, w2) ]; }
+    face([a,b,c,d], col, { cull:false, bias: CELL*step*0.9 });   // the ground sorts a little farther than anything standing on it
+  }
+}
+function drawRails(){
+  var t = TH(), dark = [t.ground2[0]*0.34, t.ground2[1]*0.32, t.ground2[2]*0.32];
+  // skirt: a dark curtain from the table edge downward, so the ground looks like a solid slab
+  var i, j, drop = 3.2;
+  for (i=0;i<hw;i++){ var a = pointAt(i,0), b = pointAt(i+1,0); face([[a[0],a[1],a[2]],[b[0],b[1],b[2]],[b[0],-drop,b[2]],[a[0],-drop,a[2]]], dark, { cull:false });
+    var c = pointAt(i,hd), d = pointAt(i+1,hd); face([[d[0],-drop,d[2]],[d[0],d[1],d[2]],[c[0],c[1],c[2]],[c[0],-drop,c[2]]], dark, { cull:false }); }
+  for (j=0;j<hd;j++){ var e = pointAt(0,j), f = pointAt(0,j+1); face([[f[0],-drop,f[2]],[f[0],f[1],f[2]],[e[0],e[1],e[2]],[e[0],-drop,e[2]]], dark, { cull:false });
+    var g = pointAt(hw,j), k = pointAt(hw,j+1); face([[g[0],g[1],g[2]],[k[0],k[1],k[2]],[k[0],-drop,k[2]],[g[0],-drop,g[2]]], dark, { cull:false }); }
+}
+
+// ---------- scatter terrain, generated per theme from the seed ----------
+var PROPS = [];
+function genProps(){
+  PROPS = []; var n, i, t = theme, area = table.w*table.d, count = Math.round(area/28);
+  var CL = 5, cls = []; for (i=0;i<CL;i++) cls.push([ (hash3(i,71,3)-0.5)*table.w*0.8, (hash3(i,73,5)-0.5)*table.d*0.78 ]);
+  function spot(k){ var hx = hash3(k, 7, 11), hz = hash3(k, 9, 13), hc = hash3(k, 11, 15);
+    if (hc < 0.62){ var c = cls[Math.floor(hash3(k,13,17)*CL) % CL], rr = 5 + hash3(k,15,19)*11, aa = hash3(k,17,21)*TAU;   // most pieces clump into a few knots of terrain
+      return [ clamp(c[0] + Math.cos(aa)*rr, -table.w*0.46, table.w*0.46), clamp(c[1] + Math.sin(aa)*rr, -table.d*0.46, table.d*0.46) ]; }
+    return [ (hx-0.5)*table.w*0.92, (hz-0.5)*table.d*0.9 ]; }
+  for (i=0;i<count;i++){
+    var p = spot(i), x = p[0], z = p[1], r = hash3(i, 3, 17), rot = hash3(i, 4, 19)*TAU, ok = true;
+    for (var q=0;q<PROPS.length;q++){ var o = PROPS[q]; if (Math.hypot(o.x-x, o.z-z) < (o.rad + 1.2)) { ok = false; break; } }
+    if (!ok) continue;
+    var kind;
+    if (t === 'ruin')   kind = r < 0.40 ? 'building' : r < 0.52 ? 'wall' : r < 0.62 ? 'tower' : r < 0.74 ? 'rubble' : r < 0.85 ? 'barricade' : r < 0.94 ? 'crater' : 'pipe';
+    if (t === 'forest') kind = r < 0.34 ? 'tree' : r < 0.58 ? 'pine' : r < 0.7 ? 'boulder' : r < 0.8 ? 'log' : r < 0.94 ? 'bush' : 'wall';
+    if (t === 'desert') kind = r < 0.16 ? 'obelisk' : r < 0.4 ? 'pillars' : r < 0.58 ? 'buried' : r < 0.8 ? 'boulder' : r < 0.94 ? 'arch' : 'deadtree';
+    if (t === 'ice')    kind = r < 0.34 ? 'iceslab' : r < 0.54 ? 'boulder' : r < 0.7 ? 'pine' : r < 0.86 ? 'wall' : 'crater';
+    PROPS.push({ kind:kind, x:x, z:z, rot:rot, s:0.75 + hash3(i,5,23)*0.7, rad: kind==='building'?7:kind==='wall'||kind==='pillars'?4.5:kind==='crater'?3.5:2.4, h:hash3(i,6,29) });
+  }
+}
+function building(o, pal){   // a ruined building shell: four walls of uneven height, windows, a broken floor slab, rubble at the foot
+  var bw = (5 + o.h*7)*o.s, bd = (4.5 + hash3(o.h*131|0, 2, 61)*6)*o.s, wt = 0.45, y = heightAt(o.x, o.z), rot = o.rot;
+  var st = 4.2, storeys = o.h > 0.55 ? 2 : 1, wall = pal.wall, dark = [wall[0]*0.55, wall[1]*0.55, wall[2]*0.55], glass = [14,16,20];
+  function side(sx, sz, len, along, idx){
+    var hh = st*storeys * (0.45 + 0.55*hash3(idx, o.h*97|0, 67));      // each side broken to a different height
+    if (hh < 1) return;
+    var cx = o.x + (sx*Math.cos(rot) + sz*Math.sin(rot)), cz = o.z + (-sx*Math.sin(rot) + sz*Math.cos(rot));
+    var hx = along ? len/2 : wt/2, hz = along ? wt/2 : len/2;
+    box(cx, y + hh/2, cz, hx, hh/2, hz, wall, rot);
+    box(cx, y + hh + 0.18, cz, hx*1.06, 0.18, hz*1.06, dark, rot);     // broken cap
+    var bays = Math.max(1, Math.round(len/3.2)), b;                      // windows
+    for (b=0;b<bays;b++){
+      for (var fl=0; fl<storeys; fl++){
+        var wy = fl*st + 2.3; if (wy + 0.9 > hh) continue;
+        if (hash3(b*7+fl, idx, 71) < 0.22) continue;
+        var t2 = ((b + 0.5)/bays - 0.5)*len, off = wt/2 + 0.03;
+        if (along) decalXY(cx, y + wy, cz, t2, sz > 0 ? off : -off, 0.85*o.s, 0.9, glass, rot);
+        else       decalZY(cx, y + wy, cz, sx > 0 ? off : -off, t2, 0.85*o.s, 0.9, glass, rot);
+      }
+    }
+  }
+  side(0, -bd/2, bw, true, 1); side(0, bd/2, bw, true, 2);
+  side(-bw/2, 0, bd, false, 3); side(bw/2, 0, bd, false, 4);
+  if (storeys === 2){    // a surviving corner of the upper floor, not a full roof
+    var fx2 = (o.h < 0.78 ? -1 : 1)*bw*0.22, fz2 = (hash3(o.h*211|0, 5, 83) < 0.5 ? -1 : 1)*bd*0.24;
+    box(o.x + fx2*Math.cos(rot) + fz2*Math.sin(rot), y + st, o.z - fx2*Math.sin(rot) + fz2*Math.cos(rot), bw*0.26, 0.16, bd*0.24, [wall[0]*0.78, wall[1]*0.78, wall[2]*0.76], rot);
+  }
+  for (var r2=0;r2<4;r2++){ var a = rot + r2*1.6 + 0.4, rr = (bw*0.55 + 1.2);
+    var px = o.x + Math.cos(a)*rr, pz = o.z + Math.sin(a)*rr, py = heightAt(px, pz), rh = (0.35 + 0.6*hash3(r2, 3, 73))*o.s;
+    box(px, py + rh/2, pz, 1.1*o.s, rh/2, 0.9*o.s, dark, a); }
+}
+function propSimple(o){    // far away: one solid lump instead of the full piece
+  var t = TH(), y = heightAt(o.x, o.z), s = o.s, k = o.kind, rock = t.rock;
+  if (k === 'crater'){ prism(o.x, y, o.z, 3.4*s, 0.25*s, 7, [rock[0]*0.7, rock[1]*0.68, rock[2]*0.66], o.rot, 0.8); return; }
+  if (k === 'building'){ var bw = (5 + o.h*7)*s, bd = (4.5 + o.h*5)*s, hh = (o.h > 0.55 ? 7 : 3.6)*s;
+    box(o.x, y + hh/2, o.z, bw/2, hh/2, bd/2, [116,110,102], o.rot); return; }
+  if (k === 'tree' || k === 'pine'){ var th = (5.5 + o.h*3)*s;
+    prism(o.x, y, o.z, 0.4*s, th*0.45, 5, [76,60,44], o.rot, 0.8);
+    prism(o.x, y + th*0.35, o.z, 2.6*s, th*0.7, 6, k === 'pine' ? [44,80,52] : [56,92,52], o.rot, 0.18); return; }
+  if (k === 'obelisk' || k === 'tower' || k === 'pillars'){ prism(o.x, y, o.z, 1.6*s, (6 + o.h*3)*s, 5, rock, o.rot, 0.6); return; }
+  if (k === 'wall'){ box(o.x, y + 1.4*s, o.z, 4.2*s, 1.4*s, 0.5*s, rock, o.rot); return; }
+  prism(o.x, y, o.z, 1.8*s, (1.6 + o.h*1.4)*s, 5, rock, o.rot, 0.6);
+}
+function propScale(o){     // how tall this piece looks on screen, in pixels
+  var y = heightAt(o.x, o.z), a = proj([o.x, y, o.z]), b = proj([o.x, y + 5, o.z]);
+  return (a[2] > 0.4 && b[2] > 0.4) ? Math.abs(a[1]-b[1]) : 0;
+}
+function drawProp(o){
+  var t = TH(), y = heightAt(o.x, o.z), s = o.s, rock = t.rock, k = o.kind;
+  if (k !== 'crater' && k !== 'building') shadowAt(o.x, o.z, Math.min(o.rad*0.6, 3.0)*s, 0.22);
+  if (k === 'building'){ var pals = [[132,126,116],[108,104,104],[122,96,80],[96,100,104]], pal = { wall: pals[Math.floor(o.h*4) % 4] }; building(o, pal); return; }
+  if (k === 'arch'){ var ah = (3.5 + o.h*2.5)*s, sp = 2.6*s;
+    prism(o.x - Math.cos(o.rot)*sp, heightAt(o.x-Math.cos(o.rot)*sp, o.z-Math.sin(o.rot)*sp), o.z - Math.sin(o.rot)*sp, 0.8*s, ah, 6, rock, o.rot, 0.85);
+    prism(o.x + Math.cos(o.rot)*sp, heightAt(o.x+Math.cos(o.rot)*sp, o.z+Math.sin(o.rot)*sp), o.z + Math.sin(o.rot)*sp, 0.8*s, ah, 6, rock, o.rot, 0.85);
+    box(o.x, y + ah + 0.5*s, o.z, sp*1.35, 0.5*s, 0.8*s, [rock[0]*0.9, rock[1]*0.9, rock[2]*0.88], o.rot + Math.PI/2); return; }
+  var stone = [rock[0], rock[1], rock[2]], dust = [rock[0]*0.8, rock[1]*0.78, rock[2]*0.74];
+  if (k === 'wall'){                       // a broken wall: segments of falling height, with window holes suggested by a gap
+    var segs = 3 + Math.round(o.h*3), len = 2.4*s;
+    for (var i=0;i<segs;i++){
+      var f = i/segs, hh = (3.4 - 2.2*f*f)*s*(0.7 + 0.5*hash3(i, o.h*97|0, 31)); if (hh < 0.5) continue;
+      var dx = Math.cos(o.rot)*(i - segs/2)*len, dz = -Math.sin(o.rot)*(i - segs/2)*len;
+      var yy = heightAt(o.x+dx, o.z+dz);
+      box(o.x+dx, yy + hh/2, o.z+dz, len*0.5, hh/2, 0.45*s, stone, o.rot);
+      if (hash3(i, 3, 37) > 0.62) box(o.x+dx, yy + hh + 0.25*s, o.z+dz, len*0.28, 0.25*s, 0.5*s, dust, o.rot);   // rubble on top
+    }
+  } else if (k === 'tower'){               // a shattered tower stump
+    prism(o.x, y, o.z, 2.4*s, 6.5*s*(0.7+o.h*0.6), 6, stone, o.rot, 0.82);
+    prism(o.x, y, o.z, 2.9*s, 0.5*s, 6, dust, o.rot, 1);
+    box(o.x + Math.cos(o.rot)*3.4*s, y + 0.5*s, o.z + Math.sin(o.rot)*3.4*s, 1.6*s, 0.5*s, 1.1*s, dust, o.rot*1.7);
+  } else if (k === 'rubble'){
+    for (var b=0;b<5;b++){ var a = o.rot + b*1.7, rr = 1.5*s*hash3(b,1,41), hh2 = (0.4 + 0.9*hash3(b,2,43))*s;
+      box(o.x + Math.cos(a)*rr, y + hh2/2, o.z + Math.sin(a)*rr, 0.8*s, hh2/2, 0.7*s, b%2?dust:stone, a); }
+  } else if (k === 'barricade'){
+    box(o.x, y + 0.9*s, o.z, 3.2*s, 0.9*s, 0.4*s, [92,90,86], o.rot);
+    box(o.x, y + 1.9*s, o.z, 3.2*s, 0.12*s, 0.5*s, [140,120,70], o.rot);
+    box(o.x + Math.cos(o.rot+1.5)*1.4*s, y + 0.5*s, o.z + Math.sin(o.rot+1.5)*1.4*s, 0.9*s, 0.5*s, 0.9*s, dust, o.rot);
+  } else if (k === 'crater'){
+    prism(o.x, y - 0.35*s, o.z, 3.0*s, 0.3*s, 9, [dust[0]*0.42, dust[1]*0.4, dust[2]*0.38], o.rot, 1.25);
+    prism(o.x, y, o.z, 3.7*s, 0.3*s, 9, dust, o.rot, 0.82);
+  } else if (k === 'pipe'){
+    var pl = 5*s; for (var pz=-1;pz<=1;pz+=2){ box(o.x + Math.cos(o.rot)*pz*pl*0.35, y + 0.8*s, o.z + Math.sin(o.rot)*pz*pl*0.35, pl*0.3, 0.8*s, 0.8*s, [78,84,86], o.rot); }
+    prism(o.x, y, o.z, 1.1*s, 2.2*s, 8, [70,76,80], o.rot, 1);
+  } else if (k === 'tree' || k === 'deadtree'){
+    var th = (5 + o.h*3)*s;
+    prism(o.x, y, o.z, 0.42*s, th, 6, [78,62,44], o.rot, 0.7);
+    if (k === 'tree'){ var tint = o.h, lc = [lerp(48,82,tint), lerp(86,104,tint), lerp(44,56,tint)];
+      prism(o.x, y + th*0.58, o.z, (2.6 + tint*1.1)*s, (2.4+tint*1.4)*s, 7, lc, o.rot, 0.25);
+      prism(o.x, y + th*0.42, o.z, (3.2+tint*0.8)*s, 2.0*s, 7, [lc[0]*0.84, lc[1]*0.84, lc[2]*0.84], o.rot+0.4, 0.55);
+      if (tint > 0.5) prism(o.x + 1.1*s, y + th*0.5, o.z - 0.8*s, 1.5*s, 1.5*s, 6, [lc[0]*0.92, lc[1]*0.92, lc[2]*0.92], o.rot+1.1, 0.4);
+    } else { for (var br=0;br<5;br++){ var ba = o.rot + br*1.25, bl = (0.9 + hash3(br,1,79)*0.9)*s, byy = y + th*(0.55 + 0.12*br);
+        box(o.x + Math.cos(ba)*bl*0.6, byy, o.z + Math.sin(ba)*bl*0.6, bl*0.6, 0.1*s, 0.1*s, [92,76,58], -ba);
+        box(o.x + Math.cos(ba)*bl*1.0, byy - 0.35*s, o.z + Math.sin(ba)*bl*1.0, 0.1*s, 0.35*s, 0.1*s, [86,70,52], -ba); } }
+  } else if (k === 'pine'){
+    var ph = (6 + o.h*4)*s;
+    prism(o.x, y, o.z, 0.34*s, ph*0.4, 5, [70,56,40], o.rot, 0.8);
+    prism(o.x, y + ph*0.28, o.z, 2.6*s, ph*0.45, 7, [42,78,52], o.rot, 0.12);
+    prism(o.x, y + ph*0.62, o.z, 1.8*s, ph*0.5, 7, [50,88,58], o.rot+0.5, 0.08);
+  } else if (k === 'bush'){
+    prism(o.x, y, o.z, 1.5*s, 1.1*s, 6, [56,80,48], o.rot, 0.55);
+  } else if (k === 'boulder' || k === 'iceslab'){
+    var bc = k === 'iceslab' ? [176,196,214] : stone;
+    prism(o.x, y - 0.2, o.z, 1.9*s, (1.6 + o.h*1.6)*s, 6, bc, o.rot, 0.55);
+    if (o.h > 0.5) prism(o.x + 1.2*s, y, o.z + 0.9*s, 1.0*s, 0.9*s, 5, bc, o.rot+1, 0.6);
+  } else if (k === 'log'){
+    box(o.x, y + 0.45*s, o.z, 3.4*s, 0.45*s, 0.45*s, [86,68,48], o.rot);
+  } else if (k === 'obelisk'){
+    prism(o.x, y, o.z, 1.5*s, 1.0*s, 4, dust, o.rot, 1);
+    prism(o.x, y + 1.0*s, o.z, 1.1*s, (7 + o.h*4)*s, 4, stone, o.rot, 0.45);
+  } else if (k === 'pillars'){
+    for (var pi=0;pi<4;pi++){ var pa = o.rot + pi*TAU/4, px = o.x + Math.cos(pa)*3.2*s, pz2 = o.z + Math.sin(pa)*3.2*s, py = heightAt(px, pz2);
+      var ph2 = (2 + hash3(pi, 2, 47)*4.5)*s; prism(px, py, pz2, 0.75*s, ph2, 8, stone, pa, 0.9);
+      if (hash3(pi,3,53) > 0.5) prism(px, py + ph2, pz2, 0.85*s, 0.3*s, 8, dust, pa, 1); }
+  } else if (k === 'buried'){
+    box(o.x, y + 0.5*s, o.z, 3.0*s, 0.5*s, 0.6*s, dust, o.rot);
+    box(o.x + Math.cos(o.rot)*2.4*s, y + 1.1*s, o.z + Math.sin(o.rot)*2.4*s, 0.7*s, 1.1*s, 0.6*s, stone, o.rot);
+  }
+}
+
+// ---------- miniatures: a compact armoured figure on a base, ~28 faces ----------
+var UNIT_COL = {
+  heavy:    { plate:[92,112,150], trim:[196,168,92], visor:[30,32,42], base:[52,54,60] },
+  infantry: { plate:[96,104,72],  trim:[120,128,92], visor:[34,34,30], base:[52,54,60] },
+  hoplite:  { plate:[184,134,66], trim:[214,204,182], visor:[24,22,20], base:[52,54,60] },
+  enemy:    { plate:[132,52,54],  trim:[70,26,28],   visor:[240,180,90], base:[44,40,42] }
+};
+var units = [];
+var RIGQ = SKRIG, POSE_CACHE = {};
+function rigFaces(u){                    // the kit's geometry, already moved onto the table
+  var kit = u.k === 'enemy' ? 'heavy' : u.k, key = kit + '|' + (u.pv||0);
+  var cached = POSE_CACHE[key];
+  if (!cached){
+    var P = RIGQ.idlePose((u.pv||0)*1.7);           // a standing pose, each model at a slightly different breath phase
+    MINI.pose(kit, P);
+    var Wd = RIGQ.fk(P), n, out = {};
+    for (n in Wd) out[n] = { p: Wd[n].p, q: Wd[n].q };
+    cached = POSE_CACHE[key] = { Wd: out, faces: null };
+    cached.faces = MINI.build(kit, out).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; });
+  }
+  return cached.faces;
+}
+function drawRig(u, S){
+  var faces = rigFaces(u), pal = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy;
+  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, ENEMY = u.k === 'enemy';
+  for (i=0;i<faces.length;i++){
+    var f = faces[i], pts = [], col = pal[f.k] || pal.plate;
+    if (ENEMY) col = [col[0]*0.55 + 120, col[1]*0.45, col[2]*0.45];
+    for (m=0;m<f.p.length;m++){ var q = f.p[m];
+      pts.push([ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]); }
+    face(pts, col, { bias:-0.15 });
+  }
+}
+function drawUnit(u){
+  var C = UNIT_COL[u.k] || UNIT_COL.heavy, y = heightAt(u.x, u.z), s = 1.0, rot = u.rot || 0;
+  shadowAt(u.x, u.z, 0.8, 0.34);
+  var pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]), px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
+  if (px > 32 && rigBudget > 0 && !dragging){       // close enough to be worth the real model
+    rigBudget--; prism(u.x, y, u.z, 0.62, 0.1, 12, C.base, rot, 1); drawRig(u, 1.0);
+    if (u.sel) ringAt(u.x, u.z, 0.95, '#E0B26A');
+    return;
+  }
+  prism(u.x, y, u.z, 0.62, 0.16, 12, C.base, rot, 1);              // base disc
+  var b = y + 0.16;
+  box(u.x, b + 0.38, u.z, 0.30, 0.38, 0.22, C.plate, rot);         // legs block
+  box(u.x, b + 0.95, u.z, 0.40, 0.30, 0.26, C.plate, rot);         // torso
+  box(u.x, b + 1.2, u.z, 0.16, 0.12, 0.30, C.trim, rot);           // chest trim
+  var sx = Math.cos(rot), sz = -Math.sin(rot);                      // shoulder axis
+  box(u.x + sx*0.46, b + 1.16, u.z + sz*0.46, 0.18, 0.20, 0.24, C.plate, rot);   // pauldrons
+  box(u.x - sx*0.46, b + 1.16, u.z - sz*0.46, 0.18, 0.20, 0.24, C.plate, rot);
+  box(u.x, b + 1.46, u.z, 0.19, 0.18, 0.21, C.plate, rot);          // helmet
+  var fx = Math.sin(rot), fz = Math.cos(rot);                       // facing
+  box(u.x + fx*0.19, b + 1.44, u.z + fz*0.19, 0.13, 0.07, 0.04, C.visor, rot);   // visor slit
+  if (u.k === 'hoplite'){ box(u.x, b + 1.72, u.z, 0.05, 0.16, 0.22, C.trim, rot);          // crest
+    box(u.x - sx*0.52, b + 1.0, u.z - sz*0.52, 0.06, 0.34, 0.34, C.trim, rot); }           // shield
+  else { box(u.x + sx*0.52 + fx*0.18, b + 0.92, u.z + sz*0.52 + fz*0.18, 0.09, 0.09, 0.42, C.visor, rot); }   // weapon
+  if (u.sel){ ringAt(u.x, u.z, 0.95, '#E0B26A'); }
+}
+function ringAt(x, z, r, col, dash){
+  var pts = [], n = 20, i; for (i=0;i<=n;i++){ var a = i*TAU/n, px = x+Math.cos(a)*r, pz = z+Math.sin(a)*r, p = proj([px, heightAt(px,pz)+0.05, pz]); if (p[2] < 0.4) return; pts.push(p); }
+  OVER.push(function(){ ctx.strokeStyle = col; ctx.lineWidth = 2; if (dash) ctx.setLineDash(dash); ctx.beginPath();
+    for (var k=0;k<pts.length;k++){ k ? ctx.lineTo(pts[k][0], pts[k][1]) : ctx.moveTo(pts[k][0], pts[k][1]); } ctx.stroke(); ctx.setLineDash([]); });
+}
+var OVER = [];
+function shadowAt(x, z, r, k){    // a soft dark patch on the ground so pieces sit in the terrain instead of hovering
+  var n = 7, pts = [], i, off = 0.35*r;
+  for (i=0;i<n;i++){ var a = i*TAU/n, px = x + Math.cos(a)*r*1.05 - off, pz = z + Math.sin(a)*r*0.95 + off*0.5; pts.push([px, heightAt(px,pz)+0.04, pz]); }
+  face(pts, [0,0,0], { cull:false, flat:true, bias:1.2, alpha:true, a:(k==null?0.3:k) });
+}
+
+// ---------- frame ----------
+var dirty = true, dragging = false, rigBudget = 10, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
+function drawScene(){
+  setupCam(); FACES = []; OVER = [];
+  var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  var step = dragging ? 2 : 1; rigBudget = dragging ? 0 : 7;
+  drawGround(step); drawRails();
+  var i, detail = dragging ? 46 : 26;
+  for (i=0;i<PROPS.length;i++){ var o = PROPS[i]; if (propScale(o) < detail){ shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o); } else drawProp(o); }
+  for (i=0;i<units.length;i++) drawUnit(units[i]);
+  if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
+  if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.x, z:drag.z}, true);
+  FACES.sort(function(a,b){ return b.d - a.d; });
+  for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp;
+    ctx.beginPath(); ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
+    if (f.alpha != null){ ctx.globalAlpha = f.alpha; ctx.fillStyle = f.fill; ctx.fill(); ctx.globalAlpha = 1; } else { ctx.fillStyle = f.fill; ctx.fill(); } if (f.line){ ctx.strokeStyle = f.line; ctx.lineWidth = f.lw; ctx.stroke(); } }
+  for (i=0;i<OVER.length;i++) OVER[i]();
+  hud();
+}
+function rulerLine(A, B, moving){
+  var d = Math.hypot(B.x-A.x, B.z-A.z), a = proj([A.x, heightAt(A.x,A.z)+0.1, A.z]), b = proj([B.x, heightAt(B.x,B.z)+0.1, B.z]);
+  ringAt(A.x, A.z, 0.5, moving ? '#ECE9E0' : '#E0B26A');
+  if (a[2] < 0.4 || b[2] < 0.4) return;
+  OVER.push(function(){
+    ctx.strokeStyle = moving ? 'rgba(236,233,224,0.85)' : '#E0B26A'; ctx.lineWidth = 2; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.setLineDash([]);
+    if (d < 0.05) return;
+    var txt = d.toFixed(1) + '"  (' + d.toFixed(1) + ' ม.)', mx = (a[0]+b[0])/2, my = (a[1]+b[1])/2 - 14;
+    ctx.font = '600 13px Sarabun, "Noto Sans Thai", system-ui, sans-serif'; var tw = ctx.measureText(txt).width;
+    ctx.fillStyle = 'rgba(11,11,14,0.82)'; ctx.fillRect(mx-tw/2-5, my-10, tw+10, 20);
+    ctx.fillStyle = moving ? '#ECE9E0' : '#E0B26A'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, mx, my); ctx.textAlign = 'left';
+  });
+}
+function hud(){
+  var n = {}, i; for (i=0;i<units.length;i++) n[units[i].k] = (n[units[i].k]||0)+1;
+  var parts = []; if (n.heavy) parts.push('เกราะหนัก ' + n.heavy); if (n.infantry) parts.push('ราบ ' + n.infantry); if (n.hoplite) parts.push('กรีก ' + n.hoplite); if (n.enemy) parts.push('ศัตรู ' + n.enemy);
+  $('btHud').innerHTML = TH().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '');
+}
+function frame(){ raf(frame); if (!dirty) return; dirty = false; drawScene(); }
+
+// ---------- input ----------
+var mode = 'look', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt = null, drag = null, dragFrom = null, measure = null;
+function unitHit(sx, sy){
+  var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], p = proj([u.x, heightAt(u.x,u.z)+0.9, u.z]); if (p[2] < 0.4) continue;
+    var d = Math.hypot(p[0]-sx, p[1]-sy); if (d < 28 && d < bd){ bd = d; best = u; } } return best;
+}
+cv.addEventListener('pointerdown', function(ev){ cv.setPointerCapture(ev.pointerId); var r = cv.getBoundingClientRect(), p = [ev.clientX-r.left, ev.clientY-r.top];
+  ptrs[ev.pointerId] = p; moved = false; downAt = p.slice();
+  var ids = Object.keys(ptrs);
+  if (ids.length === 2){ var a = ptrs[ids[0]], b = ptrs[ids[1]]; pinch = { d: Math.hypot(a[0]-b[0], a[1]-b[1]), dist: cam.dist }; drag = null; return; }
+  if (mode === 'place' || mode === 'erase'){ var u = unitHit(p[0], p[1]);
+    if (u && mode === 'place'){ drag = u; dragFrom = [u.x, u.z]; units.forEach(function(q){ q.sel = false; }); u.sel = true; dirty = true; } } });
+cv.addEventListener('pointermove', function(ev){ if (!(ev.pointerId in ptrs)) return; var r = cv.getBoundingClientRect(), p = [ev.clientX-r.left, ev.clientY-r.top], prev = ptrs[ev.pointerId];
+  ptrs[ev.pointerId] = p; var ids = Object.keys(ptrs);
+  if (ids.length >= 2 && pinch){ var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a[0]-b[0], a[1]-b[1]);
+    cam.dist = clamp(pinch.dist * pinch.d / Math.max(d, 1), 6, 260); moved = true; dragging = true; dirty = true; return; }
+  if (Math.hypot(p[0]-downAt[0], p[1]-downAt[1]) > 5) moved = true;
+  if (drag){ var w = groundHit(p[0], p[1]); if (w){ drag.x = clamp(w[0], -table.w/2, table.w/2); drag.z = clamp(w[2], -table.d/2, table.d/2); dirty = true; } return; }
+  if (moved){ cam.yaw -= (p[0]-prev[0])*0.008; cam.pitch = clamp(cam.pitch + (p[1]-prev[1])*0.006, 6*DEG, 82*DEG); dragging = true; dirty = true; } });
+cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delete ptrs[ev.pointerId];
+  if (Object.keys(ptrs).length < 2) pinch = null;
+  if (dragging && !Object.keys(ptrs).length){ dragging = false; dirty = true; }
+  if (drag){ drag = null; dragFrom = null; dirty = true; return; }
+  if (!p || moved) return;
+  var w = groundHit(p[0], p[1]); if (!w) return;
+  if (mode === 'place'){ units.push({ k:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false }); dirty = true; }
+  else if (mode === 'erase'){ var u = unitHit(p[0], p[1]); if (u){ units.splice(units.indexOf(u), 1); dirty = true; } }
+  else if (mode === 'measure'){ if (!measure || measure.b) measure = { a:{x:w[0], z:w[2]}, b:null }; else measure.b = {x:w[0], z:w[2]}; dirty = true; } });
+cv.addEventListener('pointercancel', function(ev){ delete ptrs[ev.pointerId]; pinch = null; drag = null; dragging = false; dirty = true; });
+cv.addEventListener('wheel', function(ev){ ev.preventDefault(); cam.dist = clamp(cam.dist * Math.pow(1.0015, ev.deltaY), 6, 260); dirty = true; }, { passive:false });
+function setOn(grp, b){ Array.prototype.forEach.call(grp.querySelectorAll('button'), function(x){ x.classList.toggle('on', x===b); }); }
+$('btTheme').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; theme = b.dataset.t; setOn($('btTheme'), b); buildTerrain(); genProps(); dirty = true; });
+$('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
+$('btKit').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; kit = b.dataset.k; setOn($('btKit'), b); });
+$('btSize').addEventListener('input', function(){ table.w = +$('btSize').value; table.d = Math.round(table.w*0.72/2)*2; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
+  cam.dist = table.w*1.3; buildTerrain(); genProps(); units = units.filter(function(u){ return Math.abs(u.x) < table.w/2 && Math.abs(u.z) < table.d/2; }); dirty = true; });
+$('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.random()*99999); $('btSeed').textContent = 'สนาม #' + SEED; buildTerrain(); genProps(); dirty = true; });
+$('btTop').addEventListener('click', function(){ cam.pitch = 52*DEG; cam.dist = table.w*1.25; cam.tx = 0; cam.tz = 0; dirty = true; });
+$('btEye').addEventListener('click', function(){ cam.pitch = 13*DEG; cam.dist = 26; dirty = true; });
+window.addEventListener('resize', resize);
+buildTerrain(); genProps(); resize();
+cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
+window.BT = { cam:cam, table:table, units:units, setTheme:function(t){ theme = t; buildTerrain(); genProps(); dirty = true; }, add:function(k,x,z){ units.push({k:k,x:x,z:z,rot:0}); dirty = true; },
+  draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; } };
+})();
+</script>

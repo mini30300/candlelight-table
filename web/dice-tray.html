@@ -1,0 +1,316 @@
+<title>ถาดลูกเต๋า</title>
+<style>
+#dz{--bg:#0B0B0E;--ink:#ECE9E0;--sub:#9C968A;--chip:#15151A;--chipB:#2A2A32;--on:#E0B26A;--onInk:#0B0B0E;--tray:#101016;
+  font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif;background:var(--bg);color:var(--ink);max-width:520px;margin:0 auto;min-height:100vh;
+  box-sizing:border-box;padding:6px 8px 12px;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#dz *{box-sizing:border-box}
+#dz .cap{font-size:13px;line-height:18px;min-height:20px;color:var(--sub);padding:0 2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dz .cap b{color:var(--ink);font-weight:600}
+#dz canvas{display:block;width:100%;height:440px;border-radius:14px;touch-action:manipulation;background:var(--bg);border:1px solid var(--chipB)}
+#dz .row{display:flex;gap:6px;margin-top:6px;align-items:stretch}
+#dz .grp{display:flex;gap:4px;flex:1;min-width:0}
+#dz button{flex:1;min-width:0;min-height:44px;border-radius:10px;border:1px solid var(--chipB);background:var(--chip);color:var(--ink);font:inherit;font-size:15px;padding:0 4px;cursor:pointer;touch-action:manipulation}
+#dz button.on{background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:600}
+#dz button.big{flex:2;font-size:17px;font-weight:600;min-height:50px}
+#dz .cnt{flex:1;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:10px;border:1px solid var(--chipB);background:var(--chip);font-variant-numeric:tabular-nums;font-size:16px}
+#dz .res{margin-top:8px;min-height:44px;padding:8px 12px;border-radius:10px;border:1px dashed var(--chipB);font-size:15px;line-height:22px;font-variant-numeric:tabular-nums}
+#dz .res b{color:var(--on);font-size:20px}
+#dz .res span{display:inline-block;min-width:26px;text-align:center;margin:1px 2px;padding:0 4px;border-radius:6px;background:var(--chip);border:1px solid var(--chipB)}
+#dz .res span.hit{border-color:var(--on);color:var(--on)}
+</style>
+<div id="dz">
+  <div class="cap" id="dzCap"><b>ถาดลูกเต๋า</b> · เลือกทรง ตั้งจำนวน แล้วทอย</div>
+  <canvas id="dzCv"></canvas>
+  <div class="row"><div class="grp" id="dzKind">
+    <button data-k="4">d4</button><button data-k="6" class="on">d6</button><button data-k="8">d8</button><button data-k="10">d10</button><button data-k="12">d12</button><button data-k="20">d20</button>
+  </div></div>
+  <div class="row">
+    <button id="dzMinus">−</button><div class="cnt" id="dzCnt">3 ลูก</div><button id="dzPlus">+</button>
+    <button id="dzRoll" class="big">ทอย</button>
+  </div>
+  <div class="row"><div class="grp" id="dzTgt">
+    <button data-t="0" class="on">นับรวม</button><button data-t="4">4+</button><button data-t="5">5+</button><button data-t="6">6+</button>
+  </div></div>
+  <div class="res" id="dzRes">ยังไม่ได้ทอย</div>
+</div>
+<script>
+(function(){
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var D = Math.PI/180, TAU = Math.PI*2;
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function add(a,b){ return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]; }
+function sub(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
+function mul(a,s){ return [a[0]*s,a[1]*s,a[2]*s]; }
+function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function len(a){ return Math.sqrt(dot(a,a)); }
+function norm(a){ var l=len(a)||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+function qmul(a,b){ var ax=a[0],ay=a[1],az=a[2],aw=a[3],bx=b[0],by=b[1],bz=b[2],bw=b[3];
+  return [aw*bx+ax*bw+ay*bz-az*by, aw*by-ax*bz+ay*bw+az*bx, aw*bz+ax*by-ay*bx+az*bw, aw*bw-ax*bx-ay*by-az*bz]; }
+function qconj(q){ return [-q[0],-q[1],-q[2],q[3]]; }
+function qnorm(q){ var l=Math.sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3])||1; return [q[0]/l,q[1]/l,q[2]/l,q[3]/l]; }
+function qrot(q,v){ var x=q[0],y=q[1],z=q[2],w=q[3], ux=y*v[2]-z*v[1], uy=z*v[0]-x*v[2], uz=x*v[1]-y*v[0], vx=y*uz-z*uy, vy=z*ux-x*uz, vz=x*uy-y*ux;
+  return [v[0]+2*(w*ux+vx), v[1]+2*(w*uy+vy), v[2]+2*(w*uz+vz)]; }
+function qaxis(axis, ang){ var s = Math.sin(ang/2), a = norm(axis); return [a[0]*s, a[1]*s, a[2]*s, Math.cos(ang/2)]; }
+function qslerp(a,b,t){ var d=dot(a,b)+a[3]*b[3], bb=b; if (d<0){ d=-d; bb=[-b[0],-b[1],-b[2],-b[3]]; }
+  if (d>0.9995) return qnorm([lerp(a[0],bb[0],t),lerp(a[1],bb[1],t),lerp(a[2],bb[2],t),lerp(a[3],bb[3],t)]);
+  var th=Math.acos(d), s=Math.sin(th), wa=Math.sin((1-t)*th)/s, wb=Math.sin(t*th)/s;
+  return [a[0]*wa+bb[0]*wb, a[1]*wa+bb[1]*wb, a[2]*wa+bb[2]*wb, a[3]*wa+bb[3]*wb]; }
+// rotation taking unit vector a onto unit vector b
+function qFromTo(a,b){ var c = cross(a,b), d = dot(a,b); if (d < -0.99999){ var ax = Math.abs(a[0]) < 0.9 ? [1,0,0] : [0,1,0]; return qaxis(cross(a,ax), Math.PI); } return qnorm([c[0],c[1],c[2],1+d]); }
+var rnd = Math.random;
+
+// ---------- polyhedra (unit-ish size, centred). faces are index lists, counter-clockwise from outside ----------
+// values so that opposite faces sum to max+1 (or 9 for the d10), like real dice
+function pairValues(verts, faces, max, sumTo){
+  var C = faces.map(function(f){ var c=[0,0,0]; f.forEach(function(vi){ c = add(c, verts[vi]); }); return norm(c); });
+  var vals = new Array(faces.length), used = {}, next = max === 9 ? 0 : 1, hi = sumTo;
+  for (var i=0;i<faces.length;i++){ if (vals[i] !== undefined) continue; var opp = -1, bd = 1; for (var j=0;j<faces.length;j++){ var d = dot(C[i],C[j]); if (d < bd){ bd = d; opp = j; } }
+    vals[i] = next; vals[opp] = hi - next; next++; while (used[next]) next++; used[vals[i]] = 1; used[vals[opp]] = 1; while (used[next]) next++; }
+  return vals;
+}
+function poly(verts, faces, values, opts){
+  // rescale so the circumradius is 1, compute face normals and centres
+  var R = 0; verts.forEach(function(v){ R = Math.max(R, len(v)); }); verts = verts.map(function(v){ return mul(v, 1/R); });
+  var F = faces.map(function(f, i){ var c = [0,0,0]; f.forEach(function(vi){ c = add(c, verts[vi]); }); c = mul(c, 1/f.length);
+    var n = norm(cross(sub(verts[f[1]],verts[f[0]]), sub(verts[f[2]],verts[f[0]]))); if (dot(n,c) < 0){ n = mul(n,-1); f = f.slice().reverse(); }
+    return { v:f, n:n, c:c, val:values[i] }; });
+  var inr = 1e9; F.forEach(function(f){ inr = Math.min(inr, dot(f.n, f.c)); });
+  return { verts:verts, faces:F, inr:inr, opts:opts||{} };
+}
+var PHI = (1+Math.sqrt(5))/2;
+function tetra(){ var v=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]]; return poly(v, [[0,1,2],[0,3,1],[0,2,3],[1,3,2]], [1,2,3,4], { vertexRead:true }); }
+function cube(){ var v=[]; for (var i=0;i<8;i++) v.push([i&1?1:-1, i&2?1:-1, i&4?1:-1]);
+  var F = [[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]]; return poly(v, F, pairValues(v, F, 6, 7)); }
+function octa(){ var v=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  var F = [[0,2,4],[2,1,4],[1,3,4],[3,0,4],[2,0,5],[1,2,5],[3,1,5],[0,3,5]]; return poly(v, F, pairValues(v, F, 8, 9)); }
+function d10(){ // pentagonal trapezohedron: ring height h solved so every kite is flat
+  var r = 0.72, A = 1, lo = 0, hi = 0.5, h;
+  for (var it=0; it<40; it++){ h = (lo+hi)/2; var T=[0,A,0], U1=[r,h,0], L=[r*Math.cos(36*D),-h,r*Math.sin(36*D)], U2=[r*Math.cos(72*D),h,r*Math.sin(72*D)];
+    var vol = dot(cross(sub(U1,T), sub(U2,T)), sub(L,T)); if (vol > 0) hi = h; else lo = h; }
+  var v=[[0,A,0],[0,-A,0]]; for (var i=0;i<10;i++){ var a=i*36*D; v.push([Math.cos(a)*r, (i%2?h:-h), Math.sin(a)*r]); }
+  var F=[]; for (var k=0;k<10;k++){ var a=2+k, b=2+(k+1)%10, c=2+(k+2)%10; F.push(k%2 ? [0,a,b,c] : [1,c,b,a]); }
+  return poly(v, F, pairValues(v, F, 9, 9)); }
+function dodeca(){ var v=[], i, j, k; for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2) for (k=-1;k<=1;k+=2) v.push([i,j,k]);
+  for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2){ v.push([0, i/PHI, j*PHI]); v.push([i/PHI, j*PHI, 0]); v.push([i*PHI, 0, j/PHI]); }
+  var F = facesFromHull(v, 5, 12); return poly(v, F, pairValues(v, F, 12, 13)); }
+function icosa(){ var v=[], i, j; for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2){ v.push([0, i, j*PHI]); v.push([i, j*PHI, 0]); v.push([j*PHI, 0, i]); }
+  var F = facesFromHull(v, 3, 20); return poly(v, F, pairValues(v, F, 20, 21)); }
+// faces of a convex regular solid: every set of `k` vertices lying on a supporting plane at the outermost distance
+function facesFromHull(v, k, nF){
+  var n = v.length, faces = [], seen = {};
+  for (var a=0;a<n;a++) for (var b=a+1;b<n;b++) for (var c=b+1;c<n;c++){
+    var nn = cross(sub(v[b],v[a]), sub(v[c],v[a])); if (len(nn) < 1e-6) continue; nn = norm(nn); var d0 = dot(nn, v[a]);
+    var on = [], out = false; for (var i=0;i<n;i++){ var d = dot(nn, v[i]) - d0; if (d > 1e-6){ out = true; break; } if (Math.abs(d) < 1e-6) on.push(i); }
+    if (out){ nn = mul(nn,-1); d0 = -d0; out = false; on = []; for (var i2=0;i2<n;i2++){ var d2 = dot(nn, v[i2]) - d0; if (d2 > 1e-6){ out = true; break; } if (Math.abs(d2) < 1e-6) on.push(i2); } }
+    if (out || on.length !== k) continue;
+    var key = on.slice().sort(function(x,y){ return x-y; }).join(','); if (seen[key]) continue; seen[key] = 1;
+    // order the polygon's vertices around its centre
+    var cen = [0,0,0]; on.forEach(function(i){ cen = add(cen, v[i]); }); cen = mul(cen, 1/k);
+    var ux = norm(sub(v[on[0]], cen)), uy = cross(nn, ux);
+    on.sort(function(p,q){ var dp = sub(v[p],cen), dq = sub(v[q],cen); return Math.atan2(dot(dp,uy),dot(dp,ux)) - Math.atan2(dot(dq,uy),dot(dq,ux)); });
+    faces.push(on); if (faces.length === nF) return faces;
+  }
+  return faces;
+}
+var SHAPES = { 4:tetra(), 6:cube(), 8:octa(), 10:d10(), 12:dodeca(), 20:icosa() };
+// symmetry: the rotation of a solid onto itself that carries face `from` onto face `to` (vertex j of `from` onto vertex 0 of `to`)
+function symmetry(S, from, to, j){
+  var fa = S.faces[from], fb = S.faces[to], q1 = qFromTo(fa.n, fb.n);
+  var va = sub(qrot(q1, S.verts[fa.v[j]]), mul(fb.n, dot(fb.n, qrot(q1, S.verts[fa.v[j]])))), vb = sub(S.verts[fb.v[0]], mul(fb.n, dot(fb.n, S.verts[fb.v[0]])));
+  var ang = Math.atan2(dot(cross(va,vb), fb.n), dot(va,vb));
+  return qmul(qaxis(fb.n, ang), q1);
+}
+// relabel so that face `up` shows `want`: values move with a true symmetry of the solid, so the die stays a real die
+function relabel(S, up, want){
+  var from = -1; S.faces.forEach(function(f,i){ if (f.val === want) from = i; }); if (from < 0 || from === up) return S.faces.map(function(f){ return f.val; });
+  var q = symmetry(S, from, up, 0), out = [];
+  S.faces.forEach(function(f, i){ var c = qrot(qconj(q), f.c), best = 0, bd = -2; S.faces.forEach(function(g, k){ var d = dot(c, g.c); if (d > bd){ bd = d; best = k; } }); out[i] = S.faces[best].val; });
+  return out;
+}
+
+// ---------- physics: rigid body with vertex contacts against the tray ----------
+var TRAY = { x:1.0, z:1.45 }, G = -9.8, DT = 1/120;
+function mkDie(kind, size, p, v, w){ var S = SHAPES[kind]; return { kind:kind, S:S, r:size, p:p, v:v, q:qnorm([rnd()-0.5, rnd()-0.5, rnd()-0.5, rnd()-0.5]), w:w, m:1, I:0.4*size*size, done:false, snapT:0, labels:null }; }
+function stepDie(d, dt){
+  if (d.done) return;
+  var e = 0.32, mu = 0.45, hitAny = false;
+  d.v[1] += G*dt; d.p = add(d.p, mul(d.v, dt));
+  var wl = len(d.w); if (wl > 1e-6) d.q = qnorm(qmul(qaxis(d.w, wl*dt), d.q));
+  // contacts: every vertex against floor and the four walls
+  for (var it=0; it<2; it++){
+    var deepest = 0, dv = null, dn = null;
+    for (var i=0;i<d.S.verts.length;i++){ var r = qrot(d.q, mul(d.S.verts[i], d.r)), x = add(d.p, r);
+      var cands = [[x[1], [0,1,0]], [TRAY.x - x[0], [-1,0,0]], [x[0] + TRAY.x, [1,0,0]], [TRAY.z - x[2], [0,0,-1]], [x[2] + TRAY.z, [0,0,1]]];
+      for (var c=0;c<cands.length;c++){ var pen = -cands[c][0]; if (pen > deepest){ deepest = pen; dv = r; dn = cands[c][1]; } } }
+    if (!dv) break;
+    hitAny = true;
+    d.p = add(d.p, mul(dn, deepest));
+    var vp = add(d.v, cross(d.w, dv)), vn = dot(vp, dn);
+    if (vn < 0){
+      var rn = cross(dv, dn), k = 1/d.m + dot(cross(rn, dv), dn)/d.I, j = -(1+e)*vn/k;
+      d.v = add(d.v, mul(dn, j/d.m)); d.w = add(d.w, mul(cross(dv, mul(dn, j)), 1/d.I));
+      var vt = sub(vp, mul(dn, vn)), vtl = len(vt);
+      if (vtl > 1e-6){ var jt = Math.min(mu*j, vtl/k), imp = mul(vt, -jt/vtl); d.v = add(d.v, mul(imp, 1/d.m)); d.w = add(d.w, mul(cross(dv, imp), 1/d.I)); }
+    }
+  }
+  if (hitAny){ d.v = mul(d.v, 0.985); d.w = mul(d.w, 0.965); }
+  d.v = mul(d.v, 1 - 0.02*dt); d.w = mul(d.w, 1 - 0.05*dt);
+  // settle: slow and nearly flat on a face -> ease onto that face and stop
+  var sp = len(d.v), wl2 = len(d.w);
+  if (sp < 0.12 && wl2 < 1.2 && d.p[1] < d.r*1.05){
+    // rest on the face that is DOWN (a d4 rests face-down, apex up)
+    var dn = downFace(d), n = qrot(d.q, d.S.faces[dn].n), tilt = Math.acos(clamp(-n[1],-1,1));
+    if (tilt < 14*D){ d.snapQ = qmul(qFromTo(n, [0,-1,0]), d.q); d.snapY = d.r*d.S.inr; d.snapT = 0; d.settling = true; d.done = true; }
+  }
+}
+function downFace(d){ var best = 0, bd = 2; d.S.faces.forEach(function(f, i){ var y = qrot(d.q, f.n)[1]; if (y < bd){ bd = y; best = i; } }); return best; }
+function upFace(d){ var best = 0, bd = -2; d.S.faces.forEach(function(f, i){ var y = qrot(d.q, f.n)[1]; if (y > bd){ bd = y; best = i; } }); return best; }
+function upVertex(d){ var best = 0, bd = -2; d.S.verts.forEach(function(v, i){ var y = qrot(d.q, v)[1]; if (y > bd){ bd = y; best = i; } }); return best; }
+// d4 is read at the top vertex: the value shown at a vertex is the value of the face OPPOSITE that vertex
+function d4Value(d){ var vi = upVertex(d), f = d.S.faces; for (var i=0;i<f.length;i++) if (f[i].v.indexOf(vi) < 0) return d.labels[i]; return d.labels[0]; }
+
+// ---------- a throw: simulate to rest first, then replay so every result is known before the dice appear ----------
+var dice = [], playT = 0, playing = false, frames = [], REPLAY_FPS = 60;
+function throwDice(kind, n){
+  dice = [];
+  var size = kind === 4 ? 0.23 : kind === 6 ? 0.2 : kind === 20 ? 0.24 : 0.22;
+  for (var i=0;i<n;i++){   // poured in from the near edge, spread across the width, a little stagger in height
+    var p = [-0.7 + 1.4*((i*0.618)%1) + 0.1*(rnd()-0.5), 0.45 + 0.3*Math.floor(i/4) + 0.15*rnd(), TRAY.z - 0.15 - 0.25*(i%3)];
+    var v = [(rnd()-0.5)*1.4, 0.2 + rnd()*0.6, -1.9 - rnd()*1.5];
+    var w = [(rnd()-0.5)*24, (rnd()-0.5)*14, (rnd()-0.5)*24];
+    dice.push(mkDie(kind, size, p, v, w));
+  }
+  // simulate offline
+  frames = []; var t = 0, maxT = 6;
+  while (t < maxT){
+    for (var k=0;k<2;k++){ dice.forEach(function(d){ stepDie(d, DT); }); resolvePairs(); t += DT; }
+    frames.push(dice.map(function(d){ return { p:d.p.slice(), q:d.q.slice(), done:d.done }; }));
+    if (dice.every(function(d){ return d.done; })) break;
+  }
+  dice.forEach(function(d){ if (!d.done){ var dn = downFace(d), nn = qrot(d.q, d.S.faces[dn].n); d.snapQ = qmul(qFromTo(nn,[0,-1,0]), d.q); d.snapY = d.r*d.S.inr; d.done = true; } });
+  // results: honest random per die, then the labels are carried onto the face that ended up (a true symmetry of the solid)
+  dice.forEach(function(d){
+    var want = kind === 10 ? Math.floor(rnd()*10) : 1 + Math.floor(rnd()*kind);
+    if (kind === 4){ // vertex-read: choose the labelling where the top vertex reads `want`
+      d.q = d.snapQ; var vi = upVertex(d), opp = -1; d.S.faces.forEach(function(f,i){ if (f.v.indexOf(vi) < 0) opp = i; }); d.labels = relabel(d.S, opp, want); d.result = want;
+    } else { d.q = d.snapQ; d.labels = relabel(d.S, upFace(d), want); d.result = want; }
+  });
+  playT = 0; playing = true; running = true; showResult(false);
+}
+// keep dice from overlapping: push apart as spheres
+function resolvePairs(){
+  for (var i=0;i<dice.length;i++) for (var j=i+1;j<dice.length;j++){ var a = dice[i], b = dice[j], dd = sub(b.p, a.p), dl = len(dd), min = (a.r + b.r)*0.92;
+    if (dl < min && dl > 1e-6){ var nrm = mul(dd, 1/dl), push = (min - dl)/2; if (!a.done) a.p = sub(a.p, mul(nrm, push)); if (!b.done) b.p = add(b.p, mul(nrm, push));
+      var rel = dot(sub(b.v, a.v), nrm); if (rel < 0){ var jj = -rel*0.6; if (!a.done) a.v = sub(a.v, mul(nrm, jj)); if (!b.done) b.v = add(b.v, mul(nrm, jj)); a.w = mul(a.w, 0.9); b.w = mul(b.w, 0.9); } } }
+}
+
+// ---------- rendering ----------
+var cv = $('dzCv'), ctx = cv.getContext('2d'), W = 0, H = 0, DPR = 1;
+function resize(){ var r = cv.getBoundingClientRect(); W = Math.round(r.width); H = Math.round(r.height); DPR = Math.min(2, window.devicePixelRatio||1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); updCam(); dirty = true; }
+var CAM = {}, TARGET = [0, 0.05, -0.05], FOV = 46*D;
+function updCam(){ var pitch = 62*D, dist = 3.5, yaw = 0;
+  var px = TARGET[0]+Math.sin(yaw)*Math.cos(pitch)*dist, py = TARGET[1]+Math.sin(pitch)*dist, pz = TARGET[2]+Math.cos(yaw)*Math.cos(pitch)*dist;
+  var f = norm(sub(TARGET,[px,py,pz])), r = norm(cross(f,[0,1,0])), u = cross(r,f);
+  CAM = { p:[px,py,pz], f:f, r:r, u:u, fl:(W/2)/Math.tan(FOV/2) }; }
+function proj(p){ var v = sub(p, CAM.p), d = dot(v, CAM.f); if (d < 0.05) return null; var s = CAM.fl/d; return { x:W/2 + dot(v,CAM.r)*s, y:H/2 - dot(v,CAM.u)*s, z:d, s:s }; }
+var LIGHT = norm([-0.4, 0.9, 0.35]);
+function drawTray(){
+  ctx.fillStyle = '#0B0B0E'; ctx.fillRect(0,0,W,H);
+  var g = ctx.createRadialGradient(W/2, H*0.6, 10, W/2, H*0.6, Math.max(W,H)*0.7); g.addColorStop(0,'rgba(224,178,106,0.09)'); g.addColorStop(1,'rgba(224,178,106,0)'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  var c = [[-TRAY.x,0,-TRAY.z],[TRAY.x,0,-TRAY.z],[TRAY.x,0,TRAY.z],[-TRAY.x,0,TRAY.z]].map(proj);
+  ctx.beginPath(); c.forEach(function(p,i){ if (i) ctx.lineTo(p.x,p.y); else ctx.moveTo(p.x,p.y); }); ctx.closePath();
+  ctx.fillStyle = '#101016'; ctx.fill(); ctx.strokeStyle = 'rgba(224,178,106,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(236,233,224,0.05)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (var x=-1;x<=1;x+=0.5){ var a = proj([x,0,-TRAY.z]), b = proj([x,0,TRAY.z]); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+  for (var z=-1.5;z<=1.5;z+=0.5){ var a2 = proj([-TRAY.x,0,z]), b2 = proj([TRAY.x,0,z]); ctx.moveTo(a2.x,a2.y); ctx.lineTo(b2.x,b2.y); } ctx.stroke();
+  // low walls
+  var h = 0.12, top = [[-TRAY.x,h,-TRAY.z],[TRAY.x,h,-TRAY.z],[TRAY.x,h,TRAY.z],[-TRAY.x,h,TRAY.z]].map(proj);
+  ctx.strokeStyle = 'rgba(224,178,106,0.22)'; ctx.beginPath(); top.forEach(function(p,i){ if (i) ctx.lineTo(p.x,p.y); else ctx.moveTo(p.x,p.y); }); ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); for (var i=0;i<4;i++){ ctx.moveTo(c[i].x,c[i].y); ctx.lineTo(top[i].x,top[i].y); } ctx.stroke();
+}
+var FACEQ = [], LBL = { 4:0.26, 6:0.5, 8:0.4, 10:0.36, 12:0.4, 20:0.33 };
+function drawDie(d, p, q, glowK){
+  var S = d.S, verts = S.verts.map(function(v){ return add(p, qrot(q, mul(v, d.r))); }), pv = verts.map(proj);
+  if (pv.some(function(x){ return !x; })) return;
+  // shadow
+  var sh = proj([p[0], 0, p[2]]); if (sh){ var k = clamp(1 - p[1]/0.8, 0.2, 1); ctx.fillStyle = 'rgba(0,0,0,' + (0.55*k).toFixed(2) + ')'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, d.r*sh.s*0.9, d.r*sh.s*0.5, 0, 0, TAU); ctx.fill(); }
+  FACEQ.length = 0;
+  S.faces.forEach(function(f, i){ var n = qrot(q, f.n); if (dot(n, sub(add(p, qrot(q, mul(f.c, d.r))), CAM.p)) >= 0) return;   // back face
+    var z = 0; f.v.forEach(function(vi){ z += pv[vi].z; }); FACEQ.push({ i:i, z:z/f.v.length, n:n }); });
+  FACEQ.sort(function(a,b){ return b.z - a.z; });
+  for (var k=0;k<FACEQ.length;k++){ var F = FACEQ[k], f = S.faces[F.i], lam = Math.max(0, dot(F.n, LIGHT)), w = 0.08 + 0.22*lam;
+    ctx.beginPath(); f.v.forEach(function(vi, j){ var P = pv[vi]; if (j) ctx.lineTo(P.x,P.y); else ctx.moveTo(P.x,P.y); }); ctx.closePath();
+    ctx.fillStyle = 'rgb(' + Math.round(11+(236-11)*w) + ',' + Math.round(11+(233-11)*w) + ',' + Math.round(14+(224-14)*w) + ')'; ctx.fill();
+    if (glowK > 0){ ctx.strokeStyle = 'rgba(224,178,106,' + (0.18*glowK).toFixed(2) + ')'; ctx.lineWidth = 6; ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(255,252,244,' + (0.55 + 0.4*lam).toFixed(2) + ')'; ctx.lineWidth = Math.max(1, 0.012*pv[f.v[0]].s); ctx.stroke();
+    // label(s) in the face plane
+    if (d.labels){
+      if (S.opts.vertexRead){ // d4: three numbers per face, each at a corner = value of the face opposite that corner
+        f.v.forEach(function(vi){ var opp = -1; S.faces.forEach(function(g,gi){ if (g.v.indexOf(vi) < 0) opp = gi; });
+          var pos = add(p, qrot(q, mul(add(mul(f.c,0.45), mul(S.verts[vi],0.55)), d.r))); faceText(String(d.labels[opp]), pos, F.n, q, f, d, lam, 0.26, S.verts[vi], p); });
+      } else { var pos = add(p, qrot(q, mul(f.c, d.r*1.002))); faceText(String(d.labels[F.i]), pos, F.n, q, f, d, lam, LBL[d.kind], null, p); }
+    }
+  }
+}
+// text drawn IN the plane of a face: build the face's 2-D basis in screen space and let the canvas transform do the tilt
+function faceText(s, pos, n, q, f, d, lam, scale, towardV, p){
+  var c = pos, e0 = add(p, qrot(q, mul(d.S.verts[f.v[0]], d.r))), e1 = add(p, qrot(q, mul(d.S.verts[f.v[1]], d.r)));
+  var ux = norm(sub(e1, e0)), uy = norm(cross(n, ux));
+  if (towardV){ var tv = sub(add(p, qrot(q, mul(towardV, d.r))), c); uy = norm(sub(tv, mul(n, dot(tv,n)))); ux = cross(uy, n); }   // d4: numbers stand up toward their corner
+  else { var upw = [0,1,0], t = sub(upw, mul(n, dot(upw,n))); if (len(t) > 0.2){ uy = norm(t); ux = cross(uy, n); } else { var sv = sub([0,0,-1], mul(n, dot([0,0,-1],n))); uy = norm(sv); ux = cross(uy, n); } }
+  var sz = d.r*scale, P0 = proj(c), Px = proj(add(c, mul(ux, sz))), Py = proj(add(c, mul(uy, sz))); if (!P0||!Px||!Py) return;
+  var ax = Px.x-P0.x, ay = Px.y-P0.y, bx = Py.x-P0.x, by = Py.y-P0.y;
+  if (ax*by - ay*bx > 0){ ax = -ax; ay = -ay; }   // keep the text un-mirrored
+  ctx.save(); ctx.transform(ax, ay, -bx, -by, P0.x, P0.y);
+  ctx.font = '600 ' + (s.length > 1 ? 0.9 : 1.05) + 'px Sarabun, "Noto Sans Thai", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,252,244,' + (0.7 + 0.3*lam).toFixed(2) + ')'; ctx.fillText(s, 0, 0.02);
+  if (s === '6' || s === '9'){ ctx.fillRect(-0.28, 0.44, 0.56, 0.07); }
+  ctx.restore();
+}
+
+// ---------- loop ----------
+var running = false, dirty = true, last = null, raf = window.requestAnimationFrame ? function(f){ return window.requestAnimationFrame(f); } : function(f){ return setTimeout(function(){ f(Date.now()); }, 16); };
+var glow = 0;
+function frame(ts){
+  raf(frame); var now = (ts||0)/1000, dt = last===null ? 0 : Math.min(0.05, now-last); last = now;
+  if (!playing && !dirty) return;
+  drawTray();
+  if (dice.length){
+    var fi = Math.min(frames.length-1, Math.floor(playT*REPLAY_FPS)), fr = frames[fi];
+    var order = dice.map(function(d,i){ return i; }).sort(function(a,b){ return dot(sub(fr[b].p, CAM.p), CAM.f) - dot(sub(fr[a].p, CAM.p), CAM.f); });
+    var allDone = fi >= frames.length-1;
+    order.forEach(function(i){ var d = dice[i], st = fr[i], p = st.p, q = st.q;
+      if (st.done){ var tSince = (playT - firstDone(i))/0.28, k = clamp(tSince, 0, 1), e = 1 - Math.pow(1-k, 3); q = qslerp(dice[i].qAtDone||q, d.snapQ, e); p = [p[0], lerp(p[1], d.snapY, e), p[2]]; }
+      drawDie(d, p, q, allDone ? 0.5 + 0.5*Math.sin(now*4) : 0);
+    });
+    if (playing){ playT += dt; if (playT > (frames.length-1)/REPLAY_FPS + 0.35){ playing = false; showResult(true); } }
+  }
+  dirty = false;
+}
+var doneAt = [];
+function firstDone(i){ if (doneAt[i] === undefined){ for (var k=0;k<frames.length;k++) if (frames[k][i].done){ doneAt[i] = k/REPLAY_FPS; dice[i].qAtDone = frames[k][i].q; break; } } return doneAt[i]; }
+
+// ---------- ui ----------
+var kind = 6, count = 3, target = 0;
+function showResult(final){
+  var el = $('dzRes'); if (!final){ el.innerHTML = 'กำลังทอย…'; doneAt = []; return; }
+  var vals = dice.map(function(d){ return d.result; }), sum = vals.reduce(function(a,b){ return a+b; }, 0);
+  var html = vals.map(function(v){ return '<span' + (target && v >= target ? ' class="hit"' : '') + '>' + v + '</span>'; }).join('');
+  if (target){ var hits = vals.filter(function(v){ return v >= target; }).length; html += ' &nbsp;→ ผ่าน ' + target + '+ <b>' + hits + '</b> / ' + vals.length; }
+  else html += ' &nbsp;รวม <b>' + sum + '</b>';
+  el.innerHTML = html;
+}
+Array.prototype.forEach.call(document.querySelectorAll('#dzKind button'), function(b){ b.addEventListener('click', function(){ kind = +b.dataset.k; Array.prototype.forEach.call(document.querySelectorAll('#dzKind button'), function(x){ x.classList.toggle('on', x===b); }); }); });
+Array.prototype.forEach.call(document.querySelectorAll('#dzTgt button'), function(b){ b.addEventListener('click', function(){ target = +b.dataset.t; Array.prototype.forEach.call(document.querySelectorAll('#dzTgt button'), function(x){ x.classList.toggle('on', x===b); }); if (!playing && dice.length) showResult(true); }); });
+function setCount(n){ count = clamp(n, 1, 12); $('dzCnt').textContent = count + ' ลูก'; }
+$('dzMinus').addEventListener('click', function(){ setCount(count-1); }); $('dzPlus').addEventListener('click', function(){ setCount(count+1); });
+$('dzRoll').addEventListener('click', function(){ throwDice(kind, count); });
+cv.addEventListener('click', function(){ if (!playing) throwDice(kind, count); });
+window.addEventListener('resize', resize); resize(); raf(frame);
+window.DZ = { throwDice:throwDice, dice:function(){ return dice; }, frames:function(){ return frames; }, SHAPES:SHAPES, relabel:relabel, upFace:upFace, playing:function(){ return playing; } };
+})();
+</script>
