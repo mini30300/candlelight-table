@@ -138,6 +138,9 @@ fun BoardController.setMe(id: String) = call("window.setMe && window.setMe(${jsS
 fun BoardController.setControl(mode: String) = call("window.setControl && window.setControl(${jsStr(mode)})")
 fun BoardController.setPreview(lookJson: String) = call("window.setPreview && window.setPreview(${jsStr(lookJson)})")
 fun BoardController.focusMe() = call("window.focusMe && window.focusMe()")
+/** Throw a die on the board. The page seeds the tumble from [seq], so the same roll looks the same on every phone. */
+fun BoardController.showRoll(seq: Int, who: String, die: Int, value: Int, mine: Boolean) =
+    call("window.showRoll && window.showRoll($seq, ${jsStr(who)}, $die, $value, $mine)")
 
 /** Re-push state whenever the board changes. */
 @Composable

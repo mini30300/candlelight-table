@@ -467,6 +467,8 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
     var control by remember { mutableStateOf(session.control) }
     var showSettings by remember { mutableStateOf(false) }
     var tappedToken by remember { mutableStateOf<String?>(null) }
+    // highest roll already thrown on the board; -1 until the first load, so old rolls are not replayed on entry
+    var rollSeen by remember { mutableStateOf(-1) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val board = remember { BoardController() }
@@ -487,6 +489,16 @@ fun GameScreen(code: String, playerId: String, mySub: String?, session: Session,
             val known = log.map { it.seq }.toSet()
             log = (log + r.log.filter { it.seq !in known }).sortedBy { it.seq }
             seq = maxOf(seq, r.log.maxOf { it.seq })
+            // Throw a die on the board for every roll that lands while we are sitting here. The server decided the
+            // number and every player's poll brings it down, so all we do is show it; the page seeds the tumble from
+            // the entry's seq, which makes it the same throw on everyone's screen. The roller sees it at once, since
+            // their own Api.roll response comes back through here; everyone else sees it on their next poll.
+            if (rollSeen < 0) rollSeen = r.log.maxOf { it.seq }      // first load: the backlog is history, not news
+            else {
+                val mine = r.players.find { it.id == playerId }?.name
+                r.log.filter { it.t == "roll" && it.die > 0 && it.seq > rollSeen }.sortedBy { it.seq }
+                    .forEach { e -> board.showRoll(e.seq, e.who, e.die, e.value, e.who == mine); rollSeen = e.seq }
+            }
         }
         seq = maxOf(seq, r.seq)
     }
