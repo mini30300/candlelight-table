@@ -186,8 +186,23 @@ function findHome(){   // spiral out from the origin: land 30..600 m high with s
   if (best){ HOME.cx = best[0]; HOME.cy = best[1]; } }
 var view = { cx: HOME.cx, cy: HOME.cy, mpp: HOME.mpp };   // metres per css pixel
 var MPP_MIN = 0.04, MPP_MAX = 16000;
-function resize(){ var r = cv.getBoundingClientRect(); W = Math.round(r.width); H = Math.round(r.height); DPR = Math.min(2, window.devicePixelRatio||1);
-  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); dirty = true; }
+// A WebView can report a width of 0 while it is still laying the page out. Measuring once at start-up then only
+// listening for window 'resize' leaves the canvas 0 px wide and the page black for good -- the app's board page hit
+// exactly this (see the project's constraint 4). So: refuse a measurement under 2 px and fall back to the viewport,
+// re-measure on every event that can change the layout, and check again each frame. The check costs nothing when
+// nothing moved, because it returns early unless the size actually changed.
+function canvasSize(){
+  var r = cv.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), de = document.documentElement;
+  if (w < 2) w = Math.max(de && de.clientWidth || 0, window.innerWidth || 0, window.screen && screen.width || 0, 320) - 24;
+  if (h < 2) h = 520;   // the canvas's CSS height, used until the real one can be measured
+  return { w: Math.max(w, 120), h: Math.max(h, 120), dpr: Math.min(2, window.devicePixelRatio||1) };
+}
+function resize(){
+  var v = canvasSize(); if (v.w === W && v.h === H && v.dpr === DPR) return;
+  W = v.w; H = v.h; DPR = v.dpr;
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); cv.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0); dirty = true;
+}
 function toScreenF(x, y){ return [ W/2 + (x - view.cx)/view.mpp, H/2 + (y - view.cy)/view.mpp ]; }
 function toWorldF(sx, sy){ return [ view.cx + (sx - W/2)*view.mpp, view.cy + (sy - H/2)*view.mpp ]; }
 // oblique 3D view: the flat map is drawn taller (Hf rows), tilted by COS_T and lifted by height × ZK
@@ -470,7 +485,7 @@ function draw(){
   var c = toWorld(W/2, H/2), e = elevation(c[0], c[1]), m = moisture(c[0], c[1]), tn = terrainName(e, m, e > SEA ? forestAt(c[0], c[1], m) : 0);
   $('wmHud').innerHTML = 'มองกว้าง <i>' + fmtDist(W*view.mpp) + '</i> · กลางจอ ' + tn + ' ' + (e <= SEA ? 'ลึก ' + Math.round(-e) + ' ม.' : 'สูง ' + Math.round(e) + ' ม.') + (hs ? '<br>1 ช่อง = <i>' + fmtDist(hs) + '</i>' : '') + ' · ' + (Math.round(c[0]/100)/10) + ', ' + (Math.round(c[1]/100)/10) + ' กม.';
 }
-function frame(){ raf(frame); if (!dirty) return; dirty = false; draw(); }
+function frame(){ raf(frame); resize(); if (!dirty) return; dirty = false; draw(); }
 
 // ---------- input ----------
 var mode = 'pan', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt = null, dragUnit = null;
@@ -519,7 +534,10 @@ $('wmGoBtn').addEventListener('click', function(){ goText($('wmGo').value); });
 $('wmGo').addEventListener('keydown', function(ev){ if (ev.key === 'Enter'){ goText($('wmGo').value); $('wmGo').blur(); } });
 try { var sv = localStorage.getItem('wm-seed'); if (sv) SEED = +sv || 1; } catch(_){}
 $('wmSeed').textContent = 'โลก #' + SEED; loadUnits(); loadPins(); findHome(); goHome();
-window.addEventListener('resize', resize); resize(); raf(frame);
+['resize','orientationchange','load','pageshow'].forEach(function(e){ window.addEventListener(e, function(){ resize(); }); });
+document.addEventListener('visibilitychange', function(){ resize(); });
+try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(cv); } catch(_){}
+resize(); raf(frame);
 window.WM = { setTilt:function(v){ tilt = v; $('wm3d').classList.toggle('on', tilt); if (tilt) setupP3(); dirty = true; }, view:view, elevation:elevation, moisture:moisture, sitesIn:sitesIn, roadsIn:roadsIn, poisIn:poisIn, regionsIn:regionsIn, go:goText, pins:function(){ return pins; }, units:function(){ return units; }, setSeed:newWorld, cacheSize:function(){ return cacheOrder.length; }, draw:draw, home:goHome };
 })();
 </script>

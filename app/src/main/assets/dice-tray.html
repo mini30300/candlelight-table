@@ -209,8 +209,23 @@ function resolvePairs(){
 
 // ---------- rendering ----------
 var cv = $('dzCv'), ctx = cv.getContext('2d'), W = 0, H = 0, DPR = 1;
-function resize(){ var r = cv.getBoundingClientRect(); W = Math.round(r.width); H = Math.round(r.height); DPR = Math.min(2, window.devicePixelRatio||1);
-  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); updCam(); dirty = true; }
+// A WebView can report a width of 0 while it is still laying the page out. Measuring once at start-up then only
+// listening for window 'resize' leaves the canvas 0 px wide and the page black for good -- the app's board page hit
+// exactly this (see the project's constraint 4). So: refuse a measurement under 2 px and fall back to the viewport,
+// re-measure on every event that can change the layout, and check again each frame. The check costs nothing when
+// nothing moved, because it returns early unless the size actually changed.
+function canvasSize(){
+  var r = cv.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), de = document.documentElement;
+  if (w < 2) w = Math.max(de && de.clientWidth || 0, window.innerWidth || 0, window.screen && screen.width || 0, 320) - 24;
+  if (h < 2) h = 440;   // the canvas's CSS height, used until the real one can be measured
+  return { w: Math.max(w, 120), h: Math.max(h, 120), dpr: Math.min(2, window.devicePixelRatio||1) };
+}
+function resize(){
+  var v = canvasSize(); if (v.w === W && v.h === H && v.dpr === DPR) return;
+  W = v.w; H = v.h; DPR = v.dpr;
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); cv.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0); updCam(); dirty = true;
+}
 var CAM = {}, TARGET = [0, 0.05, -0.05], FOV = 46*D;
 function updCam(){ var pitch = 62*D, dist = 3.5, yaw = 0;
   var px = TARGET[0]+Math.sin(yaw)*Math.cos(pitch)*dist, py = TARGET[1]+Math.sin(pitch)*dist, pz = TARGET[2]+Math.cos(yaw)*Math.cos(pitch)*dist;
@@ -276,7 +291,7 @@ function faceText(s, pos, n, q, f, d, lam, scale, towardV, p){
 var running = false, dirty = true, last = null, raf = window.requestAnimationFrame ? function(f){ return window.requestAnimationFrame(f); } : function(f){ return setTimeout(function(){ f(Date.now()); }, 16); };
 var glow = 0;
 function frame(ts){
-  raf(frame); var now = (ts||0)/1000, dt = last===null ? 0 : Math.min(0.05, now-last); last = now;
+  raf(frame); resize(); var now = (ts||0)/1000, dt = last===null ? 0 : Math.min(0.05, now-last); last = now;
   if (!playing && !dirty) return;
   drawTray();
   if (dice.length){
@@ -310,7 +325,10 @@ function setCount(n){ count = clamp(n, 1, 12); $('dzCnt').textContent = count + 
 $('dzMinus').addEventListener('click', function(){ setCount(count-1); }); $('dzPlus').addEventListener('click', function(){ setCount(count+1); });
 $('dzRoll').addEventListener('click', function(){ throwDice(kind, count); });
 cv.addEventListener('click', function(){ if (!playing) throwDice(kind, count); });
-window.addEventListener('resize', resize); resize(); raf(frame);
+['resize','orientationchange','load','pageshow'].forEach(function(e){ window.addEventListener(e, function(){ resize(); }); });
+document.addEventListener('visibilitychange', function(){ resize(); });
+try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(cv); } catch(_){}
+resize(); raf(frame);
 window.DZ = { throwDice:throwDice, dice:function(){ return dice; }, frames:function(){ return frames; }, SHAPES:SHAPES, relabel:relabel, upFace:upFace, playing:function(){ return playing; } };
 })();
 </script>

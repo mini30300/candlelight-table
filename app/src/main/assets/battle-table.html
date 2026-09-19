@@ -994,8 +994,23 @@ function heightAt(x, z){    // bilinear over the field, clamped to the table
 // ---------- camera ----------
 var cam = { yaw: 0.6, pitch: 32*DEG, dist: 78, tx:0, tz:0 };
 var cv = $('btCv'), ctx = cv.getContext('2d'), W=0, H=0, DPR=1, FL=1;
-function resize(){ var r = cv.getBoundingClientRect(); W = Math.round(r.width); H = Math.round(r.height); DPR = Math.min(2, window.devicePixelRatio||1);
-  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); FL = H*1.15; dirty = true; }
+// A WebView can report a width of 0 while it is still laying the page out. Measuring once at start-up then only
+// listening for window 'resize' leaves the canvas 0 px wide and the page black for good -- the app's board page hit
+// exactly this (see the project's constraint 4). So: refuse a measurement under 2 px and fall back to the viewport,
+// re-measure on every event that can change the layout, and check again each frame. The check costs nothing when
+// nothing moved, because it returns early unless the size actually changed.
+function canvasSize(){
+  var r = cv.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), de = document.documentElement;
+  if (w < 2) w = Math.max(de && de.clientWidth || 0, window.innerWidth || 0, window.screen && screen.width || 0, 320) - 24;
+  if (h < 2) h = 480;   // the canvas's CSS height, used until the real one can be measured
+  return { w: Math.max(w, 120), h: Math.max(h, 120), dpr: Math.min(2, window.devicePixelRatio||1) };
+}
+function resize(){
+  var v = canvasSize(); if (v.w === W && v.h === H && v.dpr === DPR) return;
+  W = v.w; H = v.h; DPR = v.dpr;
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); cv.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0); FL = H*1.15; dirty = true;
+}
 var EYE=[0,0,0], RT=[0,0,0], UP=[0,0,0], FW=[0,0,0];
 function setupCam(){
   var cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
@@ -1388,6 +1403,7 @@ function hud(){
 var tPrev = 0, now = (window.performance && performance.now) ? function(){ return performance.now(); } : function(){ return Date.now(); };
 function frame(ts){
   raf(frame);
+  resize();                                                  // cheap: returns at once unless the size really changed
   var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
   if (dt > 0 && dt < 0.5 && stepUnits(dt)) dirty = true;    // a long gap (tab in the background) is skipped, not crammed in
   if (!dirty) return; dirty = false; drawScene();
@@ -1434,7 +1450,9 @@ $('btSize').addEventListener('input', function(){ table.w = +$('btSize').value; 
 $('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.random()*99999); $('btSeed').textContent = 'สนาม #' + SEED; buildTerrain(); genProps(); dirty = true; });
 $('btTop').addEventListener('click', function(){ cam.pitch = 52*DEG; cam.dist = table.w*1.25; cam.tx = 0; cam.tz = 0; dirty = true; });
 $('btEye').addEventListener('click', function(){ cam.pitch = 13*DEG; cam.dist = 26; dirty = true; });
-window.addEventListener('resize', resize);
+['resize','orientationchange','load','pageshow'].forEach(function(e){ window.addEventListener(e, function(){ resize(); }); });
+document.addEventListener('visibilitychange', function(){ resize(); });
+try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(cv); } catch(_){}
 buildTerrain(); genProps(); resize();
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
 window.BT = { cam:cam, table:table, units:units, setTheme:function(t){ theme = t; buildTerrain(); genProps(); dirty = true; }, add:function(k,x,z){ units.push({k:k,x:x,z:z,rot:0}); dirty = true; },
