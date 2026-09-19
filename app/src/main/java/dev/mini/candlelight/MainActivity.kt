@@ -91,8 +91,9 @@ class Session(ctx: Context) {
     var userSub: String? get() = p.getString("userSub", null); set(v) { p.edit().putString("userSub", v).apply() }
     var look: String? get() = p.getString("look", null); set(v) { p.edit().putString("look", v).apply() }
     var control: String get() = p.getString("control", "tap") ?: "tap"; set(v) { p.edit().putString("control", v).apply() }
+    var guest: Boolean get() = p.getBoolean("guest", false); set(v) { p.edit().putBoolean("guest", v).apply() }
     fun clear() { p.edit().remove("code").remove("pid").apply() }
-    fun signOut() { p.edit().remove("token").remove("userName").remove("userSub").remove("code").remove("pid").apply() }
+    fun signOut() { p.edit().remove("token").remove("userName").remove("userSub").remove("guest").remove("code").remove("pid").apply() }
 }
 
 class MainActivity : ComponentActivity() {
@@ -143,7 +144,7 @@ fun PickPlayScreen(session: Session, onPick: (String) -> Unit, onSignOut: () -> 
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("CANDLELIGHT TABLE", color = Amber, fontSize = 13.sp, letterSpacing = 3.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-            Text(session.userName, color = Muted, fontSize = 12.sp)
+            Text(if (session.guest) "ผู้เล่นรับเชิญ" else session.userName, color = if (session.guest) Amber else Muted, fontSize = 12.sp)
             TextButton(onClick = { scope.launch { Api.logout(); onSignOut() } }, contentPadding = PaddingValues(6.dp, 0.dp)) { Text("ออกจากระบบ", color = Muted, fontSize = 12.sp) }
         }
         Text("จะเล่นอะไรดี", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 32.sp)
@@ -151,7 +152,46 @@ fun PickPlayScreen(session: Session, onPick: (String) -> Unit, onSignOut: () -> 
             "ต้องต่ออินเทอร์เน็ต") { onPick("dnd") }
         PickCard("เทเบิลท็อป", "โต๊ะรบสามมิติ แผนที่โลก ถาดลูกเต๋า วางหน่วยแล้วสั่งให้เดิน วัดระยะเป็นนิ้ว",
             "เล่นคนเดียว ไม่ต้องต่อเน็ต") { onPick("tabletop") }
+        LinkComputerCard()
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+/** รหัสจับคู่ เครื่องนี้ล็อกอินอยู่แล้ว จึงขอรหัสให้คอมเอาไปเข้าบัญชีเดียวกันได้ ไม่ต้องล็อกอินซ้ำบนคอม */
+@Composable
+private fun LinkComputerCard() {
+    val scope = rememberCoroutineScope()
+    var code by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+
+    PickCard("เล่นบนคอมด้วย", "เปิดหน้าเว็บในคอมแล้วใส่รหัสจับคู่ จะเข้าบัญชีเดียวกัน เห็นโต๊ะเดียวกัน ทอยเต๋าเห็นพร้อมกัน",
+        if (busy) "กำลังขอรหัส…" else "แตะเพื่อขอรหัส") {
+        if (!busy) {
+            busy = true; err = null
+            scope.launch {
+                try { code = Api.pairStart().first }
+                catch (e: Exception) { err = e.message ?: "ขอรหัสไม่สำเร็จ" }
+                finally { busy = false }
+            }
+        }
+    }
+    err?.let { Text(it, color = Blood, fontSize = 12.sp) }
+    code?.let { c ->
+        AlertDialog(
+            onDismissRequest = { code = null },
+            confirmButton = { TextButton(onClick = { code = null }) { Text("เสร็จแล้ว", color = Amber) } },
+            title = { Text("รหัสจับคู่", color = Ink, fontSize = 18.sp) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(c, color = Amber, fontSize = 30.sp, letterSpacing = 4.sp, fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text("1. เปิดในคอม\n$WEB_APP\n\n2. ใส่รหัสนี้ในช่อง \u201cรหัสจับคู่\u201d\n\nรหัสมีอายุ 5 นาที ใช้ได้ครั้งเดียว",
+                        color = Muted, fontSize = 13.sp, lineHeight = 20.sp)
+                }
+            },
+            containerColor = Surface,
+        )
     }
 }
 
@@ -251,7 +291,7 @@ fun LoginScreen(session: Session, onLoggedIn: (String) -> Unit) {
                         if (cred is CustomCredential && cred.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                             val idToken = GoogleIdTokenCredential.createFrom(cred.data).idToken
                             val (tok, user) = Api.loginGoogle(idToken)
-                            session.token = tok; session.userName = user.name; session.userSub = user.sub
+                            session.token = tok; session.userName = user.name; session.userSub = user.sub; session.guest = false
                             if (session.name.isBlank()) session.name = user.name
                             Api.authToken = tok
                             onLoggedIn(tok)
@@ -267,6 +307,29 @@ fun LoginScreen(session: Session, onLoggedIn: (String) -> Unit) {
             },
             enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(8.dp),
         ) { Text(if (busy) "กำลังเข้าสู่ระบบ…" else "เข้าสู่ระบบด้วย Google", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+        Spacer(Modifier.height(14.dp))
+        OutlinedButton(
+            onClick = {
+                busy = true; error = null
+                scope.launch {
+                    try {
+                        val (tok, user) = Api.loginGuest(session.name)
+                        session.token = tok; session.userName = user.name; session.userSub = user.sub; session.guest = true
+                        if (session.name.isBlank()) session.name = user.name
+                        Api.authToken = tok
+                        onLoggedIn(tok)
+                    } catch (e: ApiException) {
+                        error = e.message
+                    } catch (e: Exception) {
+                        error = "เล่นแบบผู้เล่นรับเชิญไม่สำเร็จ: " + (e.message ?: e.javaClass.simpleName)
+                    } finally { busy = false }
+                }
+            },
+            enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(8.dp),
+        ) { Text("เล่นแบบผู้เล่นรับเชิญ (ไม่ต้องมีบัญชี)", fontSize = 15.sp) }
+        Spacer(Modifier.height(10.dp))
+        Text("ตัวตนผู้เล่นรับเชิญเก็บไว้ในเครื่องนี้เท่านั้น ถ้าลบแอปจะหายถาวร และข้อมูลบนเซิร์ฟเวอร์จะถูกลบเมื่อไม่ได้เล่นครบ 30 วัน",
+            color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 17.sp)
         error?.let { Spacer(Modifier.height(12.dp)); Text(it, color = Blood, fontSize = 13.sp, textAlign = TextAlign.Center) }
     }
 }
@@ -313,7 +376,7 @@ fun LobbyScreen(session: Session, onEnter: (String, String) -> Unit, onSignOut: 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp, 0.dp)) { Text("‹ ", color = Muted, fontSize = 13.sp) }
             Text("CANDLELIGHT TABLE", color = Amber, fontSize = 13.sp, letterSpacing = 3.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-            Text(session.userName, color = Muted, fontSize = 12.sp)
+            Text(if (session.guest) "ผู้เล่นรับเชิญ" else session.userName, color = if (session.guest) Amber else Muted, fontSize = 12.sp)
             TextButton(onClick = { scope.launch { Api.logout(); onSignOut() } }, contentPadding = PaddingValues(6.dp, 0.dp)) { Text("ออกจากระบบ", color = Muted, fontSize = 12.sp) }
         }
         Text("สร้างตัวละคร แล้วนั่งลงที่โต๊ะ", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 32.sp)

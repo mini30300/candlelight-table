@@ -10,8 +10,10 @@ import java.net.URL
 
 const val SERVER = "https://candlelight-table.mini3030023450.workers.dev"
 const val WEB_CLIENT_ID = "59633844460-7o8qv78qos5amd8abcipnoqptnb2fr04.apps.googleusercontent.com"
+/** หน้าเล่นบนเบราว์เซอร์/คอม เสิร์ฟจาก Worker ตัวเดียวกัน */
+const val WEB_APP = "$SERVER/app"
 
-data class User(val sub: String, val email: String, val name: String, val picture: String)
+data class User(val sub: String, val email: String, val name: String, val picture: String, val guest: Boolean = false)
 data class MyRoom(val code: String, val scene: String, val players: Int, val playerId: String?, val owner: Boolean, val updated: Long)
 
 data class Player(
@@ -52,13 +54,14 @@ data class Room(
     val pending: Int, val log: List<Entry>, val board: Board?,
 )
 
-class ApiException(msg: String) : Exception(msg)
+/** code คือรหัสข้อผิดพลาดจากเซิร์ฟเวอร์ (AUTH_REQUIRED, RATE_LIMITED, PAIR_INVALID, …) เอาไว้แยกกรณีโดยไม่ต้องจับคำไทย */
+class ApiException(msg: String, val code: String = "", val status: Int = 0) : Exception(msg)
 
 object Api {
     /** session token from Google login; set by the app at startup and after login */
     @Volatile var authToken: String? = null
 
-    private fun parseUser(o: JSONObject) = User(o.optString("sub"), o.optString("email"), o.optString("name"), o.optString("picture"))
+    private fun parseUser(o: JSONObject) = User(o.optString("sub"), o.optString("email"), o.optString("name"), o.optString("picture"), o.optBoolean("guest"))
     private fun parsePlayer(id: String, o: JSONObject): Player {
         val st = o.optJSONObject("stats") ?: JSONObject()
         val stats = listOf("STR", "DEX", "CON", "INT", "WIS", "CHA").associateWith { st.optInt(it, 10) }
@@ -115,7 +118,7 @@ object Api {
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use(BufferedReader::readText) ?: "{}"
             val json = try { JSONObject(text) } catch (e: Exception) { JSONObject().put("error", "ตอบกลับไม่ถูกต้อง ($code)") }
-            if (code !in 200..299) throw ApiException(json.optString("error", "HTTP $code"))
+            if (code !in 200..299) throw ApiException(json.optString("error", "HTTP $code"), json.optString("code"), code)
             json
         } finally { conn.disconnect() }
     }
@@ -167,6 +170,18 @@ object Api {
     suspend fun loginGoogle(idToken: String): Pair<String, User> {
         val r = request("POST", "/api/auth/google", JSONObject().put("idToken", idToken))
         return r.getString("token") to parseUser(r.getJSONObject("user"))
+    }
+
+    /** บัญชีผู้เล่นรับเชิญ เซิร์ฟเวอร์สร้างให้ทันที ตัวตนอยู่ที่ token ในเครื่องนี้เท่านั้น */
+    suspend fun loginGuest(name: String = ""): Pair<String, User> {
+        val r = request("POST", "/api/auth/guest", JSONObject().put("name", name))
+        return r.getString("token") to parseUser(r.getJSONObject("user"))
+    }
+
+    /** ขอรหัสให้อีกเครื่องเอาไปแลกเป็นบัญชีเดียวกัน คืน (รหัสที่อ่านง่าย, อายุเป็นมิลลิวินาที) */
+    suspend fun pairStart(): Pair<String, Long> {
+        val r = request("POST", "/api/auth/pair/start", JSONObject())
+        return r.getString("pretty") to r.optLong("ttl", 300_000L)
     }
 
     suspend fun me(): Pair<User, List<MyRoom>> {
