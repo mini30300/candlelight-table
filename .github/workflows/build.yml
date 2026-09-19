@@ -1,4 +1,4 @@
-name: Build APK
+name: Build
 on:
   push:
     branches: [ main ]
@@ -45,3 +45,52 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: Candlelight Table build ${{ github.run_number }}
           files: app/build/outputs/apk/release/app-release.apk
+
+  # ---- Windows .exe -------------------------------------------------------
+  # ต้องสร้างบน windows-latest เท่านั้น คอนเทนเนอร์ Linux ทำไฟล์ .exe ของ Tauri ไม่ได้
+  # แอพเดสก์ท็อปเป็นหน้าต่างเดียวที่ชี้ไป /app บนเซิร์ฟเวอร์ ตัว Rust จึงแทบไม่มีโค้ด
+  windows-check:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: desktop/src-tauri }
+      - name: Build the Windows app
+        working-directory: desktop
+        run: npx --yes @tauri-apps/cli@2 build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candlelight-table-windows
+          path: |
+            desktop/src-tauri/target/release/candlelight-table.exe
+            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+
+  windows-release:
+    if: github.event_name != 'pull_request'
+    needs: build           # ให้ release ของ APK ถูกสร้างก่อน แล้วค่อยแนบ .exe เข้าไป
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: desktop/src-tauri }
+      - name: Build the Windows app
+        working-directory: desktop
+        run: npx --yes @tauri-apps/cli@2 build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candlelight-table-windows
+          path: |
+            desktop/src-tauri/target/release/candlelight-table.exe
+            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Candlelight Table build ${{ github.run_number }}
+          files: |
+            desktop/src-tauri/target/release/candlelight-table.exe
+            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
