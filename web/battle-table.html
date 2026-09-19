@@ -35,6 +35,7 @@
   <div class="note">1 นิ้วเกม = 1 ม. ในสนาม (สเกลมินิเจอร์) · ลากนิ้วเดียว = หมุนกล้อง · สองนิ้ว = ซูม · โหมดวางหน่วยแล้วลากตัวเพื่อย้าย จะบอกระยะที่เดินเป็นนิ้ว</div>
 </div>
 <script>
+// ==MODULES-BEGIN==   (node harnesses slice SKRIG + MINI + WALKER out between these two markers)
 // ===== the skeleton rig (same module as สติกแมน v4) =====
 var SKRIG = (function(){
 "use strict";
@@ -809,6 +810,134 @@ function pose(kit, P){ var k = KIT; KIT = kit; kitPose(P); KIT = k; }
 return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS };
 })();
 
+// ===== walking pieces: a destination on the table, the rig's own gait carrying the piece there =====
+// The piece's table position is DERIVED from the controller's travel, never the other way round: the body moves exactly
+// as far as the gait moved it, so the planted foot keeps the rig's 0 mm ground slide whatever the frame rate does.
+// Turning is the other half of that. A foot is pinned in the RIG's local frame, so swinging the body's facing would
+// carry the pinned foot round with it and skate it across the ground. So a turn moves the pins the other way by the
+// same angle: the planted foot keeps its spot on the table and the body pivots about it, the way a person turns.
+var WALKER = (function(){
+"use strict";
+var R = SKRIG, D = R.D, clamp = R.clamp;
+// The gait generator always lands the swing foot dead ahead of the hip — it has no step-turn. So a piece can only
+// swing its facing slowly while it is walking: turn it faster and the planted foot ends up out to the side of the hip,
+// the leg runs out of reach, and the rig's overreach rule (rightly) lets the other foot leave early — both feet off
+// the ground, in a walk. Sharp turns therefore happen standing still, where the feet can shuffle round under the body.
+// Every number below comes out of the sweeps in bt_walk.js rather than a guess; the comments say what each one buys.
+var C = {
+  BRAKE:   7.0,    // m/s^2 — the controller's own DEC; sets how far ahead of the mark to start braking
+  TURN:    1.3,    // rad/s — how fast the facing swings while standing (a pivot on the spot). Faster twists the hips
+                   //           past their 50 deg limit before the feet can shuffle round: 1.3 peaks at 42.6 deg.
+  TURN_WALK: 1.6,  // rad/s — and while walking or running (measured clean at every rate, so this one is for looks)
+  HOLD:    1.0,    // rad — a turn sharper than ~57 deg stops and pivots; anything less arcs round as it walks
+  GO:      0.14,   // rad — and walks off once the facing is this close
+  SHUFFLE: 0.045,  // m — a pivot twists the hips; past this much foot drift the feet shuffle back under the body
+  ARRIVE:  0.10,   // m — close enough to the mark (trips land within 16 mm of it at 60 fps)
+  RUN_AT:  7.0,    // m — a destination farther off than this is worth running to
+  STALL:   1.5     // s of no progress before a destination is written off
+};
+var SUB = 1/30;       // the controller clamps its own dt here, so split a long frame instead of losing travel
+var nMade = 0;
+
+// The controller's constructor starts the rig mid-stride (the rig demo opens mid-walk). A piece on a table starts from
+// a stand, so hand it a settled stance outright rather than stepping it down over a second and a half of warm-up.
+function make(){
+  var c = new R.Controller(), i, F, t;
+  c.set('idle'); c.speed = 0; c.v = 0; c.acc = 0; c.vBody = 0; c.travel = 0;
+  for (i=0;i<2;i++){ F = i ? c.R : c.L; t = R.IDLE_FT[F.S];
+    F.a = t.a.slice(); F.q = R.footQ(t.yaw, 0); F.pitch = 0; F.yaw = t.yaw;
+    F.plantHere(c.travel, false, 0, R.WALK); }
+  c.settled = true; c.wi = 1; c.idleT = (nMade++ % 7) * 1.7;   // a different breath phase per piece
+  c.step(SUB);
+  return c;
+}
+function wrap(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }   // to (-pi, pi]
+
+// Local -> table is (lx,lz) -> (lx*cos+lz*sin, -lx*sin+lz*cos), so turning the piece turns the rig's whole local frame
+// under it. EVERYTHING the rig holds that means "a place on the table" has to come back the other way by dth, or the
+// feet skate:
+//   gx/gz  the ground pin of a planted foot
+//   a, q   the foot's pose right now -- a re-pin reads these, not the pin. plantHere() re-derives gx/gz from a and q,
+//          and the walk's own kick-off calls it, so leaving these behind silently throws the pin rotation away.
+//   a0     where a swinging foot left the ground (its landing target a1 is body-relative, so that one stays put)
+function turnRig(c, dth){
+  var cs = Math.cos(dth), sn = Math.sin(dth), qh = [0, Math.sin(-dth/2), 0, Math.cos(-dth/2)], i, F, ax, az;
+  function turn(p){ var x = p[0], z = p[2]; p[0] = x*cs - z*sn; p[2] = x*sn + z*cs; }
+  for (i=0;i<2;i++){ F = i ? c.R : c.L;
+    if (F.st === 'plant'){ ax = F.gx; az = F.gz - c.travel;
+      F.gx = ax*cs - az*sn; F.gz = ax*sn + az*cs + c.travel; }
+    if (F.a0) turn(F.a0);
+    turn(F.a); F.q = R.qmul(qh, F.q); F.yaw -= dth/D;
+  }
+}
+// How far the piece still travels after it is told to stop. v^2/2a is the textbook part; the controller also ramps its
+// deceleration in (JERK), and that ramp costs a further 0.033 * v -- measured, and the same coefficient for a walk
+// (132 mm from 1.15 m/s) as for a run (682 mm from 2.87 m/s). Without the second term a run overshoots by ~90 mm.
+function stopIn(v){ return v*v/(2*C.BRAKE) + 0.033*v + 0.015; }
+// how far each foot has drifted from the stance it wants to stand in
+function drift(c){
+  var t = R.IDLE_FT;
+  return Math.max(Math.hypot(c.L.a[0]-t.L.a[0], c.L.a[2]-t.L.a[2]), Math.hypot(c.R.a[0]-t.R.a[0], c.R.a[2]-t.R.a[2]));
+}
+
+function goTo(u, x, z){ u.tx = x; u.tz = z; u.best = null; u.stall = 0; if (!u.ctl) u.ctl = make(); }
+function stop(u){ u.tx = null; u.tz = null; if (u.ctl) u.ctl.set('idle'); }
+
+// One frame for one piece. Returns true while it still has something to do — walking, turning, or coming to rest.
+function step(u, dt, bounds){
+  var c = u.ctl; if (!c) return false;
+  var has = u.tx != null, dx = has ? u.tx - u.x : 0, dz = has ? u.tz - u.z : 0, rem = has ? Math.hypot(dx, dz) : 0;
+  // `aim` is "there is a bearing worth turning to". Two things it is NOT. It is not "the bearing error is non-zero":
+  // the moment the facing lands exactly on the mark the error is 0, and reading that as "no bearing" drops the hold on
+  // the spot. And it is not "there is any distance left": inside the distance the piece needs to stop, the bearing to
+  // the mark is mostly noise, and chasing it spins the piece round on the spot as it arrives. So aiming ends exactly
+  // where braking begins -- the same threshold the gait choice below uses.
+  var aim = has && rem > C.ARRIVE && rem > stopIn(c.v), d = aim ? wrap(Math.atan2(dx, dz) - (u.rot||0)) : 0;
+  // A hold is released only once the facing is close AND the rig is standing settled. Pivoting shuffles both feet back
+  // to the same symmetric stance, and starting a gait from a half-shuffled stance drops both legs into one phase --
+  // they then lift and land together, which is the flight-phase-in-a-walk bug the rig already fought once. Waiting for
+  // `settled` hands the walk to the controller's own kick-off, which toes one foot off and plants the other.
+  if (aim) u.hold = Math.abs(d) > C.HOLD ? true : (Math.abs(d) < C.GO && c.settled) ? false : !!u.hold;
+  else u.hold = false;
+  // Brake early enough to stop on the mark rather than past it. Otherwise pick the gait -- but never step DOWN into a
+  // walk while the piece is still moving faster than one. run -> walk is the rig's one phase-sensitive transition: at
+  // about one switch moment in twelve it drops both legs into the same phase, and the walk then carries a flight phase
+  // for as long as it lasts (bt_walk.js measures 5 bad moments out of 61; walk -> run, idle -> walk and idle -> run are
+  // all clean at every moment). Braking is safe from either gait, so a trip that opened at a run simply runs till it
+  // brakes, and a piece slowing out of a run resumes a run rather than picking up a walk at speed.
+  if (!has || u.hold || rem <= C.ARRIVE || rem <= stopIn(c.v)) c.set('idle');
+  else if (rem > C.RUN_AT || c.v > R.V_WALK + 0.02) c.set('run');
+  else c.set('walk');
+  // a pivot on the spot twists the hips: once the feet have drifted far enough, clearing `settled` makes the controller
+  // shuffle them back under the body one at a time (that is what settle() is for), which keeps the hips in range
+  if (u.hold && c.settled && c.v === 0 && drift(c) > C.SHUFFLE) c.settled = false;
+  // Turn and travel, interleaved, one sub-step at a time. Turning the whole frame's angle in one lump and only then
+  // travelling three sub-steps' worth does skate the feet (2.6 mm at 10 fps), because the rotate-then-travel pair is
+  // only exact when the travel that follows a turn is the travel the turn was applied to.
+  var n = Math.max(1, Math.min(3, Math.ceil(dt/SUB))), h = dt/n, k, t0, ds;
+  for (k=0;k<n;k++){
+    // standing still, the facing can swing right round; under way it has to stay inside what the legs can reach
+    if (aim && d){ var mx = (c.v > 0.05 ? C.TURN_WALK : C.TURN)*h, t = clamp(d, -mx, mx);
+                   u.rot = wrap((u.rot||0) + t); turnRig(c, t); d -= t; }
+    t0 = c.travel; c.step(h); ds = c.travel - t0;
+    if (ds){ u.x += Math.sin(u.rot)*ds; u.z += Math.cos(u.rot)*ds; }
+  }
+  if (bounds){ u.x = clamp(u.x, -bounds.w/2, bounds.w/2); u.z = clamp(u.z, -bounds.d/2, bounds.d/2); }
+  if (has){
+    rem = Math.hypot(u.tx-u.x, u.tz-u.z);
+    // a mark it cannot close on must not leave it walking on the spot for ever -- but a pivot is standing still on
+    // purpose, so it does not count against the piece
+    if (rem < (u.best == null ? 1e9 : u.best) - 0.01){ u.best = rem; u.stall = 0; }
+    else if (u.hold) u.stall = 0;
+    else u.stall = (u.stall||0) + dt;
+    if ((rem <= C.ARRIVE && c.settled) || u.stall > C.STALL){ u.tx = null; u.tz = null; u.hold = false; }
+  }
+  return u.tx != null || !c.settled || c.v > 0;
+}
+return { make:make, goTo:goTo, stop:stop, step:step, C:C };
+})();
+// ==MODULES-END==
+
 (function(){
 "use strict";
 var $ = function(id){ return document.getElementById(id); };
@@ -1111,8 +1240,18 @@ var UNIT_COL = {
 };
 var units = [];
 var RIGQ = SKRIG, POSE_CACHE = {};
+// Three ways a piece gets its geometry, cheapest first:
+//   never moved      -> one shared idle build per kit, cached for the whole table (what this page already did)
+//   moved, now still -> the build it stopped in, frozen on the piece, so a stance costs nothing to hold
+//   moving           -> rebuilt from the live pose every frame. 0.2 ms each (bt_walk.js), and MINI hands back its own
+//                       face pool, so the caller has to draw what it gets before asking for another piece.
+function kitOf(u){ return u.k === 'enemy' ? 'heavy' : u.k; }
+function liveFaces(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return MINI.build(kit, RIGQ.fk(P)); }
+function freeze(u){ return liveFaces(u).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; }); }
 function rigFaces(u){                    // the kit's geometry, already moved onto the table
-  var kit = u.k === 'enemy' ? 'heavy' : u.k, key = kit + '|' + (u.pv||0);
+  if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u);
+  if (u.rest) return u.rest;
+  var kit = kitOf(u), key = kit + '|' + (u.pv||0);
   var cached = POSE_CACHE[key];
   if (!cached){
     var P = RIGQ.idlePose((u.pv||0)*1.7);           // a standing pose, each model at a slightly different breath phase
@@ -1123,6 +1262,20 @@ function rigFaces(u){                    // the kit's geometry, already moved on
     cached.faces = MINI.build(kit, out).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; });
   }
   return cached.faces;
+}
+// ---------- moving pieces ----------
+var LIVE_RIG = 6;   // live rigs built per frame; a walker past the budget still moves, it is just drawn as a pawn
+function unitGoTo(u, x, z){ WALKER.goTo(u, clamp(x, -table.w/2, table.w/2), clamp(z, -table.d/2, table.d/2));
+  u.mv = true; u.rest = null; dirty = true; }
+function unitStop(u){ WALKER.stop(u); }
+// Step every piece that has somewhere to be. Returns true if anything moved, so the frame loop knows to redraw.
+function stepUnits(dt){
+  var i, any = false;
+  for (i=0;i<units.length;i++){ var u = units[i]; if (!u.mv) continue;
+    if (WALKER.step(u, dt, table)) any = true;
+    else { u.mv = false; u.rest = freeze(u); any = true; }   // come to rest: keep the stance it stopped in
+  }
+  return any;
 }
 function drawRig(u, S){
   var faces = rigFaces(u), pal = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy;
@@ -1135,12 +1288,27 @@ function drawRig(u, S){
     face(pts, col, { bias:-0.15 });
   }
 }
+// Which pieces are worth the real model this frame: biggest on screen first, and a walking piece ahead of a standing one
+// of the same size, because a piece drawn as a pawn cannot show its gait. Allocation only -- the faces are depth-sorted
+// afterwards, so this never changes what ends up in front of what.
+function planRigs(){
+  var i, u, list = [];
+  for (i=0;i<units.length;i++){ u = units[i]; u.rig = false;
+    var y = heightAt(u.x, u.z), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
+    u.px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
+    if (u.px > 32) list.push(u); }
+  if (dragging) return;                                    // spinning the camera: pawns only, as before
+  list.sort(function(a,b){ return (b.px + (b.mv?400:0)) - (a.px + (a.mv?400:0)); });
+  var grant = 0, live = 0;
+  for (i=0;i<list.length && grant<rigBudget;i++){ u = list[i];
+    if (u.mv){ if (live >= LIVE_RIG) continue; live++; }    // live poses cost geometry every frame; cap them
+    u.rig = true; grant++; }
+}
 function drawUnit(u){
   var C = UNIT_COL[u.k] || UNIT_COL.heavy, y = heightAt(u.x, u.z), s = 1.0, rot = u.rot || 0;
   shadowAt(u.x, u.z, 0.8, 0.34);
-  var pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]), px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
-  if (px > 32 && rigBudget > 0 && !dragging){       // close enough to be worth the real model
-    rigBudget--; prism(u.x, y, u.z, 0.62, 0.1, 12, C.base, rot, 1); drawRig(u, 1.0);
+  if (u.rig){                                       // close enough, and in budget, to be worth the real model
+    prism(u.x, y, u.z, 0.62, 0.1, 12, C.base, rot, 1); drawRig(u, 1.0);
     if (u.sel) ringAt(u.x, u.z, 0.95, '#E0B26A');
     return;
   }
@@ -1179,12 +1347,15 @@ function drawScene(){
   var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   var step = dragging ? 2 : 1; rigBudget = dragging ? 0 : 7;
+  planRigs();
   drawGround(step); drawRails();
   var i, detail = dragging ? 46 : 26;
   for (i=0;i<PROPS.length;i++){ var o = PROPS[i]; if (propScale(o) < detail){ shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o); } else drawProp(o); }
   for (i=0;i<units.length;i++) drawUnit(units[i]);
+  for (i=0;i<units.length;i++){ var mu = units[i];      // where a piece still on its way is heading
+    if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
   if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
-  if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.x, z:drag.z}, true);
+  if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
   FACES.sort(function(a,b){ return b.d - a.d; });
   for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp;
     ctx.beginPath(); ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
@@ -1209,9 +1380,18 @@ function rulerLine(A, B, moving){
 function hud(){
   var n = {}, i; for (i=0;i<units.length;i++) n[units[i].k] = (n[units[i].k]||0)+1;
   var parts = []; if (n.heavy) parts.push('เกราะหนัก ' + n.heavy); if (n.infantry) parts.push('ราบ ' + n.infantry); if (n.hoplite) parts.push('กรีก ' + n.hoplite); if (n.enemy) parts.push('ศัตรู ' + n.enemy);
-  $('btHud').innerHTML = TH().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '');
+  var mv = 0; for (i=0;i<units.length;i++) if (units[i].mv) mv++;
+  $('btHud').innerHTML = TH().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '') + (mv ? ' · กำลังเดิน <i>' + mv + '</i>' : '');
 }
-function frame(){ raf(frame); if (!dirty) return; dirty = false; drawScene(); }
+// The page is redraw-on-demand, and stays that way: the loop only does work while a piece is actually on the move, so
+// a table of pieces standing still costs nothing (no ambient breathing -- that would pin the CPU on a phone for good).
+var tPrev = 0, now = (window.performance && performance.now) ? function(){ return performance.now(); } : function(){ return Date.now(); };
+function frame(ts){
+  raf(frame);
+  var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
+  if (dt > 0 && dt < 0.5 && stepUnits(dt)) dirty = true;    // a long gap (tab in the background) is skipped, not crammed in
+  if (!dirty) return; dirty = false; drawScene();
+}
 
 // ---------- input ----------
 var mode = 'look', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt = null, drag = null, dragFrom = null, measure = null;
@@ -1230,12 +1410,12 @@ cv.addEventListener('pointermove', function(ev){ if (!(ev.pointerId in ptrs)) re
   if (ids.length >= 2 && pinch){ var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a[0]-b[0], a[1]-b[1]);
     cam.dist = clamp(pinch.dist * pinch.d / Math.max(d, 1), 6, 260); moved = true; dragging = true; dirty = true; return; }
   if (Math.hypot(p[0]-downAt[0], p[1]-downAt[1]) > 5) moved = true;
-  if (drag){ var w = groundHit(p[0], p[1]); if (w){ drag.x = clamp(w[0], -table.w/2, table.w/2); drag.z = clamp(w[2], -table.d/2, table.d/2); dirty = true; } return; }
+  if (drag){ var w = groundHit(p[0], p[1]); if (w) unitGoTo(drag, w[0], w[2]); return; }   // walks there; it does not warp
   if (moved){ cam.yaw -= (p[0]-prev[0])*0.008; cam.pitch = clamp(cam.pitch + (p[1]-prev[1])*0.006, 6*DEG, 82*DEG); dragging = true; dirty = true; } });
 cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delete ptrs[ev.pointerId];
   if (Object.keys(ptrs).length < 2) pinch = null;
   if (dragging && !Object.keys(ptrs).length){ dragging = false; dirty = true; }
-  if (drag){ drag = null; dragFrom = null; dirty = true; return; }
+  if (drag){ drag = null; dragFrom = null; dirty = true; return; }   // the piece keeps walking to the mark it was given
   if (!p || moved) return;
   var w = groundHit(p[0], p[1]); if (!w) return;
   if (mode === 'place'){ units.push({ k:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false }); dirty = true; }
@@ -1248,7 +1428,9 @@ $('btTheme').addEventListener('click', function(ev){ var b = ev.target.closest('
 $('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
 $('btKit').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; kit = b.dataset.k; setOn($('btKit'), b); });
 $('btSize').addEventListener('input', function(){ table.w = +$('btSize').value; table.d = Math.round(table.w*0.72/2)*2; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
-  cam.dist = table.w*1.3; buildTerrain(); genProps(); units = units.filter(function(u){ return Math.abs(u.x) < table.w/2 && Math.abs(u.z) < table.d/2; }); dirty = true; });
+  cam.dist = table.w*1.3; buildTerrain(); genProps(); units = units.filter(function(u){ return Math.abs(u.x) < table.w/2 && Math.abs(u.z) < table.d/2; });
+  units.forEach(function(u){ if (u.tx != null) unitGoTo(u, u.tx, u.tz); });   // a smaller table can leave a mark off the edge
+  dirty = true; });
 $('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.random()*99999); $('btSeed').textContent = 'สนาม #' + SEED; buildTerrain(); genProps(); dirty = true; });
 $('btTop').addEventListener('click', function(){ cam.pitch = 52*DEG; cam.dist = table.w*1.25; cam.tx = 0; cam.tz = 0; dirty = true; });
 $('btEye').addEventListener('click', function(){ cam.pitch = 13*DEG; cam.dist = 26; dirty = true; });
@@ -1256,6 +1438,8 @@ window.addEventListener('resize', resize);
 buildTerrain(); genProps(); resize();
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
 window.BT = { cam:cam, table:table, units:units, setTheme:function(t){ theme = t; buildTerrain(); genProps(); dirty = true; }, add:function(k,x,z){ units.push({k:k,x:x,z:z,rot:0}); dirty = true; },
+  goTo:function(i,x,z){ var u = units[i]; if (u) unitGoTo(u, x, z); return !!u; },   // send piece i walking to (x,z)
+  stop:function(i){ var u = units[i]; if (u) unitStop(u); }, walking:function(){ return units.filter(function(u){ return u.mv; }).length; },
   draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; } };
 })();
 </script>
