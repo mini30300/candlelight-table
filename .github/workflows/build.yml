@@ -2,9 +2,24 @@ name: Build APK
 on:
   push:
     branches: [ main ]
+  pull_request:
   workflow_dispatch:
 jobs:
+  # A pull request only gets compiled. It never touches the signing secrets and never cuts a release,
+  # so the release build below stays exactly as it was: pushes to main and manual runs.
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - run: gradle assembleDebug --no-daemon
+
   build:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write

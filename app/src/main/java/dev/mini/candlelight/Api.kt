@@ -21,6 +21,9 @@ data class Player(
 
 data class Entry(
     val seq: Int, val ts: Long, val t: String, val who: String, val text: String, val choices: List<String>,
+    /** a "roll" entry carries the die and the result the SERVER rolled. die is 0 on every other kind of entry,
+     *  which is how a real result is told apart from an absent one -- a d10 legitimately rolls 0. */
+    val die: Int = 0, val value: Int = 0,
 )
 
 data class Look(
@@ -74,7 +77,7 @@ object Api {
             val e = logArr.getJSONObject(i)
             val ch = e.optJSONArray("choices") ?: JSONArray()
             Entry(e.optInt("seq"), e.optLong("ts"), e.optString("t"), e.optString("who"), e.optString("text"),
-                (0 until ch.length()).map { ch.getString(it) })
+                (0 until ch.length()).map { ch.getString(it) }, e.optInt("die"), e.optInt("value"))
         }
         val owner = if (o.isNull("ownerSub")) null else o.optString("ownerSub")
         return Room(o.optString("code"), o.optString("scene"), owner, players, o.optInt("seq"), o.optInt("pending"), log, parseBoard(o.optJSONObject("board")))
