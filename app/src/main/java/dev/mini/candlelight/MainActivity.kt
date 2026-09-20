@@ -309,10 +309,9 @@ private val DND_ROWS = listOf(
 )
 
 private val TT_ROWS = listOf(
-    ToolRow(Arts.toolBattle, "โต๊ะรบ", "— วางหน่วย วัดระยะเป็นนิ้ว"),
-    ToolRow(Arts.toolWorld, "แผนที่โลก", "— แผนที่ยุทธศาสตร์ ซูมไม่จำกัด"),
-    ToolRow(Arts.toolDice, "ถาดลูกเต๋า", "— d4–d20 ฟิสิกส์จริง"),
-    ToolRow(Arts.toolRig, "โครงกระดูก", "— จูนท่าเดิน วิ่ง ตี"),
+    ToolRow(Arts.toolBattle, "เลือกแมพแล้วจัดกองทัพ", "— สี่สนาม ซื้อหน่วยด้วยแต้ม"),
+    ToolRow(Arts.mini, "สู้บอท หรือสู้กับเพื่อน", "— PvE · 1v1 · 2v2 · 3v3 · 4v4 · ฟรีฟอร์ออล"),
+    ToolRow(Arts.toolDice, "ทอย d6 เข้า–เจาะ–เซฟ", "— เลือกจุดลงสนามเอง เดินเป็นนิ้ว"),
 )
 
 private const val HERO_SUB = "โต๊ะผจญภัยที่ Claude เป็นผู้เล่าเรื่อง — จุดเทียน นั่งลง แล้วเลือกว่าจะเล่นอะไรดี"
@@ -321,9 +320,9 @@ private const val HERO_SUB = "โต๊ะผจญภัยที่ Claude เ
 @Composable
 private fun TabletopCard(onPick: () -> Unit) {
     PicCard(
-        Arts.mini, "เทเบิลท็อป",
-        "โต๊ะรบสามมิติ แผนที่โลก ถาดลูกเต๋า วางหน่วยแล้วสั่งให้เดิน วัดระยะเป็นนิ้ว",
-        "เล่นคนเดียว · ไม่ต้องต่อเน็ต · ไม่ต้องเข้าสู่ระบบ",
+        Arts.mini, "โต๊ะรบ",
+        "เกมวางหมากสามมิติ จัดกองทัพด้วยแต้ม เลือกจุดลงสนาม แล้วผลัดกันเดินกับยิง",
+        "เล่นคนเดียวไม่ต้องต่อเน็ต · เล่นกับเพื่อนต้องมีเน็ต",
         rows = TT_ROWS, onClick = onPick,
     ) {
         CtlBlock {
@@ -331,7 +330,7 @@ private fun TabletopCard(onPick: () -> Unit) {
                 Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(8.dp))
                     .background(Raised).border(1.dp, Line, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center,
-            ) { Text("เข้าโต๊ะเทเบิลท็อป ›", color = Ink, fontSize = 15.sp) }
+            ) { Text("เข้าโต๊ะรบ ›", color = Ink, fontSize = 15.sp) }
         }
     }
 }
@@ -414,59 +413,16 @@ private fun LinkComputerCard() {
 
 // ---------------------------------------------------------------- tabletop: the bundled 3D pages
 
-/** ไฟล์ใน assets, ภาพลายเส้น, ชื่อ, หนึ่งบรรทัดว่าทำอะไร */
-private data class Tool(val asset: String, val art: Art, val title: String, val body: String)
-
-private val TOOLS = listOf(
-    Tool("battle-table.html", Arts.toolBattle, "โต๊ะรบ", "วางหน่วย ลากให้เดินจริง วัดระยะเป็นนิ้ว หมุนกล้องรอบโต๊ะ"),
-    Tool("worldmap.html", Arts.toolWorld, "แผนที่โลก", "แผนที่ยุทธศาสตร์สุ่ม ไม่มีขอบ ซูมได้ไม่จำกัด"),
-    Tool("dice-tray.html", Arts.toolDice, "ถาดลูกเต๋า", "d4–d20 ฟิสิกส์จริง นับผลแบบ 40k"),
-    Tool("skeleton-rig-v4.html", Arts.toolRig, "โครงกระดูก", "หน้าจูนท่าเดิน–วิ่ง–ตี และชุดเกราะ 3 แบบ"),
-)
-
-@Composable
-private fun ToolCard(t: Tool, onOpen: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface)
-            .border(1.dp, Line, RoundedCornerShape(12.dp)).clickable { onOpen() }.padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(86.dp, 58.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF1A1723)), contentAlignment = Alignment.Center) {
-            Illustration(t.art, Modifier.fillMaxSize().padding(8.dp))
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(t.title, color = Amber, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text(t.body, color = Ink, fontSize = 13.sp, lineHeight = 19.sp)
-        }
-        Text("›", color = Muted, fontSize = 20.sp, modifier = Modifier.padding(start = 8.dp))
-    }
-}
-
 @Composable
 fun TabletopScreen(onBack: () -> Unit) {
-    var open by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = true) { if (open != null) open = null else onBack() }
-    if (open != null) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            Row(Modifier.fillMaxWidth().background(Ground).padding(8.dp, 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { open = null }) { Text("‹ กลับ", color = Amber, fontSize = 14.sp) }
-                Text(TOOLS.first { it.asset == open }.title, color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            }
-            // keyed so switching pages builds a fresh WebView instead of leaving the old one loaded
-            key(open) { AssetPage(open!!, Modifier.weight(1f).fillMaxWidth()) }
+    // ไม่มีหน้าเลือกเครื่องมือแล้ว — กดเทเบิลท็อปแล้วเข้าโต๊ะรบเลย
+    BackHandler(enabled = true) { onBack() }
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().background(Ground).padding(8.dp, 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("\u2039 \u0e01\u0e25\u0e31\u0e1a", color = Amber, fontSize = 14.sp) }
+            Text("\u0e42\u0e15\u0e4a\u0e30\u0e23\u0e1a", color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
-        return
-    }
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
-            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Mast(onBack = onBack)
-        Hero("เทเบิลท็อป", "ทุกหน้าอยู่ในแอพแล้ว เปิดได้โดยไม่ต้องต่อเน็ต และไม่ต้องเข้าสู่ระบบ")
-        TOOLS.forEach { t -> ToolCard(t) { open = t.asset } }
-        Spacer(Modifier.height(6.dp))
+        AssetPage("battle-table.html", Modifier.weight(1f).fillMaxWidth())
     }
 }
 
