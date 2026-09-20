@@ -1,38 +1,211 @@
 <title>โต๊ะรบ</title>
 <style>
 #bt{--bg:#0B0B0E;--ink:#ECE9E0;--sub:#9C968A;--chip:#15151A;--chipB:#2A2A32;--on:#E0B26A;--onInk:#0B0B0E;
-  font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif;background:var(--bg);color:var(--ink);max-width:560px;margin:0 auto;min-height:100vh;
-  box-sizing:border-box;padding:6px 8px 12px;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  --p1:#6FB3A8;--p2:#C46A5A;--panel:#101014;
+  font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  min-height:100vh;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 #bt *{box-sizing:border-box}
-#bt .cap{display:flex;justify-content:space-between;gap:8px;font-size:13px;line-height:18px;color:var(--sub);padding:0 2px 4px;white-space:nowrap;overflow:hidden}
-#bt .cap b{color:var(--ink);font-weight:600}
+
+/* ---- shell: board and panel side by side on a wide screen, stacked on a phone ---- */
+#bt .shell{display:flex;flex-direction:column;gap:8px;padding:6px 8px 12px;max-width:560px;margin:0 auto;min-height:100vh}
+#bt .stage{position:relative}
 #bt .wrap{position:relative}
-#bt canvas{display:block;width:100%;height:480px;border-radius:14px;touch-action:none;background:#07080A;border:1px solid var(--chipB)}
+#bt canvas{display:block;width:100%;height:46vh;min-height:300px;border-radius:14px;touch-action:none;background:#07080A;border:1px solid var(--chipB)}
+#bt .panel{display:flex;flex-direction:column;gap:6px;min-width:0}
+
+@media (min-width:900px){
+  #bt .shell{flex-direction:row;align-items:stretch;max-width:none;gap:14px;padding:12px 14px;height:100vh}
+  #bt .stage{flex:1;min-width:0;display:flex}
+  #bt .wrap{flex:1;min-width:0;display:flex}
+  #bt canvas{height:100%;min-height:0;flex:1}
+  #bt .panel{width:clamp(320px,26vw,420px);flex:0 0 auto;overflow-y:auto;padding-right:2px}
+}
+
+/* ---- bits ---- */
+#bt .cap{display:flex;justify-content:space-between;gap:8px;font-size:13px;line-height:18px;color:var(--sub);padding:0 2px 2px;white-space:nowrap;overflow:hidden}
+#bt .cap b{color:var(--ink);font-weight:600}
 #bt .hud{position:absolute;left:10px;top:10px;font-size:12px;line-height:17px;background:rgba(11,11,14,0.5);padding:4px 8px;border-radius:8px;pointer-events:none;font-variant-numeric:tabular-nums}
 #bt .hud i{font-style:normal;color:var(--on)}
-#bt .row{display:flex;gap:6px;margin-top:6px}
+#bt .row{display:flex;gap:6px}
 #bt .grp{display:flex;gap:4px;flex:1;min-width:0}
 #bt button{flex:1;min-width:0;min-height:44px;border-radius:10px;border:1px solid var(--chipB);background:var(--chip);color:var(--ink);font:inherit;font-size:14px;padding:0 4px;cursor:pointer;touch-action:manipulation}
-#bt button.on{background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:600}
-#bt .sl{display:flex;align-items:center;gap:8px;flex:1;font-size:13px;color:var(--sub)}
+#bt button:disabled{opacity:.4;cursor:default}
+#bt button.on:not(.map):not(.mode){background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:600}
+#bt button.go{background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:700;min-height:50px;font-size:15px}
+#bt button.sm{min-height:34px;font-size:13px;flex:0 0 auto;padding:0 10px}
+#bt .sl{display:flex;align-items:center;gap:8px;flex:1;font-size:13px;color:var(--sub);min-width:0}
 #bt input[type=range]{flex:1;min-width:0;accent-color:var(--on)}
-#bt .note{font-size:12px;color:var(--sub);padding:6px 2px 0;line-height:17px}
+#bt .note{font-size:12px;color:var(--sub);padding:4px 2px 0;line-height:17px}
+#bt h3{margin:8px 2px 2px;font-size:13px;font-weight:600;color:var(--sub);letter-spacing:.4px}
+
+/* ---- map picker: 2x2 of painted previews, as drawn ---- */
+#bt .maps{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#bt .map{position:relative;border:1px solid var(--chipB);border-radius:12px;overflow:hidden;background:var(--chip);cursor:pointer;padding:0;min-height:0}
+#bt .map canvas{width:100%;height:78px;min-height:0;display:block;border:0;border-radius:0}
+#bt .map span{display:block;font-size:13px;padding:5px 8px;text-align:left;color:var(--ink);font-weight:400}
+#bt .map.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset;background:var(--chip)}
+#bt .map.on span{color:var(--on);font-weight:600}
+
+/* ---- mode rows, as drawn: a picture strip per mode ---- */
+#bt .modes{display:flex;flex-direction:column;gap:6px}
+#bt .mode{display:flex;align-items:center;justify-content:flex-start;gap:10px;border:1px solid var(--chipB);border-radius:12px;
+  background:var(--chip);padding:10px 12px;cursor:pointer;text-align:left;min-height:62px;font-weight:400}
+#bt .mode>span:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+#bt .mode.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset;background:var(--chip)}
+#bt .mode svg{flex:0 0 auto;width:96px;height:38px;color:var(--on)}
+#bt .mode .t{display:block;font-size:15px;font-weight:600;color:var(--ink)}
+#bt .mode.on .t{color:var(--on)}
+#bt .mode .d{display:block;font-size:12px;color:var(--sub);line-height:16px;white-space:normal}
+
+/* ---- roster ---- */
+#bt .budget{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+#bt .bar{flex:1;height:10px;border-radius:6px;background:var(--chip);border:1px solid var(--chipB);overflow:hidden;min-width:0}
+#bt .bar i{display:block;height:100%;background:var(--on);width:0}
+#bt .bar.over i{background:var(--p2)}
+#bt .unit{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;border:1px solid var(--chipB);
+  border-radius:12px;background:var(--chip);padding:8px 10px}
+#bt .unit .sw{width:26px;height:26px;border-radius:7px;flex:0 0 auto}
+#bt .unit>span:nth-child(2){display:flex;flex-direction:column;gap:1px;min-width:0}
+#bt .unit .nm{display:block;font-size:14px;color:var(--ink);line-height:19px}
+#bt .unit .pts{font-style:normal;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+#bt .unit .st{display:block;font-size:11px;color:var(--sub);line-height:15px;font-variant-numeric:tabular-nums}
+#bt .unit .pm{display:flex;align-items:center;gap:6px}
+#bt .unit .pm button{min-height:34px;width:34px;flex:0 0 auto;font-size:18px;line-height:1;padding:0}
+#bt .unit .n{min-width:22px;text-align:center;font-size:15px;font-variant-numeric:tabular-nums}
+#bt .side{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--sub)}
+#bt .dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+
+/* ---- play ---- */
+#bt .turnbar{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:8px;background:rgba(11,11,14,0.78);
+  border:1px solid var(--chipB);border-radius:10px;padding:6px 10px;font-size:14px;pointer-events:none;max-width:calc(100% - 20px)}
+#bt .turnbar b{font-weight:600}
+#bt .log{font-size:12px;line-height:17px;color:var(--sub);background:var(--chip);border:1px solid var(--chipB);
+  border-radius:10px;padding:8px 10px;max-height:130px;overflow-y:auto}
+#bt .log div{padding:1px 0}
+#bt .log .hit{color:var(--on)}
+#bt .log .kill{color:var(--p2)}
+#bt .card{border:1px solid var(--chipB);border-radius:12px;background:var(--chip);padding:10px 12px}
+#bt .card .nm{font-size:15px;font-weight:600}
+#bt .card .st{font-size:12px;color:var(--sub);line-height:18px;font-variant-numeric:tabular-nums;margin-top:2px}
+#bt .hide{display:none !important}
+#bt .wide{flex:1 1 100%}
+#bt .dicepop{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);pointer-events:none;
+  background:rgba(11,11,14,0.86);border:1px solid var(--on);border-radius:12px;padding:8px 14px;font-size:15px;
+  color:var(--ink);opacity:0;transition:opacity .18s;font-variant-numeric:tabular-nums;text-align:center;max-width:80%}
+#bt .dicepop.on{opacity:1}
+#bt .dicepop b{color:var(--on)}
 </style>
 <div id="bt">
-  <div class="cap"><span><b>โต๊ะรบ</b> · ลากหมุน บีบซูม</span><span id="btSeed">สนาม #1</span></div>
-  <div class="wrap"><canvas id="btCv"></canvas><div class="hud" id="btHud"></div></div>
-  <div class="row"><div class="grp" id="btTheme">
-    <button data-t="ruin" class="on">เมืองพัง</button><button data-t="forest">ป่าเนินเขา</button><button data-t="desert">ทะเลทราย</button><button data-t="ice">ที่ราบหิมะ</button>
-  </div></div>
-  <div class="row"><div class="grp" id="btMode">
-    <button data-m="look" class="on">ดู</button><button data-m="place">วางหน่วย</button><button data-m="measure">วัดระยะ</button><button data-m="erase">ลบ</button>
-  </div></div>
-  <div class="row"><div class="grp" id="btKit">
-    <button data-k="heavy" class="on">เกราะหนัก</button><button data-k="infantry">ทหารราบ</button><button data-k="hoplite">กรีก</button><button data-k="enemy">ศัตรู</button>
-  </div></div>
-  <div class="row"><label class="sl">โต๊ะ <input type="range" id="btSize" min="30" max="260" step="5" value="100"><em id="btSizeV" style="font-style:normal;color:var(--ink);min-width:70px;text-align:right">100×72 ม.</em></label></div>
-  <div class="row"><button id="btNew">สุ่มสนามใหม่</button><button id="btTop">มุมสูง</button><button id="btEye">มุมต่ำ</button></div>
-  <div class="note">1 นิ้วเกม = 1 ม. ในสนาม (สเกลมินิเจอร์) · ลากนิ้วเดียว = หมุนกล้อง · สองนิ้ว = ซูม · โหมดวางหน่วยแล้วลากตัวเพื่อย้าย จะบอกระยะที่เดินเป็นนิ้ว</div>
+ <div class="shell">
+  <div class="stage">
+    <div class="wrap">
+      <canvas id="btCv"></canvas>
+      <div class="hud" id="btHud"></div>
+      <div class="turnbar hide" id="btTurn"></div>
+      <div class="dicepop" id="btDice"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="cap"><span><b>โต๊ะรบ</b> <span id="btTip">· ลากหมุน · สองนิ้วเลื่อน</span></span><span id="btSeed">สนาม #1</span></div>
+
+    <!-- ══════════ ตั้งสนาม ══════════ -->
+    <div id="scSetup">
+      <h3>แมพ</h3>
+      <div class="maps" id="btMaps">
+        <button class="map on" data-t="ruin"><canvas width="240" height="120"></canvas><span>เมืองพัง</span></button>
+        <button class="map" data-t="forest"><canvas width="240" height="120"></canvas><span>ป่าเนินเขา</span></button>
+        <button class="map" data-t="desert"><canvas width="240" height="120"></canvas><span>ทะเลทราย</span></button>
+        <button class="map" data-t="ice"><canvas width="240" height="120"></canvas><span>ที่ราบหิมะ</span></button>
+      </div>
+      <h3>ขนาดโต๊ะ</h3>
+      <div class="row"><label class="sl">ขนาด <input type="range" id="btSize" min="24" max="180" step="2" value="48"><em id="btSizeV" style="font-style:normal;color:var(--ink);min-width:74px;text-align:right">48×34 ม.</em></label></div>
+      <div class="row" style="margin-top:6px"><button class="sm wide" id="btNew">สุ่มสนามใหม่</button></div>
+
+      <h3>โหมด</h3>
+      <div class="modes" id="btModes">
+        <button class="mode on" data-g="pve">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <g><circle cx="9" cy="11" r="4.5"/><path d="M9 16v10M4 20h10M5 32l4-6 4 6"/></g>
+            <g><circle cx="23" cy="11" r="4.5"/><path d="M23 16v10M18 20h10M19 32l4-6 4 6"/></g>
+            <g><circle cx="37" cy="11" r="4.5"/><path d="M37 16v10M32 20h10M33 32l4-6 4 6"/></g>
+            <text x="53" y="24" font-size="13" stroke="none" fill="currentColor" font-family="system-ui">VS</text>
+            <g><circle cx="84" cy="11" r="5"/><path d="M84 17v10M78 21h12M79 33l5-6 5 6"/></g>
+          </svg>
+          <span><span class="t">PvE — สู้กับบอท</span><span class="d">บอทคุมอีกฝั่ง เล่นคนเดียวได้</span></span>
+        </button>
+        <button class="mode" data-g="pvp">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <g><circle cx="17" cy="11" r="5"/><path d="M17 17v10M11 21h12M12 33l5-6 5 6"/></g>
+            <text x="41" y="24" font-size="13" stroke="none" fill="currentColor" font-family="system-ui">VS</text>
+            <g><circle cx="79" cy="11" r="5"/><path d="M79 17v10M73 21h12M74 33l5-6 5 6"/></g>
+          </svg>
+          <span><span class="t">PvP — คนต่อคน</span><span class="d">สองคนผลัดกันเล่นบนเครื่องเดียว</span></span>
+        </button>
+        <button class="mode" data-g="custom">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <g><circle cx="14" cy="14" r="4"/><path d="M14 18v8M10 21h8M11 30l3-5 3 5"/></g>
+            <g><circle cx="45" cy="10" r="6"/><path d="M45 17v12M37 21h16M38 34l7-7 7 7"/></g>
+            <g><circle cx="76" cy="13" r="4.5"/><path d="M76 18v9M71 22h10M72 31l4-5 4 5"/></g>
+          </svg>
+          <span><span class="t">กำหนดเอง</span><span class="d">วางหน่วยเองอิสระ ไม่มีกติกา ไม่มีเทิร์น</span></span>
+        </button>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="go" id="btNext">ถัดไป · จัดกองทัพ ›</button></div>
+    </div>
+
+    <!-- ══════════ จัดกองทัพ ══════════ -->
+    <div id="scArmy" class="hide">
+      <h3>ขนาดคะแนน</h3>
+      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="100" max="1500" step="50" value="400"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">400</em></label></div>
+
+      <h3>เจ้าของข้าง</h3>
+      <div class="row"><div class="grp" id="btSide">
+        <button data-s="0" class="on">ฝั่งน้ำเงิน</button><button data-s="1">ฝั่งแดง</button>
+      </div></div>
+
+      <h3>จัดการยูนิต</h3>
+      <div class="budget"><span id="btUsedL">ใช้</span><span class="bar" id="btBar"><i></i></span><span id="btUsedV">0 / 400</span></div>
+      <div id="btRoster" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+      <div class="row" style="margin-top:6px"><button class="sm wide" id="btDetail">แสดงรายละเอียด</button></div>
+
+      <div class="row" style="margin-top:10px"><button class="sm" id="btBack1" style="flex:0 0 96px">‹ กลับ</button><button class="go" id="btStart">เริ่มรบ ›</button></div>
+      <div class="note" id="btArmyNote"></div>
+    </div>
+
+    <!-- ══════════ เล่น ══════════ -->
+    <div id="scPlay" class="hide">
+      <div class="card" id="btCard"><div class="nm">แตะที่หน่วยของตัวเอง</div><div class="st">เลือกแล้วค่อยสั่งเดินหรือยิง</div></div>
+      <div class="row" style="margin-top:6px"><div class="grp" id="btAct">
+        <button data-a="move" disabled>เดิน</button><button data-a="shoot" disabled>ยิง</button><button data-a="done" disabled>ข้าม</button>
+      </div></div>
+      <div class="row" style="margin-top:6px"><button class="go" id="btEnd">จบเทิร์น</button></div>
+      <h3>บันทึกการรบ</h3>
+      <div class="log" id="btLog"></div>
+      <div class="row" style="margin-top:8px"><button class="sm wide" id="btQuit">ออกจากการรบ</button></div>
+    </div>
+
+    <!-- ══════════ กำหนดเอง (แซนด์บ็อกซ์เดิม) ══════════ -->
+    <div id="scCustom" class="hide">
+      <h3>ทำอะไร</h3>
+      <div class="row"><div class="grp" id="btMode">
+        <button data-m="look" class="on">ดู</button><button data-m="place">วางหน่วย</button><button data-m="measure">วัดระยะ</button><button data-m="erase">ลบ</button>
+      </div></div>
+      <h3>วางตัวไหน</h3>
+      <div class="row"><div class="grp" id="btKit">
+        <button data-k="heavy" class="on">เกราะหนัก</button><button data-k="infantry">ทหารราบ</button><button data-k="hoplite">กรีก</button><button data-k="enemy">ศัตรู</button>
+      </div></div>
+      <div class="row" style="margin-top:8px"><button class="sm wide" id="btQuit2">‹ กลับไปตั้งสนาม</button></div>
+    </div>
+
+    <!-- ══════════ กล้อง (ทุกหน้า) ══════════ -->
+    <h3>กล้อง</h3>
+    <div class="row"><div class="grp">
+      <button id="btPan">เลื่อนแมพ</button><button id="btTop">มุมสูง</button><button id="btEye">มุมต่ำ</button><button id="btFit">เห็นทั้งโต๊ะ</button>
+    </div></div>
+    <div class="note">1 นิ้วเกม = 1 ม. ในสนาม · ลากนิ้วเดียว = หมุนกล้อง · <b>สองนิ้วลาก = เลื่อนแมพ</b> · บีบ = ซูม · บนคอมคลิกขวาลาก หรือกดลูกศร/WASD ก็เลื่อนได้</div>
+  </div>
+ </div>
 </div>
 <script>
 // ==MODULES-BEGIN==   (node harnesses slice SKRIG + MINI + WALKER out between these two markers)
@@ -969,7 +1142,7 @@ var theme = 'ruin';
 function TH(){ return THEMES[theme]; }
 
 // ---------- table + terrain ----------
-var table = { w:100, d:72 };           // metres of ground (1 game inch = 1 m)
+var table = { w:48, d:34 };            // metres of ground (1 game inch = 1 m) — ขนาดโต๊ะจริงของเกมแนวนี้
 var CELL = 2, HG = null, hw = 0, hd = 0;   // heightfield (samples at cell corners)
 function buildTerrain(){
   CELL = Math.max(2, Math.round(table.w/42*2)/2);
@@ -1247,6 +1420,13 @@ function drawProp(o){
 }
 
 // ---------- miniatures: a compact armoured figure on a base, ~28 faces ----------
+function unitCol(u){          // ฝั่งไกลย้อมแดงทั้งฝั่ง จะได้รู้ทันทีว่าตัวไหนของใคร
+  var C = UNIT_COL[u.k] || UNIT_COL.heavy;
+  if (u.side !== 1) return C;
+  if (!u._c1){ var t = function(c){ return [Math.min(255, c[0]*0.45 + 132), c[1]*0.40, c[2]*0.40]; };
+    u._c1 = { plate:t(C.plate), trim:t(C.trim), visor:C.visor, base:C.base }; }
+  return u._c1;
+}
 var UNIT_COL = {
   heavy:    { plate:[92,112,150], trim:[196,168,92], visor:[30,32,42], base:[52,54,60] },
   infantry: { plate:[96,104,72],  trim:[120,128,92], visor:[34,34,30], base:[52,54,60] },
@@ -1294,7 +1474,7 @@ function stepUnits(dt){
 }
 function drawRig(u, S){
   var faces = rigFaces(u), pal = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy;
-  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, ENEMY = u.k === 'enemy';
+  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, ENEMY = (u.side === 1) || u.k === 'enemy';
   for (i=0;i<faces.length;i++){
     var f = faces[i], pts = [], col = pal[f.k] || pal.plate;
     if (ENEMY) col = [col[0]*0.55 + 120, col[1]*0.45, col[2]*0.45];
@@ -1320,7 +1500,7 @@ function planRigs(){
     u.rig = true; grant++; }
 }
 function drawUnit(u){
-  var C = UNIT_COL[u.k] || UNIT_COL.heavy, y = heightAt(u.x, u.z), s = 1.0, rot = u.rot || 0;
+  var C = unitCol(u), y = heightAt(u.x, u.z), s = 1.0, rot = u.rot || 0;
   shadowAt(u.x, u.z, 0.8, 0.34);
   if (u.rig){                                       // close enough, and in budget, to be worth the real model
     prism(u.x, y, u.z, 0.62, 0.1, 12, C.base, rot, 1); drawRig(u, 1.0);
@@ -1371,6 +1551,7 @@ function drawScene(){
     if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
   if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
   if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
+  gameOverlay();
   FACES.sort(function(a,b){ return b.d - a.d; });
   for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp;
     ctx.beginPath(); ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
@@ -1398,6 +1579,293 @@ function hud(){
   var mv = 0; for (i=0;i<units.length;i++) if (units[i].mv) mv++;
   $('btHud').innerHTML = TH().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '') + (mv ? ' · กำลังเดิน <i>' + mv + '</i>' : '');
 }
+// ═══════════════════ เกม ═══════════════════
+// กติกาสั้นที่สุดที่ยังเล่นจบได้จริง: ผลัดกันเล่น หนึ่งเทิร์นสั่งได้ทุกตัว ตัวหนึ่งเดินหนึ่งครั้งยิงหนึ่งครั้ง
+// ทอย d6 ทั้งหมด (เข้า → เจาะ → เซฟ) แบบเดียวกับถาดลูกเต๋าในแอพ
+var TYPES = [
+  { k:'heavy',    nm:'เกราะหนัก', pts:26, mv:6, rng:24, sh:2, bs:3, ap:2, sv:3, w:2, d:'ช้า ทน ยิงไกลที่สุด' },
+  { k:'infantry', nm:'ทหารราบ',  pts:11, mv:6, rng:18, sh:1, bs:4, ap:0, sv:5, w:1, d:'ถูก เอาไว้คุมพื้นที่' },
+  { k:'hoplite',  nm:'กรีก',     pts:16, mv:8, rng:0,  sh:3, bs:3, ap:1, sv:4, w:1, d:'ไม่มีปืน ต้องวิ่งเข้าประชิด' },
+  { k:'enemy',    nm:'จู่โจม',   pts:14, mv:7, rng:12, sh:2, bs:4, ap:1, sv:6, w:1, d:'เร็ว ยิงใกล้ เกราะบาง' }
+];
+function TY(k){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === k) return TYPES[i]; return TYPES[0]; }
+var MELEE = 2;                       // นิ้ว — ใกล้กว่านี้คือประชิด ตีได้แม้ไม่มีปืน
+var SIDE_NM = ['ฝั่งน้ำเงิน', 'ฝั่งแดง'], MAX_ROUND = 5;
+
+var G = { on:false, mode:'pve', budget:400, side:0, turn:0, round:1, sel:null, act:null, over:false,
+          list:[[0,0,0,0],[0,0,0,0]], detail:false, botTimer:0 };
+
+function d6(){ return 1 + Math.floor(Math.random()*6); }
+function dist2(a, b){ return Math.hypot(a.x-b.x, a.z-b.z); }
+function ptsOf(s){ var t = 0, i; for (i=0;i<TYPES.length;i++) t += (G.list[s][i]||0) * TYPES[i].pts; return t; }
+function liveOf(s){ var n = 0, i; for (i=0;i<units.length;i++) if (units[i].side === s) n++; return n; }
+function myTurnSide(){ return G.turn; }
+function botSide(){ return G.mode === 'pve' ? 1 : -1; }
+function humanTurn(){ return G.on && !G.over && G.turn !== botSide(); }
+
+// ---------- ตั้งกองทัพลงโต๊ะ ----------
+function autoList(s){          // บอท (และปุ่ม "สุ่มให้") จัดกองเองให้พอดีงบ
+  var out = [0,0,0,0], left = G.budget, guard = 200;
+  while (guard-- > 0){
+    var pick = Math.floor(Math.random()*TYPES.length);
+    if (TYPES[pick].pts > left) { var any = false, i;
+      for (i=0;i<TYPES.length;i++) if (TYPES[i].pts <= left) any = true;
+      if (!any) break; continue; }
+    out[pick]++; left -= TYPES[pick].pts;
+  }
+  G.list[s] = out;
+}
+function deploy(){
+  units.length = 0;
+  for (var s=0;s<2;s++){
+    var row = [], i, j, T;
+    for (i=0;i<TYPES.length;i++){ T = TYPES[i]; for (j=0;j<(G.list[s][i]||0);j++) row.push(T); }
+    var n = row.length; if (!n) continue;
+    var per = Math.max(1, Math.min(10, Math.ceil(n / Math.ceil(n/10)))), sgn = s === 0 ? -1 : 1;
+    var z0 = sgn * (table.d/2 - Math.max(4, table.d*0.10)), gap = Math.min(3.4, (table.w*0.82)/(per+1));
+    for (i=0;i<n;i++){
+      var r = Math.floor(i/per), c = i % per, cnt = Math.min(per, n - r*per);
+      units.push({ k:row[i].k, t:row[i].k, side:s, hp:row[i].w,
+        x:(c - (cnt-1)/2) * gap, z: z0 - sgn*r*3.2, rot: s === 0 ? 0 : Math.PI,
+        moved:false, shot:false, sel:false });
+    }
+  }
+}
+
+// ---------- บันทึกการรบ ----------
+var LOG = [];
+function say(txt, cls){ LOG.push({ t:txt, c:cls || '' }); if (LOG.length > 60) LOG.shift(); paintLog(); }
+function paintLog(){
+  var el = $('btLog'); if (!el) return;
+  var h = '', i; for (i=LOG.length-1;i>=0;i--) h += '<div class="' + LOG[i].c + '">' + LOG[i].t + '</div>';
+  el.innerHTML = h;
+}
+var dicePopT = 0;
+function popDice(txt){
+  var el = $('btDice'); if (!el) return;
+  el.innerHTML = txt; el.classList.add('on');
+  dicePopT = (window.performance ? performance.now() : Date.now()) + 1800;
+}
+function tickDice(){
+  var el = $('btDice'); if (!el || !dicePopT) return;
+  if ((window.performance ? performance.now() : Date.now()) > dicePopT){ el.classList.remove('on'); dicePopT = 0; }
+}
+
+// ---------- ยิง / ตี ----------
+function resolveShot(u, tgt){
+  var A = TY(u.t), D = TY(tgt.t), d = dist2(u, tgt), melee = d <= MELEE;
+  var shots = melee ? A.sh*2 : A.sh, need = melee ? Math.max(2, A.bs-1) : A.bs;
+  var rolls = [], hits = 0, k;
+  for (k=0;k<shots;k++){ var r = d6(); rolls.push(r); if (r >= need) hits++; }
+  var wounds = 0; for (k=0;k<hits;k++) if (d6() >= 4) wounds++;
+  var sv = D.sv + A.ap, saved = 0;
+  for (k=0;k<wounds;k++) if (sv <= 6 && d6() >= sv) saved++;
+  var dmg = wounds - saved;
+  tgt.hp -= dmg;
+  var dead = tgt.hp <= 0;
+  if (dead){ var ix = units.indexOf(tgt); if (ix >= 0) units.splice(ix, 1); }
+  u.shot = true;                   // ยิงแล้วยังเดินต่อได้ ตัวจะจบตาเมื่อทำครบทั้งเดินและยิง
+  var head = (melee ? 'ตี' : 'ยิง') + ' ' + A.nm + ' → ' + D.nm + ' ที่ ' + d.toFixed(1) + '"';
+  popDice('<b>' + rolls.join(' ') + '</b><br>' + head + '<br>เข้า ' + hits + ' · เจาะ ' + wounds + ' · เซฟ ' + saved +
+          '<br>' + (dead ? '<b>ล้ม!</b>' : 'เสียแผล ' + dmg));
+  say(SIDE_NM[u.side] + ' ' + head + ' — เข้า ' + hits + '/' + shots + ' · เจาะ ' + wounds + ' · เซฟได้ ' + saved +
+      (dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
+  dirty = true;
+  checkOver();
+  return dmg;
+}
+function checkOver(){
+  if (!G.on || G.over) return;
+  var a = liveOf(0), b = liveOf(1);
+  if (a && b) return;
+  G.over = true;
+  var w = a ? 0 : (b ? 1 : -1);
+  say(w < 0 ? '<b>เสมอ — ล้มหมดทั้งสองฝั่ง</b>' : '<b>จบการรบ — ' + SIDE_NM[w] + ' ชนะ</b>', 'kill');
+  popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + SIDE_NM[w] + ' ชนะ!</b>');
+  paintPlay();
+}
+function endRoundCheck(){
+  if (G.round > MAX_ROUND && !G.over){
+    var a = liveOf(0), b = liveOf(1);
+    G.over = true;
+    var w = a === b ? -1 : (a > b ? 0 : 1);
+    say(w < 0 ? '<b>ครบ ' + MAX_ROUND + ' รอบ — เสมอ</b>' : '<b>ครบ ' + MAX_ROUND + ' รอบ — ' + SIDE_NM[w] + ' ชนะ (เหลือตัวมากกว่า)</b>', 'kill');
+    popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + SIDE_NM[w] + ' ชนะ!</b>');
+  }
+}
+
+// ---------- ผลัดเทิร์น ----------
+function endTurn(){
+  if (!G.on || G.over) return;
+  var i; for (i=0;i<units.length;i++){ units[i].moved = false; units[i].shot = false; units[i].sel = false; }
+  G.sel = null; G.act = null;
+  G.turn = 1 - G.turn;
+  if (G.turn === 0){ G.round++; endRoundCheck(); }
+  if (!G.over) say('— เริ่มเทิร์นของ ' + SIDE_NM[G.turn] + ' (รอบ ' + G.round + ') —');
+  paintPlay(); dirty = true;
+  if (!G.over && G.turn === botSide()) G.botTimer = 0.7;
+}
+
+// ---------- บอท ----------
+function botStep(){
+  var mine = units.filter(function(u){ return u.side === botSide() && !(u.moved && u.shot); });
+  if (!mine.length) return false;
+  var u = mine[0], foes = units.filter(function(q){ return q.side !== u.side; });
+  if (!foes.length) return false;
+  var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
+  for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
+  var reach = A.rng > 0 ? A.rng : MELEE;
+  if (bd <= reach){ u.moved = true; resolveShot(u, best); return true; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
+  if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
+    var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
+    var nx = u.x + (best.x - u.x)*f, nz = u.z + (best.z - u.z)*f;
+    nx = clamp(nx, -table.w/2 + 1, table.w/2 - 1); nz = clamp(nz, -table.d/2 + 1, table.d/2 - 1);
+    u.moved = true; unitGoTo(u, nx, nz);
+    say(SIDE_NM[u.side] + ' เดิน ' + A.nm + ' ' + step.toFixed(1) + '"');
+    if (dist2({x:nx,z:nz}, best) <= reach){ G.botTimer = 0.45; return true; }
+    u.shot = true; return true;
+  }
+  u.shot = true; return true;
+}
+function botTick(dt){
+  if (!G.on || G.over || G.turn !== botSide()) return;
+  if (G.botTimer > 0){ G.botTimer -= dt; if (G.botTimer > 0) return; }
+  if (!botStep()){ endTurn(); return; }
+  G.botTimer = Math.max(G.botTimer, 0.55);
+  dirty = true;
+}
+
+// ---------- เลือก / สั่ง ----------
+function canAct(u){ return u && u.side === G.turn && !(u.moved && u.shot); }
+function selectUnit(u){
+  var i; for (i=0;i<units.length;i++) units[i].sel = false;
+  G.sel = u; if (u) u.sel = true;
+  G.act = u ? (u.moved ? 'shoot' : 'move') : null;
+  paintPlay(); dirty = true;
+}
+function tryMove(u, x, z){
+  var A = TY(u.t), d = Math.hypot(x-u.x, z-u.z);
+  if (u.moved){ say('ตัวนี้เดินไปแล้วในเทิร์นนี้'); return false; }
+  if (d > A.mv + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / เดินได้ ' + A.mv + '"'); return false; }
+  u.moved = true; unitGoTo(u, x, z);
+  say(SIDE_NM[u.side] + ' เดิน ' + A.nm + ' ' + d.toFixed(1) + '"');
+  G.act = 'shoot'; paintPlay(); dirty = true; return true;
+}
+function tryShoot(u, tgt){
+  var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
+  if (u.shot){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
+  if (d > reach + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"')); return false; }
+  resolveShot(u, tgt);
+  if (units.indexOf(u) >= 0 && u.moved && u.shot) selectUnit(null); else paintPlay();
+  return true;
+}
+
+// ---------- หน้าจอ ----------
+function show(id){
+  ['scSetup','scArmy','scPlay','scCustom'].forEach(function(s){ var el = $(s); if (el) el.classList.toggle('hide', s !== id); });
+  var tb = $('btTurn'); if (tb) tb.classList.toggle('hide', id !== 'scPlay');
+  var hd = $('btHud'); if (hd) hd.style.display = (id === 'scPlay') ? 'none' : '';
+}
+function paintRoster(){
+  var host = $('btRoster'); if (!host) return;
+  var s = G.side, h = '', i;
+  for (i=0;i<TYPES.length;i++){
+    var T = TYPES[i], n = G.list[s][i] || 0, C = UNIT_COL[T.k];
+    h += '<div class="unit"><span class="sw" style="background:rgb(' + C.plate.join(',') + ')"></span>' +
+      '<span><span class="nm">' + T.nm + ' <em class="pts">' + T.pts + ' แต้ม</em></span>' +
+      '<span class="st">เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิดเท่านั้น') + ' · ยิง ' + T.sh + ' นัด</span>' +
+      (G.detail ? '<span class="st">เข้า ' + T.bs + '+ · ทะลุ ' + T.ap + ' · เกราะ ' + T.sv + '+ · แผล ' + T.w + ' — ' + T.d + '</span>' : '') +
+      '</span><span class="pm"><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
+      '</span><button data-i="' + i + '" data-v="1">+</button></span></div>';
+  }
+  host.innerHTML = h;
+  var used = ptsOf(s), over = used > G.budget;
+  $('btUsedV').textContent = used + ' / ' + G.budget;
+  var bar = $('btBar'); bar.classList.toggle('over', over); bar.firstChild.style.width = Math.min(100, used/G.budget*100) + '%';
+  $('btStart').disabled = over || ptsOf(0) === 0 || ptsOf(1) === 0;
+  $('btArmyNote').innerHTML = over ? '<b style="color:var(--p2)">เกินงบ</b> ลดหน่วยลงก่อน'
+    : (ptsOf(0) === 0 || ptsOf(1) === 0) ? 'ต้องมีหน่วยทั้งสองฝั่งก่อนถึงจะเริ่มได้'
+    : 'พร้อมแล้ว · ' + SIDE_NM[0] + ' ' + ptsOf(0) + ' แต้ม · ' + SIDE_NM[1] + ' ' + ptsOf(1) + ' แต้ม';
+}
+function paintPlay(){
+  var tb = $('btTurn'); if (!tb) return;
+  var col = G.turn === 0 ? 'var(--p1)' : 'var(--p2)';
+  tb.innerHTML = G.over ? '<b>จบการรบแล้ว</b>'
+    : '<span class="dot" style="background:' + col + '"></span><b>' + SIDE_NM[G.turn] + '</b> · รอบ ' + G.round + '/' + MAX_ROUND +
+      (G.turn === botSide() ? ' · บอทกำลังเล่น…' : '') +
+      ' · เหลือ ' + liveOf(0) + ' : ' + liveOf(1);
+  var card = $('btCard'), u = G.sel;
+  if (units.indexOf(u) < 0) { u = G.sel = null; }
+  if (!u) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? 'แตะที่หน่วยของตัวเอง' : 'รอบอท…') +
+      '</div><div class="st">' + (G.over ? 'กด "ออกจากการรบ" เพื่อตั้งสนามใหม่' : 'เลือกแล้วค่อยสั่งเดินหรือยิง') + '</div>';
+  else { var T = TY(u.t);
+    card.innerHTML = '<div class="nm">' + T.nm + ' <span class="st">(' + SIDE_NM[u.side] + ')</span></div>' +
+      '<div class="st">แผล ' + u.hp + '/' + T.w + ' · เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิด ' + MELEE + '"') +
+      ' · เข้า ' + T.bs + '+ · เกราะ ' + T.sv + '+</div>' +
+      '<div class="st">' + (u.moved ? 'เดินแล้ว' : 'ยังไม่ได้เดิน') + ' · ' + (u.shot ? 'ยิงแล้ว' : 'ยังไม่ได้ยิง') + '</div>'; }
+  var act = $('btAct'); Array.prototype.forEach.call(act.querySelectorAll('button'), function(b){
+    var a = b.dataset.a;
+    b.disabled = !u || !humanTurn() || G.over || (a === 'move' && u.moved) || (a === 'shoot' && u.shot);
+    b.classList.toggle('on', !!u && G.act === a && !b.disabled);
+  });
+  $('btEnd').disabled = !humanTurn() || G.over;
+}
+
+// ---------- หมุดกับวงแหวนบอกระยะตอนเล่น ----------
+// โต๊ะเมืองพังบังตัวหมากจนหาไม่เจอ หมุดลอยเหนือหัวจึงไม่ใช่ของประดับ มันคือสิ่งเดียวที่ทำให้
+// รู้ว่าตัวของใครอยู่ตรงไหนตอนซูมออก หมุดจางลงเมื่อตัวนั้นทำครบตาแล้ว
+function pinAt(u, col, bright){
+  var top = proj([u.x, heightAt(u.x, u.z) + 2.5, u.z]); if (top[2] < 0.4) return;
+  var s = clamp(300/top[2], 5.5, 14);
+  OVER.push(function(){
+    ctx.globalAlpha = bright ? 1 : 0.45;
+    ctx.fillStyle = col; ctx.strokeStyle = 'rgba(11,11,14,0.85)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(top[0], top[1] + s*0.95);
+    ctx.lineTo(top[0] - s*0.52, top[1] - s*0.45); ctx.lineTo(top[0] + s*0.52, top[1] - s*0.45);
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.globalAlpha = 1;
+  });
+}
+function gameOverlay(){
+  if (!G.on) return;
+  var i, u = G.sel;
+  for (i=0;i<units.length;i++){ var q = units[i], mine = q.side === G.turn;
+    pinAt(q, q.side === 0 ? '#6FB3A8' : '#C46A5A', q === u || (mine && !(q.moved && q.shot)));
+    if (mine && !(q.moved && q.shot) && q !== u) ringAt(q.x, q.z, 0.8, q.side === 0 ? 'rgba(111,179,168,0.5)' : 'rgba(196,106,90,0.5)'); }
+  if (!u || units.indexOf(u) < 0) return;
+  var T = TY(u.t);
+  ringAt(u.x, u.z, 0.95, u.side === 0 ? '#6FB3A8' : '#C46A5A');
+  if (G.act === 'move' && !u.moved) ringAt(u.x, u.z, T.mv, '#E0B26A', [6,5]);
+  if (G.act === 'shoot' && !u.shot){
+    var reach = T.rng > 0 ? T.rng : MELEE;
+    ringAt(u.x, u.z, reach, 'rgba(224,178,106,0.75)', [3,6]);
+    for (i=0;i<units.length;i++){ var f = units[i];
+      if (f.side !== u.side && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, '#C46A5A'); }
+  }
+}
+
+// ---------- ภาพตัวอย่างแมพในหน้าตั้งสนาม ----------
+function paintMapCards(){
+  var cards = document.querySelectorAll('#btMaps .map'); if (!cards.length) return;
+  Array.prototype.forEach.call(cards, function(b){
+    var t = THEMES[b.dataset.t], c = b.querySelector('canvas'), g = c.getContext('2d'), w = c.width, h = c.height;
+    var sky = g.createLinearGradient(0,0,0,h); sky.addColorStop(0, t.sky[0]); sky.addColorStop(1, t.sky[1]);
+    g.fillStyle = sky; g.fillRect(0,0,w,h);
+    var k, x, y;
+    g.fillStyle = 'rgb(' + t.ground2.join(',') + ')';                       // สันเขาไกล
+    g.beginPath(); g.moveTo(0, h*0.62);
+    for (x=0;x<=w;x+=12) g.lineTo(x, h*0.62 - Math.sin(x*0.035 + t.relief)*h*0.07 - (t.relief/8)*h*0.06);
+    g.lineTo(w,h); g.lineTo(0,h); g.fill();
+    g.fillStyle = 'rgb(' + t.ground.join(',') + ')';                        // พื้นหน้า
+    g.beginPath(); g.moveTo(0, h*0.78);
+    for (x=0;x<=w;x+=10) g.lineTo(x, h*0.78 - Math.cos(x*0.05 + 1.3)*h*0.04);
+    g.lineTo(w,h); g.lineTo(0,h); g.fill();
+    g.fillStyle = 'rgb(' + t.rock.join(',') + ')';                          // ชิ้นภูมิประเทศ
+    for (k=0;k<7;k++){ x = 14 + k*32 + (k%3)*7; y = h*0.70 + (k%2)*10;
+      if (b.dataset.t === 'forest'){ g.beginPath(); g.moveTo(x, y-18); g.lineTo(x+8, y); g.lineTo(x-8, y); g.fill(); }
+      else g.fillRect(x-7, y-16-(k%3)*5, 14, 16+(k%3)*5); }
+  });
+}
+
 // The page is redraw-on-demand, and stays that way: the loop only does work while a piece is actually on the move, so
 // a table of pieces standing still costs nothing (no ambient breathing -- that would pin the CPU on a phone for good).
 var tPrev = 0, now = (window.performance && performance.now) ? function(){ return performance.now(); } : function(){ return Date.now(); };
@@ -1405,59 +1873,183 @@ function frame(ts){
   raf(frame);
   resize();                                                  // cheap: returns at once unless the size really changed
   var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
-  if (dt > 0 && dt < 0.5 && stepUnits(dt)) dirty = true;    // a long gap (tab in the background) is skipped, not crammed in
+  if (dt > 0 && dt < 0.5){
+    if (stepUnits(dt)) dirty = true;                         // a long gap (tab in the background) is skipped, not crammed in
+    botTick(dt);
+  }
+  tickDice();
   if (!dirty) return; dirty = false; drawScene();
 }
 
+// ---------- กล้อง: เลื่อนแมพได้อิสระ ไม่ยึดจุดศูนย์กลางอีกแล้ว ----------
+// ย้ายเป้ากล้องด้วยจุดบนพื้นจริง ไม่ใช่สูตรพิกเซล: จุดที่อยู่ใต้นิ้วตอนเริ่มลากจะอยู่ใต้นิ้วตลอด
+// ที่มุมกล้องไหนก็ตาม ซึ่งเป็นสิ่งเดียวที่ทำให้การลากแมพรู้สึกถูกต้อง
+var panMode = false;
+function clampPan(){
+  var mx = table.w*0.72, mz = table.d*0.72;
+  cam.tx = clamp(cam.tx, -mx, mx); cam.tz = clamp(cam.tz, -mz, mz);
+}
+function panScreen(from, to){
+  if (!W || !H) return;
+  var a = groundHit(from[0], from[1]), b = groundHit(to[0], to[1]);
+  if (!a || !b) return;
+  cam.tx -= (b[0] - a[0]); cam.tz -= (b[2] - a[2]);
+  clampPan(); dragging = true; dirty = true;
+}
+function panBy(dx, dz){          // ปุ่มลูกศร: เลื่อนตามแนวที่กล้องหันอยู่
+  var f = Math.hypot(FW[0], FW[2]) || 1, fx = FW[0]/f, fz = FW[2]/f;
+  var step = Math.max(2, cam.dist*0.09);
+  cam.tx += (RT[0]*dx + fx*dz) * step; cam.tz += (RT[2]*dx + fz*dz) * step;
+  clampPan(); dirty = true;
+}
+function fitTable(){ cam.tx = 0; cam.tz = 0; cam.dist = table.w*1.15; clampPan(); dirty = true; }
+
 // ---------- input ----------
 var mode = 'look', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt = null, drag = null, dragFrom = null, measure = null;
+var rightPan = false;
 function unitHit(sx, sy){
   var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], p = proj([u.x, heightAt(u.x,u.z)+0.9, u.z]); if (p[2] < 0.4) continue;
-    var d = Math.hypot(p[0]-sx, p[1]-sy); if (d < 28 && d < bd){ bd = d; best = u; } } return best;
+    var d = Math.hypot(p[0]-sx, p[1]-sy); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
 }
+function twoMid(){ var ids = Object.keys(ptrs); if (ids.length < 2) return null;
+  var a = ptrs[ids[0]], b = ptrs[ids[1]]; return [ (a[0]+b[0])/2, (a[1]+b[1])/2 ]; }
+
+cv.addEventListener('contextmenu', function(ev){ ev.preventDefault(); });
 cv.addEventListener('pointerdown', function(ev){ cv.setPointerCapture(ev.pointerId); var r = cv.getBoundingClientRect(), p = [ev.clientX-r.left, ev.clientY-r.top];
   ptrs[ev.pointerId] = p; moved = false; downAt = p.slice();
+  if (ev.button === 1 || ev.button === 2){ rightPan = true; return; }
   var ids = Object.keys(ptrs);
-  if (ids.length === 2){ var a = ptrs[ids[0]], b = ptrs[ids[1]]; pinch = { d: Math.hypot(a[0]-b[0], a[1]-b[1]), dist: cam.dist }; drag = null; return; }
-  if (mode === 'place' || mode === 'erase'){ var u = unitHit(p[0], p[1]);
+  if (ids.length === 2){ var a = ptrs[ids[0]], b = ptrs[ids[1]];
+    pinch = { d: Math.hypot(a[0]-b[0], a[1]-b[1]), dist: cam.dist, mid: twoMid() }; drag = null; return; }
+  if (!G.on && (mode === 'place' || mode === 'erase')){ var u = unitHit(p[0], p[1]);
     if (u && mode === 'place'){ drag = u; dragFrom = [u.x, u.z]; units.forEach(function(q){ q.sel = false; }); u.sel = true; dirty = true; } } });
+
 cv.addEventListener('pointermove', function(ev){ if (!(ev.pointerId in ptrs)) return; var r = cv.getBoundingClientRect(), p = [ev.clientX-r.left, ev.clientY-r.top], prev = ptrs[ev.pointerId];
   ptrs[ev.pointerId] = p; var ids = Object.keys(ptrs);
-  if (ids.length >= 2 && pinch){ var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a[0]-b[0], a[1]-b[1]);
-    cam.dist = clamp(pinch.dist * pinch.d / Math.max(d, 1), 6, 260); moved = true; dragging = true; dirty = true; return; }
+  if (ids.length >= 2 && pinch){                                  // สองนิ้ว: บีบซูม + ลากเลื่อนแมพพร้อมกัน
+    var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a[0]-b[0], a[1]-b[1]), mid = twoMid();
+    cam.dist = clamp(pinch.dist * pinch.d / Math.max(d, 1), 6, 300);
+    if (pinch.mid && mid) panScreen(pinch.mid, mid);
+    pinch.mid = mid; moved = true; dragging = true; dirty = true; return; }
   if (Math.hypot(p[0]-downAt[0], p[1]-downAt[1]) > 5) moved = true;
   if (drag){ var w = groundHit(p[0], p[1]); if (w) unitGoTo(drag, w[0], w[2]); return; }   // walks there; it does not warp
-  if (moved){ cam.yaw -= (p[0]-prev[0])*0.008; cam.pitch = clamp(cam.pitch + (p[1]-prev[1])*0.006, 6*DEG, 82*DEG); dragging = true; dirty = true; } });
+  if (!moved) return;
+  if (rightPan || panMode) panScreen(prev, p);                    // ลากเลื่อนแมพ
+  else { cam.yaw -= (p[0]-prev[0])*0.008; cam.pitch = clamp(cam.pitch + (p[1]-prev[1])*0.006, 6*DEG, 82*DEG); dragging = true; dirty = true; } });
+
 cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delete ptrs[ev.pointerId];
   if (Object.keys(ptrs).length < 2) pinch = null;
+  if (!Object.keys(ptrs).length) rightPan = false;
   if (dragging && !Object.keys(ptrs).length){ dragging = false; dirty = true; }
   if (drag){ drag = null; dragFrom = null; dirty = true; return; }   // the piece keeps walking to the mark it was given
   if (!p || moved) return;
+  if (G.on) return tapGame(p);
   var w = groundHit(p[0], p[1]); if (!w) return;
   if (mode === 'place'){ units.push({ k:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false }); dirty = true; }
   else if (mode === 'erase'){ var u = unitHit(p[0], p[1]); if (u){ units.splice(units.indexOf(u), 1); dirty = true; } }
   else if (mode === 'measure'){ if (!measure || measure.b) measure = { a:{x:w[0], z:w[2]}, b:null }; else measure.b = {x:w[0], z:w[2]}; dirty = true; } });
-cv.addEventListener('pointercancel', function(ev){ delete ptrs[ev.pointerId]; pinch = null; drag = null; dragging = false; dirty = true; });
-cv.addEventListener('wheel', function(ev){ ev.preventDefault(); cam.dist = clamp(cam.dist * Math.pow(1.0015, ev.deltaY), 6, 260); dirty = true; }, { passive:false });
+
+cv.addEventListener('pointercancel', function(ev){ delete ptrs[ev.pointerId]; pinch = null; drag = null; rightPan = false; dragging = false; dirty = true; });
+cv.addEventListener('wheel', function(ev){ ev.preventDefault(); cam.dist = clamp(cam.dist * Math.pow(1.0015, ev.deltaY), 6, 300); dirty = true; }, { passive:false });
+
+// แตะตอนเล่น: ตัวเรา = เลือก · พื้น = เดินไปตรงนั้น · ตัวศัตรู = ยิง
+function tapGame(p){
+  if (G.over || !humanTurn()) return;
+  var hit = unitHit(p[0], p[1]);
+  if (hit && hit.side === G.turn){ if (canAct(hit)) selectUnit(hit); else say('ตัวนี้ทำครบแล้วในเทิร์นนี้'); return; }
+  var u = G.sel; if (!u || units.indexOf(u) < 0) return;
+  if (hit && hit.side !== G.turn){ G.act = 'shoot'; tryShoot(u, hit); return; }
+  var w = groundHit(p[0], p[1]); if (!w) return;
+  if (G.act === 'shoot' && !u.shot){ say('แตะที่ตัวศัตรูเพื่อยิง'); return; }
+  tryMove(u, w[0], w[2]);
+}
+
+// ปุ่มลูกศร / WASD บนคอม
+window.addEventListener('keydown', function(ev){
+  var k = ev.key;
+  var dx = (k === 'ArrowRight' || k === 'd' || k === 'D') ? 1 : (k === 'ArrowLeft' || k === 'a' || k === 'A') ? -1 : 0;
+  var dz = (k === 'ArrowUp' || k === 'w' || k === 'W') ? 1 : (k === 'ArrowDown' || k === 's' || k === 'S') ? -1 : 0;
+  if (!dx && !dz) return;
+  if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  ev.preventDefault(); panBy(dx, dz);
+});
+
+// ---------- ปุ่ม ----------
 function setOn(grp, b){ Array.prototype.forEach.call(grp.querySelectorAll('button'), function(x){ x.classList.toggle('on', x===b); }); }
-$('btTheme').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; theme = b.dataset.t; setOn($('btTheme'), b); buildTerrain(); genProps(); dirty = true; });
-$('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
-$('btKit').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; kit = b.dataset.k; setOn($('btKit'), b); });
+function applyTheme(t){ theme = t; buildTerrain(); genProps(); dirty = true; }
+
+$('btMaps').addEventListener('click', function(ev){ var b = ev.target.closest('.map'); if (!b) return;
+  Array.prototype.forEach.call(this.querySelectorAll('.map'), function(x){ x.classList.toggle('on', x === b); });
+  applyTheme(b.dataset.t); });
+$('btModes').addEventListener('click', function(ev){ var b = ev.target.closest('.mode'); if (!b) return;
+  Array.prototype.forEach.call(this.querySelectorAll('.mode'), function(x){ x.classList.toggle('on', x === b); });
+  G.mode = b.dataset.g;
+  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : 'ถัดไป · จัดกองทัพ ›'; });
+
 $('btSize').addEventListener('input', function(){ table.w = +$('btSize').value; table.d = Math.round(table.w*0.72/2)*2; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
-  cam.dist = table.w*1.3; buildTerrain(); genProps(); units = units.filter(function(u){ return Math.abs(u.x) < table.w/2 && Math.abs(u.z) < table.d/2; });
+  cam.dist = table.w*1.3; clampPan(); buildTerrain(); genProps();
+  units = units.filter(function(u){ return Math.abs(u.x) < table.w/2 && Math.abs(u.z) < table.d/2; });
   units.forEach(function(u){ if (u.tx != null) unitGoTo(u, u.tx, u.tz); });   // a smaller table can leave a mark off the edge
   dirty = true; });
-$('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.random()*99999); $('btSeed').textContent = 'สนาม #' + SEED; buildTerrain(); genProps(); dirty = true; });
-$('btTop').addEventListener('click', function(){ cam.pitch = 52*DEG; cam.dist = table.w*1.25; cam.tx = 0; cam.tz = 0; dirty = true; });
+$('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.random()*99999); $('btSeed').textContent = 'สนาม #' + SEED; buildTerrain(); genProps(); dirty = true; paintMapCards(); });
+
+$('btNext').addEventListener('click', function(){
+  if (G.mode === 'custom'){ G.on = false; units.length = 0; show('scCustom'); $('btTip').textContent = '· วางหน่วยเองได้อิสระ'; fitTable(); return; }
+  if (!ptsOf(0)) autoList(0);
+  if (!ptsOf(1)) autoList(1);
+  G.side = 0; setOn($('btSide'), $('btSide').querySelector('[data-s="0"]'));
+  show('scArmy'); paintRoster(); });
+$('btBack1').addEventListener('click', function(){ show('scSetup'); });
+$('btSide').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  G.side = +b.dataset.s; setOn(this, b); paintRoster(); });
+$('btPts').addEventListener('input', function(){ G.budget = +$('btPts').value; $('btPtsV').textContent = G.budget; paintRoster(); });
+$('btDetail').addEventListener('click', function(){ G.detail = !G.detail; this.textContent = G.detail ? 'ซ่อนรายละเอียด' : 'แสดงรายละเอียด'; paintRoster(); });
+$('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  var i = +b.dataset.i, v = +b.dataset.v;
+  G.list[G.side][i] = Math.max(0, (G.list[G.side][i]||0) + v); paintRoster(); });
+
+$('btStart').addEventListener('click', function(){
+  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null; LOG.length = 0;
+  if (G.mode === 'pve' && !ptsOf(1)) autoList(1);
+  deploy(); show('scPlay');
+  $('btTip').textContent = '· แตะตัวเรา แล้วแตะพื้นหรือศัตรู';
+  say('เริ่มรบ · ' + SIDE_NM[0] + ' ' + ptsOf(0) + ' แต้ม vs ' + SIDE_NM[1] + ' ' + ptsOf(1) + ' แต้ม บน' + TH().name);
+  say('— เริ่มเทิร์นของ ' + SIDE_NM[0] + ' (รอบ 1) —');
+  fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true; });
+$('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b || b.disabled) return;
+  var a = b.dataset.a, u = G.sel;
+  if (a === 'done'){ if (u){ u.moved = true; u.shot = true; } selectUnit(null); return; }
+  G.act = a; paintPlay(); dirty = true; });
+$('btEnd').addEventListener('click', function(){ endTurn(); });
+function quitGame(){ G.on = false; G.over = false; units.length = 0; G.sel = null; LOG.length = 0; paintLog();
+  show('scSetup'); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
+$('btQuit').addEventListener('click', quitGame);
+$('btQuit2').addEventListener('click', quitGame);
+
+$('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
+$('btKit').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; kit = b.dataset.k; setOn($('btKit'), b); });
+
+$('btPan').addEventListener('click', function(){ panMode = !panMode; this.classList.toggle('on', panMode); });
+$('btTop').addEventListener('click', function(){ cam.pitch = 52*DEG; cam.dist = table.w*1.25; dirty = true; });
 $('btEye').addEventListener('click', function(){ cam.pitch = 13*DEG; cam.dist = 26; dirty = true; });
+$('btFit').addEventListener('click', fitTable);
+
 ['resize','orientationchange','load','pageshow'].forEach(function(e){ window.addEventListener(e, function(){ resize(); }); });
 document.addEventListener('visibilitychange', function(){ resize(); });
 try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(cv); } catch(_){}
-buildTerrain(); genProps(); resize();
+buildTerrain(); genProps(); resize(); paintMapCards(); show('scSetup');
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
-window.BT = { cam:cam, table:table, units:units, setTheme:function(t){ theme = t; buildTerrain(); genProps(); dirty = true; }, add:function(k,x,z){ units.push({k:k,x:x,z:z,rot:0}); dirty = true; },
+
+window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
+  setTheme:applyTheme, add:function(k,x,z){ units.push({k:k,x:x,z:z,rot:0}); dirty = true; },
   goTo:function(i,x,z){ var u = units[i]; if (u) unitGoTo(u, x, z); return !!u; },   // send piece i walking to (x,z)
   stop:function(i){ var u = units[i]; if (u) unitStop(u); }, walking:function(){ return units.filter(function(u){ return u.mv; }).length; },
-  draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; } };
+  draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
+  // ตะขอสำหรับเทสต์อัตโนมัติ
+  pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
+  setList:function(s, arr){ G.list[s] = arr.slice(); paintRoster(); },
+  start:function(){ $('btStart').disabled = false; $('btStart').click(); },
+  pick:function(i){ selectUnit(units[i]); }, move:tryMove, shootAt:tryShoot, endTurn:endTurn,
+  live:liveOf, log:function(){ return LOG.slice(); } };
 })();
 </script>
