@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>โต๊ะรบ</title>
 <style>
 #bt{--bg:#0B0B0E;--ink:#ECE9E0;--sub:#9C968A;--chip:#15151A;--chipB:#2A2A32;--on:#E0B26A;--onInk:#0B0B0E;
@@ -13,7 +15,7 @@
 #bt canvas{display:block;width:100%;height:46vh;min-height:300px;border-radius:14px;touch-action:none;background:#07080A;border:1px solid var(--chipB)}
 #bt .panel{display:flex;flex-direction:column;gap:6px;min-width:0}
 
-@media (min-width:900px){
+@media (min-width:900px) and (min-height:560px){
   #bt .shell{flex-direction:row;align-items:stretch;max-width:none;gap:14px;padding:12px 14px;height:100vh}
   #bt .stage{flex:1;min-width:0;display:flex}
   #bt .wrap{flex:1;min-width:0;display:flex}
@@ -157,7 +159,7 @@
     <!-- ══════════ จัดกองทัพ ══════════ -->
     <div id="scArmy" class="hide">
       <h3>ขนาดคะแนน</h3>
-      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="100" max="1500" step="50" value="400"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">400</em></label></div>
+      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="60" max="600" step="10" value="150"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">150</em></label></div>
 
       <h3>เจ้าของข้าง</h3>
       <div class="row"><div class="grp" id="btSide">
@@ -1592,7 +1594,7 @@ function TY(k){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === k) return TY
 var MELEE = 2;                       // นิ้ว — ใกล้กว่านี้คือประชิด ตีได้แม้ไม่มีปืน
 var SIDE_NM = ['ฝั่งน้ำเงิน', 'ฝั่งแดง'], MAX_ROUND = 5;
 
-var G = { on:false, mode:'pve', budget:400, side:0, turn:0, round:1, sel:null, act:null, over:false,
+var G = { on:false, mode:'pve', budget:150, side:0, turn:0, round:1, sel:null, act:null, over:false,
           list:[[0,0,0,0],[0,0,0,0]], detail:false, botTimer:0 };
 
 function d6(){ return 1 + Math.floor(Math.random()*6); }
@@ -1604,15 +1606,19 @@ function botSide(){ return G.mode === 'pve' ? 1 : -1; }
 function humanTurn(){ return G.on && !G.over && G.turn !== botSide(); }
 
 // ---------- ตั้งกองทัพลงโต๊ะ ----------
-function autoList(s){          // บอท (และปุ่ม "สุ่มให้") จัดกองเองให้พอดีงบ
-  var out = [0,0,0,0], left = G.budget, guard = 200;
-  while (guard-- > 0){
-    var pick = Math.floor(Math.random()*TYPES.length);
-    if (TYPES[pick].pts > left) { var any = false, i;
-      for (i=0;i<TYPES.length;i++) if (TYPES[i].pts <= left) any = true;
-      if (!any) break; continue; }
-    out[pick]++; left -= TYPES[pick].pts;
-  }
+// สุ่มล้วนได้กองที่มีแต่ตัวถูกเป็นสิบ ๆ ตัว อ่านสนามไม่ออกและบอทเดินนานมาก
+// จัดเป็นชุด: เอาอย่างละตัวเป็นแกนก่อน แล้วค่อยเติม และจำกัดจำนวนตัวไม่ให้ล้นโต๊ะ
+var MAX_MODELS = 12;
+function autoList(s){
+  var out = [0,0,0,0], left = G.budget, i, k, pass;
+  var order = [0, 2, 3, 1];                      // หนัก · กรีก · จู่โจม · ราบ
+  function total(){ var t = 0, j; for (j=0;j<4;j++) t += out[j]; return t; }
+  for (pass=0; pass<3; pass++)
+    for (k=0;k<order.length;k++){ i = order[k];
+      if (TYPES[i].pts <= left && total() < MAX_MODELS && (pass === 0 || Math.random() < 0.55)){
+        out[i]++; left -= TYPES[i].pts; } }
+  while (TYPES[1].pts <= left && total() < MAX_MODELS){ out[1]++; left -= TYPES[1].pts; }
+  if (!total()) out[1] = 1;                      // งบเล็กมากก็ยังต้องมีสักตัว
   G.list[s] = out;
 }
 function deploy(){
@@ -1634,7 +1640,10 @@ function deploy(){
 
 // ---------- บันทึกการรบ ----------
 var LOG = [];
-function say(txt, cls){ LOG.push({ t:txt, c:cls || '' }); if (LOG.length > 60) LOG.shift(); paintLog(); }
+function say(txt, cls){          // บรรทัดเดิมซ้ำ ๆ รวมเป็นบรรทัดเดียวแล้วนับ ไม่งั้นบอทท่วมบันทึก
+  var last = LOG[LOG.length-1];
+  if (last && last.base === txt){ last.n++; last.t = txt + ' ×' + last.n; paintLog(); return; }
+  LOG.push({ t:txt, base:txt, c:cls || '', n:1 }); if (LOG.length > 60) LOG.shift(); paintLog(); }
 function paintLog(){
   var el = $('btLog'); if (!el) return;
   var h = '', i; for (i=LOG.length-1;i>=0;i--) h += '<div class="' + LOG[i].c + '">' + LOG[i].t + '</div>';
@@ -1715,23 +1724,25 @@ function botStep(){
   var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
   for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
   var reach = A.rng > 0 ? A.rng : MELEE;
-  if (bd <= reach){ u.moved = true; resolveShot(u, best); return true; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
+  if (bd <= reach){ u.moved = true; resolveShot(u, best); return 'shoot'; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
   if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
     var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
     var nx = u.x + (best.x - u.x)*f, nz = u.z + (best.z - u.z)*f;
     nx = clamp(nx, -table.w/2 + 1, table.w/2 - 1); nz = clamp(nz, -table.d/2 + 1, table.d/2 - 1);
     u.moved = true; unitGoTo(u, nx, nz);
     say(SIDE_NM[u.side] + ' เดิน ' + A.nm + ' ' + step.toFixed(1) + '"');
-    if (dist2({x:nx,z:nz}, best) <= reach){ G.botTimer = 0.45; return true; }
-    u.shot = true; return true;
+    if (dist2({x:nx,z:nz}, best) <= reach){ G.botTimer = 0.25; return 'move'; }
+    u.shot = true; return 'move';
   }
-  u.shot = true; return true;
+  u.shot = true; return 'move';
 }
 function botTick(dt){
   if (!G.on || G.over || G.turn !== botSide()) return;
   if (G.botTimer > 0){ G.botTimer -= dt; if (G.botTimer > 0) return; }
-  if (!botStep()){ endTurn(); return; }
-  G.botTimer = Math.max(G.botTimer, 0.55);
+  var what = botStep();
+  if (!what){ endTurn(); return; }
+  // หยุดให้อ่านลูกเต๋าตอนยิงเท่านั้น การเดินเฉย ๆ ไม่ต้องรอ
+  G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.85 : 0.12);
   dirty = true;
 }
 
