@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>โต๊ะรบ</title>
 <style>
 #bt{--bg:#0B0B0E;--ink:#ECE9E0;--sub:#9C968A;--chip:#15151A;--chipB:#2A2A32;--on:#E0B26A;--onInk:#0B0B0E;
@@ -13,12 +15,17 @@
 #bt canvas{display:block;width:100%;height:46vh;min-height:300px;border-radius:14px;touch-action:none;background:#07080A;border:1px solid var(--chipB)}
 #bt .panel{display:flex;flex-direction:column;gap:6px;min-width:0}
 
-@media (min-width:900px){
+@media (min-width:900px) and (min-height:560px){
   #bt .shell{flex-direction:row;align-items:stretch;max-width:none;gap:14px;padding:12px 14px;height:100vh}
   #bt .stage{flex:1;min-width:0;display:flex}
   #bt .wrap{flex:1;min-width:0;display:flex}
   #bt canvas{height:100%;min-height:0;flex:1}
-  #bt .panel{width:clamp(320px,26vw,420px);flex:0 0 auto;overflow-y:auto;padding-right:2px}
+  #bt .panel{width:clamp(320px,26vw,420px);flex:0 0 auto;overflow-y:auto;padding-right:2px;
+    display:flex;flex-direction:column}
+  /* บันทึกการรบเคยสูงตายตัว 130px บนคอมจึงตัดบรรทัดขาดครึ่ง ทั้งที่ข้างล่างว่างอีกเกือบครึ่งแผง */
+  #bt #scPlay{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+  #bt #scPlay .log{flex:1 1 auto;min-height:137px;max-height:none}
+  #bt #scPlay #btDone:not(.hide){display:flex}
 }
 
 /* ---- bits ---- */
@@ -79,14 +86,20 @@
 #bt .turnbar{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:8px;background:rgba(11,11,14,0.78);
   border:1px solid var(--chipB);border-radius:10px;padding:6px 10px;font-size:14px;pointer-events:none;max-width:calc(100% - 20px)}
 #bt .turnbar b{font-weight:600}
+#bt #btDone:not(.hide){display:flex}
 #bt .log{font-size:12px;line-height:17px;color:var(--sub);background:var(--chip);border:1px solid var(--chipB);
-  border-radius:10px;padding:8px 10px;max-height:130px;overflow-y:auto}
+  border-radius:10px;padding:8px 10px;max-height:137px;overflow-y:auto}
 #bt .log div{padding:1px 0}
 #bt .log .hit{color:var(--on)}
 #bt .log .kill{color:var(--p2)}
 #bt .card{border:1px solid var(--chipB);border-radius:12px;background:var(--chip);padding:10px 12px}
 #bt .card .nm{font-size:15px;font-weight:600}
 #bt .card .st{font-size:12px;color:var(--sub);line-height:18px;font-variant-numeric:tabular-nums;margin-top:2px}
+#bt .chipd{font:inherit;font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--chipB);
+  background:var(--chip);color:var(--sub);cursor:pointer}
+#bt .chipd.on{border-color:transparent;background:rgba(224,178,106,0.16);color:var(--on);cursor:default}
+#bt .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:1px}
+#bt .warn{font-size:12px;color:var(--p2);margin-top:6px}
 #bt .hide{display:none !important}
 #bt .wide{flex:1 1 100%}
 #bt .dicepop{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);pointer-events:none;
@@ -150,6 +163,46 @@
           </svg>
           <span><span class="t">กำหนดเอง</span><span class="d">วางหน่วยเองอิสระ ไม่มีกติกา ไม่มีเทิร์น</span></span>
         </button>
+        <button class="mode" data-g="team">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <g><circle cx="10" cy="12" r="4.5"/><path d="M10 17v9M5 21h10M6 32l4-6 4 6"/></g>
+            <g><circle cx="26" cy="12" r="4.5"/><path d="M26 17v9M21 21h10M22 32l4-6 4 6"/></g>
+            <text x="43" y="24" font-size="13" stroke="none" fill="currentColor" font-family="system-ui">VS</text>
+            <g><circle cx="70" cy="12" r="4.5"/><path d="M70 17v9M65 21h10M66 32l4-6 4 6"/></g>
+            <g><circle cx="86" cy="12" r="4.5"/><path d="M86 17v9M81 21h10M82 32l4-6 4 6"/></g>
+          </svg>
+          <span><span class="t">ทีม — 2v2 · 3v3 · 4v4</span><span class="d">แบ่งงบกันในทีม ลงสนามรวมกัน</span></span>
+        </button>
+        <button class="mode" data-g="ffa">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <g><circle cx="12" cy="12" r="4"/><path d="M12 16v8M8 19h8M9 30l3-5 3 5"/></g>
+            <g><circle cx="36" cy="12" r="4"/><path d="M36 16v8M32 19h8M33 30l3-5 3 5"/></g>
+            <g><circle cx="60" cy="12" r="4"/><path d="M60 16v8M56 19h8M57 30l3-5 3 5"/></g>
+            <g><circle cx="84" cy="12" r="4"/><path d="M84 16v8M80 19h8M81 30l3-5 3 5"/></g>
+          </svg>
+          <span><span class="t">ฟรีฟอร์ออล — ตัวใครตัวมัน</span><span class="d">ทุกคนคนละทีม ตีกันได้หมด</span></span>
+        </button>
+      </div>
+
+      <div id="btTeamOpt" class="hide">
+        <h3>ขนาดทีม</h3>
+        <div class="row"><div class="grp" id="btPerTeam">
+          <button data-n="2" class="on">2v2</button><button data-n="3">3v3</button><button data-n="4">4v4</button>
+        </div></div>
+      </div>
+      <div id="btFfaOpt" class="hide">
+        <h3>จำนวนคน</h3>
+        <div class="row"><label class="sl">คน <input type="range" id="btFfaN" min="3" max="8" step="1" value="4"><em id="btFfaNV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">4 คน</em></label></div>
+      </div>
+      <div id="btRules">
+        <h3>กติกาเพิ่มเติม</h3>
+        <div class="row"><div class="grp" id="btFire">
+          <button data-f="0" class="on">ยิงพวกเดียวกันไม่ได้</button><button data-f="1">ฟรีฟาย</button>
+        </div></div>
+        <div class="row" style="margin-top:6px"><div class="grp" id="btClock">
+          <button data-c="0" class="on">ไม่จับเวลา</button><button data-c="25">25 วิ</button><button data-c="50">50 วิ</button>
+        </div></div>
+        <div id="btRoom" class="warn hide"></div>
       </div>
       <div class="row" style="margin-top:10px"><button class="go" id="btNext">ถัดไป · จัดกองทัพ ›</button></div>
     </div>
@@ -157,12 +210,9 @@
     <!-- ══════════ จัดกองทัพ ══════════ -->
     <div id="scArmy" class="hide">
       <h3>ขนาดคะแนน</h3>
-      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="100" max="1500" step="50" value="400"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">400</em></label></div>
+      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="60" max="600" step="10" value="150"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">150</em></label></div>
 
-      <h3>เจ้าของข้าง</h3>
-      <div class="row"><div class="grp" id="btSide">
-        <button data-s="0" class="on">ฝั่งน้ำเงิน</button><button data-s="1">ฝั่งแดง</button>
-      </div></div>
+      <div class="card" id="btWho" style="margin-bottom:4px"></div>
 
       <h3>จัดการยูนิต</h3>
       <div class="budget"><span id="btUsedL">ใช้</span><span class="bar" id="btBar"><i></i></span><span id="btUsedV">0 / 400</span></div>
@@ -173,6 +223,14 @@
       <div class="note" id="btArmyNote"></div>
     </div>
 
+    <!-- ══════════ เลือกจุดลงสนาม ══════════ -->
+    <div id="scDeploy" class="hide">
+      <div class="card" id="btDepWho"></div>
+      <div id="btDepNote" class="warn"></div>
+      <div class="row" style="margin-top:8px"><button class="sm wide" id="btDepAuto">หาจุดให้</button></div>
+      <div class="row" style="margin-top:10px"><button class="sm" id="btDepBack" style="flex:0 0 96px">‹ กลับ</button><button class="go" id="btDepGo">ถัดไป ›</button></div>
+    </div>
+
     <!-- ══════════ เล่น ══════════ -->
     <div id="scPlay" class="hide">
       <div class="card" id="btCard"><div class="nm">แตะที่หน่วยของตัวเอง</div><div class="st">เลือกแล้วค่อยสั่งเดินหรือยิง</div></div>
@@ -180,6 +238,9 @@
         <button data-a="move" disabled>เดิน</button><button data-a="shoot" disabled>ยิง</button><button data-a="done" disabled>ข้าม</button>
       </div></div>
       <div class="row" style="margin-top:6px"><button class="go" id="btEnd">จบเทิร์น</button></div>
+      <h3 id="btDoneH" class="hide">ในทีมนี้</h3>
+      <div id="btDone" class="hide" style="flex-wrap:wrap;gap:6px"></div>
+
       <h3>บันทึกการรบ</h3>
       <div class="log" id="btLog"></div>
       <div class="row" style="margin-top:8px"><button class="sm wide" id="btQuit">ออกจากการรบ</button></div>
@@ -1420,12 +1481,18 @@ function drawProp(o){
 }
 
 // ---------- miniatures: a compact armoured figure on a base, ~28 faces ----------
-function unitCol(u){          // ฝั่งไกลย้อมแดงทั้งฝั่ง จะได้รู้ทันทีว่าตัวไหนของใคร
-  var C = UNIT_COL[u.k] || UNIT_COL.heavy;
-  if (u.side !== 1) return C;
-  if (!u._c1){ var t = function(c){ return [Math.min(255, c[0]*0.45 + 132), c[1]*0.40, c[2]*0.40]; };
-    u._c1 = { plate:t(C.plate), trim:t(C.trim), visor:C.visor, base:C.base }; }
-  return u._c1;
+// ย้อมทุกทีม — เอาความสว่างของชุดเดิมมาทาบบนสีประจำทีม แสงเงาจึงยังอยู่ แต่สีเป็นของทีม
+// สี trim ปล่อยไว้ตามชนิดหน่วย จะได้ยังแยกออกว่าเกราะหนักหรือกรีก
+function teamTint(c, T){
+  var lum = (c[0]*0.35 + c[1]*0.45 + c[2]*0.20) / 150;
+  return [ Math.min(255, T[0]*lum), Math.min(255, T[1]*lum), Math.min(255, T[2]*lum) ];
+}
+function unitCol(u){
+  if (!u._ct){
+    var C = UNIT_COL[u.k] || UNIT_COL.heavy, T = TEAM(u.side).rgb;
+    u._ct = { plate:teamTint(C.plate, T), trim:C.trim, visor:C.visor, base:C.base };
+  }
+  return u._ct;
 }
 var UNIT_COL = {
   heavy:    { plate:[92,112,150], trim:[196,168,92], visor:[30,32,42], base:[52,54,60] },
@@ -1474,10 +1541,11 @@ function stepUnits(dt){
 }
 function drawRig(u, S){
   var faces = rigFaces(u), pal = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy;
-  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, ENEMY = (u.side === 1) || u.k === 'enemy';
+  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, TC = (u.side != null && G.on) ? TEAM(u.side).rgb : null;
   for (i=0;i<faces.length;i++){
     var f = faces[i], pts = [], col = pal[f.k] || pal.plate;
-    if (ENEMY) col = [col[0]*0.55 + 120, col[1]*0.45, col[2]*0.45];
+    if (TC) col = teamTint(col, TC);
+    else if (u.k === 'enemy') col = [col[0]*0.55 + 120, col[1]*0.45, col[2]*0.45];
     for (m=0;m<f.p.length;m++){ var q = f.p[m];
       pts.push([ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]); }
     face(pts, col, { bias:-0.15 });
@@ -1590,51 +1658,202 @@ var TYPES = [
 ];
 function TY(k){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === k) return TYPES[i]; return TYPES[0]; }
 var MELEE = 2;                       // นิ้ว — ใกล้กว่านี้คือประชิด ตีได้แม้ไม่มีปืน
-var SIDE_NM = ['ฝั่งน้ำเงิน', 'ฝั่งแดง'], MAX_ROUND = 5;
+var MAX_ROUND = 5;
+// หกทีม เลือกสีให้ห่างกันในวงล้อสี และสว่างพอจะเห็นบนซากตึกสีเทาในฉากมืด
+var TEAMS = [
+  { nm:'ทีมน้ำเงิน', ui:'#6FA8D8', rgb:[ 72,132,214] },
+  { nm:'ทีมแดง',    ui:'#D8746A', rgb:[212, 78, 66] },
+  { nm:'ทีมเขียว',   ui:'#7FC47A', rgb:[ 96,182,100] },
+  { nm:'ทีมทอง',    ui:'#DCAC52', rgb:[228,164, 58] },
+  { nm:'ทีมม่วง',    ui:'#AC80CC', rgb:[170,112,208] },
+  { nm:'ทีมฟ้า',     ui:'#6FCCD8', rgb:[ 96,204,216] }
+];
+function TEAM(i){ return TEAMS[(i||0) % TEAMS.length]; }
+var DEP_FOE = 20, DEP_MATE = 5;     // นิ้ว — จุดลงสนามห่างทีมอื่น 20 ห่างเพื่อนร่วมทีม 5
 
-var G = { on:false, mode:'pve', budget:400, side:0, turn:0, round:1, sel:null, act:null, over:false,
-          list:[[0,0,0,0],[0,0,0,0]], detail:false, botTimer:0 };
+// G.budget คืองบ "ต่อทีม" แล้วหารกันเองในทีม · G.teams จำนวนทีม · G.perTeam คนต่อทีม
+var G = { on:false, mode:'pve', budget:150, teams:2, perTeam:1, freeFire:false, clock:0,
+          turn:0, round:1, sel:null, act:null, over:false, cur:0, timeLeft:0,
+          players:[], detail:false, botTimer:0 };
+
+// ผู้เล่นหนึ่งคน: อยู่ทีมไหน เป็นบอทไหม กองทัพของตัวเอง จุดลงสนาม และกดจบตาหรือยัง
+function mkPlayers(){
+  var out = [], t, i, k = 0;
+  for (t=0;t<G.teams;t++) for (i=0;i<G.perTeam;i++){
+    out.push({ id:k, team:t, nm:'ผู้เล่น ' + (k+1), bot:false, list:[0,0,0,0], dep:null, done:false });
+    k++;
+  }
+  if (G.mode === 'pve') for (i=0;i<out.length;i++) if (out[i].team !== 0) out[i].bot = true;
+  G.players = out; G.cur = 0;
+}
+function teamPlayers(t){ return G.players.filter(function(p){ return p.team === t; }); }
+function teamIsBot(t){ var ps = teamPlayers(t), i;
+  if (!ps.length) return false;
+  for (i=0;i<ps.length;i++) if (!ps[i].bot) return false;
+  return true; }
+function isBotUnit(u){ var P = G.players[u.pl]; return !!P && P.bot; }
+function shareOf(){ return Math.max(20, Math.floor(G.budget / Math.max(1, G.perTeam))); }
+// ยิงใครได้บ้าง — เพื่อนร่วมทีมยิงไม่ได้ เว้นแต่เจ้าของห้องเปิดฟรีฟาย
+function canTarget(u, t){ return u !== t && (G.freeFire ? true : t.side !== u.side); }
+// โต๊ะรับจุดลงสนามได้กี่จุด: วางเป็นตารางห่างกัน DEP_FOE พอดี เป็นการวางที่มีอยู่จริง ไม่ใช่การเดา
+function depCapacity(w, d){
+  return (Math.floor((w - 5) / DEP_FOE) + 1) * (Math.floor((d - 5) / DEP_FOE) + 1);
+}
 
 function d6(){ return 1 + Math.floor(Math.random()*6); }
 function dist2(a, b){ return Math.hypot(a.x-b.x, a.z-b.z); }
-function ptsOf(s){ var t = 0, i; for (i=0;i<TYPES.length;i++) t += (G.list[s][i]||0) * TYPES[i].pts; return t; }
-function liveOf(s){ var n = 0, i; for (i=0;i<units.length;i++) if (units[i].side === s) n++; return n; }
-function myTurnSide(){ return G.turn; }
-function botSide(){ return G.mode === 'pve' ? 1 : -1; }
-function humanTurn(){ return G.on && !G.over && G.turn !== botSide(); }
+function ptsOf(pi){ var P = G.players[pi]; if (!P) return 0;
+  var t = 0, i; for (i=0;i<TYPES.length;i++) t += (P.list[i]||0) * TYPES[i].pts; return t; }
+function teamPts(t){ var ps = teamPlayers(t), n = 0, i; for (i=0;i<ps.length;i++) n += ptsOf(ps[i].id); return n; }
+function liveOf(t){ var n = 0, i; for (i=0;i<units.length;i++) if (units[i].side === t) n++; return n; }
+function teamsAlive(){ var out = [], t; for (t=0;t<G.teams;t++) if (liveOf(t) > 0) out.push(t); return out; }
+function humanTurn(){ return G.on && !G.over && !teamIsBot(G.turn); }
+// ทีมจบตาเมื่อคนจริงในทีมกดครบ — บอทไม่ต้องรอ
+function allDone(t){ var ps = teamPlayers(t), i;
+  for (i=0;i<ps.length;i++) if (!ps[i].bot && !ps[i].done) return false;
+  return true; }
 
 // ---------- ตั้งกองทัพลงโต๊ะ ----------
-function autoList(s){          // บอท (และปุ่ม "สุ่มให้") จัดกองเองให้พอดีงบ
-  var out = [0,0,0,0], left = G.budget, guard = 200;
-  while (guard-- > 0){
-    var pick = Math.floor(Math.random()*TYPES.length);
-    if (TYPES[pick].pts > left) { var any = false, i;
-      for (i=0;i<TYPES.length;i++) if (TYPES[i].pts <= left) any = true;
-      if (!any) break; continue; }
-    out[pick]++; left -= TYPES[pick].pts;
-  }
-  G.list[s] = out;
+// สุ่มล้วนได้กองที่มีแต่ตัวถูกเป็นสิบ ๆ ตัว อ่านสนามไม่ออกและบอทเดินนานมาก
+// จัดเป็นชุด: เอาอย่างละตัวเป็นแกนก่อน แล้วค่อยเติม และจำกัดจำนวนตัวไม่ให้ล้นโต๊ะ
+function autoList(s){
+  var out = [0,0,0,0], left = shareOf(), i, k, pass;
+  var MAX_MODELS = Math.max(3, Math.ceil(12 / Math.max(1, G.perTeam)));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
+  var order = [0, 2, 3, 1];                      // หนัก · กรีก · จู่โจม · ราบ
+  function total(){ var t = 0, j; for (j=0;j<4;j++) t += out[j]; return t; }
+  for (pass=0; pass<3; pass++)
+    for (k=0;k<order.length;k++){ i = order[k];
+      if (TYPES[i].pts <= left && total() < MAX_MODELS && (pass === 0 || Math.random() < 0.55)){
+        out[i]++; left -= TYPES[i].pts; } }
+  while (TYPES[1].pts <= left && total() < MAX_MODELS){ out[1]++; left -= TYPES[1].pts; }
+  if (!total()) out[1] = 1;                      // งบเล็กมากก็ยังต้องมีสักตัว
+  if (G.players[s]) G.players[s].list = out;
 }
+// กองของแต่ละคนกระจายรอบ "จุดลงสนาม" ที่เจ้าตัวเลือกเอง วนออกทีละวง เลี่ยงตึกด้วย freeSpot
 function deploy(){
   units.length = 0;
-  for (var s=0;s<2;s++){
-    var row = [], i, j, T;
-    for (i=0;i<TYPES.length;i++){ T = TYPES[i]; for (j=0;j<(G.list[s][i]||0);j++) row.push(T); }
-    var n = row.length; if (!n) continue;
-    var per = Math.max(1, Math.min(10, Math.ceil(n / Math.ceil(n/10)))), sgn = s === 0 ? -1 : 1;
-    var z0 = sgn * (table.d/2 - Math.max(4, table.d*0.10)), gap = Math.min(3.4, (table.w*0.82)/(per+1));
-    for (i=0;i<n;i++){
-      var r = Math.floor(i/per), c = i % per, cnt = Math.min(per, n - r*per);
-      units.push({ k:row[i].k, t:row[i].k, side:s, hp:row[i].w,
-        x:(c - (cnt-1)/2) * gap, z: z0 - sgn*r*3.2, rot: s === 0 ? 0 : Math.PI,
-        moved:false, shot:false, sel:false });
+  var pi;
+  for (pi=0; pi<G.players.length; pi++){
+    var P = G.players[pi], row = [], i, j, T;
+    for (i=0;i<TYPES.length;i++){ T = TYPES[i]; for (j=0;j<(P.list[i]||0);j++) row.push(T); }
+    if (!row.length) continue;
+    if (!P.dep) P.dep = autoDep(pi);
+    var c = P.dep, face = Math.atan2(-c[0], -c[1]);       // หันหน้าเข้ากลางโต๊ะ
+    for (i=0;i<row.length;i++){
+      var ring = 1 + Math.floor(i/6), a = (i % 6) * TAU/6 + ring*0.7;
+      var sp = freeSpot(c[0] + Math.cos(a)*ring*2.2, c[1] + Math.sin(a)*ring*2.2, null);
+      units.push({ k:row[i].k, t:row[i].k, side:P.team, pl:P.id, hp:row[i].w,
+        x:sp[0], z:sp[1], rot:face, moved:false, shot:false, sel:false });
     }
   }
+}
+// จุดลงสนามผิดกฎระยะไหม — คืนข้อความบอกเหตุผล ถ้าว่างคือผ่าน
+function depWhyNot(pi, x, z){
+  if (Math.abs(x) > table.w/2 - 3 || Math.abs(z) > table.d/2 - 3) return 'ต้องอยู่ในโต๊ะ';
+  var P = G.players[pi], i;
+  for (i=0;i<G.players.length;i++){
+    var Q = G.players[i]; if (i === pi || !Q.dep) continue;
+    var mate = Q.team === P.team, need = mate ? DEP_MATE : DEP_FOE;
+    if (Math.hypot(Q.dep[0]-x, Q.dep[1]-z) < need)
+      return mate ? 'ชิดกอง' + Q.nm + 'เกินไป — ต้องห่างอย่างน้อย ' + DEP_MATE + '"'
+                  : 'ใกล้' + TEAM(Q.team).nm + 'เกินไป — ต้องห่างอย่างน้อย ' + DEP_FOE + '"';
+  }
+  return '';
+}
+// ช่องลงสนามมาตรฐาน: ตาราง ห่างกันอย่างน้อย DEP_FOE พอดี — เป็นการวางที่มีอยู่จริงเสมอ
+// (depCapacity นับช่องพวกนี้แหละ) ไล่หาทีละช่องแบบ "เอาที่ไกลสุด" ไม่ได้ เพราะมันจะจองสี่มุม
+// กับตรงกลางไปก่อน แล้วคนที่หกไม่เหลือที่ลง ทั้งที่จริง ๆ ตาราง 3×2 วางได้ครบ
+function depSlots(){
+  var W = table.w/2 - 3, D = table.d/2 - 3;
+  var nx = Math.floor((2*W) / DEP_FOE) + 1, nz = Math.floor((2*D) / DEP_FOE) + 1;
+  var sx = nx > 1 ? (2*W)/(nx-1) : 0, sz = nz > 1 ? (2*D)/(nz-1) : 0;
+  var out = [], ix, iz;
+  for (iz=0; iz<nz; iz++) for (ix=0; ix<nx; ix++) out.push([ -W + ix*sx, -D + iz*sz ]);
+  return out;
+}
+function autoDep(pi){
+  var P = G.players[pi]; if (!P) return [0, 0];
+  var slots = depSlots(), i;
+  // กระจายทีมให้ทั่วโต๊ะ ไม่ใช่จองช่องติด ๆ กัน
+  var c = slots[Math.round(P.team * slots.length / Math.max(1, G.teams)) % slots.length];
+  var ps = teamPlayers(P.team), k = 0;
+  for (i=0;i<ps.length;i++) if (ps[i].id === P.id) k = i;
+  if (k === 0 && !depWhyNot(pi, c[0], c[1])) return [c[0], c[1]];
+  // เพื่อนร่วมทีมยืนเป็นวงรอบช่องของทีม ห่างกันตามกฎ แล้วขยายวงออกถ้ายังชนกฎอยู่
+  var r = DEP_MATE * 1.9, W = table.w/2 - 3, D = table.d/2 - 3;
+  for (i=0;i<32;i++){
+    var a = (k + i) * TAU / Math.max(4, ps.length);
+    var x = clamp(c[0] + Math.cos(a)*r, -W, W), z = clamp(c[1] + Math.sin(a)*r, -D, D);
+    if (!depWhyNot(pi, x, z)) return [x, z];
+    if (i % 8 === 7) r += DEP_MATE;
+  }
+  var x2, z2;                                  // ที่พึ่งสุดท้าย ไล่ทีละช่องเล็ก ๆ
+  for (z2=-D; z2<=D; z2+=1.5) for (x2=-W; x2<=W; x2+=1.5) if (!depWhyNot(pi, x2, z2)) return [x2, z2];
+  return [c[0], c[1]];
+}
+
+// ---------- พื้นที่ที่ยืนไม่ได้ ----------
+// เดิม deploy() ไม่เคยดู PROPS เลย ตัวหมากสองในสามจึงยืนอยู่ในตึกในกำแพง
+// มองเห็นแต่วงกับหมุดลอยอยู่บนผนัง เพราะตัวถูกตึกวาดทับ
+// หลุมระเบิด พุ่มไม้ ใต้ต้นไม้ และกลางวงเสา ยังยืนได้ — เป็นที่กำบังที่ควรได้ใช้
+var BLOCK_R = { crater:0, arch:0, bush:0, rubble:1.5, barricade:1.5, log:1.1, pipe:1.9,
+              tower:3.0, boulder:2.2, iceslab:2.2, obelisk:1.8, buried:1.6,
+              tree:1.1, deadtree:1.1, pine:1.2 };
+function propBlocks(o, x, z){
+  var dx = x - o.x, dz = z - o.z, S = o.s;
+  var c = Math.cos(o.rot), sn = Math.sin(o.rot);
+  if (o.kind === 'building'){                        // ตึกเป็นสี่เหลี่ยมหมุนได้ ไม่ใช่วงกลม
+    var bw = (5 + o.h*7)*S, bd = (4.5 + hash3(o.h*131|0, 2, 61)*6)*S;
+    var lx = dx*c - dz*sn, lz = dx*sn + dz*c;
+    return Math.abs(lx) < bw/2 + 0.7 && Math.abs(lz) < bd/2 + 0.7;
+  }
+  if (o.kind === 'wall'){                            // กำแพงเป็นแถวยาว ไม่ใช่วงกลม
+    var segs = 3 + Math.round(o.h*3), len = 2.4*S;
+    var ax = dx*c - dz*sn, az = dx*sn + dz*c;
+    return Math.abs(ax) < segs*len*0.5 + 0.6 && Math.abs(az) < 0.9*S + 0.6;
+  }
+  if (o.kind === 'pillars'){                         // เสาสี่ต้น ตรงกลางเป็นที่ยืนที่ดี
+    for (var pi=0;pi<4;pi++){ var pa = o.rot + pi*TAU/4;
+      if (Math.hypot(dx - Math.cos(pa)*3.2*S, dz - Math.sin(pa)*3.2*S) < 1.3*S) return true; }
+    return false;
+  }
+  var r = BLOCK_R[o.kind]; if (r === undefined) r = 2.0;
+  return r > 0 && Math.hypot(dx, dz) < r*S + 0.6;
+}
+function blockAt(x, z){
+  if (Math.abs(x) > table.w/2 - 0.8 || Math.abs(z) > table.d/2 - 0.8) return true;
+  for (var i=0;i<PROPS.length;i++) if (propBlocks(PROPS[i], x, z)) return true;
+  return false;
+}
+function crowded(x, z, skip){        // ฐานกว้าง 1.2 นิ้ว ยืนทับกันไม่ได้
+  for (var i=0;i<units.length;i++){ var q = units[i];
+    if (q === skip) continue;
+    if (Math.hypot(q.x - x, q.z - z) < 1.6) return true; }
+  return false;
+}
+// ที่ว่างที่ใกล้ที่สุด วนออกทีละวง · from/maxD คือเพดานระยะเดิน
+// ถ้าไม่ใส่เพดาน การเลี่ยงกำแพงจะกลายเป็นเดินฟรีเกินระยะที่หน่วยนั้นเดินได้
+function freeSpot(x, z, skip, from, maxD){
+  var lw = table.w/2 - 1.2, ld = table.d/2 - 1.2;
+  function ok(nx, nz){
+    if (Math.abs(nx) > lw || Math.abs(nz) > ld) return false;
+    if (from && Math.hypot(nx - from[0], nz - from[1]) > maxD + 0.001) return false;
+    return !blockAt(nx, nz) && !crowded(nx, nz, skip);
+  }
+  if (ok(x, z)) return [x, z];
+  for (var r=1;r<=10;r++) for (var a=0;a<14;a++){
+    var an = a*TAU/14 + r*0.41, nx = x + Math.cos(an)*r*1.25, nz = z + Math.sin(an)*r*1.25;
+    if (ok(nx, nz)) return [nx, nz];
+  }
+  return from ? null : [x, z];                       // เดินไม่ได้จริง ๆ ก็ยืนอยู่กับที่
 }
 
 // ---------- บันทึกการรบ ----------
 var LOG = [];
-function say(txt, cls){ LOG.push({ t:txt, c:cls || '' }); if (LOG.length > 60) LOG.shift(); paintLog(); }
+function say(txt, cls){          // บรรทัดเดิมซ้ำ ๆ รวมเป็นบรรทัดเดียวแล้วนับ ไม่งั้นบอทท่วมบันทึก
+  var last = LOG[LOG.length-1];
+  if (last && last.base === txt){ last.n++; last.t = txt + ' ×' + last.n; paintLog(); return; }
+  LOG.push({ t:txt, base:txt, c:cls || '', n:1 }); if (LOG.length > 60) LOG.shift(); paintLog(); }
 function paintLog(){
   var el = $('btLog'); if (!el) return;
   var h = '', i; for (i=LOG.length-1;i>=0;i--) h += '<div class="' + LOG[i].c + '">' + LOG[i].t + '</div>';
@@ -1668,75 +1887,117 @@ function resolveShot(u, tgt){
   var head = (melee ? 'ตี' : 'ยิง') + ' ' + A.nm + ' → ' + D.nm + ' ที่ ' + d.toFixed(1) + '"';
   popDice('<b>' + rolls.join(' ') + '</b><br>' + head + '<br>เข้า ' + hits + ' · เจาะ ' + wounds + ' · เซฟ ' + saved +
           '<br>' + (dead ? '<b>ล้ม!</b>' : 'เสียแผล ' + dmg));
-  say(SIDE_NM[u.side] + ' ' + head + ' — เข้า ' + hits + '/' + shots + ' · เจาะ ' + wounds + ' · เซฟได้ ' + saved +
+  say(TEAM(u.side).nm + ' ' + head + ' — เข้า ' + hits + '/' + shots + ' · เจาะ ' + wounds + ' · เซฟได้ ' + saved +
       (dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
   dirty = true;
   checkOver();
   return dmg;
 }
-function checkOver(){
-  if (!G.on || G.over) return;
-  var a = liveOf(0), b = liveOf(1);
-  if (a && b) return;
-  G.over = true;
-  var w = a ? 0 : (b ? 1 : -1);
-  say(w < 0 ? '<b>เสมอ — ล้มหมดทั้งสองฝั่ง</b>' : '<b>จบการรบ — ' + SIDE_NM[w] + ' ชนะ</b>', 'kill');
-  popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + SIDE_NM[w] + ' ชนะ!</b>');
-  paintPlay();
+function finish(w, why){          // w = ทีมที่ชนะ หรือ -1 ถ้าเสมอ
+  G.over = true; G.sel = null; G.timeLeft = 0;
+  say(w < 0 ? '<b>' + why + 'เสมอ</b>' : '<b>' + why + TEAM(w).nm + ' ชนะ</b>', 'kill');
+  popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
+  paintPlay(); dirty = true;
 }
-function endRoundCheck(){
-  if (G.round > MAX_ROUND && !G.over){
-    var a = liveOf(0), b = liveOf(1);
-    G.over = true;
-    var w = a === b ? -1 : (a > b ? 0 : 1);
-    say(w < 0 ? '<b>ครบ ' + MAX_ROUND + ' รอบ — เสมอ</b>' : '<b>ครบ ' + MAX_ROUND + ' รอบ — ' + SIDE_NM[w] + ' ชนะ (เหลือตัวมากกว่า)</b>', 'kill');
-    popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + SIDE_NM[w] + ' ชนะ!</b>');
-  }
+function checkOver(){             // เหลือทีมเดียวที่ยังมีตัวอยู่ = จบ
+  if (!G.on || G.over) return;
+  var alive = teamsAlive();
+  if (alive.length > 1) return;
+  finish(alive.length === 1 ? alive[0] : -1, 'จบการรบ — ');
+}
+function endRoundCheck(){         // ครบรอบแล้วยังไม่มีใครล้มหมด — ทีมที่เหลือตัวมากที่สุดชนะ
+  if (G.round <= MAX_ROUND || G.over) return;
+  var t, top = -1, best = [];
+  for (t=0;t<G.teams;t++){ var n = liveOf(t);
+    if (n > top){ top = n; best = [t]; } else if (n === top) best.push(t); }
+  finish(best.length === 1 ? best[0] : -1, 'ครบ ' + MAX_ROUND + ' รอบ — ');
 }
 
 // ---------- ผลัดเทิร์น ----------
+// ทีมเดียวกันเล่นพร้อมกัน แต่ละคนกด "ฉันเสร็จแล้ว" ของตัวเอง ครบทีมแล้วจึงจบตา
+function playerDone(pi){
+  var P = G.players[pi];
+  if (!P || P.team !== G.turn || G.over || P.done) return;
+  P.done = true;
+  if (G.sel && G.sel.pl === pi) selectUnit(null);
+  if (allDone(G.turn)){ endTurn(); return; }
+  say(P.nm + ' จบตาแล้ว · รอเพื่อนร่วมทีม');
+  startClock(); paintPlay(); dirty = true;
+}
+// นาฬิกากันคนไม่ยอมกด · ทีมมีคนเดียวเดินตั้งแต่เริ่มตา · ทีมหลายคนเริ่มเดินเมื่อมีคนกดคนแรก
+function startClock(){
+  if (!G.clock || G.over || !G.on || teamIsBot(G.turn)){ G.timeLeft = 0; return; }
+  var ps = teamPlayers(G.turn), anyDone = false, i;
+  for (i=0;i<ps.length;i++) if (ps[i].done) anyDone = true;
+  if ((ps.length === 1 || anyDone) && !G.timeLeft) G.timeLeft = G.clock;
+}
+function clockTick(dt){
+  if (!G.on || G.over || !G.timeLeft) return;
+  var was = Math.ceil(G.timeLeft);
+  G.timeLeft -= dt;
+  if (G.timeLeft <= 0){ G.timeLeft = 0; say('หมดเวลา — จบตาของ ' + TEAM(G.turn).nm); endTurn(); return; }
+  if (Math.ceil(G.timeLeft) !== was) paintPlay();
+}
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<units.length;i++){ units[i].moved = false; units[i].shot = false; units[i].sel = false; }
-  G.sel = null; G.act = null;
-  G.turn = 1 - G.turn;
+  for (i=0;i<G.players.length;i++) G.players[i].done = false;
+  G.sel = null; G.act = null; G.timeLeft = 0;
+  G.turn = (G.turn + 1) % G.teams;
   if (G.turn === 0){ G.round++; endRoundCheck(); }
-  if (!G.over) say('— เริ่มเทิร์นของ ' + SIDE_NM[G.turn] + ' (รอบ ' + G.round + ') —');
-  paintPlay(); dirty = true;
-  if (!G.over && G.turn === botSide()) G.botTimer = 0.7;
+  if (G.over) return;
+  say('— เริ่มเทิร์นของ ' + TEAM(G.turn).nm + ' (รอบ ' + G.round + ') —');
+  startClock(); paintPlay(); dirty = true;
+  if (teamIsBot(G.turn)) G.botTimer = 0.7;
 }
 
 // ---------- บอท ----------
 function botStep(){
-  var mine = units.filter(function(u){ return u.side === botSide() && !(u.moved && u.shot); });
+  var mine = units.filter(function(u){ return u.side === G.turn && isBotUnit(u) && !(u.moved && u.shot); });
   if (!mine.length) return false;
-  var u = mine[0], foes = units.filter(function(q){ return q.side !== u.side; });
+  var u = mine[0], foes = units.filter(function(q){ return canTarget(u, q); });
   if (!foes.length) return false;
   var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
   for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
   var reach = A.rng > 0 ? A.rng : MELEE;
-  if (bd <= reach){ u.moved = true; resolveShot(u, best); return true; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
+  if (bd <= reach){ u.moved = true; resolveShot(u, best); return 'shoot'; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
   if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
     var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
     var nx = u.x + (best.x - u.x)*f, nz = u.z + (best.z - u.z)*f;
     nx = clamp(nx, -table.w/2 + 1, table.w/2 - 1); nz = clamp(nz, -table.d/2 + 1, table.d/2 - 1);
+    var bp = freeSpot(nx, nz, u, [u.x, u.z], A.mv);   // บอทก็เดินเข้ากำแพงไม่ได้เหมือนกัน
+    if (!bp){ u.moved = true; u.shot = true; return 'move'; }     // ถูกขังจนไม่มีที่ไป ก็ข้ามตานี้ไป
+    nx = bp[0]; nz = bp[1]; step = Math.hypot(nx - u.x, nz - u.z);
     u.moved = true; unitGoTo(u, nx, nz);
-    say(SIDE_NM[u.side] + ' เดิน ' + A.nm + ' ' + step.toFixed(1) + '"');
-    if (dist2({x:nx,z:nz}, best) <= reach){ G.botTimer = 0.45; return true; }
-    u.shot = true; return true;
+    say(TEAM(u.side).nm + ' เดิน ' + A.nm + ' ' + step.toFixed(1) + '"');
+    if (dist2({x:nx,z:nz}, best) <= reach){ G.botTimer = 0.25; return 'move'; }
+    u.shot = true; return 'move';
   }
-  u.shot = true; return true;
+  u.shot = true; return 'move';
 }
 function botTick(dt){
-  if (!G.on || G.over || G.turn !== botSide()) return;
+  if (!G.on || G.over) return;
+  var ps = teamPlayers(G.turn), hasBot = false, i;
+  for (i=0;i<ps.length;i++) if (ps[i].bot) hasBot = true;
+  if (!hasBot) return;                       // ทีมนี้เป็นคนจริงล้วน ไม่ต้องยุ่ง
   if (G.botTimer > 0){ G.botTimer -= dt; if (G.botTimer > 0) return; }
-  if (!botStep()){ endTurn(); return; }
-  G.botTimer = Math.max(G.botTimer, 0.55);
+  var what = botStep();
+  if (!what){                                // บอทในทีมนี้ทำครบแล้ว
+    for (i=0;i<ps.length;i++) if (ps[i].bot) ps[i].done = true;
+    if (allDone(G.turn)) endTurn(); else { startClock(); paintPlay(); }
+    return;
+  }
+  // หยุดให้อ่านลูกเต๋าตอนยิงเท่านั้น การเดินเฉย ๆ ไม่ต้องรอ
+  G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.85 : 0.12);
   dirty = true;
 }
 
 // ---------- เลือก / สั่ง ----------
-function canAct(u){ return u && u.side === G.turn && !(u.moved && u.shot); }
+function canAct(u){
+  if (!u || u.side !== G.turn || (u.moved && u.shot)) return false;
+  var P = G.players[u.pl];
+  return !!P && !P.bot && !P.done;            // กดจบตาแล้ว กองของคนนั้นล็อก
+}
 function selectUnit(u){
   var i; for (i=0;i<units.length;i++) units[i].sel = false;
   G.sel = u; if (u) u.sel = true;
@@ -1747,13 +2008,16 @@ function tryMove(u, x, z){
   var A = TY(u.t), d = Math.hypot(x-u.x, z-u.z);
   if (u.moved){ say('ตัวนี้เดินไปแล้วในเทิร์นนี้'); return false; }
   if (d > A.mv + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / เดินได้ ' + A.mv + '"'); return false; }
+  if (blockAt(x, z)){ popDice('ตรงนั้นมีสิ่งกีดขวาง<br>ยืนไม่ได้'); return false; }
+  if (crowded(x, z, u)){ popDice('ตรงนั้นมีตัวอื่นยืนอยู่แล้ว'); return false; }
   u.moved = true; unitGoTo(u, x, z);
-  say(SIDE_NM[u.side] + ' เดิน ' + A.nm + ' ' + d.toFixed(1) + '"');
+  say(TEAM(u.side).nm + ' เดิน ' + A.nm + ' ' + d.toFixed(1) + '"');
   G.act = 'shoot'; paintPlay(); dirty = true; return true;
 }
 function tryShoot(u, tgt){
   var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
   if (u.shot){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
+  if (!canTarget(u, tgt)){ popDice('ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>'); return false; }
   if (d > reach + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"')); return false; }
   resolveShot(u, tgt);
   if (units.indexOf(u) >= 0 && u.moved && u.shot) selectUnit(null); else paintPlay();
@@ -1762,15 +2026,20 @@ function tryShoot(u, tgt){
 
 // ---------- หน้าจอ ----------
 function show(id){
-  ['scSetup','scArmy','scPlay','scCustom'].forEach(function(s){ var el = $(s); if (el) el.classList.toggle('hide', s !== id); });
+  ['scSetup','scArmy','scDeploy','scPlay','scCustom'].forEach(function(s){ var el = $(s); if (el) el.classList.toggle('hide', s !== id); });
   var tb = $('btTurn'); if (tb) tb.classList.toggle('hide', id !== 'scPlay');
   var hd = $('btHud'); if (hd) hd.style.display = (id === 'scPlay') ? 'none' : '';
+  depMode = (id === 'scDeploy');
 }
 function paintRoster(){
   var host = $('btRoster'); if (!host) return;
-  var s = G.side, h = '', i;
+  var P = G.players[G.cur]; if (!P) return;
+  var s = G.cur, h = '', i, share = shareOf();
+  var who = $('btWho');
+  if (who) who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + P.nm + '</div>' +
+    '<div class="st">' + TEAM(P.team).nm + (G.perTeam > 1 ? ' · งบทีม ' + G.budget + ' หารกัน ' + G.perTeam + ' คน' : '') + '</div>';
   for (i=0;i<TYPES.length;i++){
-    var T = TYPES[i], n = G.list[s][i] || 0, C = UNIT_COL[T.k];
+    var T = TYPES[i], n = P.list[i] || 0, C = UNIT_COL[T.k];
     h += '<div class="unit"><span class="sw" style="background:rgb(' + C.plate.join(',') + ')"></span>' +
       '<span><span class="nm">' + T.nm + ' <em class="pts">' + T.pts + ' แต้ม</em></span>' +
       '<span class="st">เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิดเท่านั้น') + ' · ยิง ' + T.sh + ' นัด</span>' +
@@ -1779,27 +2048,35 @@ function paintRoster(){
       '</span><button data-i="' + i + '" data-v="1">+</button></span></div>';
   }
   host.innerHTML = h;
-  var used = ptsOf(s), over = used > G.budget;
-  $('btUsedV').textContent = used + ' / ' + G.budget;
-  var bar = $('btBar'); bar.classList.toggle('over', over); bar.firstChild.style.width = Math.min(100, used/G.budget*100) + '%';
-  $('btStart').disabled = over || ptsOf(0) === 0 || ptsOf(1) === 0;
+  var used = ptsOf(s), over = used > share, empty = used === 0;
+  $('btUsedV').textContent = used + ' / ' + share;
+  var bar = $('btBar'); bar.classList.toggle('over', over); bar.firstChild.style.width = Math.min(100, used/share*100) + '%';
+  var last = G.cur >= G.players.length - 1;
+  $('btStart').disabled = over || empty;
+  $('btStart').textContent = last ? 'ถัดไป · เลือกจุดลงสนาม ›' : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
+  $('btBack1').textContent = G.cur > 0 ? '‹ ' + G.players[G.cur-1].nm : '‹ กลับ';
   $('btArmyNote').innerHTML = over ? '<b style="color:var(--p2)">เกินงบ</b> ลดหน่วยลงก่อน'
-    : (ptsOf(0) === 0 || ptsOf(1) === 0) ? 'ต้องมีหน่วยทั้งสองฝั่งก่อนถึงจะเริ่มได้'
-    : 'พร้อมแล้ว · ' + SIDE_NM[0] + ' ' + ptsOf(0) + ' แต้ม · ' + SIDE_NM[1] + ' ' + ptsOf(1) + ' แต้ม';
+    : empty ? 'ต้องมีหน่วยอย่างน้อยหนึ่งตัว'
+    : 'พร้อม · ' + used + ' แต้ม · ' + totalModels(s) + ' ตัว';
 }
+function totalModels(pi){ var P = G.players[pi], n = 0, i; if (!P) return 0;
+  for (i=0;i<TYPES.length;i++) n += P.list[i] || 0; return n; }
 function paintPlay(){
   var tb = $('btTurn'); if (!tb) return;
-  var col = G.turn === 0 ? 'var(--p1)' : 'var(--p2)';
+  var t, score = [];
+  for (t=0;t<G.teams;t++) score.push('<span style="color:' + TEAM(t).ui + '">' + liveOf(t) + '</span>');
   tb.innerHTML = G.over ? '<b>จบการรบแล้ว</b>'
-    : '<span class="dot" style="background:' + col + '"></span><b>' + SIDE_NM[G.turn] + '</b> · รอบ ' + G.round + '/' + MAX_ROUND +
-      (G.turn === botSide() ? ' · บอทกำลังเล่น…' : '') +
-      ' · เหลือ ' + liveOf(0) + ' : ' + liveOf(1);
+    : '<span class="dot" style="background:' + TEAM(G.turn).ui + '"></span><b>' + TEAM(G.turn).nm + '</b> · รอบ ' + G.round + '/' + MAX_ROUND +
+      (teamIsBot(G.turn) ? ' · บอทกำลังเล่น…' : '') +
+      (G.timeLeft ? ' · <b style="color:var(--on)">' + Math.ceil(G.timeLeft) + ' วิ</b>' : '') +
+      ' · เหลือ ' + score.join(' : ');
+  paintDone();
   var card = $('btCard'), u = G.sel;
   if (units.indexOf(u) < 0) { u = G.sel = null; }
   if (!u) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? 'แตะที่หน่วยของตัวเอง' : 'รอบอท…') +
       '</div><div class="st">' + (G.over ? 'กด "ออกจากการรบ" เพื่อตั้งสนามใหม่' : 'เลือกแล้วค่อยสั่งเดินหรือยิง') + '</div>';
   else { var T = TY(u.t);
-    card.innerHTML = '<div class="nm">' + T.nm + ' <span class="st">(' + SIDE_NM[u.side] + ')</span></div>' +
+    card.innerHTML = '<div class="nm">' + T.nm + ' <span class="st">(' + (G.players[u.pl] ? G.players[u.pl].nm + ' · ' : '') + TEAM(u.side).nm + ')</span></div>' +
       '<div class="st">แผล ' + u.hp + '/' + T.w + ' · เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิด ' + MELEE + '"') +
       ' · เข้า ' + T.bs + '+ · เกราะ ' + T.sv + '+</div>' +
       '<div class="st">' + (u.moved ? 'เดินแล้ว' : 'ยังไม่ได้เดิน') + ' · ' + (u.shot ? 'ยิงแล้ว' : 'ยังไม่ได้ยิง') + '</div>'; }
@@ -1809,6 +2086,21 @@ function paintPlay(){
     b.classList.toggle('on', !!u && G.act === a && !b.disabled);
   });
   $('btEnd').disabled = !humanTurn() || G.over;
+  $('btEnd').textContent = G.perTeam > 1 ? 'จบตาทั้งทีม' : 'จบเทิร์น';
+}
+// ทีมหลายคน: ปุ่ม "ฉันเสร็จแล้ว" ของแต่ละคน จะได้รู้ว่ารอใครอยู่
+function paintDone(){
+  var host = $('btDone'), head = $('btDoneH'); if (!host || !head) return;
+  var many = G.perTeam > 1 && !G.over && humanTurn();
+  host.classList.toggle('hide', !many); head.classList.toggle('hide', !many);
+  if (!many){ host.innerHTML = ''; return; }
+  var ps = teamPlayers(G.turn), h = '', i;
+  for (i=0;i<ps.length;i++){ var P = ps[i];
+    h += P.bot ? '<span class="chipd on">' + P.nm + ' · บอท</span>'
+       : P.done ? '<span class="chipd on">' + P.nm + ' เสร็จแล้ว ✓</span>'
+       : '<button class="chipd" data-p="' + P.id + '">' + P.nm + ' · ฉันเสร็จแล้ว</button>';
+  }
+  host.innerHTML = h;
 }
 
 // ---------- หมุดกับวงแหวนบอกระยะตอนเล่น ----------
@@ -1825,21 +2117,32 @@ function pinAt(u, col, bright){
     ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.globalAlpha = 1;
   });
 }
+// หน้าเลือกจุดลงสนาม: วงใหญ่คือจุดของแต่ละคน วงจาง ๆ คือระยะที่คนอื่นห้ามเข้า
+function depOverlay(){
+  var i, P = G.players[G.cur];
+  for (i=0;i<G.players.length;i++){
+    var Q = G.players[i]; if (!Q.dep) continue;
+    var col = TEAM(Q.team).ui, me = (i === G.cur);
+    ringAt(Q.dep[0], Q.dep[1], me ? 3.2 : 2.4, col);
+    if (!me && P) ringAt(Q.dep[0], Q.dep[1], Q.team === P.team ? DEP_MATE : DEP_FOE, col, [4,7]);
+  }
+}
 function gameOverlay(){
+  if (depMode){ depOverlay(); return; }
   if (!G.on) return;
   var i, u = G.sel;
-  for (i=0;i<units.length;i++){ var q = units[i], mine = q.side === G.turn;
-    pinAt(q, q.side === 0 ? '#6FB3A8' : '#C46A5A', q === u || (mine && !(q.moved && q.shot)));
-    if (mine && !(q.moved && q.shot) && q !== u) ringAt(q.x, q.z, 0.8, q.side === 0 ? 'rgba(111,179,168,0.5)' : 'rgba(196,106,90,0.5)'); }
+  for (i=0;i<units.length;i++){ var q = units[i], ready = canAct(q);
+    pinAt(q, TEAM(q.side).ui, q === u || ready);
+    if (ready && q !== u) ringAt(q.x, q.z, 0.8, TEAM(q.side).ui, [5,4]); }
   if (!u || units.indexOf(u) < 0) return;
   var T = TY(u.t);
-  ringAt(u.x, u.z, 0.95, u.side === 0 ? '#6FB3A8' : '#C46A5A');
+  ringAt(u.x, u.z, 0.95, TEAM(u.side).ui);
   if (G.act === 'move' && !u.moved) ringAt(u.x, u.z, T.mv, '#E0B26A', [6,5]);
   if (G.act === 'shoot' && !u.shot){
     var reach = T.rng > 0 ? T.rng : MELEE;
     ringAt(u.x, u.z, reach, 'rgba(224,178,106,0.75)', [3,6]);
     for (i=0;i<units.length;i++){ var f = units[i];
-      if (f.side !== u.side && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, '#C46A5A'); }
+      if (canTarget(u, f) && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, TEAM(f.side).ui); }
   }
 }
 
@@ -1876,6 +2179,7 @@ function frame(ts){
   if (dt > 0 && dt < 0.5){
     if (stepUnits(dt)) dirty = true;                         // a long gap (tab in the background) is skipped, not crammed in
     botTick(dt);
+    clockTick(dt);
   }
   tickDice();
   if (!dirty) return; dirty = false; drawScene();
@@ -1943,6 +2247,7 @@ cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delet
   if (dragging && !Object.keys(ptrs).length){ dragging = false; dirty = true; }
   if (drag){ drag = null; dragFrom = null; dirty = true; return; }   // the piece keeps walking to the mark it was given
   if (!p || moved) return;
+  if (depMode) return tapDeploy(p);
   if (G.on) return tapGame(p);
   var w = groundHit(p[0], p[1]); if (!w) return;
   if (mode === 'place'){ units.push({ k:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false }); dirty = true; }
@@ -1956,9 +2261,11 @@ cv.addEventListener('wheel', function(ev){ ev.preventDefault(); cam.dist = clamp
 function tapGame(p){
   if (G.over || !humanTurn()) return;
   var hit = unitHit(p[0], p[1]);
-  if (hit && hit.side === G.turn){ if (canAct(hit)) selectUnit(hit); else say('ตัวนี้ทำครบแล้วในเทิร์นนี้'); return; }
+  if (hit && hit.side === G.turn && canAct(hit)){ selectUnit(hit); return; }
   var u = G.sel; if (!u || units.indexOf(u) < 0) return;
-  if (hit && hit.side !== G.turn){ G.act = 'shoot'; tryShoot(u, hit); return; }
+  if (hit && hit === u) return;
+  if (hit && hit.side === G.turn && !G.freeFire){ say('ตัวนี้ทำครบแล้วในเทิร์นนี้'); return; }
+  if (hit){ G.act = 'shoot'; tryShoot(u, hit); return; }
   var w = groundHit(p[0], p[1]); if (!w) return;
   if (G.act === 'shoot' && !u.shot){ say('แตะที่ตัวศัตรูเพื่อยิง'); return; }
   tryMove(u, w[0], w[2]);
@@ -1981,10 +2288,44 @@ function applyTheme(t){ theme = t; buildTerrain(); genProps(); dirty = true; }
 $('btMaps').addEventListener('click', function(ev){ var b = ev.target.closest('.map'); if (!b) return;
   Array.prototype.forEach.call(this.querySelectorAll('.map'), function(x){ x.classList.toggle('on', x === b); });
   applyTheme(b.dataset.t); });
+var depMode = false, ffaN = 4, perTeamN = 2;
+// โหมดกำหนดจำนวนทีมกับคนต่อทีม · โต๊ะต้องใหญ่พอจะวางจุดลงสนามให้ครบทุกคนด้วย
+function applyMode(){
+  if (G.mode === 'ffa'){ G.teams = ffaN; G.perTeam = 1; }
+  else if (G.mode === 'team'){ G.teams = 2; G.perTeam = perTeamN; }
+  else { G.teams = 2; G.perTeam = 1; }
+  var el;
+  if ((el = $('btTeamOpt'))) el.classList.toggle('hide', G.mode !== 'team');
+  if ((el = $('btFfaOpt'))) el.classList.toggle('hide', G.mode !== 'ffa');
+  if ((el = $('btRules'))) el.classList.toggle('hide', G.mode === 'custom');
+  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : 'ถัดไป · จัดกองทัพ ›';
+  growTableFor(G.teams * G.perTeam);
+}
+// ทุกคนต้องมีที่ลงของตัวเองห่างกัน 20 นิ้ว โต๊ะเล็กไปก็ขยายให้ แล้วบอกว่าขยายเพราะอะไร
+function growTableFor(nPts){
+  var note = $('btRoom'), grew = false;
+  while (depCapacity(table.w, table.d) < nPts && table.w < 180){
+    table.w += 2; table.d = Math.round(table.w*0.72/2)*2; grew = true;
+  }
+  if (grew){
+    $('btSize').value = table.w; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
+    cam.dist = table.w*1.3; clampPan(); buildTerrain(); genProps(); fitTable(); dirty = true;
+  }
+  if (note){
+    note.classList.toggle('hide', !grew);
+    if (grew) note.textContent = 'ขยายโต๊ะเป็น ' + table.w + '×' + table.d + ' ให้แล้ว — ' + nPts + ' คนต้องมีที่ลงห่างกัน ' + DEP_FOE + '"';
+  }
+}
 $('btModes').addEventListener('click', function(ev){ var b = ev.target.closest('.mode'); if (!b) return;
   Array.prototype.forEach.call(this.querySelectorAll('.mode'), function(x){ x.classList.toggle('on', x === b); });
-  G.mode = b.dataset.g;
-  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : 'ถัดไป · จัดกองทัพ ›'; });
+  G.mode = b.dataset.g; applyMode(); });
+$('btPerTeam').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  perTeamN = +b.dataset.n; setOn(this, b); applyMode(); });
+$('btFfaN').addEventListener('input', function(){ ffaN = +this.value; $('btFfaNV').textContent = ffaN + ' คน'; applyMode(); });
+$('btFire').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  G.freeFire = b.dataset.f === '1'; setOn(this, b); });
+$('btClock').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  G.clock = +b.dataset.c; setOn(this, b); });
 
 $('btSize').addEventListener('input', function(){ table.w = +$('btSize').value; table.d = Math.round(table.w*0.72/2)*2; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
   cam.dist = table.w*1.3; clampPan(); buildTerrain(); genProps();
@@ -1995,33 +2336,78 @@ $('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.rand
 
 $('btNext').addEventListener('click', function(){
   if (G.mode === 'custom'){ G.on = false; units.length = 0; show('scCustom'); $('btTip').textContent = '· วางหน่วยเองได้อิสระ'; fitTable(); return; }
-  if (!ptsOf(0)) autoList(0);
-  if (!ptsOf(1)) autoList(1);
-  G.side = 0; setOn($('btSide'), $('btSide').querySelector('[data-s="0"]'));
-  show('scArmy'); paintRoster(); });
-$('btBack1').addEventListener('click', function(){ show('scSetup'); });
-$('btSide').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
-  G.side = +b.dataset.s; setOn(this, b); paintRoster(); });
-$('btPts').addEventListener('input', function(){ G.budget = +$('btPts').value; $('btPtsV').textContent = G.budget; paintRoster(); });
+  mkPlayers();
+  var i; for (i=0;i<G.players.length;i++) autoList(i);      // ตั้งกองให้ก่อน แก้เองได้ทุกคน
+  G.cur = 0; show('scArmy'); paintRoster(); });
+$('btBack1').addEventListener('click', function(){
+  if (G.cur > 0){ G.cur--; paintRoster(); return; }
+  show('scSetup'); });
+$('btPts').addEventListener('input', function(){ G.budget = +$('btPts').value; $('btPtsV').textContent = G.budget;
+  var i; for (i=0;i<G.players.length;i++) autoList(i); paintRoster(); });
 $('btDetail').addEventListener('click', function(){ G.detail = !G.detail; this.textContent = G.detail ? 'ซ่อนรายละเอียด' : 'แสดงรายละเอียด'; paintRoster(); });
 $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
-  var i = +b.dataset.i, v = +b.dataset.v;
-  G.list[G.side][i] = Math.max(0, (G.list[G.side][i]||0) + v); paintRoster(); });
+  var i = +b.dataset.i, v = +b.dataset.v, P = G.players[G.cur]; if (!P) return;
+  P.list[i] = Math.max(0, (P.list[i]||0) + v); paintRoster(); });
 
+// หน้าจัดกองทัพกดถัดไป: คนต่อไป หรือถ้าครบแล้วก็ไปหน้าเลือกจุดลงสนาม
 $('btStart').addEventListener('click', function(){
-  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null; LOG.length = 0;
-  if (G.mode === 'pve' && !ptsOf(1)) autoList(1);
+  if (G.cur < G.players.length - 1){ G.cur++; paintRoster(); return; }
+  var i; for (i=0;i<G.players.length;i++) G.players[i].dep = null;
+  G.cur = 0; show('scDeploy'); $('btTip').textContent = '· แตะบนโต๊ะเพื่อเลือกจุดลงสนาม';
+  fitTable(); cam.pitch = 48*DEG; paintDeploy(); dirty = true; });
+
+function paintDeploy(){
+  var P = G.players[G.cur]; if (!P) return;
+  var who = $('btDepWho');
+  who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + P.nm + ' · ' + TEAM(P.team).nm + '</div>' +
+    '<div class="st">' + (P.dep ? 'วางไว้แล้ว — แตะที่อื่นเพื่อย้าย' : 'แตะบนโต๊ะว่าจะให้กองของคุณลงตรงไหน') +
+    '<br>ห่างทีมอื่นอย่างน้อย ' + DEP_FOE + '" · ห่างเพื่อนร่วมทีม ' + DEP_MATE + '"</div>';
+  $('btDepGo').disabled = !P.dep;
+  $('btDepGo').textContent = (G.cur >= G.players.length - 1) ? 'เริ่มรบ ›' : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
+  $('btDepBack').textContent = G.cur > 0 ? '‹ ' + G.players[G.cur-1].nm : '‹ กลับ';
+}
+function tapDeploy(p){
+  var w = groundHit(p[0], p[1]); if (!w) return;
+  var P = G.players[G.cur]; if (!P) return;
+  var why = depWhyNot(G.cur, w[0], w[2]);
+  $('btDepNote').textContent = why;
+  if (why) return;
+  P.dep = [w[0], w[2]]; paintDeploy(); dirty = true;
+}
+$('btDepAuto').addEventListener('click', function(){
+  var P = G.players[G.cur]; if (!P) return;
+  P.dep = autoDep(G.cur); $('btDepNote').textContent = ''; paintDeploy(); dirty = true; });
+$('btDepBack').addEventListener('click', function(){
+  $('btDepNote').textContent = '';
+  if (G.cur > 0){ G.cur--; paintDeploy(); dirty = true; return; }
+  show('scArmy'); paintRoster(); });
+$('btDepGo').addEventListener('click', function(){
+  $('btDepNote').textContent = '';
+  if (G.cur < G.players.length - 1){ G.cur++; paintDeploy(); dirty = true; return; }
+  startMatch(); });
+
+function startMatch(){
+  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null;
+  G.timeLeft = 0; LOG.length = 0;
+  var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
   deploy(); show('scPlay');
   $('btTip').textContent = '· แตะตัวเรา แล้วแตะพื้นหรือศัตรู';
-  say('เริ่มรบ · ' + SIDE_NM[0] + ' ' + ptsOf(0) + ' แต้ม vs ' + SIDE_NM[1] + ' ' + ptsOf(1) + ' แต้ม บน' + TH().name);
-  say('— เริ่มเทิร์นของ ' + SIDE_NM[0] + ' (รอบ 1) —');
-  fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true; });
+  var parts = [], t;
+  for (t=0;t<G.teams;t++) parts.push(TEAM(t).nm + ' ' + teamPts(t) + ' แต้ม');
+  say('เริ่มรบ · ' + parts.join(' vs ') + ' บน' + TH().name + (G.freeFire ? ' · ฟรีฟาย' : ''));
+  say('— เริ่มเทิร์นของ ' + TEAM(0).nm + ' (รอบ 1) —');
+  checkOver();                                 // กองว่างเปล่าก็จบตรงนี้เลย ไม่ต้องเดินห้ารอบ
+  startClock(); fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true;
+}
 $('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b || b.disabled) return;
   var a = b.dataset.a, u = G.sel;
   if (a === 'done'){ if (u){ u.moved = true; u.shot = true; } selectUnit(null); return; }
   G.act = a; paintPlay(); dirty = true; });
 $('btEnd').addEventListener('click', function(){ endTurn(); });
-function quitGame(){ G.on = false; G.over = false; units.length = 0; G.sel = null; LOG.length = 0; paintLog();
+$('btDone').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  playerDone(+b.dataset.p); });
+function quitGame(){ G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog();
+  var i; for (i=0;i<G.players.length;i++){ G.players[i].dep = null; G.players[i].done = false; }
   show('scSetup'); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
 $('btQuit').addEventListener('click', quitGame);
 $('btQuit2').addEventListener('click', quitGame);
@@ -2047,9 +2433,16 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
   // ตะขอสำหรับเทสต์อัตโนมัติ
   pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
-  setList:function(s, arr){ G.list[s] = arr.slice(); paintRoster(); },
-  start:function(){ $('btStart').disabled = false; $('btStart').click(); },
+  props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt, botStep:botStep,
+  setList:function(pi, arr){ if (!G.players.length) mkPlayers();
+    if (G.players[pi]) G.players[pi].list = arr.slice(); paintRoster(); },
+  players:function(){ return G.players; }, mkPlayers:mkPlayers, applyMode:function(){ applyMode(); },
+  setDep:function(pi, x, z){ if (G.players[pi]) G.players[pi].dep = [x, z]; },
+  autoDep:autoDep, depWhyNot:depWhyNot, depCapacity:depCapacity, teamPts:teamPts,
+  done:playerDone, canAct:canAct, canTarget:canTarget,
+  start:function(){ if (!G.players.length) mkPlayers(); startMatch(); },
   pick:function(i){ selectUnit(units[i]); }, move:tryMove, shootAt:tryShoot, endTurn:endTurn,
   live:liveOf, log:function(){ return LOG.slice(); } };
+applyMode();
 })();
 </script>
