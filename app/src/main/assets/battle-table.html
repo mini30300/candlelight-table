@@ -1963,7 +1963,7 @@ function checkOver(){             // เหลือทีมเดียวท�
   if (!G.on || G.over) return;
   var alive = teamsAlive();
   if (alive.length > 1) return;
-  finish(alive.length === 1 ? alive[0] : -1, 'จบการรบ — ');
+  finish(alive.length === 1 ? alive[0] : -1, 'จบการรบ — '); pushBoard();
 }
 function endRoundCheck(){         // ครบรอบแล้วยังไม่มีใครล้มหมด — ทีมที่เหลือตัวมากที่สุดชนะ
   if (G.round <= MAX_ROUND || G.over) return;
@@ -2002,6 +2002,14 @@ function clockTick(dt){
     endTurn(); return; }
   if (Math.ceil(G.timeLeft) !== was) paintPlay();
 }
+function pushBoard(){
+  if (!NET.on || !NET.owner) return;
+  netPost('/' + NET.code + '/board', { pid:NET.pid, board:{
+    turn:G.turn, round:G.round, over:G.over,
+    units:units.map(function(u){ return { id:u.id, pl:u.pl, team:u.side, k:u.t, hp:u.hp,
+      x:u.gx != null ? u.gx : u.x, z:u.gz != null ? u.gz : u.z, moved:!!u.moved, shot:!!u.shot }; })
+  } }).catch(function(){});
+}
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<units.length;i++){ units[i].moved = false; units[i].shot = false; units[i].sel = false; }
@@ -2011,7 +2019,7 @@ function endTurn(){
   if (G.turn === 0){ G.round++; endRoundCheck(); }
   if (G.over) return;
   say('— เริ่มเทิร์นของ ' + TEAM(G.turn).nm + ' (รอบ ' + G.round + ') —');
-  startClock(); paintPlay(); dirty = true;
+  startClock(); paintPlay(); dirty = true; pushBoard();
   if (teamIsBot(G.turn)) G.botTimer = 0.7;
 }
 
@@ -2441,6 +2449,10 @@ function adoptRoom(R){
     ps[i].done = old.done;
     if (!spent(ps[i].list) && spent(old.list)) ps[i].list = old.list;   // กองที่ปั้นไว้ในเครื่อง ห้องยังไม่รู้
     if (!ps[i].dep && old.dep) ps[i].dep = old.dep; }
+  // ใครหลุด บอทรับช่วงต่อ จะได้เล่นจบ ไม่ใช่ค้างรอคนที่ไม่กลับมา
+  for (i=0;i<ps.length;i++){ var was = G.players[i];
+    if (G.on && was && was.pid === ps[i].pid && !was.bot && ps[i].bot)
+      say('<b>' + ps[i].nm + ' หลุดไป</b> — บอทเล่นแทน', 'hit'); }
   G.players = ps;
   G.mePl = -1;
   for (i=0;i<ps.length;i++) if (ps[i].pid && ps[i].pid === NET.pid) G.mePl = i;
@@ -2449,6 +2461,7 @@ function adoptRoom(R){
 }
 function applyAct(a){
   if (!a) return;
+  if (a.a === 'owner'){ NET.owner = (a.pid === NET.pid); if (G.on) say('เจ้าของห้องเดิมหลุดไป — ' + a.nm + ' คุมห้องต่อ'); return; }
   if (a.a === 'state'){ if (a.roster) adoptRoster(a.roster, a.bots); netPhase(a.state); return; }
   if (!G.on) return;
   if (a.a === 'move'){ var u = unitById(a.u); if (u && !u.moved){ u.moved = true; unitGoTo(u, a.x, a.z); say(TEAM(u.side).nm + ' เดิน ' + TY(u.t).nm + ' ' + Math.hypot(a.x-u.x, a.z-u.z).toFixed(1) + '"'); dirty = true; } return; }
@@ -2712,7 +2725,7 @@ function startMatch(){
   say('เริ่มรบ · ' + parts.join(' vs ') + ' บน' + TH().name + (G.freeFire ? ' · ฟรีฟาย' : ''));
   say('— เริ่มเทิร์นของ ' + TEAM(0).nm + ' (รอบ 1) —');
   checkOver();                                 // กองว่างเปล่าก็จบตรงนี้เลย ไม่ต้องเดินห้ารอบ
-  startClock(); fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true;
+  startClock(); pushBoard(); fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true;
 }
 $('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b || b.disabled) return;
   var a = b.dataset.a, u = G.sel;
