@@ -184,6 +184,13 @@ object Api {
         return r.getString("pretty") to r.optLong("ttl", 300_000L)
     }
 
+    /** เอารหัสจากอีกเครื่องมาแลกเป็น token ของบัญชีเดียวกัน — เครื่องนี้ยังไม่มีบัญชีก็เรียกได้ รหัสคือกุญแจ */
+    suspend fun pairClaim(code: String): Pair<String, User> {
+        val clean = code.uppercase().filter { it.isLetterOrDigit() }
+        val r = request("POST", "/api/auth/pair/claim", JSONObject().put("code", clean))
+        return r.getString("token") to parseUser(r.getJSONObject("user"))
+    }
+
     suspend fun me(): Pair<User, List<MyRoom>> {
         val r = request("GET", "/api/me")
         val arr = r.optJSONArray("rooms") ?: JSONArray()
