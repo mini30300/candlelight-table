@@ -280,7 +280,14 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   function wring(g, x, y, z, r, n, s, rz){ polyline(g, ringPts(x,y,z,r,n,rz), s, true); }
   function circPts(c, u, v, r, n){ const pts = []; for (let i=0;i<n;i++){ const a = i/n*Math.PI*2; pts.push(add(c, add(mul(u, Math.cos(a)*r), mul(v, Math.sin(a)*r)))); } return pts; }
   function wcircle(g, c, u, v, r, n, s){ polyline(g, circPts(c,u,v,r,n), s, true); }
-  function warc(g, c, u, v, r, n, a0, a1, s){ const pts = []; for (let i=0;i<=n;i++){ const a = (a0 + (a1-a0)*i/n)*Math.PI/180; pts.push(add(c, add(mul(u, Math.cos(a)*r), mul(v, Math.sin(a)*r)))); } polyline(g, pts, s); }
+  function arcPts(c, u, v, r, n, a0, a1){ const pts = []; for (let i=0;i<=n;i++){ const a = (a0 + (a1-a0)*i/n)*Math.PI/180; pts.push(add(c, add(mul(u, Math.cos(a)*r), mul(v, Math.sin(a)*r)))); } return pts; }
+  function warc(g, c, u, v, r, n, a0, a1, s){ polyline(g, arcPts(c,u,v,r,n,a0,a1), s); }
+  // polyline that drops any segment whose two ends are not both visible (used to stop the skull
+  // wireframe from reading through the solid hair mass — see hairCover() in the hair block).
+  function polylineCut(g, pts, s, close, keep){ const n = pts.length; if (n < 2) return;
+    let prev = keep(pts[0]); const first = prev;          // one test per point, not two
+    for (let i=1;i<n;i++){ const cur = keep(pts[i]); if (prev && cur) seg(g, pts[i-1], pts[i], s); prev = cur; }
+    if (close && n > 2 && prev && first) seg(g, pts[n-1], pts[0], s); }
   function wcyl(g, x, y, z, rt, rb, h, n, s, nv){ const b = ringPts(x,y,z,rb,n), t = ringPts(x,y+h,z,rt,n); polyline(g,b,s,true); polyline(g,t,s,true); const step = Math.max(1, Math.round(n/(nv||n))); for (let i=0;i<n;i+=step) seg(g,b[i],t[i],s); }
   function wcone(g, x, y, z, r, h, n, s, flip){ const b = ringPts(x, flip? y+h : y, z, r, n); const apex = V(x, flip? y : y+h, z); polyline(g,b,s,true); for (let i=0;i<n;i++) seg(g,b[i],apex,s); }
   function wtree(g, x, z, h, r, s){ const st = s||DIM; wcyl(g,x,0,z,0.08,0.12,0.6,4,st,2); wcone(g,x,0.6,z,r,h,5,st); wcone(g,x,0.6+h*0.45,z,r*0.7,h*0.6,5,st); }
@@ -288,6 +295,271 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   function wrock(g, x, z, w, h, d, s, seed){ const r = rnd(seed||1); const st = s||DIM; const b = [V(x-w/2,0,z-d/2),V(x+w/2*(0.7+r()*0.5),0,z-d/2*(0.6+r()*0.6)),V(x+w/2,0,z+d/2),V(x-w/2*(0.6+r()*0.6),0,z+d/2*(0.7+r()*0.5))]; const t = b.map((p,i) => V((p.x+x)/2 + (r()-0.5)*0.2, h*(0.7+r()*0.4), (p.z+z)/2)); polyline(g,b,st,true); polyline(g,t,st,true); for (let i=0;i<4;i++) seg(g,b[i],t[i],st); }
   function fill(g, pts, c, a){ g.fills.push({ pts, c, a }); }
   function flame(g, x, y, z, r, h){ g.flames.push({ x, y, z, r, h }); }
+
+  // >>> NEW-HAIR-BLOCK-START (skull-shell hair helpers — model space only)
+  // Fixed WORLD-space key light (the candle side). Never derived from the camera:
+  // that is what keeps the lit side of the hair pointed at the candle while the camera orbits.
+  const LIGHT = norm(V(-0.5, 0.72, 0.48));
+  // Shading rides on the ALPHA channel, so no colour string is built per face.
+  // The floor is high on purpose: ก้อนทึบ means the mass has to OCCLUDE the skull wireframe under it,
+  // so the shadow side still composites near-opaque while the lit side keeps a visible gradient.
+  const shadeA = lam => 0.66 + 0.36*(lam > 0 ? lam : 0);          // 0.66 .. 1.02 of the profile alpha
+  // One tinted colour string per distinct hair colour, cached for the life of the page.
+  // #2A2420 (the owner's own character) would vanish against the #0B0B0E ground at any alpha,
+  // so very dark hair is lifted toward warm candlelight until its brightest channel reaches 110.
+  const tintCache = new Map();
+  function hairTint(rgb){
+    let s = tintCache.get(rgb); if (s) return s;
+    const q = String(rgb).split(","); let r = +q[0]||0, gg = +q[1]||0, b = +q[2]||0;
+    const mx = Math.max(r, gg, b);
+    if (mx < 110){ const k = (110 - mx)*0.62; r += k; gg += k*0.86; b += k*0.62; }
+    s = (r|0)+","+(gg|0)+","+(b|0); tintCache.set(rgb, s); return s;
+  }
+  // The skull the hair is wrapped around, in WORLD space, set once per pawn by emitHair.
+  // Used only by hairHidden() below, which is a visibility test and nothing else.
+  let HCw = null, HRw = 0;
+  // Visibility: is this face centroid behind the skull ball from where the eye sits? cam.C is a
+  // POSITION, and the answer is a yes/no about drawing — it never moves a vertex and never shades one.
+  function hairHidden(mx, my, mz){
+    if (!HCw) return false;
+    const R = HRw*0.99;
+    // A point inside the ball cannot be occluded by it. This matters: a wide band's centroid sits
+    // well under the shell surface, and without this the whole low-LOD mass would cull itself away.
+    const rx = mx-HCw.x, ry = my-HCw.y, rz = mz-HCw.z;
+    if (rx*rx + ry*ry + rz*rz <= R*R) return false;
+    const dx = mx-cam.C.x, dy = my-cam.C.y, dz = mz-cam.C.z;
+    const L2 = dx*dx + dy*dy + dz*dz; if (L2 < 1e-9) return false;
+    const ox = HCw.x-cam.C.x, oy = HCw.y-cam.C.y, oz = HCw.z-cam.C.z;
+    const Ln = Math.sqrt(L2), ux = dx/Ln, uy = dy/Ln, uz = dz/Ln;
+    const tca = ox*ux + oy*uy + oz*uz; if (tca <= 0) return false;
+    const q = ox*ox + oy*oy + oz*oz - tca*tca; if (q > R*R) return false;
+    return (tca - Math.sqrt(R*R - q)) < Ln - 1e-4;
+  }
+  // Same one dot product, for line art: does the skull surface under this point face the eye?
+  const hairFacesUs = (p, cen) => {
+    const nx = p.x-cen.x, ny = p.y-cen.y, nz = p.z-cen.z;
+    return nx*(p.x-cam.C.x) + ny*(p.y-cam.C.y) + nz*(p.z-cam.C.z) < 0;
+  };
+  // Convex shell face: the outward normal of a lathed shell is exactly the radial direction
+  // from its centre, so no cross product and no winding-order bug. The ONLY camera reference
+  // is cam.C inside the two visibility tests — a position used for culling, never to place a
+  // vertex and never to pick a shade. The shade comes from LIGHT and the model-space normal.
+  function shellShade(mx, my, mz, cen){
+    let nx = mx-cen.x, ny = my-cen.y, nz = mz-cen.z;
+    const nl = Math.hypot(nx,ny,nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    if (nx*(mx-cam.C.x) + ny*(my-cam.C.y) + nz*(mz-cam.C.z) > 0) return -1;   // backface cull
+    return shadeA(nx*LIGHT.x + ny*LIGHT.y + nz*LIGHT.z);
+  }
+  // Quad form: the facing test runs BEFORE the four-point array exists, so a culled face costs no
+  // allocation at all (roughly half of them are culled on any given frame).
+  function shellQuad(og, a, b, c2, d, c, aBase, cen){
+    const mx = (a.x+b.x+c2.x+d.x)*0.25, my = (a.y+b.y+c2.y+d.y)*0.25, mz = (a.z+b.z+c2.z+d.z)*0.25;
+    const sh = shellShade(mx, my, mz, cen); if (sh < 0) return 0;
+    if (hairHidden(mx, my, mz)) return 0;
+    og.fills.push({ pts:[a,b,c2,d], c, a: aBase*sh, q:1 });
+    return 1;
+  }
+  function shellFace(og, pts, c, aBase, cen){
+    const k = 1/pts.length; let mx = 0, my = 0, mz = 0;
+    for (let i=0;i<pts.length;i++){ mx += pts[i].x; my += pts[i].y; mz += pts[i].z; }
+    mx *= k; my *= k; mz *= k;
+    const sh = shellShade(mx, my, mz, cen); if (sh < 0) return 0;
+    if (hairHidden(mx, my, mz)) return 0;
+    og.fills.push({ pts, c, a: aBase*sh, q:1 });
+    return 1;
+  }
+  // Two-sided sheet (the long-hair back panel, the hood cowl): drawn from both sides, but the
+  // shading normal is oriented away from a MODEL-SPACE reference point (cen) — not toward the eye.
+  // That is what keeps the lit side of a sheet pointed at the candle while the camera orbits.
+  function sheetFace(og, pts, c, aBase, cen){
+    const n4 = pts.length, k = 1/n4; let mx = 0, my = 0, mz = 0;
+    for (let i=0;i<n4;i++){ mx += pts[i].x; my += pts[i].y; mz += pts[i].z; }
+    mx *= k; my *= k; mz *= k;
+    const p0 = pts[0], p1 = pts[1], p2 = pts[n4-1];
+    const ax = p1.x-p0.x, ay = p1.y-p0.y, az = p1.z-p0.z, bx = p2.x-p0.x, by = p2.y-p0.y, bz = p2.z-p0.z;
+    let nx = ay*bz - az*by, ny = az*bx - ax*bz, nz = ax*by - ay*bx;
+    const nl = Math.hypot(nx,ny,nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    if (nx*(mx-cen.x) + ny*(my-cen.y) + nz*(mz-cen.z) < 0){ nx = -nx; ny = -ny; nz = -nz; }
+    if (hairHidden(mx, my, mz)) return 0;
+    og.fills.push({ pts, c, a: aBase*shadeA(nx*LIGHT.x + ny*LIGHT.y + nz*LIGHT.z), q:1 });
+    return 1;
+  }
+  // The five values the app can actually send (MainActivity.kt:176 / worker.js:124) …
+  const HAIRP = {
+    short:  { lat0:0.16, tilt:0.30, k:1.10,  kCrown:1.06, back:0.06, bands:3, a:0.90, skirt:0, tail:0 },
+    long:   { lat0:0.14, tilt:0.32, k:1.12,  kCrown:1.07, back:0.10, bands:3, a:0.90, skirt:1, tail:0 },
+    tied:   { lat0:0.20, tilt:0.26, k:1.06,  kCrown:1.04, back:0.04, bands:3, a:0.90, skirt:0, tail:1 },
+    // shaved stays deliberately thin — seeing the skull through stubble is correct — but the rim is
+    // widened past the head's own skin disc (0.96 HR) so it is not invisible where it matters.
+    shaved: { lat0:0.06, tilt:0.34, k:1.05,  kCrown:1.04, back:0.00, bands:1, a:0.45, skirt:0, tail:0, thin:1 },
+    hood:   { lat0:0.16, tilt:0.30, k:1.10,  kCrown:1.06, back:0.06, bands:3, a:0.90, skirt:0, tail:0, cowl:1 }
+  };
+  // … plus the legacy board names, aliased so nothing that still sends them regresses.
+  const HALIAS = { ponytail:"tied", braid:"tied", bun:"tied", tail:"tied",
+                   mohawk:"short", curly:"short", spiky:"short", messy:"short",
+                   bald:"shaved", none:"shaved" };
+  // A is filled in by drawPawn: P (the pawn model transform), HCen, HR, sideAx, scale, colours, hs, hat.
+  // Every vertex below is produced by A.P(), so the whole mass inherits p.rot, the walk bob and scale.
+  function emitHair(og, A){
+    const P = A.P, HCen = A.HCen, c = A.tint;
+    let faces = 0;
+    const hs = HAIRP[A.hs] ? A.hs : (HALIAS[A.hs] || "short");
+    const hat = A.hat;
+    const pf = HAIRP[hs];
+    const hooded = (hs === "hood" || hat === "hood");
+    if (hooded) A.cowl = 1;   // before any early return, or the legacy hood cone comes back
+    const HRm = 0.21, HYm = 1.19;
+    const hp = (lon, lat, kk) => { const r = HRm*kk, cl = Math.cos(lat); return P(Math.sin(lon)*cl*r, HYm + Math.sin(lat)*r, Math.cos(lon)*cl*r); };
+    // LOD keyed to the PROJECTED head radius in CSS px. proj() only measures; it moves nothing.
+    const dcam = Math.hypot(HCen.x-cam.C.x, HCen.y-cam.C.y, HCen.z-cam.C.z); if (!proj(HCen)) return 0;              // pawn behind the eye: build nothing at all
+    const hpx = A.HR*(cam.fl/dcam); if (hpx < 3) return 0;          // sub-pixel head: build nothing at all
+    // The 12x3 tier exists for the creator dais (one pawn). On the board the player can pinch in to
+    // dist 6, which would otherwise promote twelve pawns to it, so it is gated on the preview flag.
+    const L = (preview && hpx >= 20) ? { lon:12, bands:3 } : hpx >= 11 ? { lon:8, bands:2 } : hpx >= 6 ? { lon:6, bands:1 } : null;
+    HCw = HCen; HRw = A.HR;
+    if (!L){ // far LOD: one unshaded crown n-gon and nothing else — cowl colour if this is a hood
+      const R = []; for (let i=0;i<6;i++) R.push(hp(i/6*Math.PI*2, 0.95, 1.02));
+      og.fills.push({ pts:R, c: hooded ? A.cloakC : c, a: (hooded ? 0.70 : pf.a)*0.7, q:1 });
+      return 1;
+    }
+    const NL = L.lon;
+    let nb = Math.min(pf.bands, L.bands), lat0 = pf.lat0, topF = 0.92;
+    // A helm owns the crown, so the mass is clamped to the nape band UNDER its brim (y 1.26) —
+    // the band count alone never did that, the top latitude is what has to come down.
+    if (hat === "helm"){ nb = 1; lat0 = -0.10; topF = 0.22; }
+    const kOf = (lon,u) => (pf.k + (pf.kCrown-pf.k)*u) * (1 + pf.back*(1-Math.cos(lon))*0.5);
+    const latOf = lon => lat0 + pf.tilt*Math.cos(lon);   // hairline: high at the brow, low at the nape
+    const hairLineS = { c: c, w: 1.2, k: 1, nog: 1 };
+    // A solid mass has to HIDE what is under it. This tells drawPawn which points of the skull
+    // wireframe are inside the mass, in model space (latitude/longitude), so it can drop them.
+    if (!pf.thin){
+      const sA = A.sideAx, fA = A.fwdAx;
+      // capped = the mass closes over the crown (the cap n-gon); under a helm it does not, it is a
+      // nape band, so the skull above the band keeps its wireframe and the helm covers that.
+      const capped = hooded || topF >= 0.9, TL = pf.tilt;
+      const s0 = Math.sin(lat0), c0 = Math.cos(lat0);
+      A.cover = q => { const dx = q.x-HCen.x, dy = q.y-HCen.y, dz = q.z-HCen.z;
+        const mx = dx*sA.x + dy*sA.y + dz*sA.z, mz = dx*fA.x + dy*fA.y + dz*fA.z;
+        // compare sines instead of angles: both latitudes are in (-pi/2, pi/2) where sin is
+        // monotone, and sin(lat0 + tilt*cos lon) expands to two short series (|tilt| <= 0.34,
+        // error < 3e-5 rad). Two sqrt instead of two atan2, on a per-vertex path.
+        const r2 = mx*mx + mz*mz, rho = Math.sqrt(r2 + dy*dy); if (rho < 1e-9) return true;
+        const r = Math.sqrt(r2), t = r > 1e-9 ? TL*(mz/r) : TL, t2 = t*t;
+        const sL = s0*(1 - t2*0.5 + t2*t2/24) + c0*(t - t*t2/6);
+        if (dy/rho <= sL + 0.019) return false;                  // below the hairline: not covered
+        if (capped) return true;                                 // the mass closes over the crown
+        const l0 = Math.asin(sL < -1 ? -1 : sL > 1 ? 1 : sL);    // helm only: a band, not a cap
+        return Math.atan2(dy, r) < l0 + (Math.PI/2 - l0)*topF + 0.04; };
+    }
+    // lathed rings, hairline (u=0) up to just short of the crown pole (u=1). A hooded pawn only ever
+    // reads rings[0] and rings[1] for its fringe, so it builds two and no more — u still divides by
+    // nb, so the two rings it keeps are geometrically the same ones it had before.
+    const rings = [], nbR = hooded ? 1 : nb;
+    for (let b=0;b<=nbR;b++){ const u = b/nb, R = [];
+      for (let i=0;i<NL;i++){ const lon = i/NL*Math.PI*2, l0 = latOf(lon); R.push(hp(lon, l0 + (Math.PI/2 - l0)*u*topF, kOf(lon,u))); }
+      rings.push(R); }
+    // line art is culled with the same one dot product the faces use, so nothing on the far side
+    // of the skull is stroked through the mass.
+    const ringCut = (arr, close, st) => { const n = arr.length; if (n < 2) return;
+      let prev = hairFacesUs(arr[0], HCen); const first = prev;
+      for (let i=1;i<n;i++){ const cur = hairFacesUs(arr[i], HCen); if (prev && cur) seg(og, arr[i-1], arr[i], st); prev = cur; }
+      if (close && n > 2 && prev && first) seg(og, arr[n-1], arr[0], st); };
+    if (hooded){
+      // hood: the mass is suppressed, a cowl is lathed in its place, a fringe shows in the opening
+      const op = 0.62, NC = NL;
+      // One ring of the cowl. Its face opening NARROWS as the cloth rises (f = how much of the
+      // opening is left at this height), so the hood closes over the crown instead of stopping
+      // below it and letting the top of the skull stick out.
+      const ringAt = (lat, k, f, yFix) => { const o = op*f, sp = Math.PI*2 - 2*o, R = [];
+        for (let i=0;i<=NC;i++){ const lon = o + sp*i/NC;
+          R.push(yFix !== undefined ? P(Math.sin(lon)*k, yFix, Math.cos(lon)*k) : hp(lon, lat, k)); }
+        return R; };
+      // The cowl is cloth, so it hides a different part of the skull than a hairline does: from the
+      // neck up OVER the crown, everything except the face opening — which closes with height
+      // exactly as the geometry does. Model space only, so it turns with the pawn.
+      { const sA = A.sideAx, fA = A.fwdAx, sc = A.scale || 1;
+        const opAtY = y => { const t = (y - 1.30)/0.09; return t <= 0 ? op : t >= 1 ? 0 : op*(1-t); };
+        A.cover = q => { const dx = q.x-HCen.x, dy = q.y-HCen.y, dz = q.z-HCen.z;
+          const mx = (dx*sA.x + dy*sA.y + dz*sA.z)/sc, mz = (dx*fA.x + dy*fA.y + dz*fA.z)/sc;
+          const y = HYm + dy/sc; if (y < 0.95 || y > 1.45) return false;
+          return Math.abs(Math.atan2(mx, mz)) >= opAtY(y); }; }
+      const mid = L.bands >= 2;                    // the coarsest tier drops the middle band
+      const rN = ringAt(0, 0.30, 1, 0.95), rM = ringAt(0.05, 1.30, 1);
+      const rT = mid ? ringAt(0.72, 1.24, 0.62) : null;
+      const rC = ringAt(1.18, 1.12, 0.10);         // crown ring: y 1.41, just over the head's 1.40
+      for (let i=0;i<NC;i++){
+        faces += sheetFace(og, [rN[i], rN[i+1], rM[i+1], rM[i]], A.cloakC, 0.98, HCen);
+        if (mid){
+          faces += sheetFace(og, [rM[i], rM[i+1], rT[i+1], rT[i]], A.cloakC, 0.98, HCen);
+          faces += sheetFace(og, [rT[i], rT[i+1], rC[i+1], rC[i]], A.cloakC, 0.98, HCen);
+        } else faces += sheetFace(og, [rM[i], rM[i+1], rC[i+1], rC[i]], A.cloakC, 0.98, HCen); }
+      faces += sheetFace(og, rC.slice(0, NC), A.cloakC, 0.98, HCen);   // the crown itself
+      polyline(og, rC, { c: A.cloakC, w: 1.1, k: 1, nog: 1 });
+      polyline(og, mid ? [rN[0], rM[0], rT[0], rC[0]] : [rN[0], rM[0], rC[0]], { c: A.cloakC, w: 1.1, k: 1, nog: 1 });
+      polyline(og, mid ? [rN[NC], rM[NC], rT[NC], rC[NC]] : [rN[NC], rM[NC], rC[NC]], { c: A.cloakC, w: 1.1, k: 1, nog: 1 });
+      // fringe: kept longitudes collected in SWEEP order, so the polyline follows the brow instead
+      // of jumping +30 deg -> -30 deg across the face.
+      const fr = [];
+      for (let i=0;i<NL;i++){ const lon = i/NL*Math.PI*2; if (Math.cos(lon) < Math.cos(0.95)) continue;
+        faces += shellQuad(og, rings[0][i], rings[0][(i+1)%NL], rings[1][(i+1)%NL], rings[1][i], c, pf.a, HCen);
+        fr.push({ d: lon > Math.PI ? lon - Math.PI*2 : lon, p: rings[0][i] }); }
+      fr.sort((a,b) => a.d - b.d);
+      if (fr.length > 1) ringCut(fr.map(o => o.p), false, hairLineS);
+      return faces;
+    }
+    for (let b=0;b<nb;b++) for (let i=0;i<NL;i++)
+      faces += shellQuad(og, rings[b][i], rings[b][(i+1)%NL], rings[b+1][(i+1)%NL], rings[b+1][i], c, pf.a, HCen);
+    faces += shellFace(og, rings[nb], c, pf.a, HCen);   // crown cap as one n-gon
+    // line art: the hairline ring (this is the sweep that proves it is not a billboard) + 3 part lines
+    ringCut(rings[0], true, hairLineS);
+    for (const lo of [0, 2.09, 4.19]){ const i = Math.round(lo/(Math.PI*2)*NL) % NL;
+      const col = []; for (let b=0;b<=nb;b++) col.push(rings[b][i]); ringCut(col, false, hairLineS); }
+    if (pf.skirt){   // long: a two-sided sheet hanging from the nape to shoulder height
+      const nbk = Math.max(3, NL>>1), top = [], mid = [], bot = [];
+      for (let i=0;i<=nbk;i++){ const lon = Math.PI/2 + Math.PI*i/nbk;
+        top.push(hp(lon, latOf(lon), kOf(lon,0)));
+        mid.push(P(Math.sin(lon)*0.24, 1.00, Math.cos(lon)*0.24 - 0.03));
+        bot.push(P(Math.sin(lon)*0.27, 0.80, Math.cos(lon)*0.27 - 0.05)); }
+      for (let i=0;i<nbk;i++){
+        faces += sheetFace(og, [top[i], top[i+1], mid[i+1], mid[i]], c, pf.a, HCen);
+        faces += sheetFace(og, [mid[i], mid[i+1], bot[i+1], bot[i]], c, pf.a*0.94, HCen); }
+      polyline(og, [top[0], mid[0], bot[0]], hairLineS);
+      polyline(og, [top[nbk], mid[nbk], bot[nbk]], hairLineS);
+      // the sheet covers the back of the skull and the nape: widen the predicate, model space only
+      { const sA = A.sideAx, fA = A.fwdAx, sc = A.scale || 1, base = A.cover;
+        A.cover = q => { if (base && base(q)) return true;
+          const dx = q.x-HCen.x, dy = q.y-HCen.y, dz = q.z-HCen.z;
+          const mx = (dx*sA.x + dy*sA.y + dz*sA.z)/sc, mz = (dx*fA.x + dy*fA.y + dz*fA.z)/sc;
+          const y = HYm + dy/sc;
+          return y >= 0.80 && y <= 1.19 && mz < -0.02 && (mx*mx + mz*mz) < 0.09; }; }
+    }
+    if (pf.tail){   // tied: a swept tube on a 4-point model-space spline, with an accent tie
+      const SP = [[0,1.36,-0.16,0.085],[0.02,1.22,-0.30,0.075],[-0.02,1.04,-0.33,0.055],[0.01,0.88,-0.26,0.028]];
+      const ns = NL >= 8 ? 3 : 2, pts = [], fm = [], rings2 = [];
+      for (let s=0;s<SP.length;s++) pts.push(P(SP[s][0], SP[s][1], SP[s][2]));
+      for (let s=0;s<SP.length;s++){
+        const tg = norm(sub(pts[Math.min(s+1, SP.length-1)], pts[Math.max(s-1, 0)]));
+        let up = cross(tg, A.sideAx); const ul = Math.hypot(up.x,up.y,up.z);
+        up = ul > 1e-4 ? mul(up, 1/ul) : V(0,1,0);
+        const sd = norm(cross(up, tg)); fm.push({ sd, up });
+        const rr = SP[s][3]*A.scale, R = [];
+        for (let i=0;i<ns;i++){ const a = i/ns*Math.PI*2 + 0.5; R.push(add(pts[s], add(mul(sd, Math.cos(a)*rr), mul(up, Math.sin(a)*rr)))); }
+        rings2.push(R); }
+      for (let s=0;s<SP.length-1;s++){ const cen = mul(add(pts[s], pts[s+1]), 0.5);
+        for (let i=0;i<ns;i++) faces += shellQuad(og, rings2[s][i], rings2[s][(i+1)%ns], rings2[s+1][(i+1)%ns], rings2[s+1][i], c, pf.a, cen); }
+      // the tie sits on the TOP REAR of the skull: when that is the far side, it must not float
+      // over the face, so the whole ring goes only when its anchor is both facing us and unhidden.
+      if (hairFacesUs(pts[0], HCen) && !hairHidden(pts[0].x, pts[0].y, pts[0].z)){
+        const tr = 0.10*A.scale, tp = [];
+        for (let i=0;i<4;i++){ const a = i/4*Math.PI*2; tp.push(add(pts[0], add(mul(fm[0].sd, Math.cos(a)*tr), mul(fm[0].up, Math.sin(a)*tr)))); }
+        polyline(og, tp, { c: A.accentC, w: 1.1, k: 1, nog: 1 }, true);
+      }
+      for (let s=0;s<pts.length-1;s++){ const a = pts[s], b = pts[s+1];
+        if (!hairHidden((a.x+b.x)*0.5, (a.y+b.y)*0.5, (a.z+b.z)*0.5)) seg(og, a, b, hairLineS); }
+    }
+    return faces;
+  }
+  // <<< NEW-HAIR-BLOCK-END
   function floorSlab(g, Wd, D, style){ const s = style||WHITE; const y = 0;
     fill(g, [V(-Wd/2,y,-D/2),V(Wd/2,y,-D/2),V(Wd/2,y,D/2),V(-Wd/2,y,D/2)], "236,233,224", 0.035);
     wbox(g, 0, -0.5, 0, Wd, 0.5, D, DIM); polyline(g,[V(-Wd/2,y,-D/2),V(Wd/2,y,-D/2),V(Wd/2,y,D/2),V(-Wd/2,y,D/2)], s, true);
@@ -475,7 +747,10 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     const main = enemy ? RED : isMe ? styleOf("255,252,244", 1.25, 1) : npc ? styleOf("236,233,224", 0.9, 0.8) : WHITE;
     const soft = styleOf(main.c, 0.8, main.k*0.6);
     const bob = p.moving ? Math.abs(Math.sin(now/1000*14))*0.05 : 0;
-    const P = (x,y,z) => { const c = Math.cos(p.rot), s = Math.sin(p.rot); return V(p.pos.x + (x*c + z*s)*scale, (y+bob)*scale, p.pos.z + (-x*s + z*c)*scale); };
+    // p.rot, p.pos, bob and scale are constant for the whole pawn, so the rotation trig is computed
+    // once here instead of once per vertex (P() runs ~150 times per pawn).
+    const _pc = Math.cos(p.rot), _ps = Math.sin(p.rot), _px = p.pos.x, _pz = p.pos.z, _by = bob;
+    const P = (x,y,z) => V(_px + (x*_pc + z*_ps)*scale, (y+_by)*scale, _pz + (-x*_ps + z*_pc)*scale);
     // base ring
     wring(g, p.pos.x, 0.01, p.pos.z, 0.42*scale, 16, isMe ? AMB : enemy ? styleOf(RED.c,1,0.7) : DIM);
     // ---- silhouette (pawn: skirt body, shoulder capsule, round head) ----
@@ -499,39 +774,53 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     polyline(g, sh1, main, true); polyline(g, sh2, main, true);
     for (let i=0;i<12;i+=2) seg(g, sh1[i], sh2[i], soft);
     if (tk.kind === "player") { const aS = styleOf(accentC, 1.5, 1); seg(g, P(-0.24,0.93,0.12), P(-0.02,0.7,0.26), aS); seg(g, P(-0.02,0.7,0.26), P(0.12,0.66,0.24), aS); } // sash
-    // round head (camera-facing outline + equator + meridian)
-    wcircle(g, HCen, cR, cam.u, HR, 16, main);
-    warc(g, HCen, sideAx, fwdAx, HR*0.97, 8, 125, 415, soft);
-    warc(g, HCen, fwdAx, upAx, HR*0.97, 8, 38, 322, soft);
+    // ---- hair is emitted BEFORE the head wireframe so the wireframe can be clipped to
+    // whatever the mass does NOT cover. Its fills go into the ordinary fills bucket, so they z-sort
+    // against every other fill in the scene and there is no second render pass. ----
+    const hs = look.hair || "short", hat = look.hat || "none";
+    const HA = { P, HCen, HR, sideAx, fwdAx, scale,
+                 tint: hairTint(hairC), cloakC, accentC, hs, hat, cover: null, cowl: 0 };
+    emitHair(g, HA);
+    const hairCover = HA.cover, hairCowl = HA.cowl;
+    // round head (camera-facing outline + equator + meridian). Where the solid mass sits over the
+    // skull the wireframe under it is simply not emitted — that is what makes it read as ก้อนทึบ
+    // instead of a translucent wash with a bright meridian arc straight over the crown.
+    if (hairCover){
+      const vis = q => !hairCover(q);
+      polylineCut(g, circPts(HCen, cR, cam.u, HR, 16), main, true, vis);
+      polylineCut(g, arcPts(HCen, sideAx, fwdAx, HR*0.97, 8, 125, 415), soft, false, vis);
+      polylineCut(g, arcPts(HCen, fwdAx, upAx, HR*0.97, 8, 38, 322), soft, false, vis);
+    } else {
+      wcircle(g, HCen, cR, cam.u, HR, 16, main);
+      warc(g, HCen, sideAx, fwdAx, HR*0.97, 8, 125, 415, soft);
+      warc(g, HCen, fwdAx, upAx, HR*0.97, 8, 38, 322, soft);
+    }
     seg(g, P(-0.1,0.96,0), P(-0.09,1.02,0), soft); seg(g, P(0.1,0.96,0), P(0.09,1.02,0), soft); // neck
     const hx = 0.21, hy0 = 1.0, hy1 = 1.40, hz = 0.19;
+    // Face features sit ON the skull. Where the solid mass covers them (a hood's cloth), or where
+    // the skull itself is between them and the eye (you are looking at the back of the head), they
+    // must not print through. Visibility only — the same two tests the hair itself uses.
+    const fvis = hairCover ? (q => !hairCover(q) && !hairHidden(q.x, q.y, q.z)) : null;
+    const fseg = (a, b, st) => { if (fvis) polylineCut(g, [a, b], st, false, fvis); else seg(g, a, b, st); };
+    const fpoly = (pts, st, close) => { if (fvis) polylineCut(g, pts, st, close, fvis); else polyline(g, pts, st, close); };
     // eyes
-    seg(g, P(-0.1,1.22,hz+0.01), P(-0.05,1.22,hz+0.01), main); seg(g, P(0.05,1.22,hz+0.01), P(0.1,1.22,hz+0.01), main);
+    fseg(P(-0.1,1.22,hz+0.01), P(-0.05,1.22,hz+0.01), main); fseg(P(0.05,1.22,hz+0.01), P(0.1,1.22,hz+0.01), main);
     const face = look.face || "plain";
-    if (face==="scar") seg(g, P(0.09,1.3,hz+0.01), P(0.14,1.12,hz+0.01), main);
-    if (face==="beard" || (race==="dwarf" && face!=="plain-nobeard")) polyline(g, [P(-0.16,1.12,hz),P(-0.12,0.9,hz+0.02),P(0,0.82,hz+0.03),P(0.12,0.9,hz+0.02),P(0.16,1.12,hz)], main);
-    if (face==="mustache") polyline(g, [P(-0.1,1.1,hz+0.01),P(0,1.13,hz+0.02),P(0.1,1.1,hz+0.01)], main);
-    if (face==="tattoo") { seg(g, P(-0.14,1.32,hz+0.01), P(-0.04,1.28,hz+0.01), soft); seg(g, P(-0.12,1.28,hz+0.01), P(-0.02,1.34,hz+0.01), soft); }
-    if (face==="mask") polyline(g, [P(-0.16,1.28,hz+0.02),P(0.16,1.28,hz+0.02),P(0.16,1.16,hz+0.02),P(-0.16,1.16,hz+0.02)], main, true);
+    if (face==="scar") fseg(P(0.09,1.3,hz+0.01), P(0.14,1.12,hz+0.01), main);
+    if (face==="beard" || (race==="dwarf" && face!=="plain-nobeard")) fpoly([P(-0.16,1.12,hz),P(-0.12,0.9,hz+0.02),P(0,0.82,hz+0.03),P(0.12,0.9,hz+0.02),P(0.16,1.12,hz)], main);
+    if (face==="mustache") fpoly([P(-0.1,1.1,hz+0.01),P(0,1.13,hz+0.02),P(0.1,1.1,hz+0.01)], main);
+    if (face==="tattoo") { fseg(P(-0.14,1.32,hz+0.01), P(-0.04,1.28,hz+0.01), soft); fseg(P(-0.12,1.28,hz+0.01), P(-0.02,1.34,hz+0.01), soft); }
+    if (face==="mask") fpoly([P(-0.16,1.28,hz+0.02),P(0.16,1.28,hz+0.02),P(0.16,1.16,hz+0.02),P(-0.16,1.16,hz+0.02)], main, true);
     // race hints
     if (race==="elf") { seg(g, P(-hx,1.2,0), P(-hx-0.12,1.3,-0.02), main); seg(g, P(hx,1.2,0), P(hx+0.12,1.3,-0.02), main); }
     if (race==="tiefling") { polyline(g, [P(-0.12,hy1,0),P(-0.16,hy1+0.14,-0.02),P(-0.1,hy1+0.26,-0.06)], main); polyline(g, [P(0.12,hy1,0),P(0.16,hy1+0.14,-0.02),P(0.1,hy1+0.26,-0.06)], main); }
     if (race==="dragonborn") { polyline(g, [P(-0.12,1.1,hz),P(-0.1,1.1,hz+0.22),P(0.1,1.1,hz+0.22),P(0.12,1.1,hz)], main); polyline(g, [P(-0.1,1.22,hz),P(-0.08,1.2,hz+0.2),P(0.08,1.2,hz+0.2),P(0.1,1.22,hz)], soft); }
     if (race==="orc" || race==="goblin") { seg(g, P(-0.07,1.1,hz+0.01), P(-0.07,1.17,hz+0.03), main); seg(g, P(0.07,1.1,hz+0.01), P(0.07,1.17,hz+0.03), main); if (race==="goblin") { seg(g, P(-hx,1.25,0), P(-hx-0.18,1.22,-0.04), main); seg(g, P(hx,1.25,0), P(hx+0.18,1.22,-0.04), main); } }
-    // hair
-    const hs = look.hair || "short", hat = look.hat || "none", hairS = styleOf(hairC, 1.2, 1);
-    const hairTop = bb(0,hy1+0.02,0,0.2), hairTop2 = bb(0,hy1+0.1,0,0.14);
-    if (hs !== "bald" && hat !== "hood") fill(g, [hairTop[0],hairTop[1],hairTop2[1],hairTop2[0]], hairC, 0.5);
-    if (hs==="short") polyline(g, [P(-hx-0.02,1.3,-hz),P(-hx-0.02,hy1+0.04,-hz),P(hx+0.02,hy1+0.04,-hz),P(hx+0.02,1.3,-hz)], hairS);
-    if (hs==="long") { for (const x of [-hx-0.03, hx+0.03]) polyline(g, [P(x,hy1+0.02,0),P(x,1.1,-hz-0.04),P(x*0.9,0.78,-hz-0.08)], hairS); polyline(g, [P(-hx-0.03,0.78,-hz-0.08),P(0,0.74,-hz-0.1),P(hx+0.03,0.78,-hz-0.08)], hairS); }
-    if (hs==="ponytail") polyline(g, [P(0,hy1+0.03,-hz),P(0.02,1.3,-hz-0.12),P(-0.03,1.0,-hz-0.16),P(0.02,0.8,-hz-0.1)], hairS);
-    if (hs==="braid") polyline(g, [P(0,hy1+0.03,-hz),P(0.05,1.25,-hz-0.1),P(-0.05,1.1,-hz-0.12),P(0.05,0.95,-hz-0.12),P(-0.04,0.8,-hz-0.1)], hairS);
-    if (hs==="mohawk") polyline(g, [P(0,hy1,-hz),P(0,hy1+0.22,-hz*0.6),P(0,hy1+0.28,0),P(0,hy1+0.22,hz*0.6),P(0,hy1,hz)], hairS);
-    if (hs==="curly") for (let i=0;i<5;i++){ const a = i/4*Math.PI; const c = P(Math.cos(a)*0.2, hy1+0.04+Math.sin(a)*0.06, -0.06); seg(g, add(c, mul(cR,-0.05)), add(c, mul(cR,0.05)), hairS); }
-    if (hs==="bun") { const c = P(0,hy1+0.06,-hz-0.06); polyline(g, [add(c,mul(cR,-0.08)), add(c,V(0,0.1,0)), add(c,mul(cR,0.08)), add(c,V(0,-0.06,0))], hairS, true); }
-    // hats
+    // hats — strokes, so render() puts them after every fill and they land ON TOP of the hair mass.
     const hatS = styleOf(accentC, 1.2, 1);
-    if (hat==="hood") { wcone(g, p.pos.x, (hy0-0.02+bob)*scale, p.pos.z, 0.3*scale, 0.55*scale, 6, styleOf(cloakC,1.2,1)); }
+    // the legacy 6-gon cone is the OLD hood; when the lathed cowl drew, it would only poke a
+    // wireframe spike out of the top of it, so exactly one of the two ever draws.
+    if (hat==="hood" && !hairCowl) { wcone(g, p.pos.x, (hy0-0.02+bob)*scale, p.pos.z, 0.3*scale, 0.55*scale, 6, styleOf(cloakC,1.2,1)); }
     if (hat==="wide") { wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.4*scale, 10, hatS); wcyl(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.16*scale, 0.2*scale, 0.22*scale, 6, hatS, 3); }
     if (hat==="pointed") { wcone(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.26*scale, 0.7*scale, 6, hatS); wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.36*scale, 8, hatS); }
     if (hat==="helm") { wring(g, p.pos.x, (1.26+bob)*scale, p.pos.z, 0.23*scale, 8, hatS); wcone(g, p.pos.x, (1.26+bob)*scale, p.pos.z, 0.23*scale, 0.26*scale, 8, hatS); seg(g, P(0,hy1+0.12,-0.1), P(0,hy1+0.2,0.08), hatS); }
