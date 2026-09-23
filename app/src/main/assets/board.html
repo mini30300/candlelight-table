@@ -1581,10 +1581,7 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     if (foot && headTop) p.hit = { x: (foot.x+headTop.x)/2, y: headTop.y, y2: foot.y, fx: foot.x, ct: crown ? crown.y : headTop.y, r: Math.max(14, 0.5*foot.s*scale), z: foot.z };
     else p.hit = null;
   }
-  // label widths, per font and text: shaping Thai text every frame for every name plate is not free
-  const twCache = new Map();
-  function textW(s){ const k = ctx.font + "|" + s; let w = twCache.get(k); if (w === undefined) { if (twCache.size > 512) twCache.clear(); w = ctx.measureText(s).width; twCache.set(k, w); } return w; }
-  // A campfire plate holds about ten Thai letters (fs*7.2 px, ~110 px at the largest size). A longer name is
+  // A name plate (campfire and board) holds about ten Thai letters (fs*7.2 px, ~110 px at the largest size). A longer name is
   // cut between grapheme clusters (Intl.Segmenter; without it, code points with every mark kept on its base)
   // and ends in "…", so a vowel or tone mark never loses its consonant, and a leading vowel (เ แ โ ใ ไ) is
   // kept with the consonant written after it rather than left dangling before the "…". Cut once per font
@@ -1677,7 +1674,8 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     const list = [...pawns.values()].filter(p => p.hit).sort((a,b) => b.hit.z - a.hit.z);
     for (const p of list){ const t = p.t, h = p.hit; const a = fogA(h.z); if (a < 0.15) continue;
       const fs = Math.round(clamp(9 + h.r*0.18, 10, 15)); ctx.font = (p.isMe ? "600 " : "") + fs + "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif";
-      const name = t.name || ""; if (name) { ctx.fillStyle = "rgba(11,11,14,0.55)"; const tw = textW(name); ctx.fillRect(h.x - tw/2 - 5, h.y - fs - 8, tw + 10, fs + 6); ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+a+")" : t.kind==="enemy" ? "rgba(220,110,96,"+a+")" : "rgba(236,233,224,"+(a*0.9)+")"; ctx.fillText(name, h.x, h.y - 4); }
+      const name = t.name || ""; if (name) { const nf = fitName(name, ctx.font, Math.round(fs*7.2)), tw = nf.w;   // long names end in "…", as at the campfire
+        ctx.fillStyle = "rgba(11,11,14,0.55)"; ctx.fillRect(h.x - tw/2 - 5, h.y - fs - 8, tw + 10, fs + 6); ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+a+")" : t.kind==="enemy" ? "rgba(220,110,96,"+a+")" : "rgba(236,233,224,"+(a*0.9)+")"; ctx.fillText(nf.s, h.x, h.y - 4); }
       if (t.maxHp > 0 && t.hp < t.maxHp) { const bw = clamp(h.r*1.6, 28, 60), y = h.y - fs - 12; ctx.fillStyle = "rgba(236,233,224,0.18)"; ctx.fillRect(h.x-bw/2, y-3, bw, 3); ctx.fillStyle = t.hp/t.maxHp > 0.5 ? "rgba(120,190,182,"+a+")" : "rgba(220,110,96,"+a+")"; ctx.fillRect(h.x-bw/2, y-3, bw*clamp(t.hp/t.maxHp,0,1), 3); }
     }
   }
