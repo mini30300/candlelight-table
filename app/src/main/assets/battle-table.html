@@ -37,7 +37,7 @@
 #bt .grp{display:flex;gap:4px;flex:1;min-width:0}
 #bt button{flex:1;min-width:0;min-height:44px;border-radius:10px;border:1px solid var(--chipB);background:var(--chip);color:var(--ink);font:inherit;font-size:14px;padding:0 4px;cursor:pointer;touch-action:manipulation}
 #bt button:disabled{opacity:.4;cursor:default}
-#bt button.on:not(.map):not(.mode){background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:600}
+#bt button.on:not(.map):not(.mode):not(.ter){background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:600}
 #bt button.go{background:var(--on);border-color:var(--on);color:var(--onInk);font-weight:700;min-height:50px;font-size:15px}
 #bt button.sm{min-height:34px;font-size:13px;flex:0 0 auto;padding:0 10px}
 #bt .sl{display:flex;align-items:center;gap:8px;flex:1;font-size:13px;color:var(--sub);min-width:0}
@@ -45,21 +45,33 @@
 #bt .note{font-size:12px;color:var(--sub);padding:4px 2px 0;line-height:17px}
 #bt h3{margin:8px 2px 2px;font-size:13px;font-weight:600;color:var(--sub);letter-spacing:.4px}
 
-/* ---- map picker: 2x2 of painted previews, as drawn ---- */
-#bt .maps{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+/* ---- map picker: four painted previews in a row, as drawn ---- */
+#bt .maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 #bt .map{position:relative;border:1px solid var(--chipB);border-radius:12px;overflow:hidden;background:var(--chip);cursor:pointer;padding:0;min-height:0}
-#bt .map canvas{width:100%;height:78px;min-height:0;display:block;border:0;border-radius:0}
-#bt .map span{display:block;font-size:13px;padding:5px 8px;text-align:left;color:var(--ink);font-weight:400}
+#bt .map canvas{width:100%;height:58px;min-height:0;display:block;border:0;border-radius:0}
+#bt .map span{display:block;font-size:12px;padding:4px 6px;text-align:left;color:var(--ink);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #bt .map.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset;background:var(--chip)}
 #bt .map.on span{color:var(--on);font-weight:600}
 
-/* ---- mode rows, as drawn: a picture strip per mode ---- */
-#bt .modes{display:flex;flex-direction:column;gap:6px}
-#bt .mode{display:flex;align-items:center;justify-content:flex-start;gap:10px;border:1px solid var(--chipB);border-radius:12px;
-  background:var(--chip);padding:10px 12px;cursor:pointer;text-align:left;min-height:62px;font-weight:400}
-#bt .mode>span:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* ---- terrain type: four drawn tiles (สูง ราบ เนิน ป่าทึบ) ---- */
+#bt .ters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#bt .ter{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;padding:6px 4px;min-height:62px;color:var(--sub)}
+#bt .ter svg{width:100%;max-width:64px;height:28px}
+#bt .ter span{font-size:13px;color:var(--ink)}
+#bt .ter.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset;color:var(--on)}
+#bt .ter.on span{color:var(--on);font-weight:600}
+#bt .hrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
+#bt .hrow h3{margin:0 2px}
+#bt .hrow .grp{flex:0 0 128px}
+#bt .sl.off{opacity:.4}
+
+/* ---- modes: six tiles, two to a row, as drawn ---- */
+#bt .modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#bt .mode{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;border:1px solid var(--chipB);border-radius:12px;
+  background:var(--chip);padding:9px 10px;cursor:pointer;text-align:left;min-height:88px;font-weight:400}
+#bt .mode>span:last-child{display:flex;flex-direction:column;gap:1px;min-width:0}
 #bt .mode.on{border-color:var(--on);box-shadow:0 0 0 1px var(--on) inset;background:var(--chip)}
-#bt .mode svg{flex:0 0 auto;width:96px;height:38px;color:var(--on)}
+#bt .mode svg{flex:0 0 auto;width:84px;height:33px;color:var(--on)}
 #bt .mode .t{display:block;font-size:15px;font-weight:600;color:var(--ink)}
 #bt .mode.on .t{color:var(--on)}
 #bt .mode .d{display:block;font-size:12px;color:var(--sub);line-height:16px;white-space:normal}
@@ -84,8 +96,10 @@
 
 /* ---- play ---- */
 #bt .turnbar{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:8px;background:rgba(11,11,14,0.78);
-  border:1px solid var(--chipB);border-radius:10px;padding:6px 10px;font-size:14px;pointer-events:none;max-width:calc(100% - 20px)}
+  border:1px solid var(--chipB);border-radius:10px;padding:6px 10px;font-size:14px;pointer-events:none;max-width:calc(100% - 20px);
+  flex-wrap:wrap;row-gap:2px}
 #bt .turnbar b{font-weight:600}
+#bt .turnbar .sc{min-width:0}   /* 8 ฝ่ายบนจอ 360: คะแนนขึ้นบรรทัดใหม่ได้ ไม่ดันจอให้เลื่อนข้าง */
 #bt #btDone:not(.hide){display:flex}
 #bt .log{font-size:12px;line-height:17px;color:var(--sub);background:var(--chip);border:1px solid var(--chipB);
   border-radius:10px;padding:8px 10px;max-height:137px;overflow-y:auto}
@@ -133,16 +147,41 @@
 
     <!-- ══════════ ตั้งสนาม ══════════ -->
     <div id="scSetup">
-      <h3>แมพ</h3>
+      <h3>เลือกแผนที่</h3>
       <div class="maps" id="btMaps">
-        <button class="map on" data-t="ruin"><canvas width="240" height="120"></canvas><span>เมืองพัง</span></button>
-        <button class="map" data-t="forest"><canvas width="240" height="120"></canvas><span>ป่าเนินเขา</span></button>
-        <button class="map" data-t="desert"><canvas width="240" height="120"></canvas><span>ทะเลทราย</span></button>
-        <button class="map" data-t="ice"><canvas width="240" height="120"></canvas><span>ที่ราบหิมะ</span></button>
+        <button class="map on" data-t="ruin"><canvas width="160" height="96"></canvas><span>เมืองพัง</span></button>
+        <button class="map" data-t="forest"><canvas width="160" height="96"></canvas><span>ป่าไม้</span></button>
+        <button class="map" data-t="desert"><canvas width="160" height="96"></canvas><span>ทะเลทราย</span></button>
+        <button class="map" data-t="ice"><canvas width="160" height="96"></canvas><span>ทุ่งหิมะ</span></button>
       </div>
-      <h3>ขนาดโต๊ะ</h3>
-      <div class="row"><label class="sl">ขนาด <input type="range" id="btSize" min="24" max="180" step="2" value="48"><em id="btSizeV" style="font-style:normal;color:var(--ink);min-width:74px;text-align:right">48×34 ม.</em></label></div>
+      <h3>ขนาด</h3>
+      <div class="row"><label class="sl">โต๊ะ <input type="range" id="btSize" min="24" max="180" step="2" value="48"><em id="btSizeV" style="font-style:normal;color:var(--ink);min-width:74px;text-align:right">48×34 ม.</em></label></div>
       <div class="row" style="margin-top:6px"><button class="sm wide" id="btNew">สุ่มสนามใหม่</button></div>
+
+      <h3>ภูมิประเทศ</h3>
+      <div class="ters" id="btTer">
+        <button class="ter" data-r="mountain">
+          <svg viewBox="0 0 64 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 26L18 7l7 8 9-13 27 24"/><path d="M14 12l4 2 3-3M30 7l4 3 3-2"/>
+          </svg><span>สูง</span></button>
+        <button class="ter" data-r="flat">
+          <svg viewBox="0 0 64 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h58"/><path d="M12 21l-1-3M13 21l1-3M40 21l-1-3M41 21l1-3"/>
+          </svg><span>ราบ</span></button>
+        <button class="ter on" data-r="hills">
+          <svg viewBox="0 0 64 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 24c8 0 11-11 20-11s13 9 19 9 8-5 13-5 6 3 6 3"/>
+          </svg><span>เนิน</span></button>
+        <button class="ter" data-r="forest">
+          <svg viewBox="0 0 64 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 26V20M14 4l-7 16h14zM32 26V18M32 3l-8 15h16zM50 26V20M50 5l-7 15h14z"/>
+          </svg><span>ป่าทึบ</span></button>
+      </div>
+
+      <div class="hrow"><h3>จำนวนสิ่งก่อสร้าง</h3><div class="grp" id="btBld">
+        <button data-b="0">ปิด</button><button data-b="1" class="on">เปิด</button>
+      </div></div>
+      <div class="row" style="margin-top:4px"><label class="sl" id="btDensL">น้อย <input type="range" id="btDens" min="0.25" max="2.5" step="0.25" value="1"> มาก <em id="btDensV" style="font-style:normal;color:var(--ink);min-width:40px;text-align:right">×1</em></label></div>
 
       <h3>โหมด</h3>
       <div class="modes" id="btModes">
@@ -154,7 +193,7 @@
             <text x="53" y="24" font-size="13" stroke="none" fill="currentColor" font-family="system-ui">VS</text>
             <g><circle cx="84" cy="11" r="5"/><path d="M84 17v10M78 21h12M79 33l5-6 5 6"/></g>
           </svg>
-          <span><span class="t">PvE — สู้กับบอท</span><span class="d">บอทคุมอีกฝั่ง เล่นคนเดียวได้</span></span>
+          <span><span class="t">PvE</span><span class="d">สู้กับบอท เล่นคนเดียวได้</span></span>
         </button>
         <button class="mode" data-g="pvp">
           <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -162,15 +201,7 @@
             <text x="41" y="24" font-size="13" stroke="none" fill="currentColor" font-family="system-ui">VS</text>
             <g><circle cx="79" cy="11" r="5"/><path d="M79 17v10M73 21h12M74 33l5-6 5 6"/></g>
           </svg>
-          <span><span class="t">PvP — คนต่อคน</span><span class="d">สองคนผลัดกันเล่นบนเครื่องเดียว</span></span>
-        </button>
-        <button class="mode" data-g="custom">
-          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <g><circle cx="14" cy="14" r="4"/><path d="M14 18v8M10 21h8M11 30l3-5 3 5"/></g>
-            <g><circle cx="45" cy="10" r="6"/><path d="M45 17v12M37 21h16M38 34l7-7 7 7"/></g>
-            <g><circle cx="76" cy="13" r="4.5"/><path d="M76 18v9M71 22h10M72 31l4-5 4 5"/></g>
-          </svg>
-          <span><span class="t">กำหนดเอง</span><span class="d">วางหน่วยเองอิสระ ไม่มีกติกา ไม่มีเทิร์น</span></span>
+          <span><span class="t">PvP</span><span class="d">คนต่อคน ผลัดกันเล่น</span></span>
         </button>
         <button class="mode" data-g="team">
           <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -180,7 +211,7 @@
             <g><circle cx="70" cy="12" r="4.5"/><path d="M70 17v9M65 21h10M66 32l4-6 4 6"/></g>
             <g><circle cx="86" cy="12" r="4.5"/><path d="M86 17v9M81 21h10M82 32l4-6 4 6"/></g>
           </svg>
-          <span><span class="t">ทีม — 2v2 · 3v3 · 4v4</span><span class="d">แบ่งงบกันในทีม ลงสนามรวมกัน</span></span>
+          <span><span class="t">ทีม</span><span class="d">2v2 · 3v3 · 4v4</span></span>
         </button>
         <button class="mode" data-g="ffa">
           <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -189,7 +220,23 @@
             <g><circle cx="60" cy="12" r="4"/><path d="M60 16v8M56 19h8M57 30l3-5 3 5"/></g>
             <g><circle cx="84" cy="12" r="4"/><path d="M84 16v8M80 19h8M81 30l3-5 3 5"/></g>
           </svg>
-          <span><span class="t">ฟรีฟอร์ออล — ตัวใครตัวมัน</span><span class="d">ทุกคนคนละทีม ตีกันได้หมด</span></span>
+          <span><span class="t">FFA</span><span class="d">ตัวใครตัวมัน ตีกันได้หมด</span></span>
+        </button>
+        <button class="mode" data-g="custom">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <g><circle cx="14" cy="14" r="4"/><path d="M14 18v8M10 21h8M11 30l3-5 3 5"/></g>
+            <g><circle cx="45" cy="10" r="6"/><path d="M45 17v12M37 21h16M38 34l7-7 7 7"/></g>
+            <g><circle cx="76" cy="13" r="4.5"/><path d="M76 18v9M71 22h10M72 31l4-5 4 5"/></g>
+          </svg>
+          <span><span class="t">กำหนดเอง</span><span class="d">วางหน่วยอิสระ ไม่มีเทิร์น</span></span>
+        </button>
+        <button class="mode" data-g="spectator">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 6q-8 13 0 26M72 6q8 13 0 26"/>
+            <path d="M30 19q18-17 36 0q-18 17-36 0z"/><circle cx="48" cy="19" r="6"/>
+            <circle cx="48" cy="19" r="2.2" fill="currentColor" stroke="none"/>
+          </svg>
+          <span><span class="t">ผู้ชม</span><span class="d">จัดแล้วนั่งดูบอทตีกัน</span></span>
         </button>
       </div>
 
@@ -203,12 +250,18 @@
         <h3>จำนวนคน</h3>
         <div class="row"><label class="sl">คน <input type="range" id="btFfaN" min="3" max="8" step="1" value="4"><em id="btFfaNV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">4 คน</em></label></div>
       </div>
+      <!-- โหมดผู้ชมข้ามหน้าจัดกองทัพ งบจึงต้องตั้งได้ตรงนี้ -->
+      <div id="btSpecOpt" class="hide">
+        <h3>บอทกี่ฝ่าย · งบฝ่ายละเท่าไร</h3>
+        <div class="row"><label class="sl">ฝ่าย <input type="range" id="btSpecN" min="2" max="8" step="1" value="2"><em id="btSpecNV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">2 ฝ่าย</em></label></div>
+        <div class="row" style="margin-top:4px"><label class="sl">แต้ม <input type="range" id="btSpecPts" min="60" max="600" step="10" value="150"><em id="btSpecPtsV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">150</em></label></div>
+      </div>
       <div id="btRules">
         <h3>กติกาเพิ่มเติม</h3>
         <div class="row"><div class="grp" id="btFire">
           <button data-f="0" class="on">ยิงพวกเดียวกันไม่ได้</button><button data-f="1">ฟรีฟาย</button>
         </div></div>
-        <div class="row" style="margin-top:6px"><div class="grp" id="btClock">
+        <div class="row" id="btClockRow" style="margin-top:6px"><div class="grp" id="btClock">
           <button data-c="0" class="on">ไม่จับเวลา</button><button data-c="25">25 วิ</button><button data-c="50">50 วิ</button>
         </div></div>
         <div id="btRoom" class="warn hide"></div>
@@ -263,10 +316,22 @@
     <!-- ══════════ เล่น ══════════ -->
     <div id="scPlay" class="hide">
       <div class="card" id="btCard"><div class="nm">แตะที่หน่วยของตัวเอง</div><div class="st">เลือกแล้วค่อยสั่งเดินหรือยิง</div></div>
-      <div class="row" style="margin-top:6px"><div class="grp" id="btAct">
-        <button data-a="move" disabled>เดิน</button><button data-a="shoot" disabled>ยิง</button><button data-a="done" disabled>ข้าม</button>
-      </div></div>
-      <div class="row" style="margin-top:6px"><button class="go" id="btEnd">จบเทิร์น</button></div>
+      <div id="btHumanCtl">
+        <div class="row" style="margin-top:6px"><div class="grp" id="btAct">
+          <button data-a="move" disabled>เดิน</button><button data-a="shoot" disabled>ยิง</button><button data-a="done" disabled>ข้าม</button>
+        </div></div>
+        <div class="row" style="margin-top:6px"><button class="go" id="btEnd">จบเทิร์น</button></div>
+      </div>
+      <!-- โหมดผู้ชม: ไม่มีปุ่มสั่งหน่วย มีแต่ปุ่มคุมการเล่น -->
+      <div id="btSpec" class="hide">
+        <div class="row" style="margin-top:6px">
+          <button id="btPause" style="flex:0 0 108px"></button>
+          <div class="grp" id="btSpd"><button data-s="1" class="on">×1</button><button data-s="2">×2</button><button data-s="4">×4</button></div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btStep">ทีละจังหวะ ›</button><button id="btAgain">ดูอีกรอบ ↻</button>
+        </div>
+      </div>
       <h3 id="btDoneH" class="hide">ในทีมนี้</h3>
       <div id="btDone" class="hide" style="flex-wrap:wrap;gap:6px"></div>
 
@@ -1218,34 +1283,57 @@ function vnoise(x, y){ var ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy,
 function fbm(x,y,oct){ var s=0,a=1,n=0,f=1; for(var i=0;i<oct;i++){ s+=a*vnoise(x*f,y*f); n+=a; a*=0.5; f*=2; } return s/n; }
 
 // ---------- themes ----------
+// relief/rough are the theme's own rolling ground -- what the เนิน (hills) terrain type draws
 var THEMES = {
   ruin:   { sky:['#242331','#0C0C12'], ground:[112,104,94], ground2:[68,64,62], rock:[138,134,128], relief:3.4, rough:1.2,
             wood:[126,96,62], name:'เมืองพัง' },
   forest: { sky:['#1D2B24','#0A0F0C'], ground:[94,124,64], ground2:[104,88,52], rock:[118,116,106], relief:7.5, rough:1.4,
-            wood:[126,96,62], name:'ป่าเนินเขา' },
+            wood:[126,96,62], name:'ป่าไม้' },
   desert: { sky:['#3A2B1C','#0E0B08'], ground:[194,160,108], ground2:[142,114,76], rock:[162,138,104], relief:5.0, rough:0.9,
             wood:[126,96,62], name:'ทะเลทราย' },
   ice:    { sky:['#24303F','#0B0E13'], ground:[218,226,236], ground2:[146,160,180], rock:[136,146,160], relief:4.2, rough:1.0,
-            wood:[126,96,62], name:'ที่ราบหิมะ' }
+            wood:[126,96,62], name:'ทุ่งหิมะ' }
 };
 var theme = 'ruin';
 function TH(){ return THEMES[theme]; }
+// ภูมิประเทศเลือกแยกจากธีม: ธีมบอกสีกับของที่อยู่บนพื้น ภูมิประเทศบอกว่าพื้นสูงต่ำแค่ไหน
+// ป่าทึบ = พื้นแบบเนิน แล้วปลูกดงไม้หนา ๆ เพิ่ม ไม่ว่าจะธีมไหน
+var TERRAINS = {
+  flat:     { name:'ราบ' },
+  hills:    { name:'เนิน' },
+  mountain: { name:'สูง' },
+  forest:   { name:'ป่าทึบ' }
+};
+var terrain = 'hills';
+function TR(){ return TERRAINS[terrain] || TERRAINS.hills; }
+// สิ่งก่อสร้าง: เปิด/ปิด กับความหนาแน่น 0.25–2.5 (1 = เท่าเดิม) ทุกเครื่องในห้องต้องได้ค่าเดียวกัน
+var buildings = true, density = 1;
 
 // ---------- table + terrain ----------
 var table = { w:48, d:34 };            // metres of ground (1 game inch = 1 m) — ขนาดโต๊ะจริงของเกมแนวนี้
-var CELL = 2, HG = null, hw = 0, hd = 0;   // heightfield (samples at cell corners)
+var CELL = 2, HG = null, hw = 0, hd = 0, HSPAN = 1;   // heightfield (samples at cell corners); HSPAN = its largest |h|
 function buildTerrain(){
   CELL = Math.max(2, Math.round(table.w/42*2)/2);
   hw = Math.round(table.w/CELL); hd = Math.round(table.d/CELL);
   HG = new Float32Array((hw+1)*(hd+1));
-  var t = TH();
+  var t = TH(), rel = t.relief, rough = t.rough, dune = 0.9;
+  if (terrain === 'flat'){ rel = 0.35; rough = 0.45; dune = 0.25; }       // a plain: only the small bumps of the ground itself
+  if (terrain === 'mountain'){ rel = 11; rough = 1.3; }
+  HSPAN = 0;
   for (var j=0;j<=hd;j++) for (var i=0;i<=hw;i++){
-    var x = -table.w/2 + i*CELL, z = -table.d/2 + j*CELL;
-    var h = fbm(x/34+3.7, z/34-1.1, 2)*t.relief + fbm(x/12+9.1, z/12+4.4, 2)*t.relief*0.42 + fbm(x/4.5+2.5, z/4.5+6.5, 2)*0.5*t.rough + fbm(x/1.6, z/1.6, 2)*0.16*t.rough;
-    if (theme === 'desert'){ h += Math.sin((x*0.18 + fbm(x/40,z/40,2)*2.2))*0.9; }        // dune ridges
+    var x = -table.w/2 + i*CELL, z = -table.d/2 + j*CELL, h;
+    if (terrain === 'mountain'){
+      // ridged noise: 1-|n| folds every zero crossing of the noise into a sharp crest, squared so the valleys between
+      // stay wide and the crests stay narrow -- ranges of peaks, not the round blobs a plain fbm gives
+      var rg = 1 - Math.abs(fbm(x/22+5.3, z/22-7.9, 3));
+      h = rg*rg*rel*1.35 + fbm(x/40+3.7, z/40-1.1, 2)*rel*0.55 - rel*0.42 + fbm(x/4.5+2.5, z/4.5+6.5, 2)*0.5*rough + fbm(x/1.6, z/1.6, 2)*0.16*rough;
+    } else
+      h = fbm(x/34+3.7, z/34-1.1, 2)*rel + fbm(x/12+9.1, z/12+4.4, 2)*rel*0.42 + fbm(x/4.5+2.5, z/4.5+6.5, 2)*0.5*rough + fbm(x/1.6, z/1.6, 2)*0.16*rough;
+    if (theme === 'desert'){ h += Math.sin((x*0.18 + fbm(x/40,z/40,2)*2.2))*dune; }        // dune ridges
     // flatten a road / clearing band through the middle of a ruined city
     if (theme === 'ruin'){ var band = Math.abs(z + fbm(x/18+21.1, 0.5, 2)*5) ; if (band < 5) h *= 0.35 + 0.65*(band/5); }
     HG[j*(hw+1)+i] = h;
+    if (Math.abs(h) > HSPAN) HSPAN = Math.abs(h);
   }
 }
 function heightAt(x, z){    // bilinear over the field, clamped to the table
@@ -1292,11 +1380,37 @@ function proj(p){    // world -> [sx, sy, depth]; depth <= 0 means behind the ca
   var cx = vx*RT[0] + vy*RT[1] + vz*RT[2], cy = vx*UP[0] + vy*UP[1] + vz*UP[2];
   return [ W/2 + cx*FL/cz, H/2 - cy*FL/cz, cz ];
 }
-function groundHit(sx, sy){   // screen point -> point on the ground plane (y from the heightfield, iterated twice)
-  var ndx = (sx - W/2)/FL, ndy = -(sy - H/2)/FL;
-  var d = [ FW[0] + RT[0]*ndx + UP[0]*ndy, FW[1] + RT[1]*ndx + UP[1]*ndy, FW[2] + RT[2]*ndx + UP[2]*ndy ];
+function rayDir(sx, sy){ var ndx = (sx - W/2)/FL, ndy = -(sy - H/2)/FL;
+  return [ FW[0] + RT[0]*ndx + UP[0]*ndy, FW[1] + RT[1]*ndx + UP[1]*ndy, FW[2] + RT[2]*ndx + UP[2]*ndy ]; }
+function planeHit(sx, sy, y){   // screen point -> the flat plane at height y
+  var d = rayDir(sx, sy); if (d[1] >= -1e-4) return null;
+  var t = (y - EYE[1])/d[1]; return t < 0 ? null : [EYE[0]+d[0]*t, y, EYE[2]+d[2]*t];
+}
+// screen point -> the first point where the ray from the eye meets the ground. Guessing y from the field under the last
+// guess (three times) was close enough on gentle hills, but on a mountain it jumped past the ridge under the finger and
+// landed metres away, sometimes off the table. So march the ray through the table's box 20 cm at a time (a crest the
+// ray only clips for less than a step is missed; a few microseconds a tap) until it first dips under the field, then
+// halve that last step ten times.
+function groundHit(sx, sy){
+  var d = rayDir(sx, sy), lo = [-table.w/2, -HSPAN - 0.5, -table.d/2], hi = [table.w/2, HSPAN + 0.5, table.d/2];
+  var t0 = 0, t1 = 1e9, a, k;
+  for (a=0;a<3;a++){
+    if (Math.abs(d[a]) < 1e-9){ if (EYE[a] < lo[a] || EYE[a] > hi[a]) t1 = -1; continue; }
+    var ta = (lo[a] - EYE[a])/d[a], tb = (hi[a] - EYE[a])/d[a];
+    t0 = Math.max(t0, Math.min(ta, tb)); t1 = Math.min(t1, Math.max(ta, tb));
+  }
+  function under(t){ return EYE[1] + d[1]*t <= heightAt(EYE[0] + d[0]*t, EYE[2] + d[2]*t); }
+  function at(t){ return [EYE[0] + d[0]*t, EYE[1] + d[1]*t, EYE[2] + d[2]*t]; }
+  if (t0 < t1){
+    if (under(t0)) return at(t0);                    // came in through the side of the table, below its edge
+    var dt = 0.2/Math.hypot(d[0], d[1], d[2]), tp = t0, tc;
+    for (tc = t0 + dt; ; tc += dt){ if (tc > t1) tc = t1;
+      if (under(tc)){ for (k=0;k<10;k++){ var m = (tp + tc)/2; if (under(m)) tc = m; else tp = m; } return at(tc); }
+      if (tc >= t1) break; tp = tc; }
+  }
+  // missed the table (a tap past its edge): a point out there all the same, so the callers can say it is off the table
   var y = 0, p = null;
-  for (var k=0;k<3;k++){ if (d[1] >= -1e-4) return null; var t = (y - EYE[1])/d[1]; if (t < 0) return null;
+  for (k=0;k<3;k++){ if (d[1] >= -1e-4) return null; var t = (y - EYE[1])/d[1]; if (t < 0) return null;
     p = [EYE[0]+d[0]*t, y, EYE[2]+d[2]*t]; y = heightAt(p[0], p[2]); }
   return p;
 }
@@ -1349,46 +1463,176 @@ function prism(cx, cy, cz, r, h, n, col, rotY, taper){   // n-gon column: sides 
 // ---------- the table itself: ground mesh + wooden rails ----------
 function pointAt(i, j){ var x = -table.w/2 + i*CELL, z = -table.d/2 + j*CELL; return [x, HG[j*(hw+1)+i], z]; }
 function drawGround(step){
-  var t = TH(), i, j;
+  // shade by height against the field's real span, not the theme's relief: a flat table (span near 0) used to divide
+  // by ~0 and hand NaN to rgb(), and a mountain table (span far past the relief) came out one flat colour
+  var t = TH(), i, j, span = Math.max(1, HSPAN)*2.1, peaks = terrain === 'mountain';
   for (j=0;j<hd;j+=step) for (i=0;i<hw;i+=step){
     var i2 = Math.min(i+step, hw), j2 = Math.min(j+step, hd);
     var a = pointAt(i,j), b = pointAt(i2,j), c = pointAt(i2,j2), d = pointAt(i,j2);
-    var hh = (a[1]+b[1]+c[1]+d[1])/4, m = clamp(0.5 + hh/(t.relief*2.2), 0, 1);
+    var hh = (a[1]+b[1]+c[1]+d[1])/4, m = clamp(0.5 + hh/span, 0, 1);
     var px = (a[0]+c[0])/2, pz = (a[2]+c[2])/2, patch = fbm(px/5.5+41.3, pz/5.5+17.7, 2);
     var col = [ lerp(t.ground2[0], t.ground[0], m), lerp(t.ground2[1], t.ground[1], m), lerp(t.ground2[2], t.ground[2], m) ];
     if (patch > 0.18){ var w2 = clamp((patch-0.18)*2.4, 0, 1); col = [ lerp(col[0], t.ground2[0]*0.82, w2), lerp(col[1], t.ground2[1]*0.82, w2), lerp(col[2], t.ground2[2]*0.8, w2) ]; }
+    if (peaks && m > 0.72){ var w3 = clamp((m-0.72)*2.2, 0, 0.7); col = [ lerp(col[0], t.rock[0], w3), lerp(col[1], t.rock[1], w3), lerp(col[2], t.rock[2], w3) ]; }   // bare rock up high
     face([a,b,c,d], col, { cull:false, bias: CELL*step*0.9 });   // the ground sorts a little farther than anything standing on it
   }
 }
 function drawRails(){
   var t = TH(), dark = [t.ground2[0]*0.34, t.ground2[1]*0.32, t.ground2[2]*0.32];
-  // skirt: a dark curtain from the table edge downward, so the ground looks like a solid slab
-  var i, j, drop = 3.2;
-  for (i=0;i<hw;i++){ var a = pointAt(i,0), b = pointAt(i+1,0); face([[a[0],a[1],a[2]],[b[0],b[1],b[2]],[b[0],-drop,b[2]],[a[0],-drop,a[2]]], dark, { cull:false });
-    var c = pointAt(i,hd), d = pointAt(i+1,hd); face([[d[0],-drop,d[2]],[d[0],d[1],d[2]],[c[0],c[1],c[2]],[c[0],-drop,c[2]]], dark, { cull:false }); }
-  for (j=0;j<hd;j++){ var e = pointAt(0,j), f = pointAt(0,j+1); face([[f[0],-drop,f[2]],[f[0],f[1],f[2]],[e[0],e[1],e[2]],[e[0],-drop,e[2]]], dark, { cull:false });
-    var g = pointAt(hw,j), k = pointAt(hw,j+1); face([[g[0],g[1],g[2]],[k[0],k[1],k[2]],[k[0],-drop,k[2]],[g[0],-drop,g[2]]], dark, { cull:false }); }
+  // skirt: a dark curtain from the table edge downward, so the ground looks like a solid slab. It has to reach below the
+  // lowest point of the edge, or a deep valley running off the table turns that stretch of curtain upside down
+  var i, j, drop = 3.2, lo = 0;
+  for (i=0;i<=hw;i++) lo = Math.min(lo, HG[i], HG[hd*(hw+1)+i]);
+  for (j=0;j<=hd;j++) lo = Math.min(lo, HG[j*(hw+1)], HG[j*(hw+1)+hw]);
+  drop = Math.max(drop, 1.2 - lo);
+  // the curtain faces outward and is culled from behind: the far side, seen through the table, used to sort in front
+  // of the edge of the ground (the ground sorts a little far on purpose) and show as a row of dark teeth
+  var SKIRT = {};
+  for (i=0;i<hw;i++){ var a = pointAt(i,0), b = pointAt(i+1,0); face([[a[0],a[1],a[2]],[b[0],b[1],b[2]],[b[0],-drop,b[2]],[a[0],-drop,a[2]]], dark, SKIRT);
+    var c = pointAt(i,hd), d = pointAt(i+1,hd); face([[d[0],-drop,d[2]],[d[0],d[1],d[2]],[c[0],c[1],c[2]],[c[0],-drop,c[2]]], dark, SKIRT); }
+  for (j=0;j<hd;j++){ var e = pointAt(0,j), f = pointAt(0,j+1); face([[f[0],-drop,f[2]],[f[0],f[1],f[2]],[e[0],e[1],e[2]],[e[0],-drop,e[2]]], dark, SKIRT);
+    var g = pointAt(hw,j), k = pointAt(hw,j+1); face([[g[0],g[1],g[2]],[k[0],k[1],k[2]],[k[0],-drop,k[2]],[g[0],-drop,g[2]]], dark, SKIRT); }
 }
 
 // ---------- scatter terrain, generated per theme from the seed ----------
 var PROPS = [];
+// ของที่คนสร้าง — ปุ่ม "สิ่งก่อสร้าง ปิด" เอาพวกนี้ออกทั้งหมด เหลือแต่ของธรรมชาติ (ต้นไม้ หิน ท่อนไม้ หลุม เศษซาก)
+var STRUCT = { building:1, wall:1, tower:1, barricade:1, pipe:1, obelisk:1, pillars:1, arch:1, buried:1 };
+function themeKind(t, r){
+  if (t === 'ruin')   return r < 0.40 ? 'building' : r < 0.52 ? 'wall' : r < 0.62 ? 'tower' : r < 0.74 ? 'rubble' : r < 0.85 ? 'barricade' : r < 0.94 ? 'crater' : 'pipe';
+  if (t === 'forest') return r < 0.34 ? 'tree' : r < 0.58 ? 'pine' : r < 0.7 ? 'boulder' : r < 0.8 ? 'log' : r < 0.94 ? 'bush' : 'wall';
+  if (t === 'desert') return r < 0.16 ? 'obelisk' : r < 0.4 ? 'pillars' : r < 0.58 ? 'buried' : r < 0.8 ? 'boulder' : r < 0.94 ? 'arch' : 'deadtree';
+  return r < 0.34 ? 'iceslab' : r < 0.54 ? 'boulder' : r < 0.7 ? 'pine' : r < 0.86 ? 'wall' : 'crater';
+}
+// ความหนาแน่นเกิน 1 เพิ่มแต่สิ่งก่อสร้าง ป่ากับหิมะเดิมแทบไม่มีเลย จึงได้ซากบ้านกับกำแพงเพิ่ม ไม่งั้นแถบเลื่อนไม่มีผลอะไร
+function extraKind(t, r){
+  if (t === 'ruin')   return r < 0.3 ? 'building' : r < 0.52 ? 'wall' : r < 0.66 ? 'tower' : r < 0.88 ? 'barricade' : 'pipe';
+  if (t === 'forest') return r < 0.4 ? 'building' : r < 0.8 ? 'wall' : 'tower';
+  if (t === 'desert') return r < 0.22 ? 'obelisk' : r < 0.52 ? 'pillars' : r < 0.78 ? 'buried' : 'arch';
+  return r < 0.36 ? 'building' : r < 0.74 ? 'wall' : 'barricade';
+}
+function radOf(kind){ return kind==='building'?7:kind==='wall'||kind==='pillars'?4.5:kind==='crater'?3.5:2.4; }
+function bldSize(o){ return [ (5 + o.h*7)*o.s, (4.5 + hash3(o.h*131|0, 2, 61)*6)*o.s ]; }   // a building's footprint, as drawn
+// two houses whose walls cross read as a glitch, not a ruin: separating-axis test on the two turned footprints, plus a
+// lane of m metres. Local x runs along (cos, -sin) and local z along (sin, cos) -- the frame box() draws in.
+function housesClear(o, m){
+  var A = bldSize(o), ca = Math.cos(o.rot), sa = Math.sin(o.rot), q, k;
+  for (q=0;q<PROPS.length;q++){ var p = PROPS[q]; if (p.kind !== 'building') continue;
+    var B = bldSize(p), cb = Math.cos(p.rot), sb = Math.sin(p.rot), dx = p.x - o.x, dz = p.z - o.z, apart = false;
+    var L = [[ca,-sa],[sa,ca],[cb,-sb],[sb,cb]];
+    for (k=0;k<4 && !apart;k++){ var lx = L[k][0], lz = L[k][1];
+      var ra = A[0]/2*Math.abs(ca*lx - sa*lz) + A[1]/2*Math.abs(sa*lx + ca*lz);
+      var rb = B[0]/2*Math.abs(cb*lx - sb*lz) + B[1]/2*Math.abs(sb*lx + cb*lz);
+      if (Math.abs(dx*lx + dz*lz) > ra + rb + m) apart = true; }
+    if (!apart) return false; }
+  return true;
+}
+function inFoot(o, x, z, m){      // inside house o's footprint grown by m
+  var b = bldSize(o), c = Math.cos(o.rot), sn = Math.sin(o.rot), dx = x - o.x, dz = z - o.z;
+  return Math.abs(dx*c - dz*sn) < b[0]/2 + m && Math.abs(dx*sn + dz*c) < b[1]/2 + m;
+}
+function inHouse(x, z, m){        // inside any house
+  for (var q=0;q<PROPS.length;q++) if (PROPS[q].kind === 'building' && inFoot(PROPS[q], x, z, m)) return true;
+  return false;
+}
+// what a new house would stand over (its walls would cut through it): null when that includes a structure, so the house
+// cannot go there; otherwise the trees, rocks and rubble it clears away -- a ruin in a forest stands in its own clearing
+function underHouse(o){
+  var out = [], q, p;
+  for (q=0;q<PROPS.length;q++){ p = PROPS[q]; if (p.kind === 'building' || !inFoot(o, p.x, p.z, p.rad*0.6)) continue;
+    if (STRUCT[p.kind]) return null; out.push(q); }
+  return out;
+}
+// A piece that stands on one level (a house, a tower, a slab) needs level ground: on a slope one side floats and the
+// other sinks. rect = its half extents in its own frame (the frame box() and propBlocks() use), or a radius.
+function footOf(o){
+  var s = o.s, k = o.kind;
+  if (k === 'building'){ var b = bldSize(o); return { hx:b[0]/2 + 0.6, hz:b[1]/2 + 0.6, r:0 }; }
+  if (k === 'barricade') return { hx:3.3*s, hz:1.6*s, r:0 };
+  if (k === 'log')       return { hx:3.4*s, hz:0.5*s, r:0 };
+  if (k === 'arch')      return { hx:3.4*s, hz:0.8*s, r:0 };
+  var R = { tower:2.9, crater:3.7, pipe:2.6, buried:3.2, obelisk:1.6, rubble:1.8 }[k];
+  return R ? { hx:0, hz:0, r:R*s } : null;
+}
+function footRange(o, f){       // how far the ground falls across a footprint, sampled at its corners and centre
+  var c = Math.cos(o.rot), sn = Math.sin(o.rot), ex = f.hx + f.r, ez = f.hz + f.r, lo = 1e9, hi = -1e9, k;
+  var P = [[0,0],[ex,ez],[-ex,ez],[ex,-ez],[-ex,-ez]];
+  for (k=0;k<P.length;k++){ var h = heightAt(o.x + P[k][0]*c + P[k][1]*sn, o.z - P[k][0]*sn + P[k][1]*c); if (h < lo) lo = h; if (h > hi) hi = h; }
+  return hi - lo;
+}
+// lock marks the corners already inside a pad: a neighbour's blend zone must not tilt a house that was levelled first
+function levelUnder(o, f, lock){  // flatten the field to the piece's base, blended back into the slope over a cell and a half
+  // the level core runs one cell past the footprint: a point just inside a wall is interpolated from the corners around
+  // it, and if the outer ones still sloped, so would the floor there
+  var h0 = heightAt(o.x, o.z), c = Math.cos(o.rot), sn = Math.sin(o.rot), core = CELL, fade = CELL*1.5;
+  var reach = Math.hypot(f.hx, f.hz) + f.r + core + fade, i, j;      // a turned rectangle reaches out to its half-diagonal
+  var i0 = Math.max(0, Math.floor((o.x - reach + table.w/2)/CELL)), i1 = Math.min(hw, Math.ceil((o.x + reach + table.w/2)/CELL));
+  var j0 = Math.max(0, Math.floor((o.z - reach + table.d/2)/CELL)), j1 = Math.min(hd, Math.ceil((o.z + reach + table.d/2)/CELL));
+  for (j=j0;j<=j1;j++) for (i=i0;i<=i1;i++){
+    var dx = -table.w/2 + i*CELL - o.x, dz = -table.d/2 + j*CELL - o.z, lx = dx*c - dz*sn, lz = dx*sn + dz*c;
+    var d = Math.hypot(Math.max(0, Math.abs(lx) - f.hx), Math.max(0, Math.abs(lz) - f.hz)) - f.r;
+    var w = d <= core ? 1 : d >= core + fade ? 0 : 1 - (d - core)/fade, k = j*(hw+1)+i; if (!w || lock[k]) continue;
+    w = w*w*(3 - 2*w); HG[k] = lerp(HG[k], h0, w); if (d <= core) lock[k] = 1;
+  }
+}
+// Always runs straight after buildTerrain(): it reads the fresh slopes and levels the ground it builds on.
+// ป่าทึบบนโต๊ะใหญ่สุดเคยได้ ~790 ชิ้น วาดเฟรมละ ~50 มิลลิวินาทีบนคอม มือถือช้ากว่านั้นหลายเท่า — ของที่เพิ่มเข้ามา
+// (ดงไม้ของป่าทึบ กับสิ่งก่อสร้างที่เกิน ×1) หยุดที่เพดานนี้ ของชุดพื้นฐานไม่นับ (มากสุด ~330 ชิ้น เท่าที่หน้าเก่าวาดอยู่แล้ว)
+var PROP_CAP = 480;
 function genProps(){
-  PROPS = []; var n, i, t = theme, area = table.w*table.d, count = Math.round(area/28);
+  PROPS = []; var i, t = theme, area = table.w*table.d, base = Math.round(area/28);
+  // สิ่งก่อสร้างใช้ความพยายามวางแค่ base*dens ครั้ง (น้อยกว่า 1 = บางลง) ของธรรมชาติคงที่ base ครั้งเสมอ
+  var dens = buildings ? density : 0, count = Math.round(base*Math.max(1, dens));
+  // "มาก" ต้องได้ของมากจริง: ถ้าระยะห่างขั้นต่ำเท่าเดิม ความพยายามที่เพิ่มมาชนของเดิมหมดแล้วถูกทิ้ง จำนวนตันอยู่ที่เดิม
+  var gap = 1.2 - 0.9*clamp((dens - 1)/1.5, 0, 1);
+  // ค่าตั้งต้น (เนิน · มีสิ่งก่อสร้าง ×1) ต้องได้ของชุดเดียวกับหน้าเก่าทุกชิ้น: APK เก่ายังเข้าห้องเดียวกับเว็บได้ และแต่ละเครื่อง
+  // วางหมากเองรอบของที่ขวางอยู่ ของต่างกันชิ้นเดียว หมากก็ยืนคนละที่ กฎวางใหม่ (ไม่ขึ้นทางชัน ตึกไม่ทับตึก ไม่ทับของอื่น)
+  // จึงใช้กับค่าอื่นเท่านั้น ส่วนการปรับพื้นใต้ของทำทุกแบบ — ความสูงของพื้นไม่มีผลกับกติกา
+  var classic = terrain === 'hills' && dens === 1;
   var CL = 5, cls = []; for (i=0;i<CL;i++) cls.push([ (hash3(i,71,3)-0.5)*table.w*0.8, (hash3(i,73,5)-0.5)*table.d*0.78 ]);
   function spot(k){ var hx = hash3(k, 7, 11), hz = hash3(k, 9, 13), hc = hash3(k, 11, 15);
     if (hc < 0.62){ var c = cls[Math.floor(hash3(k,13,17)*CL) % CL], rr = 5 + hash3(k,15,19)*11, aa = hash3(k,17,21)*TAU;   // most pieces clump into a few knots of terrain
       return [ clamp(c[0] + Math.cos(aa)*rr, -table.w*0.46, table.w*0.46), clamp(c[1] + Math.sin(aa)*rr, -table.d*0.46, table.d*0.46) ]; }
     return [ (hx-0.5)*table.w*0.92, (hz-0.5)*table.d*0.9 ]; }
-  for (i=0;i<count;i++){
-    var p = spot(i), x = p[0], z = p[1], r = hash3(i, 3, 17), rot = hash3(i, 4, 19)*TAU, ok = true;
-    for (var q=0;q<PROPS.length;q++){ var o = PROPS[q]; if (Math.hypot(o.x-x, o.z-z) < (o.rad + 1.2)) { ok = false; break; } }
-    if (!ok) continue;
-    var kind;
-    if (t === 'ruin')   kind = r < 0.40 ? 'building' : r < 0.52 ? 'wall' : r < 0.62 ? 'tower' : r < 0.74 ? 'rubble' : r < 0.85 ? 'barricade' : r < 0.94 ? 'crater' : 'pipe';
-    if (t === 'forest') kind = r < 0.34 ? 'tree' : r < 0.58 ? 'pine' : r < 0.7 ? 'boulder' : r < 0.8 ? 'log' : r < 0.94 ? 'bush' : 'wall';
-    if (t === 'desert') kind = r < 0.16 ? 'obelisk' : r < 0.4 ? 'pillars' : r < 0.58 ? 'buried' : r < 0.8 ? 'boulder' : r < 0.94 ? 'arch' : 'deadtree';
-    if (t === 'ice')    kind = r < 0.34 ? 'iceslab' : r < 0.54 ? 'boulder' : r < 0.7 ? 'pine' : r < 0.86 ? 'wall' : 'crater';
-    PROPS.push({ kind:kind, x:x, z:z, rot:rot, s:0.75 + hash3(i,5,23)*0.7, rad: kind==='building'?7:kind==='wall'||kind==='pillars'?4.5:kind==='crater'?3.5:2.4, h:hash3(i,6,29) });
+  function roomFor(x, z, g){ for (var q=0;q<PROPS.length;q++){ var o = PROPS[q]; if (Math.hypot(o.x-x, o.z-z) < (o.rad + g)) return false; } return true; }
+  function place(i){
+    var p = spot(i), x = p[0], z = p[1], r = hash3(i, 3, 17), rot = hash3(i, 4, 19)*TAU;
+    var kind = i < base ? themeKind(t, r) : extraKind(t, r);
+    if (STRUCT[kind] ? i >= base*dens : i >= base) return;
+    if (!roomFor(x, z, gap)) return;
+    var o = { kind:kind, x:x, z:z, rot:rot, s:0.75 + hash3(i,5,23)*0.7, rad:radOf(kind), h:hash3(i,6,29) };
+    if (!classic){
+      // a house or a tower goes where the ground is gentle enough to build on -- on a mountain that means the valleys
+      if ((kind === 'building' || kind === 'tower' || kind === 'obelisk') && footRange(o, footOf(o)) > (kind === 'building' ? 4.5 : 3)) return;
+      // roomFor only keeps the new piece off the older piece's radius, and a house reaches well past its own
+      if (kind !== 'building'){ if (inHouse(x, z, o.rad*0.6)) return; }
+      else { var cut = underHouse(o), k; if (!cut || !housesClear(o, 1)) return;
+        for (k=cut.length-1;k>=0;k--) PROPS.splice(cut[k], 1); }
+    }
+    PROPS.push(o);
+  }
+  for (i=0;i<base;i++) place(i);
+  // ป่าทึบปลูกดงไม้ก่อนสิ่งก่อสร้างที่เพิ่ม: ดงไม้คือตัวภูมิประเทศ เพดานเต็มแล้วก็ไม่เพิ่มตึก
+  if (terrain === 'forest') woods(roomFor);
+  for (i=base; i<count && PROPS.length < PROP_CAP; i++) place(i);
+  // houses first: they are the biggest and the most obviously wrong when tilted; the small pieces then fit round them
+  var lock = new Uint8Array(HG.length), pass, f;
+  for (pass=0; pass<2; pass++) for (i=0;i<PROPS.length;i++){
+    if ((PROPS[i].kind === 'building') !== !pass) continue;
+    if ((f = footOf(PROPS[i]))) levelUnder(PROPS[i], f, lock); }
+}
+// ป่าทึบ: ดงไม้หนาเป็นหย่อม ๆ กับที่โล่งระหว่างดง ทุกธีม — ธีมบอกแค่ว่าเป็นไม้ชนิดไหน
+function woods(roomFor){
+  var i, n = Math.round(table.w*table.d/9), NG = Math.max(4, Math.round(table.w*table.d/240)), gs = [];
+  for (i=0;i<NG;i++) gs.push([ (hash3(i,171,3)-0.5)*table.w*0.86, (hash3(i,173,5)-0.5)*table.d*0.84, 5 + hash3(i,175,7)*7 ]);
+  for (i=0;i<n && PROPS.length < PROP_CAP;i++){
+    var g = gs[Math.floor(hash3(i,177,9)*NG) % NG], rr = Math.sqrt(hash3(i,179,11))*g[2], aa = hash3(i,181,13)*TAU;
+    var x = clamp(g[0] + Math.cos(aa)*rr, -table.w*0.47, table.w*0.47), z = clamp(g[1] + Math.sin(aa)*rr, -table.d*0.47, table.d*0.47);
+    var r = hash3(i,183,15), kind = theme === 'ice' ? (r < 0.82 ? 'pine' : 'deadtree')
+      : theme === 'desert' ? (r < 0.42 ? 'tree' : r < 0.72 ? 'deadtree' : 'bush')
+      : (r < 0.42 ? 'tree' : r < 0.8 ? 'pine' : 'bush');
+    if (!roomFor(x, z, 0.6) || inHouse(x, z, 1.4)) continue;   // canopies may touch: a thicket, not a plantation
+    PROPS.push({ kind:kind, x:x, z:z, rot:hash3(i,185,17)*TAU, s:0.8 + hash3(i,187,19)*0.55, rad:2.4, h:hash3(i,189,21) });
   }
 }
 function building(o, pal){   // a ruined building shell: four walls of uneven height, windows, a broken floor slab, rubble at the foot
@@ -1422,13 +1666,13 @@ function building(o, pal){   // a ruined building shell: four walls of uneven he
     var px = o.x + Math.cos(a)*rr, pz = o.z + Math.sin(a)*rr, py = heightAt(px, pz), rh = (0.35 + 0.6*hash3(r2, 3, 73))*o.s;
     box(px, py + rh/2, pz, 1.1*o.s, rh/2, 0.9*o.s, dark, a); }
 }
-function propSimple(o){    // far away: one solid lump instead of the full piece
+function propSimple(o, tiny){    // far away: one solid lump instead of the full piece
   var t = TH(), y = heightAt(o.x, o.z), s = o.s, k = o.kind, rock = t.rock;
   if (k === 'crater'){ prism(o.x, y, o.z, 3.4*s, 0.25*s, 7, [rock[0]*0.7, rock[1]*0.68, rock[2]*0.66], o.rot, 0.8); return; }
-  if (k === 'building'){ var bw = (5 + o.h*7)*s, bd = (4.5 + o.h*5)*s, hh = (o.h > 0.55 ? 7 : 3.6)*s;
-    box(o.x, y + hh/2, o.z, bw/2, hh/2, bd/2, [116,110,102], o.rot); return; }
+  if (k === 'building'){ var bs = bldSize(o), hh = (o.h > 0.55 ? 7 : 3.6)*s;     // the same footprint the close-up draws
+    box(o.x, y + hh/2, o.z, bs[0]/2, hh/2, bs[1]/2, [116,110,102], o.rot); return; }
   if (k === 'tree' || k === 'pine'){ var th = (5.5 + o.h*3)*s;
-    prism(o.x, y, o.z, 0.4*s, th*0.45, 5, [76,60,44], o.rot, 0.8);
+    if (!tiny) prism(o.x, y, o.z, 0.4*s, th*0.45, 5, [76,60,44], o.rot, 0.8);
     prism(o.x, y + th*0.35, o.z, 2.6*s, th*0.7, 6, k === 'pine' ? [44,80,52] : [56,92,52], o.rot, 0.18); return; }
   if (k === 'obelisk' || k === 'tower' || k === 'pillars'){ prism(o.x, y, o.z, 1.6*s, (6 + o.h*3)*s, 5, rock, o.rot, 0.6); return; }
   if (k === 'wall'){ box(o.x, y + 1.4*s, o.z, 4.2*s, 1.4*s, 0.5*s, rock, o.rot); return; }
@@ -1647,7 +1891,9 @@ function drawScene(){
   planRigs();
   drawGround(step); drawRails();
   var i, detail = dragging ? 46 : 26;
-  for (i=0;i<PROPS.length;i++){ var o = PROPS[i]; if (propScale(o) < detail){ shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o); } else drawProp(o); }
+  // a dense forest on a big table is hundreds of pieces: one only a few pixels tall skips its shadow and trunk
+  for (i=0;i<PROPS.length;i++){ var o = PROPS[i], ps = propScale(o);
+    if (ps < detail){ var tiny = ps < 10; if (!tiny) shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o, tiny); } else drawProp(o); }
   for (i=0;i<units.length;i++) drawUnit(units[i]);
   for (i=0;i<units.length;i++){ var mu = units[i];      // where a piece still on its way is heading
     if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
@@ -1679,7 +1925,7 @@ function hud(){
   var n = {}, i; for (i=0;i<units.length;i++) n[units[i].k] = (n[units[i].k]||0)+1;
   var parts = []; if (n.heavy) parts.push('เกราะหนัก ' + n.heavy); if (n.infantry) parts.push('ราบ ' + n.infantry); if (n.hoplite) parts.push('กรีก ' + n.hoplite); if (n.enemy) parts.push('ศัตรู ' + n.enemy);
   var mv = 0; for (i=0;i<units.length;i++) if (units[i].mv) mv++;
-  $('btHud').innerHTML = TH().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '') + (mv ? ' · กำลังเดิน <i>' + mv + '</i>' : '');
+  $('btHud').innerHTML = TH().name + ' · ' + TR().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '') + (mv ? ' · กำลังเดิน <i>' + mv + '</i>' : '');
 }
 // ═══════════════════ เกม ═══════════════════
 // กติกาสั้นที่สุดที่ยังเล่นจบได้จริง: ผลัดกันเล่น หนึ่งเทิร์นสั่งได้ทุกตัว ตัวหนึ่งเดินหนึ่งครั้งยิงหนึ่งครั้ง
@@ -1693,14 +1939,16 @@ var TYPES = [
 function TY(k){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === k) return TYPES[i]; return TYPES[0]; }
 var MELEE = 2;                       // นิ้ว — ใกล้กว่านี้คือประชิด ตีได้แม้ไม่มีปืน
 var MAX_ROUND = 5;
-// หกทีม เลือกสีให้ห่างกันในวงล้อสี และสว่างพอจะเห็นบนซากตึกสีเทาในฉากมืด
+// แปดทีม (ฟรีฟอร์ออลกับโหมดผู้ชมมีได้ถึง 8 ฝ่าย) เลือกสีให้ห่างกันในวงล้อสี และสว่างพอจะเห็นบนซากตึกสีเทาในฉากมืด
 var TEAMS = [
   { nm:'ทีมน้ำเงิน', ui:'#6FA8D8', rgb:[ 72,132,214] },
   { nm:'ทีมแดง',    ui:'#D8746A', rgb:[212, 78, 66] },
   { nm:'ทีมเขียว',   ui:'#7FC47A', rgb:[ 96,182,100] },
   { nm:'ทีมทอง',    ui:'#DCAC52', rgb:[228,164, 58] },
   { nm:'ทีมม่วง',    ui:'#AC80CC', rgb:[170,112,208] },
-  { nm:'ทีมฟ้า',     ui:'#6FCCD8', rgb:[ 96,204,216] }
+  { nm:'ทีมฟ้า',     ui:'#6FCCD8', rgb:[ 96,204,216] },
+  { nm:'ทีมชมพู',    ui:'#E68CBE', rgb:[226,104,168] },
+  { nm:'ทีมขาว',    ui:'#E6E4DC', rgb:[232,230,220] }
 ];
 function TEAM(i){ return TEAMS[(i||0) % TEAMS.length]; }
 var DEP_FOE = 20, DEP_MATE = 5;     // นิ้ว — จุดลงสนามห่างทีมอื่น 20 ห่างเพื่อนร่วมทีม 5
@@ -1709,6 +1957,9 @@ var DEP_FOE = 20, DEP_MATE = 5;     // นิ้ว — จุดลงสนา
 var G = { on:false, mode:'pve', budget:150, teams:2, perTeam:1, freeFire:false, clock:0,
           turn:0, round:1, sel:null, act:null, over:false, cur:0, timeLeft:0,
           players:[], detail:false, botTimer:0, mePl:-1 };
+// โหมดผู้ชม: ทุกฝ่ายเป็นบอท เราคุมได้แค่ความเร็ว — หยุด / ×1 ×2 ×4 / ทีละจังหวะ
+var SPEC = { speed:1, paused:false };
+function watching(){ return G.on && G.mode === 'spectator'; }
 
 // ผู้เล่นหนึ่งคน: อยู่ทีมไหน เป็นบอทไหม กองทัพของตัวเอง จุดลงสนาม และกดจบตาหรือยัง
 function mkPlayers(){
@@ -1718,6 +1969,7 @@ function mkPlayers(){
     k++;
   }
   if (G.mode === 'pve') for (i=0;i<out.length;i++) if (out[i].team !== 0) out[i].bot = true;
+  if (G.mode === 'spectator') for (i=0;i<out.length;i++){ out[i].bot = true; out[i].nm = 'บอท ' + (i+1); }   // เราแค่นั่งดู
   G.players = out; G.cur = 0;
 }
 function teamPlayers(t){ return G.players.filter(function(p){ return p.team === t; }); }
@@ -1735,7 +1987,11 @@ function depCapacity(w, d){
 }
 
 function d6(){ return 1 + Math.floor(Math.random()*6); }
-function dist2(a, b){ return Math.hypot(a.x-b.x, a.z-b.z); }
+// ระยะวัดจากปลายทางที่กติกาอนุมัติแล้ว (gx/gz) ไม่ใช่จุดกลางทางที่ตัวหมากกำลังเดินอยู่ — บอทยิงหลังเดิน 0.25 วิ
+// ตอนนั้นตัวยังเดินไม่ถึง วัดจากกลางทางแล้วหลุดระยะ และแต่ละเครื่องเห็นกลางทางไม่ตรงกัน
+function gx(u){ return u.gx != null ? u.gx : u.x; }
+function gz(u){ return u.gz != null ? u.gz : u.z; }
+function dist2(a, b){ return Math.hypot(gx(a)-gx(b), gz(a)-gz(b)); }
 function ptsOf(pi){ var P = G.players[pi]; if (!P) return 0;
   var t = 0, i; for (i=0;i<TYPES.length;i++) t += (P.list[i]||0) * TYPES[i].pts; return t; }
 function teamPts(t){ var ps = teamPlayers(t), n = 0, i; for (i=0;i<ps.length;i++) n += ptsOf(ps[i].id); return n; }
@@ -1794,9 +2050,17 @@ function deploy(){
     }
   }
 }
+// จุดลงสนามคือกลางวงของกองทัพ ไม่ใช่ที่ยืนของตัวใดตัวหนึ่ง (deploy ให้ freeSpot หาที่ว่างให้ทีละตัว)
+// ปักบนเครื่องกีดขวางชิ้นเล็กได้ ขอแค่รอบ ๆ มีพื้นว่างให้วงแรกยืน — กลางตึกใหญ่ไม่มี จึงไม่ผ่าน
+function roomToLand(x, z){
+  if (!blockAt(x, z)) return true;
+  for (var r=1.25;r<=2.5;r+=1.25) for (var a=0;a<12;a++) if (!blockAt(x + Math.cos(a*TAU/12)*r, z + Math.sin(a*TAU/12)*r)) return true;
+  return false;
+}
 // จุดลงสนามผิดกฎระยะไหม — คืนข้อความบอกเหตุผล ถ้าว่างคือผ่าน
 function depWhyNot(pi, x, z){
   if (Math.abs(x) > table.w/2 - 3 || Math.abs(z) > table.d/2 - 3) return 'ต้องอยู่ในโต๊ะ';
+  if (!roomToLand(x, z)) return 'ตรงนั้นมีสิ่งกีดขวาง — เลือกที่โล่ง';   // โต๊ะแน่น ๆ กองจะไปลงในตึกได้
   var P = G.players[pi], i;
   for (i=0;i<G.players.length;i++){
     var Q = G.players[i]; if (i === pi || !Q.dep) continue;
@@ -1834,8 +2098,12 @@ function autoDep(pi){
     if (!depWhyNot(pi, x, z)) return [x, z];
     if (i % 8 === 7) r += DEP_MATE;
   }
-  var x2, z2;                                  // ที่พึ่งสุดท้าย ไล่ทีละช่องเล็ก ๆ
-  for (z2=-D; z2<=D; z2+=1.5) for (x2=-W; x2<=W; x2+=1.5) if (!depWhyNot(pi, x2, z2)) return [x2, z2];
+  // ที่พึ่งสุดท้าย ไล่ทีละช่องเล็ก ๆ จากที่ใกล้ช่องของทีมที่สุดออกไป — ไล่จากมุมโต๊ะแบบเดิมเจอฝั่งศัตรูก่อน
+  // (ตอนนี้ช่องที่ตกกลางดงตึกก็ไม่ผ่าน ทางนี้จึงถูกใช้บ่อยขึ้น)
+  var cand = [], x2, z2;
+  for (z2=-D; z2<=D; z2+=1.5) for (x2=-W; x2<=W; x2+=1.5) cand.push([x2, z2, Math.hypot(x2 - c[0], z2 - c[1])]);
+  cand.sort(function(a, b){ return a[2] - b[2]; });
+  for (i=0;i<cand.length;i++) if (!depWhyNot(pi, cand[i][0], cand[i][1])) return [cand[i][0], cand[i][1]];
   return [c[0], c[1]];
 }
 
@@ -1872,27 +2140,36 @@ function blockAt(x, z){
   for (var i=0;i<PROPS.length;i++) if (propBlocks(PROPS[i], x, z)) return true;
   return false;
 }
-function crowded(x, z, skip){        // ฐานกว้าง 1.2 นิ้ว ยืนทับกันไม่ได้
+function crowded(x, z, skip){        // ฐานกว้าง 1.2 นิ้ว ยืนทับกันไม่ได้ — ตัวที่กำลังเดิน นับที่ปลายทางของมัน
   for (var i=0;i<units.length;i++){ var q = units[i];
     if (q === skip) continue;
-    if (Math.hypot(q.x - x, q.z - z) < 1.6) return true; }
+    if (Math.hypot(gx(q) - x, gz(q) - z) < 1.6) return true; }
   return false;
 }
 // ที่ว่างที่ใกล้ที่สุด วนออกทีละวง · from/maxD คือเพดานระยะเดิน
 // ถ้าไม่ใส่เพดาน การเลี่ยงกำแพงจะกลายเป็นเดินฟรีเกินระยะที่หน่วยนั้นเดินได้
+// ไม่มีเพดาน (ตอนลงสนาม) ต้องได้ที่ว่างเสมอ: เดิมหาไม่เจอในวง 12 ม. ก็คืนจุดเดิม ซึ่งบนโต๊ะตึกแน่นคือกลางตึก
 function freeSpot(x, z, skip, from, maxD){
   var lw = table.w/2 - 1.2, ld = table.d/2 - 1.2;
-  function ok(nx, nz){
+  function ok(nx, nz, crowd){
     if (Math.abs(nx) > lw || Math.abs(nz) > ld) return false;
     if (from && Math.hypot(nx - from[0], nz - from[1]) > maxD + 0.001) return false;
-    return !blockAt(nx, nz) && !crowded(nx, nz, skip);
+    return !blockAt(nx, nz) && !(crowd && crowded(nx, nz, skip));
   }
-  if (ok(x, z)) return [x, z];
-  for (var r=1;r<=10;r++) for (var a=0;a<14;a++){
-    var an = a*TAU/14 + r*0.41, nx = x + Math.cos(an)*r*1.25, nz = z + Math.sin(an)*r*1.25;
-    if (ok(nx, nz)) return [nx, nz];
+  if (ok(x, z, true)) return [x, z];
+  var r, a, n, an, nx, nz;
+  for (r=1;r<=10;r++) for (a=0;a<14;a++){
+    an = a*TAU/14 + r*0.41; nx = x + Math.cos(an)*r*1.25; nz = z + Math.sin(an)*r*1.25;
+    if (ok(nx, nz, true)) return [nx, nz];
   }
-  return from ? null : [x, z];                       // เดินไม่ได้จริง ๆ ก็ยืนอยู่กับที่
+  if (from) return null;                             // เดินไม่ได้จริง ๆ ก็ยืนอยู่กับที่
+  // วงกว้างขึ้นเรื่อย ๆ จนสุดโต๊ะ ถี่พอจะไม่ข้ามช่องแคบระหว่างตึก · ถ้ายังไม่มีที่ว่างเลย ยอมยืนชิดตัวอื่นดีกว่ายืนในกำแพง
+  var far = Math.ceil(Math.hypot(table.w, table.d)/1.25), pass;
+  for (pass=0; pass<2; pass++)
+    for (r=pass ? 1 : 11; r<=far; r++){ n = Math.max(14, Math.round(r*1.25*TAU/1.2));
+      for (a=0;a<n;a++){ an = a*TAU/n + r*0.41; nx = x + Math.cos(an)*r*1.25; nz = z + Math.sin(an)*r*1.25;
+        if (ok(nx, nz, !pass)) return [nx, nz]; } }
+  return [x, z];                                     // ทั้งโต๊ะไม่มีจุดว่างสักจุด — ไม่เกิดกับแมพที่ genProps สร้าง
 }
 
 function unitById(id){ var i; for (i=0;i<units.length;i++) if (units[i].id === id) return units[i]; return null; }
@@ -1947,6 +2224,8 @@ function resolveShot(u, tgt, R){
   var head = (melee ? 'ตี' : 'ยิง') + ' ' + A.nm + ' → ' + D.nm + ' ที่ ' + d.toFixed(1) + '"';
   popDice('<b>' + rolls.join(' ') + '</b><br>' + head + '<br>เข้า ' + hits + ' · เจาะ ' + wounds + ' · เซฟ ' + saved +
           '<br>' + (dead ? '<b>ล้ม!</b>' : 'เสียแผล ' + dmg));
+  // หลายทีมหรือฟรีฟาย บอกด้วยว่าโดนทีมไหน ไม่งั้นอ่านบันทึกแล้วไม่รู้ว่าใครยิงใคร
+  if (G.teams > 2 || G.freeFire) head = head.replace(' → ' + D.nm, ' → ' + D.nm + ' (' + TEAM(tgt.side).nm + ')');
   say(TEAM(u.side).nm + ' ' + head + ' — เข้า ' + hits + '/' + shots + ' · เจาะ ' + wounds + ' · เซฟได้ ' + saved +
       (dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
   dirty = true;
@@ -1981,7 +2260,7 @@ function playerDone(pi){
   P.done = true;
   if (G.sel && G.sel.pl === pi) selectUnit(null);
   if (allDone(G.turn)){ endTurn(); return; }
-  say(P.nm + ' จบตาแล้ว · รอเพื่อนร่วมทีม');
+  say(esc(P.nm) + ' จบตาแล้ว · รอเพื่อนร่วมทีม');
   startClock(); paintPlay(); dirty = true;
 }
 // นาฬิกากันคนไม่ยอมกด · ทีมมีคนเดียวเดินตั้งแต่เริ่มตา · ทีมหลายคนเริ่มเดินเมื่อมีคนกดคนแรก
@@ -2027,7 +2306,9 @@ function endTurn(){
 function botStep(){
   var mine = units.filter(function(u){ return u.side === G.turn && isBotUnit(u) && !(u.moved && u.shot); });
   if (!mine.length) return false;
-  var u = mine[0], foes = units.filter(function(q){ return canTarget(u, q); });
+  // ฟรีฟายแปลว่ายิงพวกเดียวกัน "ได้" ไม่ได้แปลว่าให้ยิง: เดิมบอทยิงตัวที่ใกล้สุด ซึ่งเกือบทุกครั้งคือเพื่อนที่ยืนข้าง ๆ
+  var u = mine[0], foes = units.filter(function(q){ return canTarget(u, q) && q.side !== u.side; });
+  if (!foes.length) foes = units.filter(function(q){ return canTarget(u, q); });   // เหลือแต่พวกเดียวกันแล้วจริง ๆ
   if (!foes.length) return false;
   var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
   for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
@@ -2038,7 +2319,7 @@ function botStep(){
     resolveShot(u, best, BR); return 'shoot'; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
   if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
     var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
-    var nx = u.x + (best.x - u.x)*f, nz = u.z + (best.z - u.z)*f;
+    var nx = u.x + (gx(best) - u.x)*f, nz = u.z + (gz(best) - u.z)*f;
     nx = clamp(nx, -table.w/2 + 1, table.w/2 - 1); nz = clamp(nz, -table.d/2 + 1, table.d/2 - 1);
     var bp = freeSpot(nx, nz, u, [u.x, u.z], A.mv);   // บอทก็เดินเข้ากำแพงไม่ได้เหมือนกัน
     if (!bp){ u.moved = true; u.shot = true; return 'move'; }     // ถูกขังจนไม่มีที่ไป ก็ข้ามตานี้ไป
@@ -2117,7 +2398,7 @@ function paintRoster(){
   var P = G.players[G.cur]; if (!P) return;
   var s = G.cur, h = '', i, share = shareOf();
   var who = $('btWho');
-  if (who) who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + P.nm + '</div>' +
+  if (who) who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + esc(P.nm) + '</div>' +
     '<div class="st">' + TEAM(P.team).nm + (G.perTeam > 1 ? ' · งบทีม ' + G.budget + ' หารกัน ' + G.perTeam + ' คน' : '') + '</div>';
   for (i=0;i<TYPES.length;i++){
     var T = TYPES[i], n = P.list[i] || 0, C = UNIT_COL[T.k];
@@ -2153,16 +2434,18 @@ function paintPlay(){
   for (t=0;t<G.teams;t++) score.push('<span style="color:' + TEAM(t).ui + '">' + liveOf(t) + '</span>');
   tb.innerHTML = G.over ? '<b>จบการรบแล้ว</b>'
     : '<span class="dot" style="background:' + TEAM(G.turn).ui + '"></span><b>' + TEAM(G.turn).nm + '</b> · รอบ ' + G.round + '/' + MAX_ROUND +
-      (teamIsBot(G.turn) ? ' · บอทกำลังเล่น…' : '') +
+      (watching() ? (SPEC.paused ? ' · <b style="color:var(--on)">หยุดอยู่</b>' : '') : teamIsBot(G.turn) ? ' · บอทกำลังเล่น…' : '') +   // ผู้ชม: บอทเล่นอยู่แล้วทุกตา ไม่ต้องบอก
       (G.timeLeft ? ' · <b style="color:var(--on)">' + Math.ceil(G.timeLeft) + ' วิ</b>' : '') +
-      ' · เหลือ ' + score.join(' : ');
+      ' ·<span class="sc">เหลือ ' + score.join(' : ') + '</span>';
   paintDone();
   var card = $('btCard'), u = G.sel;
   if (units.indexOf(u) < 0) { u = G.sel = null; }
-  if (!u) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? 'แตะที่หน่วยของตัวเอง' : 'รอบอท…') +
+  if (!u && watching()) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : 'บอทกำลังตีกัน') +
+      '</div><div class="st">' + (G.over ? 'กด "ดูอีกรอบ" เพื่อดูสนามใหม่' : 'แตะที่ตัวหมากเพื่อดูข้อมูล · หยุดแล้วกดทีละจังหวะได้') + '</div>';
+  else if (!u) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? 'แตะที่หน่วยของตัวเอง' : 'รอบอท…') +
       '</div><div class="st">' + (G.over ? 'กด "ออกจากการรบ" เพื่อตั้งสนามใหม่' : 'เลือกแล้วค่อยสั่งเดินหรือยิง') + '</div>';
   else { var T = TY(u.t);
-    card.innerHTML = '<div class="nm">' + T.nm + ' <span class="st">(' + (G.players[u.pl] ? G.players[u.pl].nm + ' · ' : '') + TEAM(u.side).nm + ')</span></div>' +
+    card.innerHTML = '<div class="nm">' + T.nm + ' <span class="st">(' + (G.players[u.pl] ? esc(G.players[u.pl].nm) + ' · ' : '') + TEAM(u.side).nm + ')</span></div>' +
       '<div class="st">แผล ' + u.hp + '/' + T.w + ' · เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิด ' + MELEE + '"') +
       ' · เข้า ' + T.bs + '+ · เกราะ ' + T.sv + '+</div>' +
       '<div class="st">' + (u.moved ? 'เดินแล้ว' : 'ยังไม่ได้เดิน') + ' · ' + (u.shot ? 'ยิงแล้ว' : 'ยังไม่ได้ยิง') + '</div>'; }
@@ -2173,6 +2456,19 @@ function paintPlay(){
   });
   $('btEnd').disabled = !humanTurn() || G.over;
   $('btEnd').textContent = G.perTeam > 1 ? 'จบตาทั้งทีม' : 'จบเทิร์น';
+  var sp = watching();
+  $('btHumanCtl').classList.toggle('hide', sp); $('btSpec').classList.toggle('hide', !sp);
+  if (sp) paintSpec();
+}
+var ICON_PAUSE = '<svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:-2px;margin-right:5px" fill="currentColor"><rect x="3" y="2" width="3.6" height="12" rx="1"/><rect x="9.4" y="2" width="3.6" height="12" rx="1"/></svg>';
+var ICON_PLAY = '<svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:-2px;margin-right:5px" fill="currentColor"><path d="M4 2.2v11.6L13.6 8z"/></svg>';
+function paintSpec(){
+  var pb = $('btPause');
+  pb.innerHTML = SPEC.paused ? ICON_PLAY + 'เล่นต่อ' : ICON_PAUSE + 'หยุด';
+  pb.classList.toggle('on', SPEC.paused);
+  Array.prototype.forEach.call($('btSpd').querySelectorAll('button'), function(b){ b.classList.toggle('on', +b.dataset.s === SPEC.speed); });
+  $('btStep').disabled = pb.disabled = G.over;
+  $('btAgain').classList.toggle('go', G.over);         // จบแล้ว ปุ่มดูอีกรอบเด่นขึ้นมา
 }
 // ทีมหลายคน: ปุ่ม "ฉันเสร็จแล้ว" ของแต่ละคน จะได้รู้ว่ารอใครอยู่
 function paintDone(){
@@ -2182,9 +2478,9 @@ function paintDone(){
   if (!many){ host.innerHTML = ''; return; }
   var ps = teamPlayers(G.turn), h = '', i;
   for (i=0;i<ps.length;i++){ var P = ps[i];
-    h += P.bot ? '<span class="chipd on">' + P.nm + ' · บอท</span>'
-       : P.done ? '<span class="chipd on">' + P.nm + ' เสร็จแล้ว ✓</span>'
-       : '<button class="chipd" data-p="' + P.id + '">' + P.nm + ' · ฉันเสร็จแล้ว</button>';
+    h += P.bot ? '<span class="chipd on">' + esc(P.nm) + ' · บอท</span>'
+       : P.done ? '<span class="chipd on">' + esc(P.nm) + ' เสร็จแล้ว ✓</span>'
+       : '<button class="chipd" data-p="' + P.id + '">' + esc(P.nm) + ' · ฉันเสร็จแล้ว</button>';
   }
   host.innerHTML = h;
 }
@@ -2216,9 +2512,9 @@ function depOverlay(){
 function gameOverlay(){
   if (depMode){ depOverlay(); return; }
   if (!G.on) return;
-  var i, u = G.sel;
+  var i, u = G.sel, sp = watching();
   for (i=0;i<units.length;i++){ var q = units[i], ready = canAct(q);
-    pinAt(q, TEAM(q.side).ui, q === u || ready);
+    pinAt(q, TEAM(q.side).ui, q === u || ready || sp);     // ผู้ชมไม่มีตัวให้สั่ง หมุดจางหมดก็หาใครไม่เจอ
     if (ready && q !== u) ringAt(q.x, q.z, 0.8, TEAM(q.side).ui, [5,4]); }
   if (!u || units.indexOf(u) < 0) return;
   var T = TY(u.t);
@@ -2226,32 +2522,43 @@ function gameOverlay(){
   if (G.act === 'move' && !u.moved) ringAt(u.x, u.z, T.mv, '#E0B26A', [6,5]);
   if (G.act === 'shoot' && !u.shot){
     var reach = T.rng > 0 ? T.rng : MELEE;
-    ringAt(u.x, u.z, reach, 'rgba(224,178,106,0.75)', [3,6]);
+    ringAt(gx(u), gz(u), reach, 'rgba(224,178,106,0.75)', [3,6]);     // range counts from where it is walking to
     for (i=0;i<units.length;i++){ var f = units[i];
       if (canTarget(u, f) && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, TEAM(f.side).ui); }
   }
 }
 
 // ---------- ภาพตัวอย่างแมพในหน้าตั้งสนาม ----------
+// ภาพตามภูมิประเทศกับสิ่งก่อสร้างที่เลือกไว้ด้วย: สันเขาสูงต่ำตามภูมิประเทศ ตึกมีมากน้อยตามแถบเลื่อน ป่าทึบมีต้นไม้เต็ม
 function paintMapCards(){
   var cards = document.querySelectorAll('#btMaps .map'); if (!cards.length) return;
   Array.prototype.forEach.call(cards, function(b){
     var t = THEMES[b.dataset.t], c = b.querySelector('canvas'), g = c.getContext('2d'), w = c.width, h = c.height;
     var sky = g.createLinearGradient(0,0,0,h); sky.addColorStop(0, t.sky[0]); sky.addColorStop(1, t.sky[1]);
     g.fillStyle = sky; g.fillRect(0,0,w,h);
-    var k, x, y;
+    var k, x, y, amp = terrain === 'flat' ? 0.25 : terrain === 'mountain' ? 3.2 : 1;
     g.fillStyle = 'rgb(' + t.ground2.join(',') + ')';                       // สันเขาไกล
     g.beginPath(); g.moveTo(0, h*0.62);
-    for (x=0;x<=w;x+=12) g.lineTo(x, h*0.62 - Math.sin(x*0.035 + t.relief)*h*0.07 - (t.relief/8)*h*0.06);
+    for (x=0;x<=w;x+=8){
+      var ridge = terrain === 'mountain' ? (1 - Math.abs(Math.sin(x*0.045 + t.relief))) * h*0.1 : 0;
+      g.lineTo(x, h*0.62 - (Math.sin(x*0.035 + t.relief)*h*0.07 + (t.relief/8)*h*0.06)*amp - ridge); }
     g.lineTo(w,h); g.lineTo(0,h); g.fill();
     g.fillStyle = 'rgb(' + t.ground.join(',') + ')';                        // พื้นหน้า
     g.beginPath(); g.moveTo(0, h*0.78);
-    for (x=0;x<=w;x+=10) g.lineTo(x, h*0.78 - Math.cos(x*0.05 + 1.3)*h*0.04);
+    for (x=0;x<=w;x+=10) g.lineTo(x, h*0.78 - Math.cos(x*0.05 + 1.3)*h*0.04*Math.min(amp, 1.6));
     g.lineTo(w,h); g.lineTo(0,h); g.fill();
-    g.fillStyle = 'rgb(' + t.rock.join(',') + ')';                          // ชิ้นภูมิประเทศ
-    for (k=0;k<7;k++){ x = 14 + k*32 + (k%3)*7; y = h*0.70 + (k%2)*10;
-      if (b.dataset.t === 'forest'){ g.beginPath(); g.moveTo(x, y-18); g.lineTo(x+8, y); g.lineTo(x-8, y); g.fill(); }
-      else g.fillRect(x-7, y-16-(k%3)*5, 14, 16+(k%3)*5); }
+    function tree(x, y, s){ g.beginPath(); g.moveTo(x, y-18*s); g.lineTo(x+8*s, y); g.lineTo(x-8*s, y); g.fill(); }
+    // สิ่งก่อสร้าง: สัดส่วนที่ธีมนั้นมีอยู่เดิม บวกที่แถบเลื่อนเพิ่มให้เกิน 1
+    var share = { ruin:1, desert:0.9, ice:0.4, forest:0.15 }[b.dataset.t];
+    var n = buildings ? Math.round(6*(share*Math.min(1, density) + Math.max(0, density - 1)*0.7)) : 0;
+    g.fillStyle = 'rgb(' + t.rock.join(',') + ')';
+    for (k=0;k<n;k++){ x = 10 + ((k*37) % (w-20)) + (k%3)*5; y = h*0.70 + (k%2)*9 + (k%5 === 4 ? 6 : 0);
+      g.fillRect(x-6, y-14-(k%3)*5, 12, 14+(k%3)*5); }
+    if (b.dataset.t === 'forest' || terrain === 'forest'){                  // ต้นไม้
+      g.fillStyle = terrain === 'forest' ? 'rgb(52,86,54)' : 'rgb(' + t.rock.join(',') + ')';
+      var nt = terrain === 'forest' ? 14 : 5;
+      for (k=0;k<nt;k++){ x = 8 + ((k*53 + 17) % (w-14)); y = h*0.72 + (k%3)*7; tree(x, y, 0.8 + (k%4)*0.12); }
+    }
   });
 }
 
@@ -2262,9 +2569,14 @@ function frame(ts){
   raf(frame);
   resize();                                                  // cheap: returns at once unless the size really changed
   var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
-  if (dt > 0 && dt < 0.5){
-    if (stepUnits(dt)) dirty = true;                         // a long gap (tab in the background) is skipped, not crammed in
-    botTick(dt);
+  if (dt > 0 && dt < 0.5){                                   // a long gap (tab in the background) is skipped, not crammed in
+    // Spectator speed has to reach the walking as well as the bots' timer, or at x4 the bots race ahead of pieces that
+    // are still strolling. xk walks k ordinary frames: the rig then integrates in exactly the steps it gets at x1 (one
+    // long step instead is coarser, and the feet took longer to settle at the end of each walk). Paused, the bots take
+    // no new action but a piece already on its way finishes its walk -- that is what lets "one step at a time" show it.
+    var sp = watching(), k = sp ? SPEC.speed : 1, r;
+    for (r=0;r<k;r++) if (stepUnits(dt)) dirty = true;
+    if (!(sp && SPEC.paused)) botTick(dt*k);
     clockTick(dt);
   }
   tickDice();
@@ -2281,7 +2593,10 @@ function clampPan(){
 }
 function panScreen(from, to){
   if (!W || !H) return;
-  var a = groundHit(from[0], from[1]), b = groundHit(to[0], to[1]);
+  // grab the ground under the finger, then drag it on a flat sheet at that height: the ground under the new finger
+  // position could be the far side of a ridge, and the map would leap there
+  var g = groundHit(from[0], from[1]), y = g ? g[1] : 0;
+  var a = planeHit(from[0], from[1], y), b = planeHit(to[0], to[1], y);
   if (!a || !b) return;
   cam.tx -= (b[0] - a[0]); cam.tz -= (b[2] - a[2]);
   clampPan(); dragging = true; dirty = true;
@@ -2345,6 +2660,12 @@ cv.addEventListener('wheel', function(ev){ ev.preventDefault(); cam.dist = clamp
 
 // แตะตอนเล่น: ตัวเรา = เลือก · พื้น = เดินไปตรงนั้น · ตัวศัตรู = ยิง
 function tapGame(p){
+  if (watching()){                              // ผู้ชมแตะตัวหมากเพื่อดูข้อมูล สั่งอะไรไม่ได้
+    var seen = unitHit(p[0], p[1]), k;
+    for (k=0;k<units.length;k++) units[k].sel = false;
+    G.sel = seen; G.act = null; if (seen) seen.sel = true;
+    paintPlay(); dirty = true; return;
+  }
   if (G.over || !humanTurn()) return;
   var hit = unitHit(p[0], p[1]);
   if (hit && hit.side === G.turn && canAct(hit)){ selectUnit(hit); return; }
@@ -2374,6 +2695,27 @@ function applyTheme(t){ theme = t; buildTerrain(); genProps(); dirty = true; }
 $('btMaps').addEventListener('click', function(ev){ var b = ev.target.closest('.map'); if (!b) return;
   Array.prototype.forEach.call(this.querySelectorAll('.map'), function(x){ x.classList.toggle('on', x === b); });
   applyTheme(b.dataset.t); });
+// ภูมิประเทศกับสิ่งก่อสร้าง: เปลี่ยนแล้วสร้างพื้นกับของบนโต๊ะใหม่ทั้งหมดจาก SEED เดิม
+function setTerrain(r){ if (!TERRAINS[r]) return; terrain = r; buildTerrain(); genProps(); syncSetupUI(); dirty = true; }
+function setBuildings(on, dens){
+  buildings = !!on;
+  if (dens != null && isFinite(+dens)) density = Math.round(clamp(+dens, 0.25, 2.5)*4)/4;
+  buildTerrain(); genProps(); syncSetupUI(); dirty = true;
+}
+// ปุ่มกับแถบเลื่อนหน้าตั้งสนามตามค่าจริง — ห้องสั่งค่ามาทับ (adoptRoom) ปุ่มต้องเปลี่ยนตาม ไม่งั้นออกจากห้องแล้วหน้าจอโกหก
+function markOn(sel, key, v){ Array.prototype.forEach.call(document.querySelectorAll(sel), function(x){ x.classList.toggle('on', x.dataset[key] === v); }); }
+function syncSetupUI(){
+  markOn('#btMaps .map', 't', theme); markOn('#btTer .ter', 'r', terrain); markOn('#btBld button', 'b', buildings ? '1' : '0');
+  var ds = $('btDens'); ds.value = density; ds.disabled = !buildings;
+  $('btDensL').classList.toggle('off', !buildings);
+  $('btDensV').textContent = buildings ? '×' + density : 'ปิด';
+  $('btSize').value = table.w; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
+  $('btSeed').textContent = 'สนาม #' + SEED;
+  paintMapCards();
+}
+$('btTer').addEventListener('click', function(ev){ var b = ev.target.closest('.ter'); if (b) setTerrain(b.dataset.r); });
+$('btBld').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (b) setBuildings(b.dataset.b === '1'); });
+$('btDens').addEventListener('input', function(){ setBuildings(true, +this.value); });
 // ---------- เล่นข้ามเครื่อง ----------
 // เซิร์ฟเวอร์เก็บ "ห้อง" ไว้: ค่าสนาม + กองทัพของแต่ละคน + จุดลงสนาม + ลำดับการกระทำ
 // ทุกเครื่องถามทุก 1.5 วิว่ามีอะไรใหม่ เกมผลัดตากันแบบนี้ 1.5 วิเหลือเฟือ
@@ -2381,7 +2723,7 @@ var SERVER = (function(){
   try { if (/^https?:/.test(location.protocol) && location.origin && location.origin !== 'null') return location.origin; } catch (e) {}
   return 'https://candlelight-table.mini3030023450.workers.dev';
 })();
-var NET = { on:false, code:'', pid:'', owner:false, seq:0, room:null, timer:0, busy:false, err:'' };
+var NET = { on:false, code:'', pid:'', owner:false, seq:0, room:null, timer:0, busy:false, err:'', joining:null };
 function netUrl(p){ return SERVER + '/api/bt/rooms' + (p || ''); }
 function netPost(path, body){
   return fetch(netUrl(path), { method:'POST', headers:{ 'Content-Type':'application/json' },
@@ -2390,8 +2732,10 @@ function netPost(path, body){
 }
 function netNote(msg){ var el = $('btNetNote'); if (el) el.textContent = msg || ''; NET.err = msg || ''; }
 function myName(){ var v = ($('btName') && $('btName').value || '').trim(); return v.slice(0, 24); }
+// terrain/buildings/density ขึ้นห้องด้วย: ทุกเครื่องสร้างพื้นกับของบนโต๊ะเองจากค่าพวกนี้ ขาดตัวไหนไปก็เห็นคนละแมพ
 function curSetup(){
-  return { theme:theme, seed:SEED, w:table.w, mode:G.mode === 'custom' ? 'team' : G.mode,
+  return { theme:theme, seed:SEED, w:table.w, terrain:terrain, buildings:buildings, density:density,
+           mode:(G.mode === 'custom' || G.mode === 'spectator') ? 'team' : G.mode,
            teams:G.teams, perTeam:G.perTeam, budget:G.budget, freeFire:G.freeFire, clock:G.clock };
 }
 function netStop(){ if (NET.timer) clearInterval(NET.timer); NET.timer = 0; NET.on = false; NET.room = null; }
@@ -2426,9 +2770,13 @@ function netSend(act){
 function adoptRoom(R){
   if (!R || !R.setup) return;
   var S = R.setup, i;
-  if (theme !== S.theme || SEED !== S.seed || table.w !== S.w){
-    theme = S.theme; SEED = S.seed; table.w = S.w; table.d = S.d || Math.round(S.w*0.72/2)*2;
-    applyTheme(theme); buildTerrain(); genProps(); fitTable(); dirty = true;
+  // เซิร์ฟเวอร์รุ่นเก่าไม่ส่งสามค่านี้มา — ใช้ค่าตั้งต้น ซึ่งตรงกับโต๊ะแบบเดิม
+  var th = THEMES[S.theme] ? S.theme : 'ruin', tr = TERRAINS[S.terrain] ? S.terrain : 'hills', bl = S.buildings !== false;
+  var dn = typeof S.density === 'number' && isFinite(S.density) ? clamp(S.density, 0.25, 2.5) : 1;
+  if (theme !== th || SEED !== S.seed || table.w !== S.w || terrain !== tr || buildings !== bl || density !== dn){
+    theme = th; SEED = S.seed; table.w = S.w; table.d = S.d || Math.round(S.w*0.72/2)*2;
+    terrain = tr; buildings = bl; density = dn;
+    buildTerrain(); genProps(); fitTable(); syncSetupUI(); dirty = true;
   }
   G.mode = S.mode; G.teams = S.teams; G.perTeam = S.perTeam;
   G.budget = S.budget; G.freeFire = S.freeFire; G.clock = S.clock;
@@ -2452,7 +2800,7 @@ function adoptRoom(R){
   // ใครหลุด บอทรับช่วงต่อ จะได้เล่นจบ ไม่ใช่ค้างรอคนที่ไม่กลับมา
   for (i=0;i<ps.length;i++){ var was = G.players[i];
     if (G.on && was && was.pid === ps[i].pid && !was.bot && ps[i].bot)
-      say('<b>' + ps[i].nm + ' หลุดไป</b> — บอทเล่นแทน', 'hit'); }
+      say('<b>' + esc(ps[i].nm) + ' หลุดไป</b> — บอทเล่นแทน', 'hit'); }
   G.players = ps;
   G.mePl = -1;
   for (i=0;i<ps.length;i++) if (ps[i].pid && ps[i].pid === NET.pid) G.mePl = i;
@@ -2461,7 +2809,7 @@ function adoptRoom(R){
 }
 function applyAct(a){
   if (!a) return;
-  if (a.a === 'owner'){ NET.owner = (a.pid === NET.pid); if (G.on) say('เจ้าของห้องเดิมหลุดไป — ' + a.nm + ' คุมห้องต่อ'); return; }
+  if (a.a === 'owner'){ NET.owner = (a.pid === NET.pid); if (G.on) say('เจ้าของห้องเดิมหลุดไป — ' + esc(a.nm) + ' คุมห้องต่อ'); return; }
   if (a.a === 'state'){ if (a.roster) adoptRoster(a.roster, a.bots); netPhase(a.state); return; }
   if (!G.on) return;
   if (a.a === 'move'){ var u = unitById(a.u); if (u && !u.moved){ u.moved = true; unitGoTo(u, a.x, a.z); say(TEAM(u.side).nm + ' เดิน ' + TY(u.t).nm + ' ' + Math.hypot(a.x-u.x, a.z-u.z).toFixed(1) + '"'); dirty = true; } return; }
@@ -2521,7 +2869,8 @@ function paintLobby(){
   var mine = G.players[G.mePl];
   card.innerHTML = '<div class="st">รหัสห้อง — บอกเพื่อนให้พิมพ์รหัสนี้</div>' +
     '<div class="code">' + NET.code + '</div>' +
-    '<div class="st">' + THEMES[R.setup.theme].name + ' · โต๊ะ ' + R.setup.w + '×' + R.setup.d +
+    '<div class="st">' + TH().name + ' · ' + TR().name + ' · ' + (buildings ? 'สิ่งก่อสร้าง ×' + density : 'ไม่มีสิ่งก่อสร้าง') +
+    ' · โต๊ะ ' + R.setup.w + '×' + R.setup.d +
     ' · ' + modeName(R.setup) + ' · งบทีมละ ' + R.setup.budget + ' แต้ม' +
     (R.setup.freeFire ? ' · ฟรีฟาย' : '') + (R.setup.clock ? ' · จับเวลา ' + R.setup.clock + ' วิ' : '') + '</div>';
   var h = '', i;
@@ -2543,6 +2892,7 @@ function modeName(S){
   if (S.mode === 'ffa') return 'ฟรีฟอร์ออล ' + S.teams + ' คน';
   if (S.mode === 'team') return S.perTeam + 'v' + S.perTeam;
   if (S.mode === 'pve') return 'PvE สู้บอท';
+  if (S.mode === 'spectator') return 'ผู้ชม · บอท ' + S.teams + ' ฝ่าย';
   return 'คนต่อคน';
 }
 function teamPicker(cur){
@@ -2551,17 +2901,23 @@ function teamPicker(cur){
   return h + '</select>';
 }
 
-var depMode = false, ffaN = 4, perTeamN = 2;
+var depMode = false, ffaN = 4, perTeamN = 2, specN = 2;
 // โหมดกำหนดจำนวนทีมกับคนต่อทีม · โต๊ะต้องใหญ่พอจะวางจุดลงสนามให้ครบทุกคนด้วย
 function applyMode(){
+  var spec = G.mode === 'spectator';
   if (G.mode === 'ffa'){ G.teams = ffaN; G.perTeam = 1; }
   else if (G.mode === 'team'){ G.teams = 2; G.perTeam = perTeamN; }
+  else if (spec){ G.teams = specN; G.perTeam = 1; }
   else { G.teams = 2; G.perTeam = 1; }
   var el;
   if ((el = $('btTeamOpt'))) el.classList.toggle('hide', G.mode !== 'team');
   if ((el = $('btFfaOpt'))) el.classList.toggle('hide', G.mode !== 'ffa');
+  if ((el = $('btSpecOpt'))) el.classList.toggle('hide', !spec);
   if ((el = $('btRules'))) el.classList.toggle('hide', G.mode === 'custom');
-  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : 'ถัดไป · จัดกองทัพ ›';
+  // ผู้ชมเล่นในเครื่องอย่างเดียว บอทไม่ต้องจับเวลา — ซ่อนกล่องเล่นกับเพื่อนกับนาฬิกา
+  if ((el = $('btClockRow'))) el.classList.toggle('hide', spec);
+  if ((el = $('btNetBox'))) el.classList.toggle('hide', spec);
+  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : spec ? 'เริ่มดูบอทตีกัน ›' : 'ถัดไป · จัดกองทัพ ›';
   growTableFor(G.teams * G.perTeam);
 }
 // ทุกคนต้องมีที่ลงของตัวเองห่างกัน 20 นิ้ว โต๊ะเล็กไปก็ขยายให้ แล้วบอกว่าขยายเพราะอะไร
@@ -2579,29 +2935,62 @@ function growTableFor(nPts){
     if (grew) note.textContent = 'ขยายโต๊ะเป็น ' + table.w + '×' + table.d + ' ให้แล้ว — ' + nPts + ' คนต้องมีที่ลงห่างกัน ' + DEP_FOE + '"';
   }
 }
-$('btModes').addEventListener('click', function(ev){ var b = ev.target.closest('.mode'); if (!b) return;
-  Array.prototype.forEach.call(this.querySelectorAll('.mode'), function(x){ x.classList.toggle('on', x === b); });
-  G.mode = b.dataset.g; applyMode(); });
+$('btModes').addEventListener('click', function(ev){ var b = ev.target.closest('.mode'); if (b) setMode(b.dataset.g); });
 $('btPerTeam').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   perTeamN = +b.dataset.n; setOn(this, b); applyMode(); });
 $('btFfaN').addEventListener('input', function(){ ffaN = +this.value; $('btFfaNV').textContent = ffaN + ' คน'; applyMode(); });
+$('btSpecN').addEventListener('input', function(){ specN = +this.value; $('btSpecNV').textContent = specN + ' ฝ่าย'; applyMode(); });
+// งบของโหมดผู้ชมคือ G.budget ตัวเดียวกับแถบในหน้าจัดกองทัพ เลื่อนอันไหนอีกอันก็ตาม
+function setBudget(v){ G.budget = v; $('btPts').value = v; $('btPtsV').textContent = v; $('btSpecPts').value = v; $('btSpecPtsV').textContent = v; }
+$('btSpecPts').addEventListener('input', function(){ setBudget(+this.value); });
+function setMode(m){      // เหมือนแตะการ์ดโหมด
+  Array.prototype.forEach.call(document.querySelectorAll('#btModes .mode'), function(x){ x.classList.toggle('on', x.dataset.g === m); });
+  G.mode = m; applyMode(); }
+// ออกจากห้องแล้ว G ยังถือกติกาของห้องอยู่ (adoptRoom เขียนทับ) ปุ่มในหน้าตั้งสนามต้องบอกตามนั้น
+// ไม่งั้นการ์ด PvE สว่างอยู่ แต่กดถัดไปแล้วได้ FFA 5 คนของห้อง — setMode ท้ายสุดจัด G ให้ตรงกับปุ่มอีกที
+function syncRulesUI(){
+  if (G.mode === 'ffa') ffaN = clamp(G.teams, 3, 8);
+  if (G.mode === 'team') perTeamN = clamp(G.perTeam, 2, 4);
+  $('btFfaN').value = ffaN; $('btFfaNV').textContent = ffaN + ' คน';
+  markOn('#btPerTeam button', 'n', String(perTeamN));
+  markOn('#btFire button', 'f', G.freeFire ? '1' : '0');
+  markOn('#btClock button', 'c', String(G.clock || 0));
+  setBudget(G.budget);
+  setMode(G.mode);
+}
 $('btHost').addEventListener('click', function(){
   netNote('กำลังเปิดห้อง…');
   netPost('', { nm:myName() || 'เจ้าของโต๊ะ', setup:curSetup() })
     .then(function(j){ netNote(''); netStart(j); })
     .catch(function(e){ netNote('เปิดห้องไม่ได้ — ' + e.message); });
 });
-$('btJoin').addEventListener('click', function(){
-  var code = ($('btJoinCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (code.length !== 5){ netNote('รหัสห้องมี 5 ตัวอักษร'); return; }
+// เข้าห้องด้วยรหัส — ปุ่ม "เข้าห้อง" ในหน้านี้ และ BT.join() ที่หน้าเลือกเกมของเว็บเรียกหลังเปิดโต๊ะนี้ขึ้นมา
+// คืน promise ที่ได้ true เมื่อเข้าได้ ข้อความผิดพลาดขึ้นที่กล่องเล่นกับเพื่อนเหมือนกดปุ่มเอง
+function netJoin(raw){
+  var code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  $('btJoinCode').value = code;
+  if (code.length !== 5){ netNote('รหัสห้องมี 5 ตัวอักษร'); return Promise.resolve(false); }
+  // กดซ้ำระหว่างรอคำตอบ: ขอครั้งเดียวพอ เซิร์ฟเวอร์เปิดที่นั่งใหม่ให้ทุกครั้งที่ขอ ที่นั่งแรกจะค้างเป็นผีกินที่เพื่อน
+  if (NET.joining) return NET.joining;
   netNote('กำลังเข้าห้อง…');
-  netPost('/' + code + '/join', { nm:myName() })
-    .then(function(j){ netNote(''); netStart({ code:code, pid:j.pid, room:j.room }); })
-    .catch(function(e){ netNote('เข้าห้องไม่ได้ — ' + e.message); });
-});
+  NET.joining = netPost('/' + code + '/join', { nm:myName() })
+    .then(function(j){ netNote(''); netStart({ code:code, pid:j.pid, room:j.room }); return true; })
+    .catch(function(e){ netNote('เข้าห้องไม่ได้ — ' + e.message); return false; })
+    .then(function(ok){ NET.joining = null; return ok; });
+  return NET.joining;
+}
+$('btJoin').addEventListener('click', function(){ netJoin($('btJoinCode').value); });
+function joinFromOutside(code, nm){
+  if (NET.joining) return NET.joining;
+  if (NET.on && NET.code === String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '')) return Promise.resolve(true);   // อยู่ในห้องนี้แล้ว
+  if (G.on || NET.on || $('scSetup').classList.contains('hide')) quitGame();   // กลับมาหน้าตั้งสนามก่อน
+  if (G.mode === 'spectator') setMode('pve');            // กล่องเล่นกับเพื่อนซ่อนอยู่ในโหมดผู้ชม ข้อความผิดพลาดจะไม่มีใครเห็น
+  if (nm != null && String(nm).trim()) $('btName').value = String(nm).trim().slice(0, 24);
+  return netJoin(code);
+}
 $('btLeave').addEventListener('click', function(){
   var code = NET.code, pid = NET.pid;
-  netStop(); G.on = false; units.length = 0; show('scSetup'); fitTable(); dirty = true;
+  netStop(); G.on = false; units.length = 0; show('scSetup'); syncRulesUI(); fitTable(); dirty = true;
   if (code) netPost('/' + code + '/leave', { pid:pid }).catch(function(){});
 });
 $('btSeats').addEventListener('change', function(ev){
@@ -2627,13 +3016,15 @@ $('btClock').addEventListener('click', function(ev){ var b = ev.target.closest('
 
 $('btSize').addEventListener('input', function(){ table.w = +$('btSize').value; table.d = Math.round(table.w*0.72/2)*2; $('btSizeV').textContent = table.w + '×' + table.d + ' ม.';
   cam.dist = table.w*1.3; clampPan(); buildTerrain(); genProps();
-  units = units.filter(function(u){ return Math.abs(u.x) < table.w/2 && Math.abs(u.z) < table.d/2; });
+  for (var i=units.length-1;i>=0;i--) if (!(Math.abs(units[i].x) < table.w/2 && Math.abs(units[i].z) < table.d/2)) units.splice(i, 1);   // in place: BT.units must stay this array
   units.forEach(function(u){ if (u.tx != null) unitGoTo(u, u.tx, u.tz); });   // a smaller table can leave a mark off the edge
   dirty = true; });
-$('btNew').addEventListener('click', function(){ SEED = 1 + Math.floor(Math.random()*99999); $('btSeed').textContent = 'สนาม #' + SEED; buildTerrain(); genProps(); dirty = true; paintMapCards(); });
+function newField(){ SEED = 1 + Math.floor(Math.random()*99999); buildTerrain(); genProps(); syncSetupUI(); dirty = true; }
+$('btNew').addEventListener('click', newField);
 
 $('btNext').addEventListener('click', function(){
   if (G.mode === 'custom'){ G.on = false; units.length = 0; show('scCustom'); $('btTip').textContent = '· วางหน่วยเองได้อิสระ'; fitTable(); return; }
+  if (G.mode === 'spectator'){ spectate(); return; }
   mkPlayers();
   var i; for (i=0;i<G.players.length;i++) autoList(i);      // ตั้งกองให้ก่อน แก้เองได้ทุกคน
   G.cur = 0; show('scArmy'); paintRoster(); });
@@ -2641,7 +3032,7 @@ $('btBack1').addEventListener('click', function(){
   if (NET.on){ show('scLobby'); paintLobby(); return; }     // ในห้อง จัดได้แต่กองของตัวเอง
   if (G.cur > 0){ G.cur--; paintRoster(); return; }
   show('scSetup'); });
-$('btPts').addEventListener('input', function(){ G.budget = +$('btPts').value; $('btPtsV').textContent = G.budget;
+$('btPts').addEventListener('input', function(){ setBudget(+$('btPts').value);
   var i; for (i=0;i<G.players.length;i++) autoList(i); paintRoster(); });
 $('btDetail').addEventListener('click', function(){ G.detail = !G.detail; this.textContent = G.detail ? 'ซ่อนรายละเอียด' : 'แสดงรายละเอียด'; paintRoster(); });
 $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
@@ -2669,7 +3060,7 @@ $('btStart').addEventListener('click', function(){
 function paintDeploy(){
   var P = G.players[G.cur]; if (!P) return;
   var who = $('btDepWho');
-  who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + P.nm + ' · ' + TEAM(P.team).nm + '</div>' +
+  who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + esc(P.nm) + ' · ' + TEAM(P.team).nm + '</div>' +
     '<div class="st">' + (P.dep ? 'วางไว้แล้ว — แตะที่อื่นเพื่อย้าย' : 'แตะบนโต๊ะว่าจะให้กองของคุณลงตรงไหน') +
     '<br>ห่างทีมอื่นอย่างน้อย ' + DEP_FOE + '" · ห่างเพื่อนร่วมทีม ' + DEP_MATE + '"</div>';
   $('btDepGo').disabled = !P.dep;
@@ -2719,10 +3110,11 @@ function startMatch(){
     if (!ptsOf(i)) autoList(i);              // ที่นั่งที่บอทนั่งแทนก็ต้องมีกองทัพ ไม่งั้นลงสนามมือเปล่า
   }
   deploy(); show('scPlay');
-  $('btTip').textContent = '· แตะตัวเรา แล้วแตะพื้นหรือศัตรู';
+  G.botTimer = teamIsBot(0) ? 1.0 : 0;          // ทีมแรกเป็นบอท ให้เห็นโต๊ะสักวินาทีก่อนมันเริ่มเดิน
+  $('btTip').textContent = watching() ? '· นั่งดูบอทตีกัน' : '· แตะตัวเรา แล้วแตะพื้นหรือศัตรู';
   var parts = [], t;
   for (t=0;t<G.teams;t++) parts.push(TEAM(t).nm + ' ' + teamPts(t) + ' แต้ม');
-  say('เริ่มรบ · ' + parts.join(' vs ') + ' บน' + TH().name + (G.freeFire ? ' · ฟรีฟาย' : ''));
+  say('เริ่มรบ · ' + parts.join(' vs ') + ' บน' + TH().name + ' (' + TR().name + ')' + (G.freeFire ? ' · ฟรีฟาย' : ''));
   say('— เริ่มเทิร์นของ ' + TEAM(0).nm + ' (รอบ 1) —');
   checkOver();                                 // กองว่างเปล่าก็จบตรงนี้เลย ไม่ต้องเดินห้ารอบ
   startClock(); pushBoard(); fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true;
@@ -2739,10 +3131,27 @@ $('btDone').addEventListener('click', function(ev){ var b = ev.target.closest('b
 function quitGame(){
   if (NET.on){ var c = NET.code, pd = NET.pid; netStop(); netPost('/' + c + '/leave', { pid:pd }).catch(function(){}); }
   G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog();
+  SPEC.paused = false;
   var i; for (i=0;i<G.players.length;i++){ G.players[i].dep = null; G.players[i].done = false; }
-  show('scSetup'); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
+  show('scSetup'); syncRulesUI(); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
 $('btQuit').addEventListener('click', quitGame);
 $('btQuit2').addEventListener('click', quitGame);
+
+// ---------- โหมดผู้ชม ----------
+// ข้ามหน้าจัดกองทัพกับหน้าเลือกจุดลงสนาม: กองของบอทผูกกับ SEED (autoList) จุดลงหาเอง (autoDep ใน deploy)
+function spectate(){
+  if (G.mode !== 'spectator') setMode('spectator');
+  mkPlayers();
+  var i; for (i=0;i<G.players.length;i++){ autoList(i); G.players[i].dep = null; }
+  SPEC.paused = false; startMatch();
+}
+$('btPause').addEventListener('click', function(){ SPEC.paused = !SPEC.paused; paintPlay(); });
+$('btSpd').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; SPEC.speed = +b.dataset.s; paintPlay(); });
+// ทีละจังหวะ: หยุดไว้ แล้วให้บอทเล่นหนึ่งอย่าง — เวลาที่ใหญ่มากผ่านตัวจับเวลาได้ครั้งเดียว แล้วมันตั้งเวลาใหม่เอง
+// จึงได้การเดินหรือการยิงหนึ่งครั้ง หรือการจบตาหนึ่งครั้ง พอดี ๆ
+$('btStep').addEventListener('click', function(){ if (!watching() || G.over) return;
+  SPEC.paused = true; botTick(1e9); paintPlay(); dirty = true; });
+$('btAgain').addEventListener('click', function(){ G.on = false; units.length = 0; newField(); spectate(); });
 
 $('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
 $('btKit').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; kit = b.dataset.k; setOn($('btKit'), b); });
@@ -2755,7 +3164,7 @@ $('btFit').addEventListener('click', fitTable);
 ['resize','orientationchange','load','pageshow'].forEach(function(e){ window.addEventListener(e, function(){ resize(); }); });
 document.addEventListener('visibilitychange', function(){ resize(); });
 try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(cv); } catch(_){}
-buildTerrain(); genProps(); resize(); paintMapCards(); show('scSetup');
+buildTerrain(); genProps(); resize(); syncSetupUI(); show('scSetup');
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
 
 window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
@@ -2778,7 +3187,14 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   done:playerDone, canAct:canAct, canTarget:canTarget,
   start:function(){ if (!G.players.length) mkPlayers(); startMatch(); },
   pick:function(i){ selectUnit(units[i]); }, move:tryMove, shootAt:tryShoot, endTurn:endTurn,
-  live:liveOf, log:function(){ return LOG.slice(); } };
+  live:liveOf, log:function(){ return LOG.slice(); },
+  // สนาม: ภูมิประเทศ สิ่งก่อสร้าง · ห้อง: เข้าด้วยรหัส (หน้าเลือกเกมของเว็บเรียกอันนี้) · โหมดผู้ชม
+  setTerrain:setTerrain, terrainOf:function(){ return terrain; },
+  setBuildings:setBuildings, buildingsOf:function(){ return { on:buildings, density:density }; },
+  curSetup:curSetup, join:joinFromOutside,
+  spectate:function(n){ if (n) { specN = clamp(n|0, 2, 8); $('btSpecN').value = specN; $('btSpecNV').textContent = specN + ' ฝ่าย'; }
+    setMode('spectator'); spectate(); return G.players.length; },
+  spec:SPEC };
 applyMode();
 })();
 </script>
