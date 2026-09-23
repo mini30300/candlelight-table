@@ -8,8 +8,8 @@
 // the same tumble and the same landing face -- no syncing of the animation itself, and no way for two players to see
 // different numbers.
 //
-// Ported from dice-tray.html, which still has its own copy (its throws are honestly random, so it seeds from
-// Math.random and picks its own values). Keep the two in step by hand if the physics is ever touched.
+// Originally ported from the stand-alone dice tray page, which has since been removed; this is now the only copy
+// of the physics (board.html carries it verbatim, checked by dice-check.js).
 var DICE = (function(){
 "use strict";
 var D = Math.PI/180;

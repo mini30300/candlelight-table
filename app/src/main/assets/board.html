@@ -30,8 +30,8 @@
 // the same tumble and the same landing face -- no syncing of the animation itself, and no way for two players to see
 // different numbers.
 //
-// Ported from dice-tray.html, which still has its own copy (its throws are honestly random, so it seeds from
-// Math.random and picks its own values). Keep the two in step by hand if the physics is ever touched.
+// Originally ported from the stand-alone dice tray page, which has since been removed; this is now the only copy
+// of the physics (board.html carries it verbatim, checked by dice-check.js).
 var DICE = (function(){
 "use strict";
 var D = Math.PI/180;
@@ -222,6 +222,7 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
   const rnd = seed => { let s = seed; return () => { s = (s*9301+49297) % 233280; return s/233280; }; };
   function hashStr(s){ let h = 7; for (const ch of String(s)) h = (h*31 + ch.charCodeAt(0)) >>> 0; return h; }
+  function shadeRgb(rgb, k){ const q = String(rgb).split(","); return ((+q[0]||0)*k|0)+","+((+q[1]||0)*k|0)+","+((+q[2]||0)*k|0); }
   function hexRgb(h){ h = String(h||"").replace("#",""); if (h.length===3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; const n = parseInt(h,16); if (isNaN(n) || h.length!==6) return "200,200,200"; return ((n>>16)&255)+","+((n>>8)&255)+","+(n&255); }
 
   // ---------- canvas / camera ----------
@@ -261,13 +262,22 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   function proj(p){ const v = sub(p, cam.C); const z = dot(v, cam.f); if (z < 0.12) return null; const s = cam.fl/z; return { x: W/2 + dot(v,cam.r)*s, y: H/2 - dot(v,cam.u)*s, z, s }; }
   function screenToFloor(sx, sy){ const d = add(add(cam.f, mul(cam.r, (sx-W/2)/cam.fl)), mul(cam.u, -(sy-H/2)/cam.fl)); if (d.y >= -1e-4) return null; const t = -cam.C.y/d.y; if (t > 200) return null; return { x: cam.C.x + d.x*t, z: cam.C.z + d.z*t }; }
   function fogA(z){ return clamp(1 - (z - cam.fogN)/(cam.fogF - cam.fogN), 0.08, 1); }
+  // An opaque fill's fog (the skin: two skin layers at alpha < 1 would show a seam) goes into its colour
+  // instead: mixed toward the night ground as far as fogA would have faded it, in 1/32 steps.
+  const fogCache = new Map();
+  function fogRgb(rgb, a){ const k = Math.round(a*32); if (k >= 32) return rgb;
+    const key = rgb + "|" + k; let s = fogCache.get(key); if (s) return s; if (fogCache.size > 1024) fogCache.clear();
+    const q = String(rgb).split(","), t = k/32;
+    s = ((+q[0]||0)*t + 11*(1-t) | 0) + "," + ((+q[1]||0)*t + 11*(1-t) | 0) + "," + ((+q[2]||0)*t + 14*(1-t) | 0);
+    fogCache.set(key, s); return s; }
 
   // ---------- line styles ----------
   const WHITE = { c:"236,233,224", w:1.0, k:1 }, DIM = { c:"236,233,224", w:0.8, k:0.5 }, FAINT = { c:"236,233,224", w:0.7, k:0.28 };
   const AMB = { c:"224,178,106", w:1.3, k:1 }, TEAL = { c:"120,190,182", w:1.2, k:1 }, RED = { c:"220,110,96", w:1.0, k:1 };
   const styleOf = (rgb, w, k) => ({ c: rgb, w: w||1, k: k||1 });
 
-  // geometry buckets: segs {a,b,s}; fills {pts,c,a}; flames {x,y,z,r,h}
+  // geometry buckets: segs {a,b,s}; fills {pts,c,a} (+ q: alpha may be quantised, zs: sort depth instead of
+  // the points' average, nf: no fog — the skin); flames {x,y,z,r,h}
   function G(){ return { segs:[], fills:[], flames:[] }; }
   const seg = (g,a,b,s) => g.segs.push({ a, b, s: s||WHITE });
   function polyline(g, pts, s, close){ for (let i=0;i<pts.length-1;i++) seg(g, pts[i], pts[i+1], s); if (close && pts.length>2) seg(g, pts[pts.length-1], pts[0], s); }
@@ -294,7 +304,7 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   function wbush(g, x, z, r, s){ wring(g,x,0.05,z,r,7,s||FAINT); wring(g,x,r*0.6,z,r*0.7,6,s||FAINT); seg(g,V(x-r,0.05,z),V(x,r*1.1,z),s||FAINT); seg(g,V(x+r,0.05,z),V(x,r*1.1,z),s||FAINT); }
   function wrock(g, x, z, w, h, d, s, seed){ const r = rnd(seed||1); const st = s||DIM; const b = [V(x-w/2,0,z-d/2),V(x+w/2*(0.7+r()*0.5),0,z-d/2*(0.6+r()*0.6)),V(x+w/2,0,z+d/2),V(x-w/2*(0.6+r()*0.6),0,z+d/2*(0.7+r()*0.5))]; const t = b.map((p,i) => V((p.x+x)/2 + (r()-0.5)*0.2, h*(0.7+r()*0.4), (p.z+z)/2)); polyline(g,b,st,true); polyline(g,t,st,true); for (let i=0;i<4;i++) seg(g,b[i],t[i],st); }
   function fill(g, pts, c, a){ g.fills.push({ pts, c, a }); }
-  function flame(g, x, y, z, r, h){ g.flames.push({ x, y, z, r, h }); }
+  function flame(g, x, y, z, r, h, tongue){ g.flames.push({ x, y, z, r, h, tongue }); }   // tongue: an extra lick of the same fire, no glow of its own
 
   // >>> NEW-HAIR-BLOCK-START (skull-shell hair helpers — model space only)
   // Fixed WORLD-space key light (the candle side). Never derived from the camera:
@@ -398,12 +408,15 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   const HALIAS = { ponytail:"tied", braid:"tied", bun:"tied", tail:"tied",
                    mohawk:"short", curly:"short", spiky:"short", messy:"short",
                    bald:"shaved", none:"shaved" };
-  // A is filled in by drawPawn: P (the pawn model transform), HCen, HR, sideAx, scale, colours, hs, hat.
+  // A is filled in by drawPawn: P (the pawn model transform), HCen, HR, sideAx, scale, colours, hs, hat,
+  // keep (the garments' visibility test, or null: hair strokes that hang behind the shoulders use it).
   // Every vertex below is produced by A.P(), so the whole mass inherits p.rot, the walk bob and scale.
   function emitHair(og, A){
     const P = A.P, HCen = A.HCen, c = A.tint;
     let faces = 0;
-    const hs = HAIRP[A.hs] ? A.hs : (HALIAS[A.hs] || "short");
+    // own keys only: a look saying hair "constructor" must not find Object.prototype's
+    const own = (o, k) => typeof k === "string" && Object.prototype.hasOwnProperty.call(o, k);
+    const hs = own(HAIRP, A.hs) ? A.hs : own(HALIAS, A.hs) ? HALIAS[A.hs] : "short";
     const hat = A.hat;
     const pf = HAIRP[hs];
     const hooded = (hs === "hood" || hat === "hood");
@@ -523,8 +536,9 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
       for (let i=0;i<nbk;i++){
         faces += sheetFace(og, [top[i], top[i+1], mid[i+1], mid[i]], c, pf.a, HCen);
         faces += sheetFace(og, [mid[i], mid[i+1], bot[i+1], bot[i]], c, pf.a*0.94, HCen); }
-      polyline(og, [top[0], mid[0], bot[0]], hairLineS);
-      polyline(og, [top[nbk], mid[nbk], bot[nbk]], hairLineS);
+      // the two side edges hang down behind the shoulders: the cloth in front of them hides them (A.keep)
+      const side = pts => A.keep ? polylineVis(og, pts, hairLineS, false, A.keep, 1) : polyline(og, pts, hairLineS);
+      side([top[0], mid[0], bot[0]]); side([top[nbk], mid[nbk], bot[nbk]]);
       // the sheet covers the back of the skull and the nape: widen the predicate, model space only
       { const sA = A.sideAx, fA = A.fwdAx, sc = A.scale || 1, base = A.cover;
         A.cover = q => { if (base && base(q)) return true;
@@ -554,12 +568,546 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
         for (let i=0;i<4;i++){ const a = i/4*Math.PI*2; tp.push(add(pts[0], add(mul(fm[0].sd, Math.cos(a)*tr), mul(fm[0].up, Math.sin(a)*tr)))); }
         polyline(og, tp, { c: A.accentC, w: 1.1, k: 1, nog: 1 }, true);
       }
-      for (let s=0;s<pts.length-1;s++){ const a = pts[s], b = pts[s+1];
-        if (!hairHidden((a.x+b.x)*0.5, (a.y+b.y)*0.5, (a.z+b.z)*0.5)) seg(og, a, b, hairLineS); }
+      for (let s=0;s<pts.length-1;s++){ const a = pts[s], b = pts[s+1], m = V((a.x+b.x)*0.5, (a.y+b.y)*0.5, (a.z+b.z)*0.5);
+        if (!hairHidden(m.x, m.y, m.z) && (!A.keep || A.keep(m))) seg(og, a, b, hairLineS); }
     }
     return faces;
   }
   // <<< NEW-HAIR-BLOCK-END
+  // Shared distance LOD ladder. Deliberately OUTSIDE both fences: this is the one place the eye's
+  // distance is measured for garments, with exactly emitHair's thresholds (dais-only rich tier at
+  // 20 px, then 11 px, 6 px, 3 px of projected head radius). It uses distance, never orientation.
+  function pawnTier(HCen, HR){
+    const q0 = proj(HCen); if (!q0) return -1;
+    const m = q0.s*1.4; if (q0.x < -m || q0.x > W+m || q0.y < -m*1.3 || q0.y > H+m*0.6) return -1;   // off-screen
+    const d = Math.hypot(HCen.x-cam.C.x, HCen.y-cam.C.y, HCen.z-cam.C.z);
+    const px = HR*(cam.fl/d);
+    return px < 3 ? -1 : (preview && px >= 20) ? 3 : px >= 11 ? 2 : px >= 6 ? 1 : 0;
+  }
+  // The tunic's colour. Very dark cloth is lifted just enough to show its shading against the night
+  // ground, by the same amount on every channel: hairTint's warm lift turned a black tunic brown, and the
+  // editor's colour picker has to get back the colour it picked (black reads charcoal, navy stays navy).
+  const clothCache = new Map();
+  function clothTint(rgb){
+    let s = clothCache.get(rgb); if (s) return s;
+    const q = String(rgb).split(","); let r = +q[0]||0, gg = +q[1]||0, b = +q[2]||0;
+    const mx = Math.max(r, gg, b);
+    if (mx < 72){ const k = (72 - mx)*0.62; r += k; gg += k; b += k; }
+    s = (r|0)+","+(gg|0)+","+(b|0); clothCache.set(rgb, s); return s;
+  }
+  // >>> NEW-OUTFIT-BLOCK-START (garments + body shapes — model space only)
+  // Body shapes. Every number is MODEL space, fed through the pawn transform P().
+  //   hem/mid/waist: [y, r] rings of the flared skirt; sh1/sh2: [y, rx, rz] of the shoulder capsule;
+  //   hd: head height offset; wx: how far held weapons move out; base: floor ring radius;
+  //   tunicY: where the tunic ends; bulge: the mid ring is wider than the rings round it, so the tunic
+  //   always keeps a station there (otherwise the belly would poke through the cloth on the board tiers).
+  // pawn / slim / broad are the approved silhouettes, number for number. sh2 always sits at 0.96 + hd, so
+  // the head keeps the same neck gap on every body. The mock's "robe" body is the robe GARMENT now.
+  const BODIES = {
+    pawn:  { hem:[0.05,0.33], mid:[0.42,0.30],  waist:[0.76,0.27],  sh1:[0.80,0.43,0.25], sh2:[0.96,0.33,0.19], hd:0,     wx:0,     base:0.42, tunicY:0.30 },
+    slim:  { hem:[0.05,0.23], mid:[0.46,0.21],  waist:[0.86,0.175], sh1:[0.90,0.31,0.19], sh2:[1.06,0.24,0.155], hd:0.10, wx:-0.09, base:0.36, tunicY:0.36 },
+    broad: { hem:[0.05,0.42], mid:[0.40,0.40],  waist:[0.70,0.38],  sh1:[0.74,0.60,0.34], sh2:[0.90,0.45,0.26], hd:-0.06, wx:0.16,  base:0.52, tunicY:0.26 },
+    // short and wide, a dwarf's build: everything under the head comes down 0.16
+    stout: { hem:[0.05,0.40], mid:[0.34,0.42],  waist:[0.60,0.40],  sh1:[0.64,0.52,0.32], sh2:[0.80,0.39,0.24], hd:-0.16, wx:0.10,  base:0.50, tunicY:0.22, bulge:1 },
+    // pawn's widths on a longer frame (+0.16)
+    tall:  { hem:[0.05,0.31], mid:[0.50,0.28],  waist:[0.92,0.25],  sh1:[0.96,0.42,0.24], sh2:[1.12,0.32,0.185], hd:0.16, wx:0,     base:0.40, tunicY:0.36 },
+    // everything shrunk under a full-size head, so it reads young / little next to the others
+    small: { hem:[0.05,0.26], mid:[0.33,0.245], waist:[0.56,0.225], sh1:[0.60,0.33,0.20], sh2:[0.74,0.26,0.16], hd:-0.22, wx:-0.06, base:0.35, tunicY:0.22 },
+    // a belly: the mid ring is the widest thing on the body
+    round: { hem:[0.05,0.31], mid:[0.44,0.47],  waist:[0.74,0.37],  sh1:[0.79,0.45,0.29], sh2:[0.95,0.34,0.20], hd:-0.01, wx:0.12,  base:0.50, tunicY:0.20, bulge:1 },
+    // slim hips and waist under pawn-wide shoulders: a V
+    lithe: { hem:[0.05,0.25], mid:[0.46,0.215], waist:[0.84,0.19],  sh1:[0.88,0.39,0.21], sh2:[1.04,0.28,0.165], hd:0.08, wx:-0.03, base:0.37, tunicY:0.34 }
+  };
+  function bodyOf(k){ return (typeof k === "string" && Object.prototype.hasOwnProperty.call(BODIES, k)) ? BODIES[k] : BODIES.pawn; }
+  // Clothes: one garment on the outfit machinery. y0 = where the cloth ends (null: the body's tunicY),
+  // fl0/flM = how far the bottom / mid stations flare past the body, cape = the back sheet it adds.
+  //   robe  : to the floor, a straight A-line with the front opening stroked
+  //   dress : to the floor and belled out, a ribbon at the waist
+  //   leather: a short tunic and a belt;  rags: a torn hem;  armor: pauldrons and plate lines
+  const CLOTHES = {
+    tunic:   { y0:null, fl0:1,    flM:1 },
+    robe:    { y0:0.03, fl0:1.30, flM:1.12, long:1 },
+    armor:   { y0:null, fl0:1,    flM:1 },
+    cloak:   { y0:null, fl0:1,    flM:1, cape:"cloak" },
+    cape:    { y0:null, fl0:1,    flM:1, cape:"cape" },
+    dress:   { y0:0.03, fl0:1.62, flM:1.28, long:1 },
+    leather: { y0:null, fl0:1,    flM:1, short:1 },
+    rags:    { y0:null, fl0:1.04, flM:1 }
+  };
+  const TEAR = [0.10, 0.01, 0.065, 0, 0.085, 0.02, 0.05];           // rags: how far each hem corner hangs
+  // Legacy clients only send `cloak` (none | cloak | cape | armor | robe); `clothes` wins when both are set.
+  const CLOAK_AS = { none:"tunic", cloak:"cloak", cape:"cape", armor:"armor", robe:"robe" };
+  function clothesOf(look){
+    const c = look.clothes, l = look.cloak;
+    if (typeof c === "string" && Object.prototype.hasOwnProperty.call(CLOTHES, c)) return c;
+    return (typeof l === "string" && Object.prototype.hasOwnProperty.call(CLOAK_AS, l)) ? CLOAK_AS[l] : "tunic";
+  }
+  // where a garment starts on this body (model y) — the tunic's own bottom station
+  function garmentY0(BD, G){ return G.y0 != null ? G.y0 : G.short ? BD.tunicY + (BD.waist[0] - BD.tunicY)*0.3 : BD.tunicY; }
+  // Line art under a cover (cloth, head): like polylineCut, but a segment is never kept or dropped on its
+  // two end tests alone. With both ends visible its midpoint is tested too (depth d) and a hidden midpoint
+  // splits it; with exactly one end visible the stroke runs to the last visible point j/8 of that FIXED
+  // model segment. Strokes only: no fill() is added.
+  function polylineVis(g, pts, s, close, keep, d){ const n = pts.length; if (n < 2) return;
+    const lp = (p, q, t) => V(p.x + (q.x-p.x)*t, p.y + (q.y-p.y)*t, p.z + (q.z-p.z)*t);
+    const one = (a, b, ka, kb, dd) => {
+      if (ka && kb){
+        if (dd > 0){ const m = lp(a, b, 0.5); if (!keep(m)){ one(a, m, true, false, dd-1); one(m, b, false, true, dd-1); return; } }
+        seg(g, a, b, s); return; }
+      if (!ka && !kb) return;
+      const p = ka ? a : b, q = ka ? b : a; let lo = 0, hi = 1;
+      for (let k=0;k<3;k++){ const t = (lo+hi)*0.5; if (keep(lp(p, q, t))) lo = t; else hi = t; }
+      if (lo > 0) seg(g, p, lp(p, q, lo), s); };
+    const K = []; for (let i=0;i<n;i++) K.push(keep(pts[i]));
+    for (let i=1;i<n;i++) one(pts[i-1], pts[i], K[i-1], K[i], d);
+    if (close && n > 2) one(pts[n-1], pts[0], K[n-1], K[0], d); }
+  // Per-tier resolution. Garment fills per pawn, MEASURED max over 12 yaws x pitches 0.22/0.55/0.9/1.3
+  // (0.22 is the drag clamp), 4 bodies x 3 cloaks x (short, long, hood), dais + board dist 6/15/26/40/60:
+  //   tier 3 (dais, one pawn)  tunic 12-gon x 3-4 bands + 12 cap quads + cloak 4x8          <= 42, cloaked <= 74
+  //   tier 2 (board >= 11 px)  tunic 6-gon  x 3 bands + cap ring (4 spokes/col) + cloak 1x6 <= 21, cloaked <= 27
+  //   tier 1 (6..11 px)        as tier 2, cap ring 2 spokes/col                             <= 21, cloaked <= 24
+  //   tier 0 (3..6 px)         tunic 4-gon  x 3 bands + cap ring + cloak 1x6                <= 14, cloaked <= 19
+  // A face the head's outline crosses stays ONE fill per clear piece (no splits), so pitch barely moves these.
+  // Whole frame, harness board (12 pawns, tavern night) vs LIVE, fill() median over 12 yaws (worst yaw),
+  // at 375x812 / 390x844 / 412x915:
+  //   mixed pawns  dist 15: p0.22 x1.42-1.43 (x1.51)  p0.55 x1.44-1.52 (x1.54)  p0.9 x1.49 (x1.57)  p1.3 x1.53 (x1.62)
+  //                dist 6 : x1.37-1.43 (x1.52) at every pitch
+  //   all cloaked  dist 15: x1.43-1.54 (x1.62);  dist 6: x1.41-1.49 (x1.57)
+  //   all broad + cloak (the ceiling): dist 15 x1.57-1.61 (x1.74, p0.9); dist 6 x1.46-1.51 (x1.56)
+  //   dais, one pawn: x1.34-2.00 (x2.19), 90-144 fills against LIVE 61-83
+  // (tier 2 has no collar row: that is what keeps it at tier 1 cost; every A32 board pawn is tier 2.)
+  // As shipped here (8 bodies, 8 clothes, 6 face shapes, stars batched), fill() per frame against the board
+  // before the port, 412 px wide: 12 mixed pawns in the tavern x1.50-1.61, same at dist 6 x1.24-1.35,
+  // the dais x1.52, the campfire with 6 pawns 170 against 113 for the old camp scene with 6 tokens.
+  // Cloak columns never drop below 6: coarse columns have to be pushed outward to clear the tunic, and at
+  // 2-3 columns that push turned the cloak into wings (2x the dais width at tier 0).
+  // Faces that straddle the head's silhouette (see clipSheet in emitOutfit): reach = K, every crossing is
+  // the last clear point at 1/2^K of its edge or iso-line; refine = how many times the head's outline is
+  // bisected between two crossings; sub = how many iso-line splits a head sitting wholly inside one face
+  // may cost; capRing = S > 0: the cap is one polygon per clear run of rim, S spokes per column, 0: one
+  // quad per column; flatPx: below this projected head radius (distance only) a cloak draws one polygon
+  // per run of same-side columns at one fixed model shade (0: never).
+  const OUTFIT_LOD = [
+    { lon:4,  mid:0, rows:1, cols:6, collar:0, sub:0, reach:3, refine:2, capRing:2, flatPx:20 },
+    { lon:6,  mid:0, rows:1, cols:6, collar:0, sub:1, reach:5, refine:3, capRing:2, flatPx:20 },
+    { lon:6,  mid:0, rows:1, cols:6, collar:0, sub:1, reach:5, refine:3, capRing:4, flatPx:20 },
+    { lon:12, mid:1, rows:3, cols:8, collar:1, sub:2, reach:5, refine:4, capRing:0, flatPx:0 }
+  ];
+  // The cloak's clearance is always taken from the dais tunic (tier 3), so its width does not jump
+  // when a pawn changes tier.
+  const K_CLOAK = 1.02/Math.cos(Math.PI/OUTFIT_LOD[3].lon);
+  // Body WIREFRAME radius [rx, rz] at model height y (skirt line, then shoulder capsule).
+  function bodyRadAt(BD, y){
+    const S = BD._S || (BD._S = [[BD.hem[0],BD.hem[1],BD.hem[1]],[BD.mid[0],BD.mid[1],BD.mid[1]],[BD.waist[0],BD.waist[1],BD.waist[1]],BD.sh1,BD.sh2]);
+    if (y <= S[0][0]) return [S[0][1], S[0][2]];
+    for (let i=1;i<S.length;i++) if (y <= S[i][0]){ const t = (y - S[i-1][0])/(S[i][0] - S[i-1][0]);
+      return [S[i-1][1] + (S[i][1]-S[i-1][1])*t, S[i-1][2] + (S[i][2]-S[i-1][2])*t]; }
+    return [S[S.length-1][1], S[S.length-1][2]];
+  }
+  // A: { P, BD, scale, HCen, HR, tint, cloakC, accentC, clothes, main, soft, wireOver, occ }. Every vertex
+  // comes from A.P() (or a model-space midpoint of two such vertices). occ (a jaw face only): what the
+  // lifted head, its jaw and neck hide — used for line art, never to clip cloth. Shading is the hair block's rule — fixed
+  // world LIGHT through shadeA, q:1 fills through STYC — applied to each face's own planar normal.
+  // Publishes A.cover for the body wireframe, the neck ticks and held weapons.
+  //   wireOver = 0 (default): cloth hides every body line under it, the garment strokes its own outline
+  //   wireOver = 1          : near-side body lines stay on top of the cloth (the owner compares both)
+  function emitOutfit(og, A){
+    const P = A.P, BD = A.BD, sc = A.scale;
+    const tier = pawnTier(A.HCen, A.HR); if (tier < 0) return 0;     // off-screen / sub-pixel: build nothing
+    const LT = OUTFIT_LOD[tier], NL = LT.lon;
+    // a hair's breadth outside the wireframe: the n-gon's edge midpoints sit 2% outside the rings
+    const K = 1.02/Math.cos(Math.PI/NL), KA = 0.004;
+    const EYE = cam.C;                         // a POSITION, used only by the yes/no visibility tests below
+    const AX = P(0,0,0);                       // the body axis is vertical: P(0, y, 0) = (AX.x, y, AX.z)
+    // ---- head occlusion, outfit-local. NO inside-ball shortcut: q is hidden when the segment from the
+    // eye to q enters the head ball (HCen, HR) before reaching q — a point inside the ball is hidden. ----
+    const HC = A.HCen, hox = HC.x-EYE.x, hoy = HC.y-EYE.y, hoz = HC.z-EYE.z;
+    const hcc = hox*hox + hoy*hoy + hoz*hoz - A.HR*A.HR;
+    const behindHead = hcc <= 0 ? (() => false) : (q => {
+      const dx = q.x-EYE.x, dy = q.y-EYE.y, dz = q.z-EYE.z;
+      const b = hox*dx + hoy*dy + hoz*dz; if (b <= 0) return false;
+      const L2 = dx*dx + dy*dy + dz*dz, disc = b*b - L2*hcc; if (disc <= 0) return false;
+      return b - Math.sqrt(disc) < L2;        // entry parameter (b - sqrt(disc))/L2 < 1
+    });
+    // Every garment face that is not facing-culled is kept as its two WHOLE model triangles (world space)
+    // so the line art can ask "is there cloth between the eye and this point?" (occQuad). The part of a
+    // face the head hides is kept too: a point behind that part is behind the head as well, and the
+    // head test already hides it — so no clipped polygon ever needs its own triangulation. kind 1 = cloak.
+    // Each triangle also keeps its box on the view plane (x/z, y/z along the camera's own axes): the ray from
+    // the eye through q can only meet a triangle whose picture holds q's picture, so hiddenBy skips every
+    // other one before the exact test. A triangle reaching behind the eye's plane gets an unbounded box.
+    const TR = [], CF = cam.f, CR = cam.r, CU = cam.u;
+    let faces = 0, bx0, bx1, by0, by1;
+    const vbox = v => { const dx = v.x-EYE.x, dy = v.y-EYE.y, dz = v.z-EYE.z, z = dx*CF.x + dy*CF.y + dz*CF.z;
+      if (!(z > 1e-6)) { bx0 = by0 = -Infinity; bx1 = by1 = Infinity; return false; }
+      const sx = (dx*CR.x + dy*CR.y + dz*CR.z)/z, sy = (dx*CU.x + dy*CU.y + dz*CU.z)/z;
+      if (sx < bx0) bx0 = sx; if (sx > bx1) bx1 = sx; if (sy < by0) by0 = sy; if (sy > by1) by1 = sy; return true; };
+    const occQuad = (Pq, kind) => { const p0 = Pq[0];
+      for (let i=1;i<3;i++){ const p1 = Pq[i], p2 = Pq[i+1];
+        bx0 = by0 = Infinity; bx1 = by1 = -Infinity; vbox(p0) && vbox(p1) && vbox(p2);
+        TR.push(p0.x, p0.y, p0.z, p1.x-p0.x, p1.y-p0.y, p1.z-p0.z, p2.x-p0.x, p2.y-p0.y, p2.z-p0.z, kind, bx0 - 1e-6, bx1 + 1e-6, by0 - 1e-6, by1 + 1e-6); } };
+    const put = (pts, col, al) => {
+      // a clip whose crossings all collapse onto one corner (reach() = 0) leaves a zero-area polygon:
+      // it would cost a fill() and paint nothing, so it is not emitted
+      { let ax = 0, ay = 0, az = 0; const n = pts.length;
+        for (let i=0;i<n;i++){ const p = pts[i], q = pts[(i+1)%n]; ax += (p.y-q.y)*(p.z+q.z); ay += (p.z-q.z)*(p.x+q.x); az += (p.x-q.x)*(p.y+q.y); }
+        if (ax*ax + ay*ay + az*az < 1e-14*sc*sc*sc*sc) return; }
+      og.fills.push({ pts, c:col, a:al, q:1 }); faces++; };
+    const mid = (p, q) => V((p.x+q.x)*0.5, (p.y+q.y)*0.5, (p.z+q.z)*0.5);
+    const lerpP = (p, q, t) => V(p.x + (q.x-p.x)*t, p.y + (q.y-p.y)*t, p.z + (q.z-p.z)*t);
+    // ---- visibility: does drawn cloth lie between the eye and q (further than gap from q)? ----
+    // Segment-vs-triangle (Moller-Trumbore) against the faces emitted so far. The eye position only
+    // decides yes/no; it never moves a vertex and never picks a shade.
+    const hiddenBy = (q, gT, gC) => {
+      const dx = q.x-EYE.x, dy = q.y-EYE.y, dz = q.z-EYE.z, L = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if (L < 1e-9) return false;
+      const tT = 1 - gT/L, tC = 1 - gC/L, n = TR.length;
+      const zq = dx*CF.x + dy*CF.y + dz*CF.z, box = zq > 1e-6;      // q behind the eye's plane: no box test
+      const sx = box ? (dx*CR.x + dy*CR.y + dz*CR.z)/zq : 0, sy = box ? (dx*CU.x + dy*CU.y + dz*CU.z)/zq : 0;
+      for (let k=0;k<n;k+=14){
+        if (box && (sx < TR[k+10] || sx > TR[k+11] || sy < TR[k+12] || sy > TR[k+13])) continue;
+        const e1x = TR[k+3], e1y = TR[k+4], e1z = TR[k+5], e2x = TR[k+6], e2y = TR[k+7], e2z = TR[k+8];
+        const px = dy*e2z - dz*e2y, py = dz*e2x - dx*e2z, pz = dx*e2y - dy*e2x;
+        const det = e1x*px + e1y*py + e1z*pz; if (det > -1e-12 && det < 1e-12) continue;
+        const inv = 1/det, tx = EYE.x-TR[k], ty = EYE.y-TR[k+1], tz = EYE.z-TR[k+2];
+        const u = (tx*px + ty*py + tz*pz)*inv; if (u < 0 || u > 1) continue;
+        const qx = ty*e1z - tz*e1y, qy = tz*e1x - tx*e1z, qz = tx*e1y - ty*e1x;
+        const v = (dx*qx + dy*qy + dz*qz)*inv; if (v < 0 || u + v > 1) continue;
+        const t = (e2x*qx + e2y*qy + e2z*qz)*inv;
+        if (t > 0 && t < (TR[k+9] ? tC : tT)) return true;
+      }
+      return false; };
+    // ---- the head test on a model-space SHEET: ev(u, v) -> model point over a parameter rectangle (one
+    // quad's bilinear patch, or the whole cap strip). Every vertex emitted below is ev() at a dyadic
+    // (u, v) of a fixed model sheet; the eye only answers yes/no per candidate point, never places one. ----
+    const RK = LT.reach, RD = LT.refine, HR = A.HR;
+    const hbUV = (ev, u, v) => behindHead(ev(u, v));
+    // from clear parameter point p toward hidden q along a straight parameter segment (always an edge
+    // or an iso-line of the sheet): the last clear point at a fraction j/2^RK
+    const reachUV = (ev, p, q) => { let lo = 0, hi = 1;
+      for (let k=0;k<RK;k++){ const t = (lo+hi)*0.5; if (hbUV(ev, p[0]+(q[0]-p[0])*t, p[1]+(q[1]-p[1])*t)) hi = t; else lo = t; }
+      return lo === 0 ? p : [p[0]+(q[0]-p[0])*lo, p[1]+(q[1]-p[1])*lo]; };
+    // Every clear polygon runs counter-clockwise in (u, v), so its clear side is LEFT of a closing chord
+    // A->B. If the chord's parameter midpoint is behind the head, the head's outline bulges into the
+    // clear side there: the outline point is searched on the iso-line through that midpoint, from its
+    // clear end (the sheet's v edge, or at most su away in u, inside rg = [u0, u1, v0, v1]) toward the
+    // midpoint, and both halves are refined again, RD levels deep. Nothing is ever dropped: a chord that
+    // cannot be refined is simply kept.
+    const refine = (ev, A2, B2, out, d, rg, su) => {
+      if (d <= 0) return;
+      const mu = (A2[0]+B2[0])*0.5, mv = (A2[1]+B2[1])*0.5;
+      if (!hbUV(ev, mu, mv)) return;
+      const du = B2[0]-A2[0], dv = B2[1]-A2[1];
+      const E = Math.abs(du) >= Math.abs(dv) ? [mu, du > 0 ? rg[3] : rg[2]] : [dv > 0 ? Math.max(rg[0], mu - su) : Math.min(rg[1], mu + su), mv];
+      if (hbUV(ev, E[0], E[1])) return;
+      const X = reachUV(ev, E, [mu, mv]);
+      refine(ev, A2, X, out, d-1, rg, su); out.push(X); refine(ev, X, B2, out, d-1, rg, su); };
+    const emitUV = (ev, UV, col, al) => {
+      const Q = []; for (const p of UV){ const l = Q[Q.length-1]; if (!l || l[0] !== p[0] || l[1] !== p[1]) Q.push(p); }
+      while (Q.length > 1 && Q[0][0] === Q[Q.length-1][0] && Q[0][1] === Q[Q.length-1][1]) Q.pop();
+      if (Q.length >= 3) put(Q.map(p => ev(p[0], p[1])), col, al); };
+    const bil = Pq => { const a = Pq[0], b = Pq[1], c2 = Pq[2], d = Pq[3];
+      return (u, v) => { if (v === 0){ if (u === 0) return a; if (u === 1) return b; } else if (v === 1){ if (u === 1) return c2; if (u === 0) return d; }
+        const w0 = (1-u)*(1-v), w1 = u*(1-v), w2 = u*v, w3 = (1-u)*v;
+        return V(a.x*w0 + b.x*w1 + c2.x*w2 + d.x*w3, a.y*w0 + b.y*w1 + c2.y*w2 + d.y*w3, a.z*w0 + b.z*w1 + c2.z*w2 + d.z*w3); }; };
+    // One sheet region rg = [u0, u1, v0, v1] (cu columns wide) against the head. Its boundary is sampled
+    // at E = 4 points per column edge (at 2, the head's outline bulging between samples left cloth over the
+    // face); a region with every sample clear (interior samples too) draws whole, and one with every sample
+    // hidden is culled. Otherwise each clear run of boundary samples becomes ONE polygon: the run, the
+    // last clear point at each of its ends, and the head's outline back across the region (refine). A
+    // convex head bite leaves one clear component per clear run, so no piece is dropped and no split
+    // costs a fill. Only a head sitting wholly inside the region (every boundary sample clear, an interior
+    // one hidden) splits it on the iso-line through that sample, `depth` times. Pieces keep one shade.
+    const clipSheet = (ev, rg, cu, col, al, depth) => {
+      const u0 = rg[0], u1 = rg[1], v0 = rg[2], v1 = rg[3];
+      const C0 = ev(u0, v0), C1 = ev(u1, v0), C2 = ev(u1, v1), C3 = ev(u0, v1);
+      const near = true, E = 4, NU = cu*E, R = [], H = [], du = (u1-u0)/NU, dv = (v1-v0)/E;
+      for (let j=0;j<NU;j++) R.push([u0 + du*j, v0]); for (let j=0;j<E;j++) R.push([u1, v0 + dv*j]);
+      for (let j=0;j<NU;j++) R.push([u1 - du*j, v1]); for (let j=0;j<E;j++) R.push([u0, v1 - dv*j]);
+      const N = R.length;
+      let n = 0, h0 = -1;
+      for (let i=0;i<N;i++){ const h = hbUV(ev, R[i][0], R[i][1]); H.push(h); if (h){ n++; if (h0 < 0) h0 = i; } }
+      if (n === N) return;
+      if (n === 0){
+        let hid = null;
+        const fu = (u1-u0)/cu, fv = v1-v0, IN = near ? [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.75,0.75],[0.25,0.75]] : [[0.5,0.5]];
+        for (let k=0;k<cu && !hid;k++) for (const p of IN){ const u = u0 + fu*(k + p[0]), v = v0 + fv*p[1]; if (hbUV(ev, u, v)){ hid = [u, v]; break; } }
+        if (!hid || depth <= 0){
+          if (cu === 1){ put([C0, C1, C2, C3], col, al); return; }
+          const pts = []; for (let k=0;k<=cu;k++) pts.push(ev(u0 + fu*k, v0)); for (let k=cu;k>=0;k--) pts.push(ev(u0 + fu*k, v1));
+          put(pts, col, al); return; }
+        if (Math.hypot(C1.x-C0.x, C1.y-C0.y, C1.z-C0.z) >= Math.hypot(C3.x-C0.x, C3.y-C0.y, C3.z-C0.z)){
+          const half = cu > 1 ? Math.max(1, Math.round((hid[0]-u0)/fu)) : 0;
+          const us = cu > 1 ? u0 + fu*Math.min(cu-1, half) : hid[0], ca = cu > 1 ? Math.min(cu-1, half) : 1;
+          clipSheet(ev, [u0, us, v0, v1], ca, col, al, depth-1); clipSheet(ev, [us, u1, v0, v1], cu > 1 ? cu - ca : 1, col, al, depth-1); }
+        else { clipSheet(ev, [u0, u1, v0, hid[1]], cu, col, al, depth-1); clipSheet(ev, [u0, u1, hid[1], v1], cu, col, al, depth-1); }
+        return; }
+      for (let s=1; s<N; ){
+        if (H[(h0+s)%N]){ s++; continue; }
+        let e = s; while (e+1 < N && !H[(h0+e+1)%N]) e++;
+        const i0 = (h0+s)%N, i1 = (h0+e)%N;
+        const cin = reachUV(ev, R[i0], R[(i0+N-1)%N]), cout = reachUV(ev, R[i1], R[(i1+1)%N]);
+        const UV = [cin]; for (let t=s;t<=e;t++) UV.push(R[(h0+t)%N]); UV.push(cout);
+        refine(ev, cout, cin, UV, RD, rg, (u1-u0)/cu);
+        emitUV(ev, UV, col, al);
+        s = e + 1; } };
+    const clipQuad = (Pq, col, al, depth) => clipSheet(bil(Pq), [0, 1, 0, 1], 1, col, al, depth);
+    // does triangle p,q,s (wound like its face, orientation sg) face the eye? exact for a plane: test at a vertex
+    const triFront = (p, q, s, sg) => {
+      const ux = q.x-p.x, uy = q.y-p.y, uz = q.z-p.z, vx = s.x-p.x, vy = s.y-p.y, vz = s.z-p.z;
+      return sg*((uy*vz - uz*vy)*(p.x-EYE.x) + (uz*vx - ux*vz)*(p.y-EYE.y) + (ux*vy - uy*vx)*(p.z-EYE.z)) < 0; };
+    // One cloth quad. Facing and shade both come from the quad's OWN planar normal (cross of its
+    // diagonals), oriented away from the axis point P(0, quad mid y, 0) — model geometry only. The eye
+    // position decides yes/no (drawn or not); it never picks a shade and never moves a vertex.
+    // outward (away from the axis) diagonal normal of a quad, and whether that side faces the eye
+    const quadN = Pq => {
+      const a = Pq[0], b = Pq[1], c2 = Pq[2], d = Pq[3];
+      const mx = (a.x+b.x+c2.x+d.x)*0.25, my = (a.y+b.y+c2.y+d.y)*0.25, mz = (a.z+b.z+c2.z+d.z)*0.25;
+      const ux = c2.x-a.x, uy = c2.y-a.y, uz = c2.z-a.z, vx = d.x-b.x, vy = d.y-b.y, vz = d.z-b.z;
+      let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx, sg = 1;
+      if (nx*(mx-AX.x) + nz*(mz-AX.z) < 0){ nx = -nx; ny = -ny; nz = -nz; sg = -1; }
+      return { nx, ny, nz, sg, front: nx*(mx-EYE.x) + ny*(my-EYE.y) + nz*(mz-EYE.z) < 0 }; };
+    const clothQuad = (Pq, col, aBase, kind, twoSided) => {
+      const a = Pq[0], b = Pq[1], c2 = Pq[2], d = Pq[3];
+      const Nq = quadN(Pq), nx = Nq.nx, ny = Nq.ny, nz = Nq.nz, sg = Nq.sg;
+      let front = Nq.front;
+      // A twisted quad (the waist->sh1 saddle of a body whose shoulders are wide but shallow) can face
+      // the eye over part of its area while its diagonal normal does not; culling it opened a lip hole
+      // into the tube. It is culled only when both triangulations also face away (same orientation sg).
+      if (!front && !twoSided) front = triFront(a, b, c2, sg) || triFront(a, c2, d, sg) || triFront(b, c2, d, sg) || triFront(b, d, a, sg);
+      if (!front && !twoSided) return false;
+      const nl = Math.hypot(nx, ny, nz) || 1;
+      occQuad(Pq, kind);
+      clipQuad(Pq, col, aBase*shadeA((nx*LIGHT.x + ny*LIGHT.y + nz*LIGHT.z)/nl), LT.sub);
+      return front; };
+    // ---- tunic (robe / dress: to the floor) — lathed stations [y, rx, rz], bottom to top ----
+    const CL = A.clothes, GM = CLOTHES[CL] || CLOTHES.tunic, y0 = garmentY0(BD, GM);
+    const st = [];
+    { const r = bodyRadAt(BD, y0); st.push([y0, r[0]*GM.fl0, r[1]*GM.fl0]); }
+    // the mid station: the dais tier always has it; a flared garment or a belly needs it on every tier
+    if ((LT.mid || GM.long || BD.bulge) && y0 < BD.mid[0] - 0.04) st.push([BD.mid[0], BD.mid[1]*GM.flM, BD.mid[1]*GM.flM]);
+    st.push([BD.waist[0], BD.waist[1], BD.waist[1]], BD.sh1, BD.sh2);
+    const rings = [];
+    for (let s=0;s<st.length;s++){ const R = [], rx = st[s][1]*K + KA, rz = st[s][2]*K + KA;
+      // rags: the bottom ring is torn — its corners hang to uneven depths, so the hem reads as a ragged zigzag
+      const torn = s === 0 && CL === "rags";
+      for (let i=0;i<NL;i++){ const a = (i+0.5)/NL*Math.PI*2; R.push(P(Math.cos(a)*rx, st[s][0] - (torn ? TEAR[i % TEAR.length] : 0), Math.sin(a)*rz)); }
+      rings.push(R); }
+    const c = A.tint, aT = 0.86;
+    const fac = [];                           // per band, per column: does this quad face the eye
+    for (let b=0;b<st.length-1;b++){ const R0 = rings[b], R1 = rings[b+1], fb = [];
+      for (let i=0;i<NL;i++){ const j = (i+1)%NL; fb.push(clothQuad([R0[i], R0[j], R1[j], R1[i]], c, aT, 0, false)); }
+      fac.push(fb); }
+    const yT = st[st.length-1][0];
+    // ---- shoulder cap: from the sh2 rim in to a neck ring. No neck disc: the ring's radius puts it
+    // inside the head ball (0.19 below the centre, r 0.085 -> 0.209 < 0.21), so the opening it leaves can
+    // never be seen from outside the head, and the head test hides the cap's inner edge. (A jaw face lifts
+    // the head off it; drawPawn closes that gap with a neck.) ----
+    const top = rings[rings.length-1], neck = [], yN = yT + 0.04, rN = 0.085;
+    for (let i=0;i<NL;i++){ const a = (i+0.5)/NL*Math.PI*2; neck.push(P(Math.cos(a)*rN, yN, Math.sin(a)*rN)); }
+    if (LT.capRing) capRing(top, neck);
+    else for (let i=0;i<NL;i++){ const j = (i+1)%NL; clothQuad([top[i], top[j], neck[j], neck[i]], c, aT, 0, false); }
+    // Board tiers: the whole cap is ONE sheet, u in [0, n) round the rim (column i, fraction u-i), v from
+    // the rim (0) to the neck ring (1). Spokes are its iso-lines u = k/S. The neck ring is inside the head
+    // ball, so the clear cap is always bounded by the head's outline: each clear run of rim becomes one
+    // polygon — the run, the last clear rim point at both ends, then the last clear point of every spoke
+    // back along the run, with refine() filling in the outline between spokes. A rim that is clear all the
+    // way round is emitted as two half-rings (one closed annulus cannot be one simple polygon). One fixed
+    // shade (the cap's up-facing normal, from LIGHT): which spokes are clear never changes a shade. The
+    // camera is always above the cap on the board (pitch >= 0.22, look-at 0.4, dist >= 6).
+    function capRing(top, neck){
+      const n = top.length, S = LT.capRing, aCap = aT*shadeA(LIGHT.y), m = n*S;
+      const ev = (u, v) => { let w = u % n; if (w < 0) w += n; let i = Math.floor(w); if (i >= n) i = n-1;
+        const f = w - i, j = (i+1)%n, a = top[i], b = top[j], c2 = neck[j], d = neck[i];
+        if (v === 0){ if (f === 0) return a; if (f === 1) return b; }
+        const w0 = (1-f)*(1-v), w1 = f*(1-v), w2 = f*v, w3 = (1-f)*v;
+        return V(a.x*w0 + b.x*w1 + c2.x*w2 + d.x*w3, a.y*w0 + b.y*w1 + c2.y*w2 + d.y*w3, a.z*w0 + b.z*w1 + c2.z*w2 + d.z*w3); };
+      const RH = []; let h0 = -1, open = false;
+      for (let k=0;k<m;k++){ const h = hbUV(ev, k/S, 0); RH.push(h); if (h && h0 < 0) h0 = k; if (!open && !hbUV(ev, k/S, 1)) open = true; }
+      for (let i=0;i<n;i++){ const j = (i+1)%n; occQuad([top[i], top[j], neck[j], neck[i]], 0); }
+      if (open){ for (let i=0;i<n;i++){ const j = (i+1)%n; clipQuad([top[i], top[j], neck[j], neck[i]], c, aCap, LT.sub); } return; }
+      const RG = [-Infinity, Infinity, 0, 1];
+      const back = (UV, first, last, from) => {      // spokes last..first, outline refined in between
+        let prev = from;
+        for (let k=last;k>=first;k--){ const X = reachUV(ev, [k/S, 0], [k/S, 1]);
+          if (prev) refine(ev, prev, X, UV, RD, RG, 1/S);
+          UV.push(X); prev = X; }
+        return prev; };
+      if (h0 < 0){
+        for (const [k0, k1] of [[0, m/2], [m/2, m]]){ const UV = [];
+          for (let k=k0;k<=k1;k++) UV.push([k/S, 0]);
+          back(UV, k0, k1, null); emitUV(ev, UV, c, aCap); }
+        return; }
+      for (let s=1; s<m; ){
+        if (RH[(h0+s)%m]){ s++; continue; }
+        let e = s; while (e+1 < m && !RH[(h0+e+1)%m]) e++;
+        const k0 = h0 + s, k1 = h0 + e;                 // unwrapped: u runs on past n, ev() wraps it
+        const r0 = reachUV(ev, [k0/S, 0], [(k0-1)/S, 0]), r1 = reachUV(ev, [k1/S, 0], [(k1+1)/S, 0]);
+        const UV = [r0]; for (let k=k0;k<=k1;k++) UV.push([k/S, 0]); UV.push(r1);
+        const last = back(UV, k0, k1, r1);
+        refine(ev, last, r0, UV, RD, RG, 1/S);
+        emitUV(ev, UV, c, aCap);
+        s = e + 1; }
+    }
+    // ---- armor: a pauldron on each shoulder — the outer half of a small dome over the sh1 corner ----
+    const pauld = [];
+    if (CL === "armor"){
+      const pr = LT.lon >= 12 ? 2 : 1, pc = LT.lon >= 12 ? 4 : 3;
+      const ax = BD.sh1[1]*0.40, ay = (BD.sh2[0] - BD.sh1[0])*0.95, az = BD.sh1[2]*1.08, cy = (BD.sh1[0] + BD.sh2[0])*0.5 - 0.04;
+      for (const s of [-1, 1]){ const cx = s*BD.sh1[1]*0.79, G = [];
+        for (let r=0;r<=pr;r++){ const ph = 0.35 + 1.40*r/pr, R = [];
+          for (let k=0;k<=pc;k++){ const la = -Math.PI/2 + Math.PI*k/pc;
+            R.push(P(cx + s*ax*Math.sin(ph)*Math.cos(la), cy + ay*Math.cos(ph), az*Math.sin(ph)*Math.sin(la))); }
+          G.push(R); }
+        for (let r=0;r<pr;r++) for (let k=0;k<pc;k++) clothQuad([G[r][k], G[r][k+1], G[r+1][k+1], G[r+1][k]], c, 0.94, 0, false);
+        pauld.push(G); }
+    }
+    // ---- cloak / cape: two-sided sheet over the back of the shoulders ----
+    const cloakOn = !!GM.cape;
+    let clRows = null; const clFac = [];      // per cloak row, per column: does the OUTER side face the eye
+    if (cloakOn){
+      const long = GM.cape === "cloak", cols = LT.cols;
+      const a0 = Math.PI - 0.32, a1 = Math.PI*2 + 0.32, kc = 1/Math.cos((a1 - a0)/cols*0.5);
+      // cape: hip length, as the live cape (its hem sat at y 0.52-0.55) — not a waist-length cape
+      const ySh = BD.sh1[0], yEnd = long ? BD.hem[0] + 0.07 : BD.waist[0] - 0.10;
+      // clearance and flare scale with the shoulder width (pawn keeps 0.03 / 0.10 / 0.04 exactly), so a
+      // thin body's cloak is ~1.4x its shoulders instead of being padded by fixed offsets
+      const shW = BD.sh1[1]/0.43, clr = Math.max(0.022, 0.03*shW), flare = (long ? 0.10 : 0.04)*shW;
+      // below the shoulders it hangs at least as wide as everything under it (shoulders included)
+      let ex = BD.sh1[1], ez = BD.sh1[2];
+      for (let k=0;k<=4;k++){ const r = bodyRadAt(BD, yEnd + (ySh - yEnd)*k/4); if (r[0] > ex) ex = r[0]; if (r[1] > ez) ez = r[1]; }
+      const KC = K_CLOAK;
+      const hts = [];
+      if (LT.collar){ const yC = BD.sh2[0] - 0.03, r = bodyRadAt(BD, yC); hts.push([yC, (r[0]*KC + 0.02*shW)*kc, (r[1]*KC + 0.02*shW)*kc]); }
+      for (let r=0;r<=LT.rows;r++){ const t = r/LT.rows, y = ySh + (yEnd - ySh)*t;
+        hts.push([y, (ex*KC + clr + flare*t)*kc, (ez*KC + clr + flare*t)*kc]); }
+      clRows = [];
+      for (let r=0;r<hts.length;r++){ const R = [];
+        for (let i=0;i<=cols;i++){ const a = a0 + (a1 - a0)*i/cols; R.push(P(Math.cos(a)*hts[r][1], hts[r][0], Math.sin(a)*hts[r][2])); }
+        clRows.push(R); }
+      // A small board pawn (projected head < LT.flatPx px — distance only, like the tier) draws each run of
+      // cloak columns that turn the same side to the eye as ONE polygon, at ONE fixed shade: the shade of
+      // the sheet's middle (model geometry — which columns merge never changes it). Same-side columns never
+      // fold over each other on screen, and the fold between runs keeps its silhouette stroke below.
+      const pxH = A.HR*cam.fl/Math.hypot(HC.x-EYE.x, HC.y-EYE.y, HC.z-EYE.z);
+      const merge = LT.flatPx > 0 && pxH < LT.flatPx;
+      for (let r=0;r<clRows.length-1;r++){ const R0 = clRows[r], R1 = clRows[r+1], fr = [];
+        if (!merge){
+          for (let i=0;i<cols;i++) fr.push(clothQuad([R0[i], R0[i+1], R1[i+1], R1[i]], A.cloakC, 0.98, 1, true));
+          clFac.push(fr); continue; }
+        const hm = cols >> 1, Nm = quadN([R0[hm-1], R0[hm+1], R1[hm+1], R1[hm-1]]);
+        const aFlat = 0.98*shadeA((Nm.nx*LIGHT.x + Nm.ny*LIGHT.y + Nm.nz*LIGHT.z)/(Math.hypot(Nm.nx, Nm.ny, Nm.nz) || 1));
+        const ev = (u, v) => { let i = Math.floor(u); if (i >= cols) i = cols-1; if (i < 0) i = 0;
+          const f = u - i, a = R0[i], b = R0[i+1], c2 = R1[i+1], d = R1[i];
+          if (v === 0){ if (f === 0) return a; if (f === 1) return b; } else if (v === 1){ if (f === 1) return c2; if (f === 0) return d; }
+          const w0 = (1-f)*(1-v), w1 = f*(1-v), w2 = f*v, w3 = (1-f)*v;
+          return V(a.x*w0 + b.x*w1 + c2.x*w2 + d.x*w3, a.y*w0 + b.y*w1 + c2.y*w2 + d.y*w3, a.z*w0 + b.z*w1 + c2.z*w2 + d.z*w3); };
+        // a column the head touches (any boundary sample at 1/4 of an edge, or an interior sample, hidden) is
+        // clipped on its own; only untouched columns merge, so a long merged outline never crosses the head
+        const IN = [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.75,0.75],[0.25,0.75]], touch = [];
+        for (let i=0;i<cols;i++){ const Q = [R0[i], R0[i+1], R1[i+1], R1[i]]; fr.push(quadN(Q).front); occQuad(Q, 1);
+          let t = false;
+          for (let j=0;j<4 && !t;j++){ const f = j/4;
+            if (hbUV(ev, i+f, 0) || hbUV(ev, i+1, f) || hbUV(ev, i+1-f, 1) || hbUV(ev, i, 1-f)) t = true; }
+          for (let j=0;j<IN.length && !t;j++) if (hbUV(ev, i+IN[j][0], IN[j][1])) t = true;
+          touch.push(t); }
+        for (let i=0;i<cols; ){
+          if (touch[i]){ clipSheet(ev, [i, i+1, 0, 1], 1, A.cloakC, aFlat, LT.sub); i++; continue; }
+          let j = i; while (j+1 < cols && !touch[j+1] && fr[j+1] === fr[i]) j++;
+          const pts = []; for (let k=i;k<=j+1;k++) pts.push(R0[k]); for (let k=j+1;k>=i;k--) pts.push(R1[k]);
+          put(pts, A.cloakC, aFlat); i = j + 1; }
+        clFac.push(fr); }
+    }
+    // body wireframe: default hides everything under cloth (the wire sits ~0.01 under it); wireOver
+    // keeps the near side (gap under the tunic must be a body's depth, 0.05) and still hides the far
+    // side and whatever the cloak hangs over. Anything behind the head is hidden too: the cloth that
+    // would have covered it there is culled by the same head test.
+    const gW = A.wireOver ? 0.05*sc : 0.003*sc, gWC = A.wireOver ? 0.012*sc : 0.003*sc;
+    const occ = A.occ;                        // a jaw face: the lifted head / jaw / neck, for line art only
+    A.cover = occ ? (q => behindHead(q) || occ(q) || hiddenBy(q, gW, gWC)) : (q => behindHead(q) || hiddenBy(q, gW, gWC));
+    // garment line art sits ON its own faces' edges (gap 0), so only cloth in front of it — or the
+    // head — hides it
+    const gvis = q => !behindHead(q) && !(occ && occ(q)) && !hiddenBy(q, 0.003*sc, 0.003*sc);
+    // closed ring / open run with its chord midpoints added, so no stroke is kept on its two end tests alone
+    const fineRing = R => { const o = []; for (let i=0;i<R.length;i++) o.push(R[i], mid(R[i], R[(i+1)%R.length])); return o; };
+    const fineRun = R => { const o = [R[0]]; for (let i=1;i<R.length;i++) o.push(mid(R[i-1], R[i]), R[i]); return o; };
+    // garment lines: every chord is also tested at its midpoint, and cut at its last visible point
+    const gline = (pts, st, close) => polylineVis(og, pts, st, close, gvis, 1);
+    // ---- garment line art ----
+    if (A.wireOver) gline(fineRing(rings[0]), { c, w: 1.1, k: 1, nog: 1 }, true);   // tunic / robe hem
+    else {
+      // the cloth carries the glow outline now: hem, shoulder crease (sh1), top rim (sh2), and the
+      // silhouette generators — the column edges where one neighbour faces the eye and the other does
+      // not (a visibility decision; the edge itself is a fixed model-space edge).
+      const ms = A.main;
+      gline(fineRing(rings[0]), ms, true);
+      gline(fineRing(rings[rings.length-2]), ms, true);
+      gline(fineRing(rings[rings.length-1]), ms, true);
+      for (let b=0;b<fac.length;b++){ const fb = fac[b];
+        for (let i=0;i<NL;i++){ if (fb[i] === fb[(i+NL-1)%NL]) continue;
+          gline([rings[b][i], mid(rings[b][i], rings[b+1][i]), rings[b+1][i]], ms, false); } }
+    }
+    // ---- per-garment trims. Every point starts ON the garment (a slice between two station rings, or a
+    // point along one ring's edge) and is lifted a hair off it, so a trim turns with the pawn and hides
+    // behind cloth exactly like the hem does, but is never hidden by the very face it lies on. ----
+    const lift = q => V(AX.x + (q.x-AX.x)*1.015, q.y, AX.z + (q.z-AX.z)*1.015);
+    const sliceAt = y => { let b = 0; while (b < st.length-2 && y > st[b+1][0]) b++;
+      const t = clamp((y - st[b][0])/(st[b+1][0] - st[b][0]), 0, 1), R0 = rings[b], R1 = rings[b+1], o = [];
+      for (let i=0;i<NL;i++) o.push(lerpP(R0[i], R1[i], t)); return o; };
+    // the point at polar angle a on ring R (a = pi/2 is the front), on the n-gon's edge
+    const ringAt = (R, a) => { let f = a/(Math.PI*2)*NL - 0.5; f = ((f % NL) + NL) % NL;
+      const i = Math.floor(f); return lerpP(R[i % NL], R[(i+1) % NL], f - i); };
+    // ring R from angle a0 to a1, through every n-gon corner on the way, so no chord cuts inside the cloth
+    const arcOn = (R, a0, a1) => { const da = Math.PI*2/NL, o = [ringAt(R, a0)];
+      for (let i = Math.floor(a0/da - 0.5) + 1; (i+0.5)*da < a1; i++) o.push(ringAt(R, (i+0.5)*da));
+      o.push(ringAt(R, a1)); return o; };
+    const tline = (pts, st, close) => gline(pts.map(lift), st, close);
+    const HALF = Math.PI/2, aS = { c: A.accentC, w: 1.7, k: 1 };
+    if (CL === "leather" || CL === "dress"){
+      // leather: a belt at the hip with a buckle; dress: a ribbon just under the waist
+      const yB = CL === "dress" ? BD.waist[0] - 0.04 : y0 + (BD.waist[0] - y0)*0.35, B = sliceAt(yB);
+      tline(fineRing(B), aS, true);
+      if (CL === "leather"){ const bl = ringAt(B, HALF), bw = 0.035;
+        const up = V(0, 0.035*sc, 0), sd = mul(norm(sub(ringAt(B, HALF - 0.3), ringAt(B, HALF + 0.3))), bw*sc);
+        tline([add(add(bl, sd), up), add(sub(bl, sd), up), sub(sub(bl, sd), up), sub(add(bl, sd), up)], aS, true); }
+    }
+    if (CL === "robe"){   // the front opening: a V from the collar that widens to the hem, traced over the cloth
+      const n = st.length, dOf = u => 0.30 - 0.20*u;
+      for (const sg of [1, -1]){ const L = [];
+        for (let s=0;s<n-1;s++) for (let k=0;k<3;k++){ const t = k/3, a = HALF + sg*dOf((s + t)/(n-1));
+          L.push(lerpP(ringAt(rings[s], a), ringAt(rings[s+1], a), t)); }
+        L.push(ringAt(rings[n-1], HALF + sg*dOf(1)));
+        tline(L, A.soft, false); }
+    }
+    if (CL === "armor"){  // plate lines round the front, a ridge down the middle, and the pauldron rims
+      for (const t of [0.30, 0.62, 0.92]) tline(arcOn(sliceAt(y0 + (BD.waist[0] - y0)*t), HALF - 1.2, HALF + 1.2), A.soft, false);
+      const ridge = []; for (let s=0;s<st.length;s++) ridge.push(ringAt(rings[s], HALF));
+      tline(fineRun(ridge), A.soft, false);
+      for (const G of pauld){ const last = G[G.length-1], sideA = [], sideB = [];
+        for (const R of G){ sideA.push(R[0]); sideB.push(R[R.length-1]); }
+        gline(fineRun(last), A.main, false); gline(sideA, A.soft, false); gline(sideB, A.soft, false); }
+    }
+    if (CL === "rags"){   // a patch sewn on the front
+      const yA = y0 + (BD.waist[0] - y0)*0.45, lo = arcOn(sliceAt(yA), HALF + 0.22, HALF + 0.62), hi = arcOn(sliceAt(yA + 0.12), HALF + 0.22, HALF + 0.62);
+      tline(lo.concat(hi.reverse()), A.soft, true);
+    }
+    if (clRows){
+      // the outer edges (sides + hem) carry the body's soft glow so a dark cloak does not merge into the
+      // ground; the collar edge keeps the raw cloak colour, which matches the hood cowl.
+      const clS = { c: A.cloakC, w: 1.1, k: 1, nog: 1 }, edS = A.soft, last = clRows.length - 1, cols = clRows[0].length - 1;
+      const side0 = [], side1 = [];
+      for (let r=0;r<=last;r++){ side0.push(clRows[r][0]); side1.push(clRows[r][cols]); }
+      gline(fineRun(side0), edS, false); gline(fineRun(side1), edS, false);
+      gline(fineRun(clRows[last]), edS, false);
+      gline(fineRun(clRows[0]), clS, false);
+      // the curved sheet's own silhouette: an interior column edge whose two quads turn different sides
+      // to the eye (a visibility decision on a fixed model edge), stroked like the tunic's generators
+      for (let r=0;r<clFac.length;r++) for (let i=1;i<cols;i++){ if (clFac[r][i] === clFac[r][i-1]) continue;
+        gline([clRows[r][i], mid(clRows[r][i], clRows[r+1][i]), clRows[r+1][i]], edS, false); }
+    }
+    return faces;
+  }
+  // <<< NEW-OUTFIT-BLOCK-END
   function floorSlab(g, Wd, D, style){ const s = style||WHITE; const y = 0;
     fill(g, [V(-Wd/2,y,-D/2),V(Wd/2,y,-D/2),V(Wd/2,y,D/2),V(-Wd/2,y,D/2)], "236,233,224", 0.035);
     wbox(g, 0, -0.5, 0, Wd, 0.5, D, DIM); polyline(g,[V(-Wd/2,y,-D/2),V(Wd/2,y,-D/2),V(Wd/2,y,D/2),V(-Wd/2,y,D/2)], s, true);
@@ -567,8 +1115,22 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   }
 
   // ---------- scenes ----------
+  // the fire both camp scenes share, at the origin: a ring of stones, crossed logs, the flame and two
+  // smaller licks round it (k: the lobby's fire is built up a little bigger)
+  function firePit(g, k){ k = k || 1;
+    for (let i=0;i<7;i++){ const a = i/7*Math.PI*2; wrock(g, Math.cos(a)*0.9, Math.sin(a)*0.9, 0.4, 0.25, 0.3, DIM, i+80); }
+    seg(g,V(-0.4,0.1,0.2),V(0.5,0.1,-0.3),DIM); seg(g,V(0.3,0.1,0.4),V(-0.5,0.1,-0.2),DIM); flame(g, 0, 0.15, 0, 0.4*k, 0.9*k);
+    flame(g, 0.17*k, 0.12, 0.08*k, 0.2*k, 0.55*k, 1); flame(g, -0.15*k, 0.12, -0.06*k, 0.22*k, 0.62*k, 1);
+  }
+  function dais(g, keep){
+    const pl = (pts, st, close) => keep ? polylineVis(g, pts, st, close, keep, 0) : polyline(g, pts, st, close);
+    const R0 = ringPts(0,0,0,0.9,28), R1 = ringPts(0,-0.12,0,0.94,28), fineR = R => { const o = []; for (let i=0;i<R.length;i++) o.push(R[i], mul(add(R[i], R[(i+1)%R.length]), 0.5)); return o; };
+    pl(keep ? fineR(R0) : R0, AMB, true); pl(keep ? fineR(R1) : R1, DIM, true);
+    for (let i=0;i<8;i++){ const a = i/8*Math.PI*2; pl([V(Math.cos(a)*0.9,0,Math.sin(a)*0.9),V(Math.cos(a)*0.94,-0.12,Math.sin(a)*0.94)], DIM, false); }
+  }
   const S = {
-    preview(g){ wring(g,0,0,0,0.9,28,AMB); wring(g,0,-0.12,0,0.94,28,DIM); for (let i=0;i<8;i++){ const a = i/8*Math.PI*2; seg(g,V(Math.cos(a)*0.9,0,Math.sin(a)*0.9),V(Math.cos(a)*0.94,-0.12,Math.sin(a)*0.94),DIM); } return {w:1,d:1}; },
+    // the creator dais: drawn per frame by dais() instead, so the part behind the pawn's cloth can be cut
+    preview(g){ return {w:1,d:1}; },
     tavern(g){
       const Wd=12, D=9; floorSlab(g, Wd, D);
       for (let i=-4;i<=4;i++) seg(g, V(i*1.2,0.002,-D/2), V(i*1.2,0.002,D/2), FAINT);
@@ -679,13 +1241,25 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     camp(g){
       const Wd=13, D=11; floorSlab(g, Wd, D); const r = rnd(9);
       for (let i=0;i<12;i++){ const x = (r()-0.5)*Wd*0.95, z = (r()-0.5)*D*0.95; if (Math.hypot(x,z) < 3.5) continue; wtree(g, x, z, 1.6+r()*2, 0.7, i%3===0 ? DIM : FAINT); }
-      for (let i=0;i<7;i++){ const a = i/7*Math.PI*2; wrock(g, Math.cos(a)*0.9, Math.sin(a)*0.9, 0.4, 0.25, 0.3, DIM, i+80); }
-      seg(g,V(-0.4,0.1,0.2),V(0.5,0.1,-0.3),DIM); seg(g,V(0.3,0.1,0.4),V(-0.5,0.1,-0.2),DIM); flame(g, 0, 0.15, 0, 0.4, 0.9);
+      firePit(g);
       const tent = (x,z,rot) => { const p = [V(x-1.1,0,z-0.9),V(x+1.1,0,z-0.9),V(x,1.5,z-0.9),V(x-1.1,0,z+0.9),V(x+1.1,0,z+0.9),V(x,1.5,z+0.9)].map(q => rotY(q,x,z,rot)); polyline(g,[p[0],p[1],p[2]],WHITE,true); polyline(g,[p[3],p[4],p[5]],DIM,true); seg(g,p[2],p[5],WHITE); seg(g,p[0],p[3],DIM); seg(g,p[1],p[4],DIM); };
       tent(-3.2,-1.5,0.4); tent(3.2,-1.2,-0.6); tent(0.5,3.6,0.2);
       for (let i=0;i<3;i++) wcyl(g, 2.2+i*0.7, 0, 2.6, 0.3, 0.3, 0.6, 6, DIM, 3);
       seg(g,V(-2,0,2.5),V(-2,1.4,2.5),DIM); seg(g,V(-2,1.4,2.5),V(-2.3,1.9,2.5),DIM); // spear
       return { w: Wd/2-0.5, d: D/2-0.5 };
+    },
+    // The lobby's clearing (setCampfire): the camp's fire pit on round ground. Nothing stands between the
+    // seats (r 2.2) and r 9, because the lobby camera orbits at about r 7.5 and anything in that band would
+    // sooner or later come between the eye and a pawn; the trees and tents stand beyond it.
+    campfire(g){
+      const r = rnd(23);
+      fill(g, ringPts(0, 0, 0, 6.2, 28), "236,233,224", 0.03); wring(g, 0, 0, 0, 6.2, 40, FAINT);
+      firePit(g, 1.25);
+      for (let i=0;i<5;i++){ const a = i/5*Math.PI*2 + 0.3; wrock(g, Math.sin(a)*3.4, Math.cos(a)*3.4, 0.32, 0.12, 0.26, FAINT, i+120); }
+      for (let i=0;i<22;i++){ const a = i/22*Math.PI*2 + (r()-0.5)*0.25, d = 9.5 + r()*4; wtree(g, Math.sin(a)*d, Math.cos(a)*d, 1.8+r()*2.4, 0.8, i%3===0 ? DIM : FAINT); }
+      const tent = (x,z,rot) => { const p = [V(x-1.1,0,z-0.9),V(x+1.1,0,z-0.9),V(x,1.5,z-0.9),V(x-1.1,0,z+0.9),V(x+1.1,0,z+0.9),V(x,1.5,z+0.9)].map(q => rotY(q,x,z,rot)); polyline(g,[p[0],p[1],p[2]],DIM,true); polyline(g,[p[3],p[4],p[5]],FAINT,true); seg(g,p[2],p[5],DIM); seg(g,p[0],p[3],FAINT); seg(g,p[1],p[4],FAINT); };
+      tent(-8.2,-5.6,0.9); tent(8.6,-4.4,-1.1); tent(1.2,10.2,0.1);
+      return { w: 6, d: 6 };
     },
     road(g){
       const Wd=16, D=12; floorSlab(g, Wd, D); const r = rnd(17);
@@ -718,7 +1292,11 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     const fwd = yaw + Math.PI; const perRad = cam.fl;
     const rel = a => { let d = a - fwd; d = ((d + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI; return d; };
     // stars
-    if (time !== "day") { ctx.fillStyle = "rgba(236,233,224,0.9)"; for (const s of stars){ const d = rel(s.a); if (Math.abs(d) > 1.2) continue; const x = W/2 + d*perRad, y = s.y*horizon*0.85 - 6; const tw = 0.35 + 0.65*Math.abs(Math.sin(t*0.7 + s.p)); ctx.globalAlpha = tw*(time==="dusk"?0.35:0.8); ctx.beginPath(); ctx.arc(x, y, s.s, 0, Math.PI*2); ctx.fill(); } ctx.globalAlpha = 1; }
+    // (one fill per twinkle level, not per star: ~35 fill() calls a frame become at most 8)
+    if (time !== "day") { ctx.fillStyle = "rgba(236,233,224,0.9)"; const lv = [];
+      for (const s of stars){ const d = rel(s.a); if (Math.abs(d) > 1.2) continue; const x = W/2 + d*perRad, y = s.y*horizon*0.85 - 6; const tw = 0.35 + 0.65*Math.abs(Math.sin(t*0.7 + s.p));
+        const k = Math.min(7, tw*8|0); (lv[k] || (lv[k] = new Path2D())).moveTo(x + s.s, y); lv[k].arc(x, y, s.s, 0, Math.PI*2); }
+      for (let k=0;k<8;k++) if (lv[k]) { ctx.globalAlpha = (k + 0.5)/8*(time==="dusk"?0.35:0.8); ctx.fill(lv[k]); } ctx.globalAlpha = 1; }
     // orb (moon / sun)
     { const d = rel(-2.2); if (Math.abs(d) < 1.4) { const x = W/2 + d*perRad, y = time==="dusk" ? horizon*0.78 : horizon*0.42; const R = time==="day" ? 34 : 24; const g2 = ctx.createRadialGradient(x,y,R*0.5,x,y,R*4); g2.addColorStop(0, time==="dusk" ? "rgba(224,160,96,0.35)" : "rgba(236,233,224,0.22)"); g2.addColorStop(1, "rgba(236,233,224,0)"); ctx.fillStyle = g2; ctx.fillRect(x-R*4, y-R*4, R*8, R*8);
       ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI*2); ctx.fillStyle = time==="day" ? "rgba(243,230,200,0.75)" : time==="dusk" ? "rgba(224,160,96,0.7)" : "rgba(226,222,212,0.85)"; ctx.fill();
@@ -734,13 +1312,72 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     const hz = ctx.createLinearGradient(0, horizon-10, 0, H); hz.addColorStop(0, "rgba(11,11,14,0)"); hz.addColorStop(0.35, "rgba(11,11,14,0.85)"); hz.addColorStop(1, "rgba(11,11,14,1)"); ctx.fillStyle = hz; ctx.fillRect(0, horizon-10, W, H-horizon+10);
   }
 
+  // Face shapes. The cranium stays the round skull that the hair, the hats and the hood are built on;
+  // below the cheek line a model-space jaw takes over the lower half of the head. Each station is
+  // [dy below the skull centre, half width, depth of the face front], from the cheek line down to the
+  // chin (half width 0). lift raises the whole head so the chin clears the shoulder cap (whose surface is
+  // at y ~0.985 where a chin sits, z ~0.125) instead of sinking into it: chin + lift >= -0.19.
+  // round has no jaw: it is the sphere, drawn as before.
+  const FACE_SHAPES = {
+    oval:   { lift:0.06,  st:[[-0.06,0.196,0.19],[-0.12,0.175,0.178],[-0.18,0.139,0.16],[-0.225,0.087,0.14],[-0.25,0,0.125]] },
+    long:   { lift:0.085, st:[[-0.06,0.187,0.19],[-0.13,0.168,0.178],[-0.195,0.135,0.16],[-0.245,0.088,0.14],[-0.268,0.045,0.13],[-0.275,0,0.125]] },
+    square: { lift:0.045, st:[[-0.06,0.203,0.19],[-0.13,0.198,0.172],[-0.19,0.174,0.152],[-0.226,0.106,0.14],[-0.232,0,0.135]] },
+    heart:  { lift:0.055, st:[[-0.05,0.212,0.19],[-0.11,0.182,0.18],[-0.17,0.120,0.162],[-0.215,0.056,0.14],[-0.245,0,0.125]] },
+    sharp:  { lift:0.06,  st:[[-0.06,0.201,0.19],[-0.115,0.184,0.176],[-0.25,0,0.13]] }
+  };
+  function faceOf(k){ return (typeof k === "string" && Object.prototype.hasOwnProperty.call(FACE_SHAPES, k)) ? FACE_SHAPES[k] : null; }
+  const JAW_T = [0, 0.25, 0.5, 0.75, 1].map(k => k*Math.PI);          // half-ellipse round the front of a station
+  const NAPE = [];                                                     // the round back of the skull under the cheek line
+  for (const lat of [-0.61, -1.13]) for (const lon of [2.09, 2.62, 3.14, 3.67, 4.19]) NAPE.push([Math.sin(lon)*Math.cos(lat)*0.21, Math.sin(lat)*0.21, Math.cos(lon)*Math.cos(lat)*0.21]);
+  // convex hull of projected points (monotone chain); returns indices, counter-clockwise on screen
+  function hull2(Q){
+    const idx = Q.map((q, i) => i).sort((a, b) => Q[a].x - Q[b].x || Q[a].y - Q[b].y);
+    const cr = (o, a, b) => (Q[a].x-Q[o].x)*(Q[b].y-Q[o].y) - (Q[a].y-Q[o].y)*(Q[b].x-Q[o].x);
+    const lo = [], hi = [];
+    for (const i of idx){ while (lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], i) <= 0) lo.pop(); lo.push(i); }
+    for (let k=idx.length-1;k>=0;k--){ const i = idx[k]; while (hi.length >= 2 && cr(hi[hi.length-2], hi[hi.length-1], i) <= 0) hi.pop(); hi.push(i); }
+    lo.pop(); hi.pop(); return lo.concat(hi);
+  }
+  // is screen point s inside the convex polygon H (either winding)?
+  function inConvex(H, s){ let sg = 0;
+    for (let i=0;i<H.length;i++){ const a = H[i], b = H[(i+1)%H.length], c = (b.x-a.x)*(s.y-a.y) - (b.y-a.y)*(s.x-a.x);
+      if (c > 0 ? sg < 0 : c < 0 ? sg > 0 : false) return false; if (c) sg = c > 0 ? 1 : -1; }
+    return true; }
+
+  // where the screen segment p -> q enters the convex polygon H (0..1), or -1 if it never does (Cyrus-Beck)
+  function enterT(H, p, q){
+    const n = H.length; let ar = 0, t0 = 0, t1 = 1;
+    for (let i=0;i<n;i++){ const a = H[i], b = H[(i+1)%n]; ar += a.x*b.y - b.x*a.y; }
+    const sg = ar > 0 ? 1 : -1;
+    for (let i=0;i<n;i++){ const a = H[i], b = H[(i+1)%n], ex = b.x-a.x, ey = b.y-a.y;
+      const fp = sg*(ex*(p.y-a.y) - ey*(p.x-a.x)), fq = sg*(ex*(q.y-a.y) - ey*(q.x-a.x));
+      if (fp < 0 && fq < 0) return -1;
+      if (fp < 0) t0 = Math.max(t0, fp/(fp-fq)); else if (fq < 0) t1 = Math.min(t1, fp/(fp-fq)); }
+    return t0 <= t1 ? t0 : -1;
+  }
+  // The neck strip A0 B0 (bottom) .. B1 A1 (top, inside the head) minus the head's convex outline H (screen
+  // points, with P3 the same points in 3D): the strip up each side to where it meets the outline, and the
+  // outline's own corners in between. Every point is 3D (a strip side is camera-facing, so a screen
+  // parameter along it is exact); null when the head hides the whole neck.
+  function neckBelow(H, P3, A0, B0, B1, A1){
+    const a0 = proj(A0), b0 = proj(B0), b1 = proj(B1), a1 = proj(A1); if (!a0 || !b0 || !b1 || !a1) return null;
+    const tB = enterT(H, b0, b1), tA = enterT(H, a0, a1);
+    if (tA === 0 || tB === 0) return null;                         // the strip's foot is already behind the head
+    if (tA < 0 || tB < 0) return [A0, B0, B1, A1];
+    const lerp3 = (p, q, t) => V(p.x + (q.x-p.x)*t, p.y + (q.y-p.y)*t, p.z + (q.z-p.z)*t);
+    const Q = [a0, b0, b1, a1], dx = a0.x - b0.x, dy = a0.y - b0.y, mid = [];
+    for (let i=0;i<H.length;i++) if (inConvex(Q, H[i])) mid.push({ k: (H[i].x - b0.x)*dx + (H[i].y - b0.y)*dy, p: P3[i] });
+    mid.sort((u, v) => u.k - v.k);                                  // the outline's lower arc, B side to A side
+    return [A0, B0, lerp3(B0, B1, tB)].concat(mid.map(m => m.p), [lerp3(A0, A1, tA)]);
+  }
+
   // ---------- pawns ----------
   const pawns = new Map(); // id -> { t, pos:{x,z}, target:{x,z}, rot, isMe, hit:{x,y,r,top} }
   function drawPawn(g, p, t, now){
     const tk = p.t, look = tk.look || {}, isMe = p.isMe, enemy = tk.kind === "enemy", npc = tk.kind === "npc";
     const h = hashStr(tk.id || tk.name || "x");
     const tunicC = hexRgb(look.tunic || (enemy ? "#5A2A2A" : npc ? ["#6B6258","#4B5A55","#5A3F48","#4F4A2F","#3A3A44"][(h>>5)%5] : "#6B6258"));
-    const cloakC = hexRgb(look.cloakColor || (enemy ? "#2E1A20" : "#3E3A47")), hairC = hexRgb(look.hairColor || ["#2A2420","#4A3A2E","#6B6258","#8C7A5E","#7A2E2A"][(h>>3)%5]), skinC = hexRgb(look.skin || ["#B9A48E","#9E8468","#7A5F48","#8A8C90"][h%4]);
+    const cloakC = hexRgb(look.cloakColor || (enemy ? "#2E1A20" : "#3E3A47")), hairC = hexRgb(look.hairColor || ["#2A2420","#4A3A2E","#6B6258","#8C7A5E","#7A2E2A"][(h>>3)%5]), skin0 = hexRgb(look.skin || ["#B9A48E","#9E8468","#7A5F48","#8A8C90"][h%4]);
     const accentC = hexRgb(look.accent || "#B8862F");
     const race = look.race || (enemy ? ["goblin","orc","human"][h%3] : "human");
     const scale = (look.size==="small" || race==="halfling" || race==="gnome" || race==="goblin") ? 0.8 : (look.size==="big" || race==="orc" || race==="dragonborn" || race==="goliath") ? 1.18 : 1;
@@ -751,110 +1388,242 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     // once here instead of once per vertex (P() runs ~150 times per pawn).
     const _pc = Math.cos(p.rot), _ps = Math.sin(p.rot), _px = p.pos.x, _pz = p.pos.z, _by = bob;
     const P = (x,y,z) => V(_px + (x*_pc + z*_ps)*scale, (y+_by)*scale, _pz + (-x*_ps + z*_pc)*scale);
-    // base ring
-    wring(g, p.pos.x, 0.01, p.pos.z, 0.42*scale, 16, isMe ? AMB : enemy ? styleOf(RED.c,1,0.7) : DIM);
-    // ---- silhouette (pawn: skirt body, shoulder capsule, round head) ----
-    const cR = cam.r; const bb = (x,y,z,w) => [add(P(x,y,z), mul(cR,-w*scale)), add(P(x,y,z), mul(cR,w*scale))];
+    // body shape: the head and everything on it ride PH (head height; a face shape with a jaw lifts it a
+    // little more), held weapons ride PW
+    const BD = bodyOf(look.body), FS = faceOf(look.faceShape), hd = BD.hd, hdF = hd + (FS ? FS.lift : 0), wx = BD.wx;
+    const PH = hdF ? ((x,y,z) => P(x, y+hdF, z)) : P;
+    const PW = wx ? ((x,y,z) => P(x > 0 ? x+wx : x < 0 ? x-wx : x, y, z)) : P;
+    const cl = clothesOf(look), GM = CLOTHES[cl];
+    const cR = cam.r;
     const O = P(0,0,0), sideAx = norm(sub(P(1,0,0), O)), fwdAx = norm(sub(P(0,0,1), O)), upAx = V(0,1,0);
-    const HR = 0.21*scale, HCen = P(0,1.19,0);
-    // soft colour fills
-    if (look.cloak && look.cloak!=="none") { const back = mul(cam.f, 0.12); const c0 = bb(0,0.1,0,0.38), c1 = bb(0,0.95,0,0.42); fill(g, [add(c0[0],back),add(c0[1],back),add(c1[1],back),add(c1[0],back)], cloakC, 0.26); }
-    const f0 = bb(0,0.05,0,0.33), f1 = bb(0,0.76,0,0.28), f2 = bb(0,0.94,0,0.4);
-    fill(g, [f0[0],f0[1],f1[1],f1[0]], tunicC, 0.3); fill(g, [f1[0],f1[1],f2[1],f2[0]], tunicC, 0.26);
-    fill(g, circPts(HCen, cR, cam.u, HR*0.96, 12), skinC, 0.32);
-    // skirt body
-    const bot = [], waist = [];
-    for (let i=0;i<10;i++){ const a = i/10*Math.PI*2; bot.push(P(Math.cos(a)*0.33, 0.05, Math.sin(a)*0.33)); waist.push(P(Math.cos(a)*0.27, 0.76, Math.sin(a)*0.27)); }
-    polyline(g, bot, main, true); polyline(g, waist, soft, true);
-    for (let i=0;i<10;i+=2) seg(g, bot[i], waist[i], main);
-    polyline(g, [0,1,2,3,4,5,6,7,8,9].map(i => { const a = i/10*Math.PI*2; return P(Math.cos(a)*0.30, 0.42, Math.sin(a)*0.30); }), FAINT, true);
-    // shoulder capsule (wide, shallow)
+    const HR = 0.21*scale, HCen = PH(0,1.19,0);
+    HCw = HCen; HRw = HR;              // this pawn's skull for hairHidden(), even if emitHair builds nothing
+    // skin is opaque; on the dais it is the exact picked colour, on the board it fades with the pawn
+    const skinC = preview ? skin0 : fogRgb(skin0, fogA(dot(sub(HCen, cam.C), cam.f)));
+    // A jaw face: round skull above the cheek line, the jaw below it, the nape behind. The head's outline
+    // from this eye is the convex hull of all three (skull and jaw are both convex); every hull point is a
+    // model point, so the fill and its stroke turn with the pawn. It is worked out BEFORE the garments: the
+    // lifted head, its jaw and the neck under it hang below the skull ball the garments' own head test
+    // knows, so line art behind them (the back of the shoulder cap, the far body wire, hair hanging down
+    // the back) asks jaw.occ as well.
+    let jaw = null;
+    if (FS){
+      const sAt = (x, dy, z) => PH(x, 1.19 + dy, z), cand = [];
+      for (const q of circPts(HCen, cR, cam.u, HR, 16)){ const dx = q.x-HCen.x, dy = q.y-HCen.y, dz = q.z-HCen.z;
+        if (dy/scale >= -0.06 || (dx*fwdAx.x + dy*fwdAx.y + dz*fwdAx.z)/scale < -0.08) cand.push(q); }
+      const j0 = cand.length;
+      for (const s of FS.st){ if (s[1] <= 0){ cand.push(sAt(0, s[0], s[2])); continue; }
+        for (const a of JAW_T) cand.push(sAt(Math.cos(a)*s[1], s[0], 0.02 + (s[2]-0.02)*Math.sin(a))); }
+      const j1 = cand.length;
+      for (const n of NAPE) cand.push(sAt(n[0], n[1], n[2]));
+      const Q = []; for (const q of cand){ const s = proj(q); if (!s) break; Q.push(s); }
+      if (Q.length === cand.length){
+        const hi = hull2(Q), hq = hi.map(i => Q[i]), hp = hi.map(i => cand[i]);
+        const zAx = dot(sub(HCen, cam.C), cam.f), nw = mul(cR, 0.085*scale), n0 = P(0, BD.sh2[0] + 0.04, 0), n1 = PH(0, 1.19 - 0.12, 0);
+        const NK = [sub(n0, nw), add(n0, nw), add(n1, nw), sub(n1, nw)], nq = NK.map(proj);
+        const hasNq = nq.every(Boolean), cf = cam.f, cc = cam.C;
+        // the jaw's own stretch of the outline (a run of hull corners that are jaw samples), closed by a chord
+        let r0 = -1; const isJ = k => hi[(k + hi.length) % hi.length] >= j0 && hi[(k + hi.length) % hi.length] < j1;
+        for (let k=0;k<hi.length;k++) if (isJ(k) && !isJ(k-1)) { r0 = k; break; }
+        const chin = []; if (r0 >= 0) for (let k=r0; isJ(k) && chin.length < hi.length; k++) chin.push(hp[k % hi.length]);
+        jaw = { sAt, hp, hq, zAx, NK, chin,
+          inHead: q => { const s = proj(q); return !!s && inConvex(hq, s); },
+          // behind the head's middle and inside its outline (or the neck's) on screen: hidden
+          occ: q => { if ((q.x-cc.x)*cf.x + (q.y-cc.y)*cf.y + (q.z-cc.z)*cf.z <= zAx) return false;
+            const s = proj(q); return !!s && (inConvex(hq, s) || (hasNq && inConvex(nq, s))); } };
+      }
+    }
+    // >>> NEW-OUTFIT-BLOCK-START (call site: garments, then the body wireframe they cover)
+    const OA = { P, BD, scale, HCen, HR, tint: clothTint(tunicC), cloakC, accentC, clothes: cl, main, soft, wireOver: 0, cover: null, occ: jaw ? jaw.occ : null };
+    p.outfitFaces = emitOutfit(g, OA);
+    const bodyCover = OA.cover;
+    const bvis = bodyCover ? (q => !bodyCover(q)) : null;
+    const bpoly = (pts, st, close) => { if (bvis) polylineVis(g, pts, st, close, bvis, 0); else polyline(g, pts, st, close); };
+    // under cloth every body line is tested at its chord midpoints too (and struts in quarters), so a
+    // stroke is never kept on its two end tests alone
+    const lerpV = (a, b, t) => V(a.x + (b.x-a.x)*t, a.y + (b.y-a.y)*t, a.z + (b.z-a.z)*t);
+    const fine = R => { if (!bodyCover) return R; const o = []; for (let i=0;i<R.length;i++) o.push(R[i], lerpV(R[i], R[(i+1)%R.length], 0.5)); return o; };
+    const cutSeg = (a, b, st, n) => { if (!bvis){ seg(g, a, b, st); return; }
+      const pts = [a]; for (let k=1;k<n;k++) pts.push(lerpV(a, b, k/n)); pts.push(b); polylineVis(g, pts, st, false, bvis, 1); };
+    const bot = [], waist = [], midr = [];
+    for (let i=0;i<10;i++){ const a = i/10*Math.PI*2, ca = Math.cos(a), sa = Math.sin(a);
+      bot.push(P(ca*BD.hem[1], BD.hem[0], sa*BD.hem[1])); waist.push(P(ca*BD.waist[1], BD.waist[0], sa*BD.waist[1]));
+      midr.push(P(ca*BD.mid[1], BD.mid[0], sa*BD.mid[1])); }
+    // base ring (amber for the player: with the amber name label, that is what marks "me"); a floor-length
+    // garment flares past the body, so the ring opens out with it, and its far side goes behind the cloth
+    const baseR = GM.long ? Math.max(BD.base, BD.hem[1]*GM.fl0*1.18 + 0.04) : BD.base;
+    bpoly(fine(ringPts(p.pos.x, 0.01, p.pos.z, baseR*scale, 16)), isMe ? AMB : enemy ? styleOf(RED.c,1,0.7) : DIM, true);
+    p.cover = bvis;                     // the preview dais is cut by it too (frame)
+    bpoly(fine(bot), main, true); bpoly(fine(waist), soft, true);
+    // each strut is split just below where the cloth edge crosses it, so the part below the hem keeps its stroke
+    const cutY = GM.long ? BD.mid[0] : garmentY0(BD, GM) - 0.03, tc = clamp((cutY - BD.hem[0])/(BD.waist[0] - BD.hem[0]), 0.05, 0.95);
+    for (let i=0;i<10;i+=2){ const b = bot[i], w = waist[i], cp = lerpV(b, w, tc);
+      bpoly(bodyCover ? [b, lerpV(b, cp, 0.5), cp, lerpV(cp, w, 0.25), lerpV(cp, w, 0.5), lerpV(cp, w, 0.75), w] : [b, cp, w], main, false); }
+    bpoly(fine(midr), FAINT, true);
     const sh1 = [], sh2 = [];
-    for (let i=0;i<12;i++){ const a = i/12*Math.PI*2; sh1.push(P(Math.cos(a)*0.43, 0.80, Math.sin(a)*0.25)); sh2.push(P(Math.cos(a)*0.33, 0.96, Math.sin(a)*0.19)); }
-    polyline(g, sh1, main, true); polyline(g, sh2, main, true);
-    for (let i=0;i<12;i+=2) seg(g, sh1[i], sh2[i], soft);
-    if (tk.kind === "player") { const aS = styleOf(accentC, 1.5, 1); seg(g, P(-0.24,0.93,0.12), P(-0.02,0.7,0.26), aS); seg(g, P(-0.02,0.7,0.26), P(0.12,0.66,0.24), aS); } // sash
+    for (let i=0;i<12;i++){ const a = i/12*Math.PI*2, ca = Math.cos(a), sa = Math.sin(a);
+      sh1.push(P(ca*BD.sh1[1], BD.sh1[0], sa*BD.sh1[2])); sh2.push(P(ca*BD.sh2[1], BD.sh2[0], sa*BD.sh2[2])); }
+    bpoly(fine(sh1), main, true); bpoly(fine(sh2), main, true);
+    for (let i=0;i<12;i+=2) bpoly(bodyCover ? [sh1[i], lerpV(sh1[i], sh2[i], 0.5), sh2[i]] : [sh1[i], sh2[i]], soft, false);
+    // no sash: the amber base ring and the amber name label already mark the player
+    // <<< NEW-OUTFIT-BLOCK-END (call site)
     // ---- hair is emitted BEFORE the head wireframe so the wireframe can be clipped to
     // whatever the mass does NOT cover. Its fills go into the ordinary fills bucket, so they z-sort
     // against every other fill in the scene and there is no second render pass. ----
     const hs = look.hair || "short", hat = look.hat || "none";
-    const HA = { P, HCen, HR, sideAx, fwdAx, scale,
-                 tint: hairTint(hairC), cloakC, accentC, hs, hat, cover: null, cowl: 0 };
+    const HA = { P: PH, HCen, HR, sideAx, fwdAx, scale,
+                 tint: hairTint(hairC), cloakC, accentC, hs, hat, cover: null, cowl: 0, keep: bvis };
     emitHair(g, HA);
     const hairCover = HA.cover, hairCowl = HA.cowl;
-    // round head (camera-facing outline + equator + meridian). Where the solid mass sits over the
-    // skull the wireframe under it is simply not emitted — that is what makes it read as ก้อนทึบ
-    // instead of a translucent wash with a bright meridian arc straight over the crown.
-    if (hairCover){
-      const vis = q => !hairCover(q);
-      polylineCut(g, circPts(HCen, cR, cam.u, HR, 16), main, true, vis);
-      polylineCut(g, arcPts(HCen, sideAx, fwdAx, HR*0.97, 8, 125, 415), soft, false, vis);
-      polylineCut(g, arcPts(HCen, fwdAx, upAx, HR*0.97, 8, 38, 322), soft, false, vis);
-    } else {
-      wcircle(g, HCen, cR, cam.u, HR, 16, main);
-      warc(g, HCen, sideAx, fwdAx, HR*0.97, 8, 125, 415, soft);
-      warc(g, HCen, fwdAx, upAx, HR*0.97, 8, 38, 322, soft);
-    }
-    seg(g, P(-0.1,0.96,0), P(-0.09,1.02,0), soft); seg(g, P(0.1,0.96,0), P(0.09,1.02,0), soft); // neck
-    const hx = 0.21, hy0 = 1.0, hy1 = 1.40, hz = 0.19;
     // Face features sit ON the skull. Where the solid mass covers them (a hood's cloth), or where
     // the skull itself is between them and the eye (you are looking at the back of the head), they
-    // must not print through. Visibility only — the same two tests the hair itself uses.
-    const fvis = hairCover ? (q => !hairCover(q) && !hairHidden(q.x, q.y, q.z)) : null;
-    const fseg = (a, b, st) => { if (fvis) polylineCut(g, [a, b], st, false, fvis); else seg(g, a, b, st); };
-    const fpoly = (pts, st, close) => { if (fvis) polylineCut(g, pts, st, close, fvis); else polyline(g, pts, st, close); };
+    // must not print through. Visibility only — the same two tests the hair itself uses. The skin is
+    // near-opaque now, so this holds for a bare head too.
+    const fvis = q => !(hairCover && hairCover(q)) && !hairHidden(q.x, q.y, q.z);
+    // a mark half under the hair is cut where the hair starts, not dropped whole
+    const fseg = (a, b, st) => polylineVis(g, [a, b], st, false, fvis, 1);
+    const fpoly = (pts, st, close) => polylineVis(g, pts, st, close, fvis, 1);
+    const onFace = (x, y) => PH(x, y, Math.sqrt(Math.max(0, 0.0441 - x*x - (y-1.19)*(y-1.19))) + 0.012);   // on the skull, not the flat face plane
+    // ---- the head: skin fill + outline. Opaque, so two skin layers never show a seam, and exempt from the
+    // alpha fog (its fog is already in skinC), so on the dais a picked skin colour reads as that colour; the
+    // wireframe arcs keep only the half of the skull that faces the eye. ----
+    const aSkin = 1, outV = hairCover ? (q => !hairCover(q)) : null;
+    const arcV = q => hairFacesUs(q, HCen) && !(hairCover && hairCover(q));
+    let neckV = bvis;
+    if (jaw){
+      // The lifted head leaves the shoulder cap's neck opening in view, so a neck (in the skin's shadow tone)
+      // closes it: a disc over the opening, and a strip at the body axis from it up to the head, cut off
+      // where the head's outline starts. Both sort at the axis, so the cap's near side goes in front and its
+      // far side behind; the head sorts a hair nearer, so it always covers them.
+      // (a head under 14 px across: the gap is a pixel or two, and three fills per pawn are not worth it)
+      const big = HR*cam.fl/jaw.zAx >= 14;
+      if (big) { const K4 = jaw.NK, neck = neckBelow(jaw.hq, jaw.hp, K4[0], K4[1], K4[2], K4[3]), nC = shadeRgb(skinC, 0.72), yR = BD.sh2[0] + 0.04, ring = [];
+        for (let i=0;i<6;i++){ const a = i/6*Math.PI*2; ring.push(P(Math.cos(a)*0.086, yR, Math.sin(a)*0.086)); }
+        g.fills.push({ pts: ring, c: nC, a: aSkin, zs: jaw.zAx + 0.001, nf: 1 });
+        if (neck) g.fills.push({ pts: neck, c: nC, a: aSkin, zs: jaw.zAx, nf: 1 }); }
+      // The whole outline sorts at the skull's middle, like the round head, so the hair keeps its order.
+      // The jaw's own stretch is laid again, sorted as far forward as the shoulder cap's front rim: painter's
+      // order cannot split the cap's front quads (they run from the rim, in front of the chin, back to the
+      // neck, behind it), and the one that has to win is the chin — the rim itself is always below it on
+      // screen. Skin is opaque and unfogged, so the second layer leaves no seam.
+      g.fills.push({ pts: jaw.hp, c: skinC, a: aSkin, zs: jaw.zAx - 0.001, nf: 1 });
+      if (big && jaw.chin.length >= 3) g.fills.push({ pts: jaw.chin, c: skinC, a: aSkin, zs: dot(sub(P(0, BD.sh2[0], BD.sh2[2] + 0.03), cam.C), cam.f), nf: 1 });
+      if (outV) polylineCut(g, jaw.hp, main, true, outV); else polyline(g, jaw.hp, main, true);
+      neckV = q => !jaw.inHead(q) && (!bvis || bvis(q));
+      // the jawline from ear to chin to ear: on the silhouette from the front, inside the head from
+      // 3/4. Side on it is only the profile, which the outline already draws.
+      const ex = cam.C.x-HCen.x, ey = cam.C.y-HCen.y, ez = cam.C.z-HCen.z;
+      if ((ex*fwdAx.x + ey*fwdAx.y + ez*fwdAx.z) > 0.5*Math.hypot(ex, ey, ez)) {
+        const jl = [], n = FS.st.length, sAt = jaw.sAt;
+        for (let i=0;i<n;i++){ const s = FS.st[i]; jl.push(sAt(s[1], s[0], s[1] > 0 ? 0.02 : s[2])); }
+        for (let i=n-2;i>=0;i--){ const s = FS.st[i]; jl.push(sAt(-s[1], s[0], 0.02)); }
+        fpoly(jl, soft); }
+    }
+    else {
+      g.fills.push({ pts: circPts(HCen, cR, cam.u, HR*0.96, 12), c: skinC, a: aSkin, nf: 1 });
+      // round head (camera-facing outline + equator + meridian). Where the solid mass sits over the
+      // skull the wireframe under it is simply not emitted — that is what makes it read as ก้อนทึบ
+      // instead of a translucent wash with a bright meridian arc straight over the crown.
+      if (outV) polylineCut(g, circPts(HCen, cR, cam.u, HR, 16), main, true, outV); else wcircle(g, HCen, cR, cam.u, HR, 16, main);
+    }
+    polylineCut(g, arcPts(HCen, sideAx, fwdAx, HR*0.97, 8, 125, 415), soft, false, arcV);
+    polylineCut(g, arcPts(HCen, fwdAx, upAx, HR*0.97, 8, 38, jaw ? 255 : 322), soft, false, arcV);
+    // neck (through the cloth cover, and behind a lifted head's outline)
+    for (const sx of [-1, 1]){ const a = P(sx*0.1, 0.96+hd, 0), b = PH(sx*0.09, 1.02, 0);
+      if (neckV) { const pts = [a]; for (let k=1;k<3;k++) pts.push(lerpV(a, b, k/3)); pts.push(b); polylineVis(g, pts, soft, false, neckV, 1); } else seg(g, a, b, soft); }
+    const hx = 0.21, hy0 = 1.0, hy1 = 1.40, hz = 0.19;
     // eyes
-    fseg(P(-0.1,1.22,hz+0.01), P(-0.05,1.22,hz+0.01), main); fseg(P(0.05,1.22,hz+0.01), P(0.1,1.22,hz+0.01), main);
+    fseg(PH(-0.1,1.22,hz+0.01), PH(-0.05,1.22,hz+0.01), main); fseg(PH(0.05,1.22,hz+0.01), PH(0.1,1.22,hz+0.01), main);
     const face = look.face || "plain";
-    if (face==="scar") fseg(P(0.09,1.3,hz+0.01), P(0.14,1.12,hz+0.01), main);
-    if (face==="beard" || (race==="dwarf" && face!=="plain-nobeard")) fpoly([P(-0.16,1.12,hz),P(-0.12,0.9,hz+0.02),P(0,0.82,hz+0.03),P(0.12,0.9,hz+0.02),P(0.16,1.12,hz)], main);
-    if (face==="mustache") fpoly([P(-0.1,1.1,hz+0.01),P(0,1.13,hz+0.02),P(0.1,1.1,hz+0.01)], main);
-    if (face==="tattoo") { fseg(P(-0.14,1.32,hz+0.01), P(-0.04,1.28,hz+0.01), soft); fseg(P(-0.12,1.28,hz+0.01), P(-0.02,1.34,hz+0.01), soft); }
-    if (face==="mask") fpoly([P(-0.16,1.28,hz+0.02),P(0.16,1.28,hz+0.02),P(0.16,1.16,hz+0.02),P(-0.16,1.16,hz+0.02)], main, true);
+    // scar and tattoo sit on the skull below the hairline (on the old flat face plane, under the hair,
+    // neither ever showed): a scar across the right brow and cheek, two chevrons under the left eye
+    if (face==="scar") fpoly([onFace(0.08,1.27), onFace(0.11,1.2), onFace(0.14,1.11)], main);
+    if (face==="beard" || (race==="dwarf" && face!=="plain-nobeard")) fpoly([PH(-0.16,1.12,hz),PH(-0.12,0.9,hz+0.02),PH(0,0.82,hz+0.03),PH(0.12,0.9,hz+0.02),PH(0.16,1.12,hz)], main);
+    if (face==="mustache") fpoly([PH(-0.1,1.1,hz+0.01),PH(0,1.13,hz+0.02),PH(0.1,1.1,hz+0.01)], main);
+    if (face==="tattoo") { fpoly([onFace(-0.16,1.18), onFace(-0.115,1.145), onFace(-0.07,1.18)], main); fpoly([onFace(-0.15,1.12), onFace(-0.11,1.09), onFace(-0.07,1.12)], soft); }
+    if (face==="mask") fpoly([PH(-0.16,1.28,hz+0.02),PH(0.16,1.28,hz+0.02),PH(0.16,1.16,hz+0.02),PH(-0.16,1.16,hz+0.02)], main, true);
     // race hints
-    if (race==="elf") { seg(g, P(-hx,1.2,0), P(-hx-0.12,1.3,-0.02), main); seg(g, P(hx,1.2,0), P(hx+0.12,1.3,-0.02), main); }
-    if (race==="tiefling") { polyline(g, [P(-0.12,hy1,0),P(-0.16,hy1+0.14,-0.02),P(-0.1,hy1+0.26,-0.06)], main); polyline(g, [P(0.12,hy1,0),P(0.16,hy1+0.14,-0.02),P(0.1,hy1+0.26,-0.06)], main); }
-    if (race==="dragonborn") { polyline(g, [P(-0.12,1.1,hz),P(-0.1,1.1,hz+0.22),P(0.1,1.1,hz+0.22),P(0.12,1.1,hz)], main); polyline(g, [P(-0.1,1.22,hz),P(-0.08,1.2,hz+0.2),P(0.08,1.2,hz+0.2),P(0.1,1.22,hz)], soft); }
-    if (race==="orc" || race==="goblin") { seg(g, P(-0.07,1.1,hz+0.01), P(-0.07,1.17,hz+0.03), main); seg(g, P(0.07,1.1,hz+0.01), P(0.07,1.17,hz+0.03), main); if (race==="goblin") { seg(g, P(-hx,1.25,0), P(-hx-0.18,1.22,-0.04), main); seg(g, P(hx,1.25,0), P(hx+0.18,1.22,-0.04), main); } }
+    if (race==="elf") { seg(g, PH(-hx,1.2,0), PH(-hx-0.12,1.3,-0.02), main); seg(g, PH(hx,1.2,0), PH(hx+0.12,1.3,-0.02), main); }
+    if (race==="tiefling") { polyline(g, [PH(-0.12,hy1,0),PH(-0.16,hy1+0.14,-0.02),PH(-0.1,hy1+0.26,-0.06)], main); polyline(g, [PH(0.12,hy1,0),PH(0.16,hy1+0.14,-0.02),PH(0.1,hy1+0.26,-0.06)], main); }
+    if (race==="dragonborn") { polyline(g, [PH(-0.12,1.1,hz),PH(-0.1,1.1,hz+0.22),PH(0.1,1.1,hz+0.22),PH(0.12,1.1,hz)], main); polyline(g, [PH(-0.1,1.22,hz),PH(-0.08,1.2,hz+0.2),PH(0.08,1.2,hz+0.2),PH(0.1,1.22,hz)], soft); }
+    if (race==="orc" || race==="goblin") { seg(g, PH(-0.07,1.1,hz+0.01), PH(-0.07,1.17,hz+0.03), main); seg(g, PH(0.07,1.1,hz+0.01), PH(0.07,1.17,hz+0.03), main); if (race==="goblin") { seg(g, PH(-hx,1.25,0), PH(-hx-0.18,1.22,-0.04), main); seg(g, PH(hx,1.25,0), PH(hx+0.18,1.22,-0.04), main); } }
     // hats — strokes, so render() puts them after every fill and they land ON TOP of the hair mass.
     const hatS = styleOf(accentC, 1.2, 1);
     // the legacy 6-gon cone is the OLD hood; when the lathed cowl drew, it would only poke a
     // wireframe spike out of the top of it, so exactly one of the two ever draws.
-    if (hat==="hood" && !hairCowl) { wcone(g, p.pos.x, (hy0-0.02+bob)*scale, p.pos.z, 0.3*scale, 0.55*scale, 6, styleOf(cloakC,1.2,1)); }
-    if (hat==="wide") { wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.4*scale, 10, hatS); wcyl(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.16*scale, 0.2*scale, 0.22*scale, 6, hatS, 3); }
-    if (hat==="pointed") { wcone(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.26*scale, 0.7*scale, 6, hatS); wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.36*scale, 8, hatS); }
-    if (hat==="helm") { wring(g, p.pos.x, (1.26+bob)*scale, p.pos.z, 0.23*scale, 8, hatS); wcone(g, p.pos.x, (1.26+bob)*scale, p.pos.z, 0.23*scale, 0.26*scale, 8, hatS); seg(g, P(0,hy1+0.12,-0.1), P(0,hy1+0.2,0.08), hatS); }
-    if (hat==="bandana") { wring(g, p.pos.x, (1.31+bob)*scale, p.pos.z, 0.21*scale, 8, hatS); polyline(g, [P(0,1.31,-hz-0.02),P(0.06,1.2,-hz-0.1),P(0.02,1.05,-hz-0.12)], hatS); }
-    if (hat==="crown") { wring(g, p.pos.x, (hy1+bob)*scale, p.pos.z, 0.2*scale, 6, AMB); for (let i=0;i<6;i++){ const a = i/6*Math.PI*2; seg(g, P(Math.cos(a)*0.2,hy1,Math.sin(a)*0.2), P(Math.cos(a)*0.2,hy1+0.16,Math.sin(a)*0.2), AMB); } }
-    if (hat==="circlet") wring(g, p.pos.x, (1.3+bob)*scale, p.pos.z, 0.21*scale, 8, AMB);
-    // cloak
-    const cl = look.cloak || "cloak", clS = styleOf(cloakC, 1.1, 1);
-    if (cl==="cloak") { polyline(g, [P(-0.3,0.95,-0.1),P(-0.36,0.5,-0.25),P(-0.34,0.12,-0.3)], clS); polyline(g, [P(0.3,0.95,-0.1),P(0.36,0.5,-0.25),P(0.34,0.12,-0.3)], clS); polyline(g, [P(-0.34,0.12,-0.3),P(-0.1,0.16,-0.36),P(0.12,0.14,-0.36),P(0.34,0.12,-0.3)], clS); polyline(g, [P(-0.3,0.95,-0.1),P(0,0.98,0.02),P(0.3,0.95,-0.1)], clS); }
-    if (cl==="cape") { polyline(g, [P(-0.3,0.95,-0.1),P(-0.36,0.7,-0.25),P(-0.34,0.55,-0.3)], clS); polyline(g, [P(0.3,0.95,-0.1),P(0.36,0.7,-0.25),P(0.34,0.55,-0.3)], clS); polyline(g, [P(-0.34,0.55,-0.3),P(0,0.52,-0.36),P(0.34,0.55,-0.3)], clS); polyline(g, [P(-0.3,0.95,-0.1),P(0,0.98,0.02),P(0.3,0.95,-0.1)], clS); }
-    if (cl==="armor") { polyline(g, [P(-0.34,0.95,-0.08),P(-0.4,0.9,0),P(-0.34,0.95,0.08)], main); polyline(g, [P(0.34,0.95,-0.08),P(0.4,0.9,0),P(0.34,0.95,0.08)], main); seg(g, P(0,0.92,0.28), P(0,0.55,0.32), soft); seg(g, P(-0.2,0.75,0.27), P(0.2,0.75,0.27), soft); }
-    if (cl==="robe") { seg(g, P(-0.1,0.95,0.28), P(-0.16,0.08,0.34), clS); seg(g, P(0.1,0.95,0.28), P(0.16,0.08,0.34), clS); }
+    if (hat==="hood" && !hairCowl) { wcone(g, p.pos.x, (hy0-0.02+hdF+bob)*scale, p.pos.z, 0.3*scale, 0.55*scale, 6, styleOf(cloakC,1.2,1)); }
+    if (hat==="wide") { wring(g, p.pos.x, (hy1+hdF+bob)*scale, p.pos.z, 0.4*scale, 10, hatS); wcyl(g, p.pos.x, (hy1+hdF+bob)*scale, p.pos.z, 0.16*scale, 0.2*scale, 0.22*scale, 6, hatS, 3); }
+    if (hat==="pointed") { wcone(g, p.pos.x, (hy1+hdF+bob)*scale, p.pos.z, 0.26*scale, 0.7*scale, 6, hatS); wring(g, p.pos.x, (hy1+hdF+bob)*scale, p.pos.z, 0.36*scale, 8, hatS); }
+    if (hat==="helm") { wring(g, p.pos.x, (1.26+hdF+bob)*scale, p.pos.z, 0.23*scale, 8, hatS); wcone(g, p.pos.x, (1.26+hdF+bob)*scale, p.pos.z, 0.23*scale, 0.26*scale, 8, hatS); seg(g, PH(0,hy1+0.12,-0.1), PH(0,hy1+0.2,0.08), hatS); }
+    if (hat==="bandana") { wring(g, p.pos.x, (1.31+hdF+bob)*scale, p.pos.z, 0.21*scale, 8, hatS); polyline(g, [PH(0,1.31,-hz-0.02),PH(0.06,1.2,-hz-0.1),PH(0.02,1.05,-hz-0.12)], hatS); }
+    if (hat==="crown") { wring(g, p.pos.x, (hy1+hdF+bob)*scale, p.pos.z, 0.2*scale, 6, AMB); for (let i=0;i<6;i++){ const a = i/6*Math.PI*2; seg(g, PH(Math.cos(a)*0.2,hy1,Math.sin(a)*0.2), PH(Math.cos(a)*0.2,hy1+0.16,Math.sin(a)*0.2), AMB); } }
+    if (hat==="circlet") wring(g, p.pos.x, (1.3+hdF+bob)*scale, p.pos.z, 0.21*scale, 8, AMB);
+    // cloak, cape, robe and armor are garments now (emitOutfit), not strokes
     // weapons
-    const w = look.weapon || "none", wS = main;
-    if (w==="sword") { seg(g, P(0.36,0.4,0.14), P(0.36,1.3,0.14), wS); seg(g, P(0.26,0.6,0.14), P(0.46,0.6,0.14), wS); seg(g, P(0.36,0.4,0.14), P(0.36,0.28,0.14), soft); }
-    if (w==="dagger") { seg(g, P(0.4,0.5,0.14), P(0.4,0.9,0.14), wS); seg(g, P(0.33,0.6,0.14), P(0.47,0.6,0.14), wS); }
-    if (w==="staff") { seg(g, P(0.44,0,0.1), P(0.44,1.95,0.1), wS); const tip = P(0.44,1.95,0.1); polyline(g, [add(tip,mul(cR,-0.08)), add(tip,V(0,0.14,0)), add(tip,mul(cR,0.08)), add(tip,V(0,-0.02,0))], TEAL, true); }
-    if (w==="bow") { const pts = []; for (let i=0;i<=8;i++){ const a = -Math.PI/2 + i/8*Math.PI; pts.push(P(-0.4, 0.9 + Math.sin(a)*0.5, Math.cos(a)*0.34 - 0.06)); } polyline(g, pts, wS); seg(g, pts[0], pts[8], soft); }
-    if (w==="axe") { seg(g, P(0.42,0.3,0.12), P(0.42,1.3,0.12), wS); polyline(g, [P(0.42,1.28,0.12),P(0.62,1.36,0.12),P(0.66,1.1,0.12),P(0.42,1.05,0.12)], wS, true); }
-    if (w==="hammer") { seg(g, P(0.42,0.3,0.12), P(0.42,1.3,0.12), wS); wbox(g, P(0.42,1.2,0.12).x, (1.15+bob)*scale, P(0.42,1.2,0.12).z, 0.32*scale, 0.2*scale, 0.16*scale, wS, -p.rot); }
-    if (w==="spear") { seg(g, P(0.42,0,0.1), P(0.42,2.1,0.1), wS); polyline(g, [P(0.36,2.05,0.1),P(0.42,2.3,0.1),P(0.48,2.05,0.1)], wS); }
-    if (w==="shield" || look.shield) { const c = P(-0.42,0.7,0.1); const pts = []; for (let i=0;i<8;i++){ const a = i/8*Math.PI*2; pts.push(add(add(c, mul(cam.u, Math.sin(a)*0.24)), mul(cR, Math.cos(a)*0.2))); } polyline(g, pts, wS, true); }
-    if (w==="wand") { seg(g, P(0.38,0.55,0.16), P(0.5,0.95,0.2), wS); }
+    const w = look.weapon || "none", wS = main, wS0 = g.segs.length;
+    if (w==="sword") { seg(g, PW(0.36,0.4,0.14), PW(0.36,1.3,0.14), wS); seg(g, PW(0.26,0.6,0.14), PW(0.46,0.6,0.14), wS); seg(g, PW(0.36,0.4,0.14), PW(0.36,0.28,0.14), soft); }
+    if (w==="dagger") { seg(g, PW(0.4,0.5,0.14), PW(0.4,0.9,0.14), wS); seg(g, PW(0.33,0.6,0.14), PW(0.47,0.6,0.14), wS); }
+    if (w==="staff") { seg(g, PW(0.44,0,0.1), PW(0.44,1.95,0.1), wS); const tip = PW(0.44,1.95,0.1); polyline(g, [add(tip,mul(cR,-0.08)), add(tip,V(0,0.14,0)), add(tip,mul(cR,0.08)), add(tip,V(0,-0.02,0))], TEAL, true); }
+    if (w==="bow") { const pts = []; for (let i=0;i<=8;i++){ const a = -Math.PI/2 + i/8*Math.PI; pts.push(PW(-0.4, 0.9 + Math.sin(a)*0.5, Math.cos(a)*0.34 - 0.06)); } polyline(g, pts, wS); seg(g, pts[0], pts[8], soft); }
+    if (w==="axe") { seg(g, PW(0.42,0.3,0.12), PW(0.42,1.3,0.12), wS); polyline(g, [PW(0.42,1.28,0.12),PW(0.62,1.36,0.12),PW(0.66,1.1,0.12),PW(0.42,1.05,0.12)], wS, true); }
+    if (w==="hammer") { seg(g, PW(0.42,0.3,0.12), PW(0.42,1.3,0.12), wS); wbox(g, PW(0.42,1.2,0.12).x, (1.15+bob)*scale, PW(0.42,1.2,0.12).z, 0.32*scale, 0.2*scale, 0.16*scale, wS, -p.rot); }
+    if (w==="spear") { seg(g, PW(0.42,0,0.1), PW(0.42,2.1,0.1), wS); polyline(g, [PW(0.36,2.05,0.1),PW(0.42,2.3,0.1),PW(0.48,2.05,0.1)], wS); }
+    if (w==="shield" || look.shield) { const c = PW(-0.42,0.7,0.1); const pts = []; for (let i=0;i<8;i++){ const a = i/8*Math.PI*2; pts.push(add(add(c, mul(cam.u, Math.sin(a)*0.24)), mul(cR, Math.cos(a)*0.2))); } polyline(g, pts, wS, true); }
+    if (w==="wand") { seg(g, PW(0.38,0.55,0.16), PW(0.5,0.95,0.2), wS); }
+    // held weapons go through the same cloth cover as the body wire: the strokes just emitted are
+    // re-emitted in model-space pieces of <= 0.1 so the part behind cloth (or the head) is dropped
+    if (bvis && g.segs.length > wS0){ const ws = g.segs.splice(wS0);
+      for (const s of ws){ const L = Math.hypot(s.b.x-s.a.x, s.b.y-s.a.y, s.b.z-s.a.z); cutSeg(s.a, s.b, s.s, Math.min(24, Math.max(1, Math.ceil(L/(0.1*scale))))); } }
     // hit box (screen)
-    const foot = proj(P(0,0,0)), headTop = proj(P(0,hy1+0.3,0));
-    if (foot && headTop) p.hit = { x: (foot.x+headTop.x)/2, y: headTop.y, y2: foot.y, r: Math.max(14, 0.5*foot.s*scale), z: foot.z };
+    const foot = proj(P(0,0,0)), headTop = proj(PH(0,hy1+0.3,0));
+    // crown: the top of whatever sits on the head (the campfire's YOU arrow points at it)
+    const crown = proj(PH(0, hy1 + (hat==="pointed" ? 0.74 : race==="tiefling" ? 0.3 : hat==="wide" ? 0.26 : 0.14), 0));
+    if (foot && headTop) p.hit = { x: (foot.x+headTop.x)/2, y: headTop.y, y2: foot.y, fx: foot.x, ct: crown ? crown.y : headTop.y, r: Math.max(14, 0.5*foot.s*scale), z: foot.z };
     else p.hit = null;
   }
+  // label widths, per font and text: shaping Thai text every frame for every name plate is not free
+  const twCache = new Map();
+  function textW(s){ const k = ctx.font + "|" + s; let w = twCache.get(k); if (w === undefined) { if (twCache.size > 512) twCache.clear(); w = ctx.measureText(s).width; twCache.set(k, w); } return w; }
+  // Campfire labels: the name UNDER each pawn (a plate, so it reads over the fire's glow), a tick in a
+  // ring beside it once that player is ready, and a bobbing "YOU" with an arrow over my own head.
+  function drawCampLabels(now){
+    ctx.textAlign = "center";
+    const list = [...pawns.values()].filter(p => p.hit).sort((a,b) => b.hit.z - a.hit.z);
+    for (let i=0;i<list.length;i++){ const p = list[i], t = p.t, h = p.hit, a = fogA(h.z); if (a < 0.15) continue;
+      const fs = Math.round(clamp(9 + h.r*0.2, 11, 15)), name = t.name || "";   // whole px: textW's cache key
+      const y = h.y2 + clamp(h.r*Math.sin(pitch)*0.9, 6, 30) + 4;          // just below the base ring
+      ctx.font = (p.isMe ? "600 " : "") + fs + "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif"; ctx.textBaseline = "top";
+      const tw = name ? textW(name) : 0, tick = p.ready ? fs + 4 : 0, pw = tw + 12 + (tick && tw ? tick + 2 : tick);
+      if (pw > 12) { const x0 = h.fx - pw/2;
+        // Labels go on after every pawn, so the plate of someone further back can land on the head of someone
+        // in front of them: while it overlaps a nearer pawn it fades (eased, not popped, as the camera orbits)
+        let over = false;
+        for (let j=i+1;j<list.length && !over;j++){ const q = list[j].hit, qr = q.r*0.8;
+          over = x0 < q.x + qr && x0 + pw > q.x - qr && y - 2 < q.y2 && y + fs + 4 > q.ct; }
+        const k0 = p.plateK == null ? 1 : p.plateK, k = p.plateK = k0 + ((over ? 0 : 1) - k0)*0.2;
+        const ab = a*(0.2 + 0.8*k), at = a*(0.55 + 0.45*k);
+        ctx.fillStyle = "rgba(11,11,14," + (0.62*ab).toFixed(3) + ")"; ctx.fillRect(x0, y - 2, pw, fs + 6);
+        if (name) { ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+at.toFixed(3)+")" : "rgba(236,233,224,"+(at*0.92).toFixed(3)+")"; ctx.fillText(name, x0 + 6 + tw/2, y); }
+        if (tick) { const r = fs*0.46, cx = x0 + pw - 6 - r, cy = y + fs*0.5 + 1;
+          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = "rgba(120,190,182,"+(0.22*ab).toFixed(3)+")"; ctx.fill();
+          ctx.strokeStyle = "rgba(120,190,182,"+at.toFixed(3)+")"; ctx.lineWidth = 1.2; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(cx - r*0.5, cy + r*0.02); ctx.lineTo(cx - r*0.12, cy + r*0.42); ctx.lineTo(cx + r*0.55, cy - r*0.42);
+          ctx.lineWidth = 1.8; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke(); } }
+      if (p.isMe) {                                                       // YOU + an arrow pointing down at the head
+        const bobY = Math.sin(now/1000*2.6)*3, ty = h.ct - 6 + bobY, s = clamp(h.r*0.5, 7, 11);
+        ctx.fillStyle = "rgba(224,178,106,"+a+")"; ctx.strokeStyle = "rgba(11,11,14,0.7)"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(h.x - s*0.7, ty - s); ctx.lineTo(h.x + s*0.7, ty - s); ctx.lineTo(h.x, ty); ctx.closePath(); ctx.stroke(); ctx.fill();
+        ctx.font = "700 " + Math.round(clamp(h.r*0.75, 12, 16)) + "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif"; ctx.textBaseline = "bottom";
+        ctx.strokeText("YOU", h.x, ty - s - 3); ctx.fillText("YOU", h.x, ty - s - 3); }
+    }
+  }
   function drawLabels(now){
+    if (camp) { drawCampLabels(now); return; }
     ctx.textAlign = "center"; ctx.textBaseline = "bottom";
     const list = [...pawns.values()].filter(p => p.hit).sort((a,b) => b.hit.z - a.hit.z);
     for (const p of list){ const t = p.t, h = p.hit; const a = fogA(h.z); if (a < 0.15) continue;
-      const fs = clamp(9 + h.r*0.18, 10, 15); ctx.font = (p.isMe ? "600 " : "") + fs + "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif";
-      const name = t.name || ""; if (name) { ctx.fillStyle = "rgba(11,11,14,0.55)"; const tw = ctx.measureText(name).width; ctx.fillRect(h.x - tw/2 - 5, h.y - fs - 8, tw + 10, fs + 6); ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+a+")" : t.kind==="enemy" ? "rgba(220,110,96,"+a+")" : "rgba(236,233,224,"+(a*0.9)+")"; ctx.fillText(name, h.x, h.y - 4); }
+      const fs = Math.round(clamp(9 + h.r*0.18, 10, 15)); ctx.font = (p.isMe ? "600 " : "") + fs + "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif";
+      const name = t.name || ""; if (name) { ctx.fillStyle = "rgba(11,11,14,0.55)"; const tw = textW(name); ctx.fillRect(h.x - tw/2 - 5, h.y - fs - 8, tw + 10, fs + 6); ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+a+")" : t.kind==="enemy" ? "rgba(220,110,96,"+a+")" : "rgba(236,233,224,"+(a*0.9)+")"; ctx.fillText(name, h.x, h.y - 4); }
       if (t.maxHp > 0 && t.hp < t.maxHp) { const bw = clamp(h.r*1.6, 28, 60), y = h.y - fs - 12; ctx.fillStyle = "rgba(236,233,224,0.18)"; ctx.fillRect(h.x-bw/2, y-3, bw, 3); ctx.fillStyle = t.hp/t.maxHp > 0.5 ? "rgba(120,190,182,"+a+")" : "rgba(220,110,96,"+a+")"; ctx.fillRect(h.x-bw/2, y-3, bw*clamp(t.hp/t.maxHp,0,1), 3); }
     }
   }
@@ -914,36 +1683,67 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   // ---------- rendering ----------
   function drawFlames(g, t){
     for (const f of g.flames){ const b = proj(V(f.x, f.y, f.z)); if (!b) continue; const a = fogA(b.z); const s = b.s; const jit = Math.sin(t*11 + f.x*3)*0.12 + Math.sin(t*23 + f.z)*0.06;
-      const R = f.r*s*3.2; const gr = ctx.createRadialGradient(b.x, b.y - f.h*s*0.4, 0, b.x, b.y - f.h*s*0.4, R); gr.addColorStop(0, "rgba(224,178,106,"+(0.28*a)+")"); gr.addColorStop(1, "rgba(224,178,106,0)"); ctx.fillStyle = gr; ctx.fillRect(b.x-R, b.y-f.h*s*0.4-R, R*2, R*2);
+      if (!f.tongue) { const R = f.r*s*3.2; const gr = ctx.createRadialGradient(b.x, b.y - f.h*s*0.4, 0, b.x, b.y - f.h*s*0.4, R); gr.addColorStop(0, "rgba(224,178,106,"+(0.28*a)+")"); gr.addColorStop(1, "rgba(224,178,106,0)"); ctx.fillStyle = gr; ctx.fillRect(b.x-R, b.y-f.h*s*0.4-R, R*2, R*2); }
       ctx.beginPath(); ctx.moveTo(b.x - f.r*s, b.y); ctx.quadraticCurveTo(b.x - f.r*s*0.6 + jit*s, b.y - f.h*s*0.55, b.x + jit*s*2, b.y - f.h*s*(1+jit)); ctx.quadraticCurveTo(b.x + f.r*s*0.6 + jit*s, b.y - f.h*s*0.55, b.x + f.r*s, b.y);
       ctx.strokeStyle = "rgba(224,178,106,"+(0.95*a)+")"; ctx.lineWidth = 1.4; ctx.stroke(); ctx.strokeStyle = "rgba(224,178,106,"+(0.25*a)+")"; ctx.lineWidth = 5; ctx.stroke(); }
   }
-  function render(gs, t){
-    // fills first (far → near)
-    const fl = [];
-    for (const g of gs) for (const f of g.fills){ const pp = []; let z = 0; for (const p of f.pts){ const q = proj(p); if (!q) { pp.length = 0; break; } pp.push(q); z += q.z; } if (pp.length) fl.push({ pp, c: f.c, a: f.a*fogA(z/pp.length), z: z/pp.length }); }
+  const STYC = new Map();   // "r,g,b|alpha" -> the rgba() string, memoised across frames
+  // Painter's order: every fill far -> near, then every line on top of them. cut (a camp fire in front of
+  // someone, see frame) makes that two passes with cut.mid() (the flames) between them: the second pass is
+  // the groups marked .near (the pawns in front of the fire, a die thrown in front of it) plus the lines of
+  // cut.geo nearer than cut.z (in front of all of those pawns). cut.geo's fills are the ground: first pass.
+  function render(gs, t, cut){
+    if (STYC.size > 4096) STYC.clear();
+    const L = [{ fl: [], bk: new Map(), bl: [] }, { fl: [], bk: new Map(), bl: [] }];
+    for (const g of gs){ const fl = L[cut && g.near ? 1 : 0].fl;
+      for (const f of g.fills){ const pp = []; let z = 0; for (const p of f.pts){ const q = proj(p); if (!q) { pp.length = 0; break; } pp.push(q); z += q.z; } if (pp.length) { const za = z/pp.length; fl.push({ pp, c: f.c, a: f.nf ? f.a : f.a*fogA(za), z: f.zs != null ? f.zs : za, q: f.q }); } } }
+    // lines bucketed by colour / width / alpha (in fifths). A style's colour|width part of the key is built once
+    // and kept on the style object (styles are never changed after they are made), so a line costs one Map
+    // lookup on a string that already exists instead of a new string; buckets paint in the order they appear.
+    for (const g of gs){ const k = !cut ? 0 : g.near ? 1 : g === cut.geo ? -1 : 0;
+      for (const s of g.segs){ const a = proj(s.a), b = proj(s.b); if (!a || !b) continue; if ((a.x < 0 && b.x < 0) || (a.x > W && b.x > W) || (a.y < 0 && b.y < 0) || (a.y > H && b.y > H)) continue;
+        const zm = (a.z+b.z)/2, st = s.s, ai = Math.round(fogA(zm)*(st.k||1)*5); if (ai <= 0) continue; const Lr = L[k < 0 ? (zm < cut.z ? 1 : 0) : k];
+        const sk = st._key || (st._key = st.c+"|"+st.w+"|"+(st.nog?1:0)); let row = Lr.bk.get(sk); if (!row) Lr.bk.set(sk, row = []);
+        let bk = row[ai]; if (!bk) { bk = row[ai] = { path: new Path2D(), c: st.c, a: ai/5, w: st.w, nog: st.nog }; Lr.bl.push(bk); }
+        bk.path.moveTo(a.x, a.y); bk.path.lineTo(b.x, b.y); } }
+    paint(L[0].fl, L[0].bl);
+    if (cut) { cut.mid(); paint(L[1].fl, L[1].bl); }
+  }
+  function paint(fl, buckets){
     fl.sort((a,b) => b.z - a.z);
-    for (const f of fl){ ctx.beginPath(); ctx.moveTo(f.pp[0].x, f.pp[0].y); for (let i=1;i<f.pp.length;i++) ctx.lineTo(f.pp[i].x, f.pp[i].y); ctx.closePath(); ctx.fillStyle = "rgba("+f.c+","+f.a.toFixed(3)+")"; ctx.fill(); }
-    // lines bucketed by colour / alpha / width
-    const buckets = new Map();
-    for (const g of gs) for (const s of g.segs){ const a = proj(s.a), b = proj(s.b); if (!a || !b) continue; if ((a.x < 0 && b.x < 0) || (a.x > W && b.x > W) || (a.y < 0 && b.y < 0) || (a.y > H && b.y > H)) continue;
-      const al = Math.round(fogA((a.z+b.z)/2)*(s.s.k||1)*5)/5; if (al <= 0) continue; const key = s.s.c+"|"+al+"|"+s.s.w; let bk = buckets.get(key); if (!bk) { bk = { path: new Path2D(), c: s.s.c, a: al, w: s.s.w }; buckets.set(key, bk); } bk.path.moveTo(a.x, a.y); bk.path.lineTo(b.x, b.y); }
+    for (const f of fl){ ctx.beginPath(); ctx.moveTo(f.pp[0].x, f.pp[0].y); for (let i=1;i<f.pp.length;i++) ctx.lineTo(f.pp[i].x, f.pp[i].y); ctx.closePath();
+      // Every hair / garment face carries its own alpha (that is where the shading lives), so without a
+      // cache each one is a fresh string for Blink to parse. f.q marks a fill whose alpha may be quantised
+      // to 1/64 (max error 1/128, invisible); other fills keep their exact value.
+      let st; if (f.q){ const qa = f.a*64|0, k = f.c+"|q"+qa; st = STYC.get(k); if (!st){ st = "rgba("+f.c+","+(qa/64)+")"; STYC.set(k, st); } }
+      else { const s3 = f.a.toFixed(3), k = f.c+"|"+s3; st = STYC.get(k); if (!st){ st = "rgba("+f.c+","+s3+")"; STYC.set(k, st); } }
+      ctx.fillStyle = st; ctx.fill(); }
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    for (const bk of buckets.values()){ ctx.strokeStyle = "rgba("+bk.c+","+(bk.a*0.16).toFixed(3)+")"; ctx.lineWidth = bk.w*4.5; ctx.stroke(bk.path); }
-    for (const bk of buckets.values()){ ctx.strokeStyle = "rgba("+bk.c+","+(bk.a*0.95).toFixed(3)+")"; ctx.lineWidth = bk.w; ctx.stroke(bk.path); }
+    // nog = skip the wide candlelight bloom pass. It pays for itself on the board (one fewer full
+    // path stroke per hair colour); on the dais there is one pawn and the owner is judging the look,
+    // so the hairline gets the same bloom every other line on the pawn has.
+    for (const bk of buckets){ if (bk.nog && !preview) continue; ctx.strokeStyle = "rgba("+bk.c+","+(bk.a*0.16).toFixed(3)+")"; ctx.lineWidth = bk.w*4.5; ctx.stroke(bk.path); }
+    for (const bk of buckets){ ctx.strokeStyle = "rgba("+bk.c+","+(bk.a*0.95).toFixed(3)+")"; ctx.lineWidth = bk.w; ctx.stroke(bk.path); }
   }
 
   // ---------- state ----------
   let me = null, board = null, control = "tap", canMove = true, preview = false, turnStart = null;
   let marker = { x:0, z:0, a:0 };
+  // pvOpts: setPreview's optional second argument ({focus, spin}); null = the plain dais close-up.
+  // camp: the campfire lobby (setCampfire), null otherwise. camGoal: where the camera is easing to.
+  let pvOpts = null, camp = null, camGoal = null, lastDrag = -1e9;
   const joyEl = document.getElementById("joy");
   let bottomInset = 0;
   function placeJoy(){ if (bottomInset > 0) { joyEl.style.top = "auto"; joyEl.style.bottom = (bottomInset + 16) + "px"; } else { joyEl.style.bottom = "auto"; joyEl.style.top = "56%"; } }
-  function showJoy(){ placeJoy(); joyEl.style.display = (control==="joystick" && me && !preview) ? "block" : "none"; }
+  function showJoy(){ placeJoy(); joyEl.style.display = (control==="joystick" && me && !preview && !camp) ? "block" : "none"; }
   window.setInset = function(px){ bottomInset = Math.max(0, Number(px) || 0); placeJoy(); };
   window.setBoard = function(json){
     try { board = typeof json === "string" ? JSON.parse(json) : json; } catch(e) { return; }
-    if (!board) return; preview = false;
+    if (!board) return;
+    // coming from the dais or the campfire in the same page: the board opens on its own camera,
+    // not zoomed in to where the close-up left it
+    if (preview || camp) { dist = 15; pitch = 0.55; yaw = -0.6; camT.x = 0; camT.y = 0.4; camT.z = 0; camGoal = null; }
+    preview = false; pvOpts = null; camp = null;
     buildScene(board.scene || "tavern", board.time || "night");
     const seen = new Set();
     for (const t of Object.values(board.tokens || {})) {
@@ -959,25 +1759,89 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     else turnStart = null;
     showJoy();
   };
-  window.setPreview = function(json){
+  // where the camera sits for a close-up of this look: the whole pawn, or just its head (hair / face tabs)
+  function previewCam(look, focus){
+    const race = look.race || "human", FS = faceOf(look.faceShape);
+    const sc = (look.size==="small" || race==="halfling" || race==="gnome" || race==="goblin") ? 0.8 : (look.size==="big" || race==="orc" || race==="dragonborn" || race==="goliath") ? 1.18 : 1;
+    const hdF = bodyOf(look.body).hd + (FS ? FS.lift : 0);
+    // a tall hat (or horns) would be cut off by the head framing: step back and look a little higher
+    const up = look.hat === "pointed" ? 0.34 : look.hat === "wide" || look.hat === "crown" || race === "tiefling" ? 0.12 : 0;
+    return focus === "head" ? { dist: (1.35 + up*1.3)*sc, y: (1.19 + hdF + 0.03 + up*0.5)*sc } : { dist: 3.1*(0.6 + 0.4*sc), y: (0.8 + hdF*0.5)*sc };
+  }
+  // setPreview(look) is exactly the old dais close-up. setPreview(look, {focus:"full"|"head", spin}) is the
+  // editor's: it frames the whole pawn or its head, can turn the pawn slowly on the dais, and when the
+  // editor sends the next look it keeps the turntable and the user's orbit where they are and only eases
+  // the camera if the framing changed.
+  window.setPreview = function(json, opts){
     let look = {}; try { look = typeof json === "string" ? JSON.parse(json) : (json || {}); } catch(e) {}
-    preview = true; me = "me"; board = null; currentScene = null; buildScene("preview", "night");
-    pawns.clear(); pawns.set("me", { t: { id:"me", name:"", kind:"player", look, hp:1, maxHp:1 }, pos:{x:0,z:0}, target:{x:0,z:0}, rot: 0, isMe:true, moving:false, hit:null });
-    dist = 3.1; pitch = 0.22; yaw = -0.42; camT.x = 0; camT.y = 0.8; camT.z = 0; showJoy();
+    if (!look || typeof look !== "object") look = {};                 // "null", a number, a bare string
+    let o = null; if (opts != null) { try { o = typeof opts === "string" ? JSON.parse(opts) : opts; } catch(e) {} }
+    if (o && typeof o !== "object") o = null;
+    const prev = preview && o ? pvOpts : null, old = prev ? pawns.get("me") : null;
+    preview = true; me = "me"; board = null; camp = null; currentScene = null; buildScene("preview", "night");
+    pawns.clear(); pawns.set("me", { t: { id:"me", name:"", kind:"player", look, hp:1, maxHp:1 }, pos:{x:0,z:0}, target:{x:0,z:0}, rot: old ? old.rot : 0, isMe:true, moving:false, hit:null });
+    if (!o) { pvOpts = null; camGoal = null; dist = 3.1; pitch = 0.22; yaw = -0.42; camT.x = 0; camT.y = 0.8; camT.z = 0; showJoy(); return; }
+    const focus = o.focus === "head" ? "head" : "full", c = previewCam(look, focus);
+    pvOpts = { focus, spin: !!o.spin, y: c.y };
+    // same editor session: the turntable and the user's orbit stay put; the camera only eases when the
+    // framing itself changed (another tab, or a body / face that moves the head)
+    if (prev) { if (prev.focus !== focus || Math.abs(prev.y - c.y) > 1e-3) camGoal = c; }
+    else { camGoal = null; dist = c.dist; pitch = 0.22; yaw = -0.42; camT.x = 0; camT.y = c.y; camT.z = 0; }
+    showJoy();
   };
   window.setMe = function(id){ me = id; for (const p of pawns.values()) p.isMe = p.t.id === me; if (board) window.setBoard(board); showJoy(); };
   window.setControl = function(mode){ control = mode === "joystick" ? "joystick" : "tap"; showJoy(); };
   window.focusMe = function(){ const p = pawns.get(me); if (p) { camT.x = p.pos.x; camT.z = p.pos.z; } };
 
+  // ---------- campfire lobby ----------
+  // setCampfire({players:[{id, name, look, ready}], you}) — the room before the adventure: everyone at the
+  // camp scene's fire, on a ring, facing it. Calling it again (a look, a name, ready, someone joining or
+  // leaving) updates the pawns where they stand: nothing is rebuilt and the camera is left alone. A seat
+  // change walks the pawn round the ring, never across the fire. setBoard / setPreview leave this mode.
+  const CAMP_R = 2.2, CAMP_ORBIT = 0.07;                            // ring radius; orbit speed, rad/s
+  const ringXZ = a => ({ x: Math.sin(a)*CAMP_R, z: Math.cos(a)*CAMP_R });
+  // far enough out that the whole ring (and the labels under it) fits the frame at this aspect
+  const campDist = () => clamp(6.7*(H > 0 && W > 0 ? H/W : 1), 8.5, 15);
+  window.setCampfire = function(json){
+    let d; try { d = typeof json === "string" ? JSON.parse(json) : json; } catch(e) { return; }
+    if (!d || typeof d !== "object") return;
+    const list = Array.isArray(d.players) ? d.players.filter(q => q && q.id != null) : [];
+    const first = !camp;
+    if (first) {
+      preview = false; pvOpts = null; board = null; turnStart = null; camGoal = null; pawns.clear();
+      camp = { zoomed: false };
+      buildScene("campfire", "night");
+      // a tall frame (a phone held upright) looks down more steeply, so the ring fills the height too
+      pitch = clamp(0.5 + ((H > 0 && W > 0 ? H/W : 1) - 1.1)*0.45, 0.5, 0.82); dist = campDist(); camT.x = 0; camT.y = 0.55; camT.z = 0;
+    }
+    me = d.you != null ? String(d.you) : null;
+    const n = list.length, seen = new Set();
+    list.forEach((pl, i) => {
+      const id = String(pl.id), ang = i/Math.max(1, n)*Math.PI*2; seen.add(id);
+      let look = pl.look; if (typeof look === "string") { try { look = JSON.parse(look); } catch(e) { look = null; } }
+      const t = { id, name: String(pl.name || ""), kind: "player", look: look && typeof look === "object" ? look : {}, hp: 1, maxHp: 1 };
+      let p = pawns.get(id);
+      if (!p) { const q = ringXZ(ang); p = { t, pos:{x:q.x, z:q.z}, target:{x:q.x, z:q.z}, rot: Math.atan2(-q.x, -q.z), isMe:false, moving:false, hit:null, ang }; pawns.set(id, p); }
+      p.t = t; p.isMe = id === me; p.ready = !!pl.ready; p.angT = ang; if (p.ang == null) p.ang = Math.atan2(p.pos.x, p.pos.z);
+    });
+    for (const id of [...pawns.keys()]) if (!seen.has(id)) pawns.delete(id);
+    // open on my pawn from the front three-quarters, clear of the fire
+    if (first) { const mine = pawns.get(me); yaw = (mine ? mine.angT : 0) + 2.0; }
+    showJoy();
+  };
+
   // ---------- input ----------
   let dragging = false, moved = false, lastX = 0, lastY = 0, pinch0 = 0, pointers = 0;
   cv.addEventListener("pointerdown", e => { pointers++; dragging = true; moved = false; lastX = e.clientX; lastY = e.clientY; try { cv.setPointerCapture(e.pointerId); } catch(_){} });
-  cv.addEventListener("pointermove", e => { if (!dragging || pointers > 1) return; const dx = e.clientX-lastX, dy = e.clientY-lastY; if (Math.abs(dx)+Math.abs(dy) > 5) moved = true; yaw += dx*0.008; pitch = clamp(pitch + dy*0.005, 0.22, 1.3); lastX = e.clientX; lastY = e.clientY; });
+  cv.addEventListener("pointermove", e => { if (!dragging || pointers > 1) return; const dx = e.clientX-lastX, dy = e.clientY-lastY; if (Math.abs(dx)+Math.abs(dy) > 5) moved = true; yaw += dx*0.008; pitch = clamp(pitch + dy*0.005, 0.22, 1.3); lastX = e.clientX; lastY = e.clientY; if (moved) { lastDrag = performance.now(); camGoal = null; } });
   const up = e => { pointers = Math.max(0, pointers-1); if (!dragging) return; if (pointers === 0) { dragging = false; if (!moved && e.type === "pointerup") tap(e.clientX, e.clientY); } };
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  // zoom range per mode: the dais (a head close-up may come nearer), the campfire ring, the board
+  const zoomTo = d => { camGoal = null; if (camp) camp.zoomed = true;
+    dist = preview ? clamp(d, pvOpts && pvOpts.focus === "head" ? 0.9 : 2, 6) : camp ? clamp(d, 4, 16) : clamp(d, 6, 26); };
   cv.addEventListener("touchstart", e => { if (e.touches.length===2) pinch0 = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
-  cv.addEventListener("touchmove", e => { if (e.touches.length===2){ moved = true; const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); if (pinch0 > 0) dist = clamp(dist*pinch0/d, preview ? 2 : 6, preview ? 6 : 26); pinch0 = d; } }, {passive:true});
-  cv.addEventListener("wheel", e => { dist = clamp(dist * (e.deltaY > 0 ? 1.1 : 0.9), preview ? 2 : 6, preview ? 6 : 26); }, {passive:true});
+  cv.addEventListener("touchmove", e => { if (e.touches.length===2){ moved = true; const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); if (pinch0 > 0) zoomTo(dist*pinch0/d); pinch0 = d; } }, {passive:true});
+  cv.addEventListener("wheel", e => { zoomTo(dist * (e.deltaY > 0 ? 1.1 : 0.9)); }, {passive:true});
   function tap(cx, cy){
     if (preview || !me || !board) return;
     // token hit test
@@ -1004,11 +1868,12 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
 
   // ---------- frame ----------
   let last = performance.now(), tAcc = 0;
+  const wrapA = a => { a = (a + Math.PI) % (Math.PI*2); return (a < 0 ? a + Math.PI*2 : a) - Math.PI; };
   function frame(now){
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, (now-last)/1000); last = now; tAcc += dt;
     resize();
-    if (joyActive && me && !preview && (joyVec.x || joyVec.y)) {
+    if (joyActive && me && !preview && !camp && (joyVec.x || joyVec.y)) {
       if (!canMove) { if (!localMoving) toast("ยังไม่ถึงเทิร์นของคุณ"); }
       else { const mine = pawns.get(me); if (mine) {
         const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
@@ -1017,23 +1882,64 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
         if (!turnStart || Math.hypot(nx-turnStart.pos.x, nz-turnStart.pos.z) <= 6) { mine.target = { x:nx, z:nz }; localMoving = true; if (now - lastSend > 500) { lastSend = now; bridge.move(nx, nz); } }
       } }
     }
-    for (const p of pawns.values()){ const dx = p.target.x - p.pos.x, dz = p.target.z - p.pos.z; const len = Math.hypot(dx, dz);
+    if (camp) {
+      // campfire: walk round the ring to the seat (the short way), then turn to face the fire
+      for (const p of pawns.values()){ if (p.angT == null) continue;
+        const d = wrapA(p.angT - p.ang);
+        if (Math.abs(d) > 0.003) { const step = Math.sign(d)*Math.min(Math.abs(d), dt*0.9); p.ang += step; const q = ringXZ(p.ang);
+          p.rot = Math.atan2(q.x - p.pos.x, q.z - p.pos.z); p.pos.x = q.x; p.pos.z = q.z; p.moving = true; }
+        else { const q = ringXZ(p.angT); p.ang = p.angT; p.pos.x = q.x; p.pos.z = q.z; p.moving = false;
+          p.rot += wrapA(Math.atan2(-q.x, -q.z) - p.rot)*Math.min(1, dt*6); }
+        p.target.x = p.pos.x; p.target.z = p.pos.z; }
+      // a slow orbit that gives way to the user's drag, and picks up again a few seconds after it
+      if (!dragging && now - lastDrag > 3000) yaw += dt*CAMP_ORBIT;
+      if (!camp.zoomed) dist += (campDist() - dist)*Math.min(1, dt*3);
+    }
+    else for (const p of pawns.values()){ const dx = p.target.x - p.pos.x, dz = p.target.z - p.pos.z; const len = Math.hypot(dx, dz);
       if (len > 0.02) { const step = Math.min(1, 4*dt/len*Math.max(len,0.5)); p.pos.x += dx*step; p.pos.z += dz*step; p.rot = Math.atan2(dx, dz); p.moving = true; } else p.moving = false; }
+    // the editor's turntable: the PAWN turns (the light stays with the room), paused while the user drags
+    if (preview && pvOpts && pvOpts.spin && !dragging && now - lastDrag > 1500) { const mine = pawns.get("me"); if (mine) mine.rot += dt*0.45; }
+    if (camGoal) { const k = Math.min(1, dt*7); dist += (camGoal.dist - dist)*k; camT.y += (camGoal.y - camT.y)*k;
+      if (Math.abs(camGoal.dist - dist) < 1e-3 && Math.abs(camGoal.y - camT.y) < 1e-3) { dist = camGoal.dist; camT.y = camGoal.y; camGoal = null; } }
     marker.a *= 0.975;
-    if (!preview) { const mine = pawns.get(me); if (mine && !dragging) { camT.x += (mine.pos.x*0.5 - camT.x)*0.02; camT.z += (mine.pos.z*0.5 - camT.z)*0.02; camT.y = 0.4; } }
+    if (!preview && !camp) { const mine = pawns.get(me); if (mine && !dragging) { camT.x += (mine.pos.x*0.5 - camT.x)*0.02; camT.z += (mine.pos.z*0.5 - camT.z)*0.02; camT.y = 0.4; } }
     updateCam();
     ctx.clearRect(0,0,W,H);
     drawBackdrop(preview ? "night" : currentTime || "night", tAcc);
     const dyn = G();
     if (marker.a > 0.03) wring(dyn, marker.x, 0.02, marker.z, 0.4, 16, styleOf(TEAL.c, 1.2, marker.a));
     if (turnStart) { wring(dyn, turnStart.pos.x, 0.02, turnStart.pos.z, 6, 48, TEAL); wring(dyn, turnStart.pos.x, 0.02, turnStart.pos.z, 3, 32, styleOf(TEAL.c, 0.8, 0.4)); }
-    for (const p of pawns.values()) drawPawn(dyn, p, tAcc, now);
-    drawDice(dyn, dt);
-    render([geo, dyn], tAcc);
-    drawFlames(geo, tAcc);
+    // Around a camp fire the fire must not paint over a pawn standing between it and the eye. Pawns nearer
+    // than the fire, a die thrown down in front of it, and the scene lines in front of all of them are drawn
+    // in a second pass AFTER the flames (render's cut); with nobody in front it is one pass as before.
+    const fire = (currentScene === "camp" || currentScene === "campfire") && !preview ? campFire() : null;
+    if (fire) drawFireGlow(fire, tAcc);
+    const eyeZ = (x, z) => dot(sub(V(x, 0, z), cam.C), cam.f);
+    let near = null, nearZ = Infinity;
+    const toNear = z => { if (!near) { near = G(); near.near = 1; } nearZ = Math.min(nearZ, z); return near; };
+    for (const p of pawns.values()){ const z = fire ? eyeZ(p.pos.x, p.pos.z) : 0;
+      drawPawn(fire && z < fire.z ? toNear(z) : dyn, p, tAcc, now); }
+    if (preview) { const mp = pawns.get("me"); dais(dyn, mp && mp.cover); }
+    const dieZ = fire && diceShow ? eyeZ(diceShow.x, diceShow.z) : 0;
+    drawDice(fire && diceShow && dieZ < fire.z ? toNear(dieZ) : dyn, dt);
+    // (0.6: a pawn's cloth and hat brim reach about that far in front of its feet)
+    if (near) render([geo, dyn, near], tAcc, { z: nearZ - 0.6, geo, mid: () => drawFlames(geo, tAcc) });
+    else { render([geo, dyn], tAcc); drawFlames(geo, tAcc); }
     drawLabels(now);
     drawDiceLabel();
   }
+  // warm light on the ground round the camp fire, under everything else in the scene
+  function drawFireGlow(fire, t){
+    const f = fire.f, c = proj(V(f.x, 0, f.z)), e = proj(V(f.x + cam.r.x*2.8, 0, f.z + cam.r.z*2.8)); if (!c || !e) return;
+    const rx = Math.hypot(e.x - c.x, e.y - c.y), ry = rx*clamp(Math.sin(pitch)*1.1, 0.15, 1), k = 0.85 + 0.15*Math.sin(t*9)*Math.sin(t*5.3);
+    if (rx < 1) return;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.scale(1, ry/rx);
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, "rgba(224,150,80,"+(0.22*k*fogA(c.z)).toFixed(3)+")"); gr.addColorStop(1, "rgba(224,150,80,0)");
+    ctx.fillStyle = gr; ctx.fillRect(-rx, -rx, rx*2, rx*2); ctx.restore();
+  }
+  // the camp scene's fire (its biggest flame) and its depth from the eye this frame
+  function campFire(){ let f = null; for (const q of geo.flames) if (!f || q.r > f.r) f = q; if (!f) return null;
+    return { f, z: dot(sub(V(f.x, f.y, f.z), cam.C), cam.f) }; }
   buildScene("tavern", "night");
   requestAnimationFrame(frame);
   bridge.ready();
