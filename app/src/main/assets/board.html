@@ -1584,26 +1584,80 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   // label widths, per font and text: shaping Thai text every frame for every name plate is not free
   const twCache = new Map();
   function textW(s){ const k = ctx.font + "|" + s; let w = twCache.get(k); if (w === undefined) { if (twCache.size > 512) twCache.clear(); w = ctx.measureText(s).width; twCache.set(k, w); } return w; }
+  // A campfire plate holds about ten Thai letters (fs*7.2 px, ~110 px at the largest size). A longer name is
+  // cut between grapheme clusters (Intl.Segmenter; without it, code points with every mark kept on its base)
+  // and ends in "…", so a vowel or tone mark never loses its consonant, and a leading vowel (เ แ โ ใ ไ) is
+  // kept with the consonant written after it rather than left dangling before the "…". Cut once per font
+  // and name, then cached: a steady frame measures nothing.
+  const GSEG = (() => { try { return new Intl.Segmenter("th", { granularity: "grapheme" }); } catch(_) { return null; } })();
+  const MARK = (() => { try { return new RegExp("[\\p{M}\\u0E33\\u0EB3\\u200D\\uFE00-\\uFE0F\\u{1F3FB}-\\u{1F3FF}]", "u"); }
+    catch(_) { return /[\u0300-\u036F\u0E31\u0E33-\u0E3A\u0E47-\u0E4E\u0EB1\u0EB3-\u0EBC\u0EC8-\u0ECD\u200D\uFE00-\uFE0F]/; } })();
+  function clusters(s){
+    const g = [], out = [];
+    if (GSEG) for (const x of GSEG.segment(s)) g.push(x.segment);
+    else for (const c of s) { const n = g.length; if (n && (MARK.test(c) || g[n-1].endsWith("\u200D"))) g[n-1] += c; else g.push(c); }
+    for (let i = 0; i < g.length; i++) out.push(/^[\u0E40-\u0E44\u0EC0-\u0EC4]$/.test(g[i]) && i + 1 < g.length ? g[i] + g[++i] : g[i]);
+    return out;
+  }
+  const fitCache = new Map();
+  function fitName(s, font, maxW){                       // ctx.font must already be `font`
+    const k = font + "|" + maxW + "|" + s; let r = fitCache.get(k); if (r) return r;
+    if (fitCache.size > 256) fitCache.clear();
+    r = { s, w: ctx.measureText(s).width };
+    const g = r.w > maxW ? clusters(s) : null;
+    if (g && g.length > 1) { const cut = n => g.slice(0, n).join("").replace(/\s+$/, "") + "…";
+      let lo = 1, hi = g.length - 1;                     // the most clusters that still fit with the "…"
+      while (lo < hi) { const m = (lo + hi + 1) >> 1; if (ctx.measureText(cut(m)).width <= maxW) lo = m; else hi = m - 1; }
+      const t = cut(lo); r = { s: t, w: ctx.measureText(t).width }; }
+    fitCache.set(k, r); return r;
+  }
   // Campfire labels: the name UNDER each pawn (a plate, so it reads over the fire's glow), a tick in a
   // ring beside it once that player is ready, and a bobbing "YOU" with an arrow over my own head.
+  // Plates are placed by priority: mine (and my YOU) first, then nearest first. Where a plate's text would
+  // land on one already placed, it steps down under it if a few px clear it, else it fades right back;
+  // a plate over the body of a nearer pawn fades too. Mine never moves or fades. Every step and fade is
+  // eased, so nothing pops as the camera orbits, and whoever won last frame keeps a small depth head start
+  // so two plates side by side do not trade places back and forth. They paint lowest priority first: mine last.
+  let campLblT = 0;
   function drawCampLabels(now){
-    ctx.textAlign = "center";
-    const list = [...pawns.values()].filter(p => p.hit).sort((a,b) => b.hit.z - a.hit.z);
-    for (let i=0;i<list.length;i++){ const p = list[i], t = p.t, h = p.hit, a = fogA(h.z); if (a < 0.15) continue;
-      const fs = Math.round(clamp(9 + h.r*0.2, 11, 15)), name = t.name || "";   // whole px: textW's cache key
+    const ease = 1 - Math.exp(-clamp((now - campLblT)/1000, 0, 0.1)*13); campLblT = now;   // ~0.2 a frame at 60 Hz
+    const FONT = "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif", L = [];
+    for (const p of pawns.values()){ const h = p.hit; if (!h) continue;
+      const a = p.isMe ? 1 : fogA(h.z); if (a < 0.15) continue;
+      const fs = Math.round(clamp(9 + h.r*0.2, 11, 15)), font = (p.isMe ? "600 " : "") + fs + FONT;   // whole px: the cache key
+      ctx.font = font;
+      const f = p.t.name ? fitName(p.t.name, font, Math.round(fs*7.2)) : null, tw = f ? f.w : 0;
+      const tick = p.ready ? fs + 4 : 0, pw = tw + 12 + (tick && tw ? tick + 2 : tick);
       const y = h.y2 + clamp(h.r*Math.sin(pitch)*0.9, 6, 30) + 4;          // just below the base ring
-      ctx.font = (p.isMe ? "600 " : "") + fs + "px Sarabun, 'Noto Sans Thai', system-ui, sans-serif"; ctx.textBaseline = "top";
-      const tw = name ? textW(name) : 0, tick = p.ready ? fs + 4 : 0, pw = tw + 12 + (tick && tw ? tick + 2 : tick);
-      if (pw > 12) { const x0 = h.fx - pw/2;
-        // Labels go on after every pawn, so the plate of someone further back can land on the head of someone
-        // in front of them: while it overlaps a nearer pawn it fades (eased, not popped, as the camera orbits)
-        let over = false;
-        for (let j=i+1;j<list.length && !over;j++){ const q = list[j].hit, qr = q.r*0.8;
-          over = x0 < q.x + qr && x0 + pw > q.x - qr && y - 2 < q.y2 && y + fs + 4 > q.ct; }
-        const k0 = p.plateK == null ? 1 : p.plateK, k = p.plateK = k0 + ((over ? 0 : 1) - k0)*0.2;
-        const ab = a*(0.2 + 0.8*k), at = a*(0.55 + 0.45*k);
+      const x0 = pw < W - 8 ? clamp(h.fx - pw/2, 4, W - 4 - pw) : h.fx - pw/2;   // kept on screen at the edges
+      L.push({ p, h, a, fs, font, f, tw, tick, pw, x0, y, pri: p.isMe ? -1e9 : h.z - (p.plateWon ? 0.3 : 0) }); }
+    L.sort((A, B) => A.pri - B.pri);
+    const taken = [];                                    // text boxes placed so far: [x0, x1, y0, y1]
+    const under = (x0, x1, y0, y1) => { let b = null; for (const r of taken) if (x0 < r[1] && x1 > r[0] && y0 < r[3] && y1 > r[2] && (b == null || r[3] > b)) b = r[3]; return b; };
+    for (const e of L){ const p = e.p, h = e.h, bx0 = e.x0 + 5, bx1 = e.x0 + e.pw - 5, th = e.fs + 2;   // the text, not the padding
+      let dy = 0, lost = false, over = false;
+      if (p.isMe) { const s = clamp(h.r*0.5, 7, 11), ys = Math.round(clamp(h.r*0.75, 12, 16)), yb = h.ct - 6;   // YOU, at any point of its bob
+        taken.push([h.x - Math.max(ys*1.1, s*0.7), h.x + Math.max(ys*1.1, s*0.7), yb - s - ys - 9, yb + 3]); }
+      else if (e.pw > 12) {
+        const room = Math.min(Math.round(e.fs*0.9), H - 2 - (e.y + e.fs + 4));
+        let b; while ((b = under(bx0, bx1, e.y + dy, e.y + dy + th)) != null && b - e.y <= room) dy = b - e.y;
+        if (b != null) { lost = true; dy = 0; }
+        const yT = e.y + dy;                             // over the body of someone nearer: that pawn shows through
+        for (const q of pawns.values()){ const g = q.hit; if (!g || q === p || g.z >= h.z) continue; const qr = g.r*0.8;
+          if (e.x0 < g.x + qr && e.x0 + e.pw > g.x - qr && yT - 2 < g.y2 && yT + e.fs + 4 > g.ct) { over = true; break; } } }
+      if (e.pw > 12 && !lost) taken.push([bx0, bx1, e.y + dy, e.y + dy + th]);
+      p.plateWon = !lost;
+      const kT = over ? 0 : 1, lT = lost ? 0 : 1;
+      p.plateK = p.plateK == null ? kT : p.plateK + (kT - p.plateK)*ease;
+      p.plateL = p.plateL == null ? lT : p.plateL + (lT - p.plateL)*ease;
+      p.plateDy = p.plateDy == null ? dy : p.plateDy + (dy - p.plateDy)*ease; }
+    ctx.textAlign = "center";
+    for (let i = L.length - 1; i >= 0; i--){ const e = L[i], p = e.p, h = e.h, a = e.a, fs = e.fs, tick = e.tick, pw = e.pw, x0 = e.x0;
+      const k = p.isMe ? 1 : p.plateK, l = p.isMe ? 1 : p.plateL, y = e.y + (p.isMe ? 0 : p.plateDy);
+      const ab = a*(0.2 + 0.8*k)*(0.22 + 0.78*l), at = a*(0.55 + 0.45*k)*(0.16 + 0.84*l);
+      if (pw > 12) { ctx.font = e.font; ctx.textBaseline = "top";
         ctx.fillStyle = "rgba(11,11,14," + (0.62*ab).toFixed(3) + ")"; ctx.fillRect(x0, y - 2, pw, fs + 6);
-        if (name) { ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+at.toFixed(3)+")" : "rgba(236,233,224,"+(at*0.92).toFixed(3)+")"; ctx.fillText(name, x0 + 6 + tw/2, y); }
+        if (e.f) { ctx.fillStyle = p.isMe ? "rgba(224,178,106,"+at.toFixed(3)+")" : "rgba(236,233,224,"+(at*0.92).toFixed(3)+")"; ctx.fillText(e.f.s, x0 + 6 + e.tw/2, y); }
         if (tick) { const r = fs*0.46, cx = x0 + pw - 6 - r, cy = y + fs*0.5 + 1;
           ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = "rgba(120,190,182,"+(0.22*ab).toFixed(3)+")"; ctx.fill();
           ctx.strokeStyle = "rgba(120,190,182,"+at.toFixed(3)+")"; ctx.lineWidth = 1.2; ctx.stroke();
