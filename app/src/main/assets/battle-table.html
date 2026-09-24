@@ -1192,12 +1192,15 @@ function kitHoplite(Wd, noCrest){
     armBox(Wd['ankle'+S], [0,-0.062,0.045], 0.052, 0.01, 0.11, 'boot');
     armBox(Wd['ankle'+S], [0,-0.03,0.09], 0.05, 0.006, 0.01, 'boot'); armBox(Wd['ankle'+S], [0,-0.045,0.03], 0.05, 0.006, 0.01, 'boot'); });
   // ---- round shield on the left forearm: shallow bowl, bronze rim, central boss
-  J(Wd.elbowL, function(){ var rot = Q.qz(-90*DEG), cen = [0.075,-0.14,0];   // disc normal = forearm's +x = forward once the arm is across the chest
+  J(shieldJ(Wd), function(){ var rot = Q.qz(-90*DEG), cen = [0.075,-0.14,0];   // disc normal = forearm's +x = forward once the arm is across the chest
     withRot(rot, cen, function(){
       armDome(null, [0,-1.56,0], 1.6, 77, 90, 16, 2, null, 'shield');
       armTube(null, 0.0, 0.365, 0.365, 0.03, 0.355, 0.355, 16, 0, Math.PI*2, 'trim');
       armDome(null, [0,0.03,0], 0.08, 0, 90, 8, 2, null, 'trim'); }); });
   // ---- spear in the right hand: ash shaft through the fist, bronze head
+  if (ACT && ACT.spear){ var hp = lerp3(Wd.wristR.p, Wd.handR.p, 0.5), sd = ACT.spear, st = R.add(hp, R.mul(sd, 1.25));
+    rod(R.sub(hp, R.mul(sd, 0.95)), st, 0.014, 0.014, 6, 'wood'); rod(st, R.add(hp, R.mul(sd, 1.47)), 0.03, 0.002, 6, 'helm');
+    rod(R.sub(hp, R.mul(sd, 0.95)), R.sub(hp, R.mul(sd, 1.0)), 0.02, 0.006, 6, 'helm'); return; }
   J(Wd.wristR, function(){ armTube(Wd.wristR, -0.95, 0.014, 0.014, 1.25, 0.014, 0.014, 6, 0, Math.PI*2, 'wood');
     armTube(Wd.wristR, 1.25, 0.03, 0.02, 1.47, 0.002, 0.002, 6, 0, Math.PI*2, 'helm'); armTube(Wd.wristR, -0.95, 0.02, 0.02, -1.0, 0.006, 0.006, 6, 0, Math.PI*2, 'helm'); });
 }
@@ -1245,7 +1248,7 @@ var GUN = {
   cannon:  { len:0.70, back:0.10, w:0.070, h:0.080, br:0.050, mag:0, box:1, shroud:1 }
 };
 function gunIn(Wd, type){
-  var o = GUN[type], g = Wd.handR.p, s = Wd.handL.p, d = R.sub(s, g);
+  var o = GUN[type], g = Wd.handR.p, s = Wd.handL.p, d = ACT && ACT.gunDir ? ACT.gunDir : R.sub(s, g);   // gunDir: held one-handed, pointing that way
   if (R.len(d) < 0.08) d = [0, -0.2, 1];             // hands together: point it ahead
   var F = frameOn(g, d, [0,1,0]);
   J(F, function(){
@@ -1268,9 +1271,21 @@ function gunIn(Wd, type){
 
 // ---------- Greek gear ----------
 function bowIn(Wd){                     // a recurve bow gripped in the left hand, limbs up and down, string toward the archer
-  var h = Wd.handL.p, n = 8, prev = null, tips = [];
-  for (var i=0;i<=n;i++){ var t = -1 + 2*i/n, k = Math.abs(t);
-    var p = [h[0], h[1] + t*0.62, h[2] + 0.1*k*k - (k > 0.85 ? (k-0.85)*0.5 : 0)];
+  var h = Wd.handL.p, n = 8, prev = null, tips = [], i, t, k, p;
+  if (ACT && ACT.aim){                   // raised at the target: the limbs flex back toward the archer as the string comes back
+    var fwd = ACT.aim, dr = ACT.draw || 0;
+    for (i=0;i<=n;i++){ t = -1 + 2*i/n; k = Math.abs(t);
+      p = R.add(R.add(h, [0, t*0.62, 0]), R.mul(fwd, 0.04 - (0.05 + 0.1*dr)*k*k));
+      if (prev) rod(prev, p, 0.014*(1.2-0.5*k), 0.014*(1.2-0.5*k), 5, 'wood');
+      if (i === 0 || i === n) tips.push(p); prev = p; }
+    var mid = lerp3(tips[0], tips[1], 0.5), nock = dr > 0 ? lerp3(mid, Wd.handR.p, dr) : mid;
+    rod(tips[0], nock, 0.004, 0.004, 4, 'string'); rod(nock, tips[1], 0.004, 0.004, 4, 'string');
+    if (ACT.arrow){ var ad = R.norm(R.sub(h, nock)), tip = R.add(nock, R.mul(ad, 0.8));
+      rod(nock, tip, 0.006, 0.006, 4, 'wood'); rod(tip, R.add(tip, R.mul(ad, 0.07)), 0.016, 0.001, 4, 'helm'); }
+    return;
+  }
+  for (i=0;i<=n;i++){ t = -1 + 2*i/n; k = Math.abs(t);
+    p = [h[0], h[1] + t*0.62, h[2] + 0.1*k*k - (k > 0.85 ? (k-0.85)*0.5 : 0)];
     if (prev) rod(prev, p, 0.014*(1.2-0.5*k), 0.014*(1.2-0.5*k), 5, 'wood');
     if (i === 0 || i === n) tips.push(p); prev = p; }
   rod(tips[0], tips[1], 0.004, 0.004, 4, 'string');
@@ -1281,14 +1296,17 @@ function quiverOn(Wd){
   for (var i=0;i<4;i++){ var o = [(i%2 ? 0.02 : -0.02), 0, (i < 2 ? 0.02 : -0.02)];
     rod(R.add(b, o), R.add(R.add(b, o), R.mul(R.norm(R.sub(b, a)), 0.12)), 0.006, 0.006, 4, 'wood'); }
 }
+function javelin(h, d){ var a = R.sub(h, R.mul(d, 0.55)), b = R.add(h, R.mul(d, 0.95));
+  rod(a, b, 0.009, 0.008, 5, 'wood'); rod(b, R.add(b, R.mul(d, 0.13)), 0.018, 0.001, 5, 'helm'); }
 function javelinsIn(Wd){
   var h = Wd.handR.p;
+  if (ACT && ACT.jav){ if (!ACT.javGone) javelin(h, ACT.jav); javelin(Wd.handL.p, R.norm([0.1, 1, 0.3])); return; }
   [[0.02, 0.0], [-0.02, 0.03]].forEach(function(o){
     var up = R.norm([0.06 + o[0], 1, 0.25 + o[1]]), a = R.sub(h, R.mul(up, 0.55)), b = R.add(h, R.mul(up, 0.95));
     rod(a, b, 0.009, 0.008, 5, 'wood'); rod(b, R.add(b, R.mul(up, 0.13)), 0.018, 0.001, 5, 'helm'); });
 }
 function crescentShield(Wd){            // the pelte: a light crescent of wicker and hide on the left forearm
-  J(Wd.elbowL, function(){ var rot = Q.qz(-90*DEG), cen = [0.07,-0.14,0];
+  J(shieldJ(Wd), function(){ var rot = Q.qz(-90*DEG), cen = [0.07,-0.14,0];
     withRot(rot, cen, function(){
       armDome(null, [0,-1.26,0], 1.3, 76, 90, 14, 2, [-40,40,79], 'shield', 1, -150, 150);
       armTube(null, 0.0, 0.3, 0.3, 0.025, 0.29, 0.29, 14, (-150+90)*DEG, (150+90)*DEG, 'trim'); }); });
@@ -1334,7 +1352,7 @@ function kitPeltast(Wd){
 }
 function kitSpartan(Wd){
   kitHoplite(Wd, true);
-  J(Wd.elbowL, function(){ withRot(Q.qz(-90*DEG), [0.075,-0.14,0], function(){   // the lambda on the shield face
+  J(shieldJ(Wd), function(){ withRot(Q.qz(-90*DEG), [0.075,-0.14,0], function(){   // the lambda on the shield face
     // raised a little off the bowl and cut into short pieces, so the painter's sort keeps each piece in front of the bowl
     var sy = function(x, z){ return -1.56 + Math.sqrt(2.56 - x*x - z*z) + 0.012; };
     // the shield hangs tilted on the forearm: in its own plane, world-up is (0.62, 0.78) in local (X, Z)
@@ -1440,21 +1458,55 @@ function kitHorse(mo){
 }
 // the rider sits the saddle: hips bent forward and spread round the barrel, knees down, a spear raised in the right hand
 var RIDER = null;
-function riderFrames(){
-  if (RIDER) return RIDER;
-  var P = R.idlePose(0), s;
+function riderPose(){
+  var P = R.idlePose(0), s, k = KIT;
   P.root = [0, 1.62, 0.02];
   P.q.pelvis = R.QI; P.q.spine = R.eul(4, 0, 0); P.q.chest = R.eul(2, 0, 0);
   for (s=0;s<2;s++){ var S = s ? 'R' : 'L', sg = s ? -1 : 1;
     P.q['hip'+S] = R.eul(-62, sg*8, sg*38); P.q['knee'+S] = Q.qx(78*DEG); P.q['ankle'+S] = R.eul(-10, 0, 0); }
-  KIT = 'hoplite'; kitPose(P);
-  RIDER = R.fk(P); return RIDER;
+  KIT = 'hoplite'; kitPose(P); KIT = k;
+  return P;
+}
+function riderFrames(){ return RIDER || (RIDER = R.fk(riderPose())); }
+
+// ---------- actions (aim, draw, throw, thrust, brace): the page poses the arms, the gear follows ----------
+// ACT is set for the length of one build() from mo.act: { aim, draw, arrow, spear, jav, javGone, shield, shieldW } in model space.
+var ACT = null;
+// The shield rides on the left forearm. The elbow is a hinge, so the forearm's roll follows whatever plane the arm bends in,
+// and a shield raised high would lie flat like a hat. A bearer bracing (ACT.shield = the way to face) rolls the forearm
+// instead: the shield keeps the forearm as its axis and turns its face that way, eased in by ACT.shieldW.
+function shieldJ(Wd){
+  var E = Wd.elbowL; if (!ACT || !ACT.shield) return E;
+  var Y = R.qrot(E.q, [0,1,0]), X0 = R.qrot(E.q, [1,0,0]), n = ACT.shield, X = R.sub(n, R.mul(Y, R.dot(n, Y)));
+  if (R.len(X) < 0.3) return E;
+  var w = ACT.shieldW == null ? 1 : ACT.shieldW; X = R.norm(R.add(R.mul(X0, 1 - w), R.mul(R.norm(X), w)));
+  X = R.norm(R.sub(X, R.mul(Y, R.dot(X, Y))));
+  return { p:E.p, q:m2q(X, Y, R.cross(X, Y)) };
+}
+// Put a hand on a point: two-bone arm IK in model space. pole = the way the elbow should point. The wrist is left straight
+// (forearm and hand as one bone), which is how a gun, a bow grip or a spear is held.
+function armIK(P, side, target, pole){
+  var W = R.fk(P), C = W.chest, ci = R.qconj(C.q), S = W['shoulder' + side].p;
+  var t = R.qrot(ci, R.sub(target, S)), pl = R.qrot(ci, pole);
+  var a = Bm.upper, b = Bm.fore + Bm.hand, d0 = R.len(t), dd = Math.max(Math.abs(a - b) + 0.01, Math.min(a + b - 0.002, d0));
+  var dn = d0 > 1e-6 ? R.mul(t, 1/d0) : [0, -1, 0];
+  var cosA = (a*a + dd*dd - b*b)/(2*a*dd), sinA = Math.sqrt(Math.max(0, 1 - cosA*cosA));
+  var pp = R.sub(pl, R.mul(dn, R.dot(pl, dn)));
+  if (R.len(pp) < 1e-5) pp = R.cross(dn, Math.abs(dn[0]) < 0.9 ? [1,0,0] : [0,0,1]);
+  pp = R.norm(pp);
+  var E = R.add(R.mul(dn, a*cosA), R.mul(pp, a*sinA)), T = R.mul(dn, dd);
+  var u = R.norm(E), f = R.norm(R.sub(T, E)), Y = R.mul(u, -1), Z = R.sub(f, R.mul(u, R.dot(f, u)));
+  Z = R.len(Z) > 1e-5 ? R.norm(Z) : R.mul(pp, -1);
+  P.q['shoulder' + side] = m2q(R.cross(Y, Z), Y, Z);
+  var inter = Math.acos(R.clamp((a*a + b*b - dd*dd)/(2*a*b), -1, 1));
+  P.q['elbow' + side] = Q.qx(-(Math.PI - inter));
+  P.q['wrist' + side] = R.QI;
 }
 
 var IDF = { p:[0,0,0], q:[0,0,0,1] }, MECH_S = 2.2;
 function scaleFaces(s){ for (var i=0;i<FACES.length;i++){ var p = FACES[i].p; for (var j=0;j<p.length;j++) p[j] = [p[j][0]*s, p[j][1]*s, p[j][2]*s]; } }
 // mo (optional) = { travel, v }: how far the piece has walked and how fast -- only the horse needs it
-function build(kit, Wd, lod, mo){ KIT = kit; FACES.length = 0; LODK = lod || 1;
+function build(kit, Wd, lod, mo){ KIT = kit; FACES.length = 0; LODK = lod || 1; ACT = (mo && mo.act) || null;
   switch (kit){
     case 'heavy':    kitHeavy(Wd); gunIn(Wd, 'carbine'); break;
     case 'enemy':    kitAssault(Wd); break;
@@ -1463,17 +1515,17 @@ function build(kit, Wd, lod, mo){ KIT = kit; FACES.length = 0; LODK = lod || 1;
     case 'archer':   kitArcher(Wd); break;
     case 'peltast':  kitPeltast(Wd); break;
     case 'spartan':  kitSpartan(Wd); break;
-    case 'cavalry':  kitHorse(mo); var RW = riderFrames(); KIT = 'cavalry'; kitHoplite(RW); break;
+    case 'cavalry':  kitHorse(mo); var RW = (mo && mo.rider) || riderFrames(); KIT = 'cavalry'; kitHoplite(RW); break;
     case 'sniper':   kitSniper(Wd); break;
     case 'hmg':      kitHmg(Wd); break;
     case 'medic':    kitMedic(Wd); break;
     case 'mech':     kitMech(Wd); scaleFaces(MECH_S); break;
     default:         kitHeavy(Wd);
   }
-  LODK = 1;
+  LODK = 1; ACT = null;
   return FACES; }
 function pose(kit, P){ var k = KIT; KIT = kit; kitPose(P); KIT = k; }
-return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS, HOLD:HOLD, MECH_S:MECH_S };
+return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS, HOLD:HOLD, MECH_S:MECH_S, armIK:armIK, riderPose:riderPose, GUN:GUN };
 })();
 
 // ===== walking pieces: a destination on the table, the rig's own gait carrying the piece there =====
@@ -1985,11 +2037,11 @@ function box(cx, cy, cz, hx, hy, hz, col, rotY){    // an axis box (optionally s
   face([a,a2,e2,e], col); face([b,d,d2,b2], col);
   face([a,b,b2,a2], col); face([e,e2,d2,d], col);
 }
-function prism(cx, cy, cz, r, h, n, col, rotY, taper){   // n-gon column: sides + cap
-  var top = [], bot = [], i, tp = taper == null ? 1 : taper;
+function prism(cx, cy, cz, r, h, n, col, rotY, taper, alpha){   // n-gon column: sides + cap (alpha: a fading piece's base)
+  var top = [], bot = [], i, tp = taper == null ? 1 : taper, o = alpha != null ? { alpha:true, a:alpha } : undefined;
   for (i=0;i<n;i++){ var a = rotY + i*TAU/n; bot.push([cx+Math.cos(a)*r, cy, cz+Math.sin(a)*r]); top.push([cx+Math.cos(a)*r*tp, cy+h, cz+Math.sin(a)*r*tp]); }
-  for (i=0;i<n;i++){ var k=(i+1)%n; face([bot[i], bot[k], top[k], top[i]], col); }
-  face(top, col);
+  for (i=0;i<n;i++){ var k=(i+1)%n; face([bot[i], bot[k], top[k], top[i]], col, o); }
+  face(top, col, o);
 }
 
 // ---------- the table itself: ground mesh + wooden rails ----------
@@ -2328,10 +2380,12 @@ function copyFaces(fs){ return fs.map(function(f){ return { p: f.p.map(function(
 function copyFrames(Wd){ var out = {}, n; for (n in Wd) out[n] = { p: Wd[n].p.slice(), q: Wd[n].q.slice() }; return out; }
 function liveFaces(u, L){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P);
   return MINI.build(kit, RIGQ.fk(P), LODS[L||0], { travel: u.ctl.travel*(u.scale||1), v: u.ctl.v }); }
-function freeze(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return { Wd: copyFrames(RIGQ.fk(P)), f: [] }; }
+function freeze(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return { Wd: copyFrames(RIGQ.fk(P)), f: [], P: clonePose(P) }; }
 function rigFaces(u, L){                    // the kit's geometry, in the model's own frame
   L = L || 0;
   var kit = kitOf(u);
+  if (u.act && u.act.W) return MINI.build(kit, u.act.W, LODS[L], { act: u.act.gear || null, rider: u.k === 'cavalry' ? u.act.W : null,
+    travel: u.ctl ? u.ctl.travel*(u.scale||1) : 0, v: u.ctl && u.mv ? u.ctl.v : 0 });
   if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u, L);
   if (u.rest) return u.rest.f[L] || (u.rest.f[L] = copyFaces(MINI.build(kit, u.rest.Wd, LODS[L])));
   var key = kit + '|' + (u.pv||0), cached = POSE_CACHE[key];
@@ -2377,17 +2431,21 @@ var RIG_OPT = { bias:-0.15 }, RIG_OPT_FAR = { bias:-0.15, minA:0.35 };
 function drawRig(u, S){
   var faces = rigFaces(u, u.lod), pal = rigPal(u), opt = u.lod >= 2 ? RIG_OPT_FAR : RIG_OPT;
   var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m;
+  var X = u.act && u.act.xf, M = X && X.m, pu = X && X.push, al = X && X.alpha != null ? X.alpha : 1, ms = u.k === 'mech' ? MINI.MECH_S : 1;
+  if (al < 0.999) opt = { bias:opt.bias, minA:opt.minA, alpha:true, a:Math.max(0, al) };
   for (i=0;i<faces.length;i++){
     var f = faces[i], fp = f.p, pts = new Array(fp.length), col = pal[f.k] || pal.plate;
-    for (m=0;m<fp.length;m++){ var q = fp[m];
-      pts[m] = [ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]; }
+    for (m=0;m<fp.length;m++){ var q = fp[m], qx = q[0], qy = q[1], qz = q[2];
+      if (M){ var rx = M[0]*qx + M[1]*qy + M[2]*qz, ry = M[3]*qx + M[4]*qy + M[5]*qz; qz = M[6]*qx + M[7]*qy + M[8]*qz; qx = rx; qy = ry; }
+      if (pu){ qx += pu[0]*ms; qy += pu[1]*ms; qz += pu[2]*ms; }
+      pts[m] = [ u.x + (qx*c + qz*sn)*S, y + qy*S, u.z + (-qx*sn + qz*c)*S ]; }
     face(pts, col, opt);
   }
 }
 // How much detail each piece gets this frame, from how tall it stands on screen. Pieces off screen are skipped whole.
 function planLod(){
-  var i, u;
-  for (i=0;i<units.length;i++){ u = units[i];
+  var i, u, all = FALLEN.length ? units.concat(FALLEN) : units;
+  for (i=0;i<all.length;i++){ u = all[i];
     var y = heightAt(u.x, u.z), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
     u.px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
     u.onScr = pa[2] > 0.4 && pa[0] > -120 && pa[0] < W + 120 && pa[1] > -40 && pa[1] < H + 200;
@@ -2396,10 +2454,12 @@ function planLod(){
 }
 function drawUnit(u){
   if (!u.onScr) return;
+  var X = u.act && u.act.xf, al = X && X.alpha != null ? X.alpha : 1;
+  if (al <= 0.01) return;                                          // faded out after falling
   var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0;
-  shadowAt(u.x, u.z, 0.8, 0.34);
+  shadowAt(u.x, u.z, 0.8, 0.34*al);
   var br = u.k === 'mech' ? 1.3 : u.k === 'cavalry' ? 0.95 : 0.62;
-  prism(u.x, y, u.z, br, 0.1, u.lod ? 8 : 12, C.base, rot, 1);     // base disc
+  prism(u.x, y, u.z, br, 0.1, u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
   drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
 }
@@ -2434,6 +2494,7 @@ function drawScene(){
     if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
   if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
   if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
+  fxDraw();
   gameOverlay();
   FACES.sort(function(a,b){ return b.d - a.d; });
   // Neighbours in depth order that share a colour go into one path and one fill: the fill is most of a frame's cost,
@@ -2964,20 +3025,27 @@ function trayHeal(u, t, v){
   trayThrow(P, 'heal', [v], HEAL_ON, '');
   TRAY.q[TRAY.q.length-1].final = v >= HEAL_ON ? 'แผลหาย 1' : 'ไม่สำเร็จ';
 }
+function attacksQueued(){ var seen = [], cur = TRAY.cur && TRAY.cur.P;
+  TRAY.q.forEach(function(e){ if (e.P !== cur && seen.indexOf(e.P) < 0) seen.push(e.P); }); return seen.length; }
 function traySettled(){ return !TRAY.q.length && (!TRAY.cur || TRAY.t >= TRAY.cur.secs); }
 // ยังมีลูกเต๋ากลิ้งอยู่ หรือเพิ่งหยุดยังไม่ทันได้อ่าน — บอทรอจนพ้นช่วงนี้ก่อนทำอย่างต่อไป
 function trayBusy(){ return TRAY.q.length > 0 || (!!TRAY.cur && TRAY.t < TRAY.cur.secs + HOLD); }
-function resetTray(){ PEND.length = 0; AIM = null; FALLEN.length = 0; TRAY.q.length = 0; TRAY.cur = null; TRAY.t = 0; WAIT_KEY = ''; WIN_POP = ''; }
+function resetTray(){ PEND.length = 0; AIM = null; FALLEN.length = 0; TRAY.q.length = 0; TRAY.cur = null; TRAY.t = 0; WAIT_KEY = ''; WIN_POP = ''; FX.length = 0; }
 function trayTick(dt){
   var sp = watching() ? SPEC.speed : 1;
   // ลูกที่หยุดแล้วโชว์ให้อ่านสักครู่ แล้วการทอยถัดไปในคิวค่อยมาแทน
-  if (TRAY.q.length && !TRAY.hold && (!TRAY.cur || TRAY.t >= TRAY.cur.secs + 0.45)){ TRAY.cur = TRAY.q.shift(); TRAY.t = 0; }
+  if (TRAY.q.length && !TRAY.hold && (!TRAY.cur || TRAY.t >= TRAY.cur.secs + 0.45)){ TRAY.cur = TRAY.q.shift(); TRAY.t = 0; onThrowStart(TRAY.cur); }
   var anim = !!TRAY.cur && TRAY.t < TRAY.cur.secs;
   // ตามไม่ทัน (แอพถูกพับไว้ แล้วการโจมตีหลายครั้งมาพร้อมกัน): เร่งลูกที่ค้างคิว ไม่ให้คนต้องนั่งดูของเก่าทีละลูก
-  var catchup = 1 + Math.max(0, TRAY.q.length - 1)*0.8;
+  // นับเป็นการโจมตี ไม่ใช่จังหวะ: สามจังหวะของการโจมตีเดียว (ออโต้ บอท) กับอีกหนึ่งการโจมตีที่รอต่อ เล่นความเร็วปกติ ท่าทางจะได้ไม่รีบ
+  var catchup = 1 + Math.max(0, attacksQueued() - 1)*0.8;
   if (TRAY.cur && !TRAY.hold) TRAY.t += dt*sp*TRAY_RATE*catchup;
+  ACT_SPEED = sp*catchup;
+  if (TRAY.cur && !TRAY.cur.fxDone && TRAY.t >= TRAY.cur.secs){ TRAY.cur.fxDone = true; onThrowSettle(TRAY.cur); }
   var busy = trayBusy() || PEND.length > 0 || !!AIM; if (busy !== TRAY.busy){ TRAY.busy = busy; dirty = true; }
-  if (FALLEN.length && !trayBusy()){ FALLEN.length = 0; dirty = true; }
+  if (FALLEN.length && !trayBusy()){                   // a piece still falling stays until its fall has played out
+    var keep = FALLEN.filter(function(f){ return f.act && f.act.kind === 'die'; });
+    if (keep.length !== FALLEN.length){ FALLEN.length = 0; Array.prototype.push.apply(FALLEN, keep); dirty = true; } }
   if (WIN_POP && !trayBusy()){ popDice(WIN_POP); WIN_POP = ''; }
   // ถาดนิ่งแล้ว: ถึงคิวใครทอย
   // ผู้ชมกดหยุด: ลูกที่ลอยอยู่ตกให้จบ แต่ไม่ทอยจังหวะใหม่ (กด "ทีละจังหวะ" ถึงจะไปต่อ)
@@ -3077,6 +3145,300 @@ function drawTray(){
       g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill(); });
     g.globalAlpha = 1;
   });
+}
+
+// ═══════════════════ ท่าทางตอนรบ — ยิง ดึงธนู ขว้างหอก แทง ยกโล่ สะดุ้ง ล้ม ═══════════════════
+// เป็นภาพล้วน ๆ ไม่แตะกติกา: ลูกเต๋าของจังหวะไหนเริ่มกลิ้งในถาด ท่าของจังหวะนั้นก็เริ่มด้วย ทุกเครื่องจึงเห็นเหมือนกัน
+//   เข้าเป้า → คนยิงหันไปหาเป้า แล้วยิงปืน / ดึงธนูปล่อยลูก / ขว้างหอก / แทงหรือฟาดตอนประชิด นัดที่เข้าวิ่งไปโดนตัว นัดที่พลาดเฉียดไป
+//   ตัวที่ถือโล่ยกโล่ขึ้นรับตั้งแต่ศัตรูเริ่มโจมตี ค้างไว้จนลูกเต๋าของการโจมตีนั้นหยุดครบ โดนแล้วโล่สะท้าน
+//   ลูกสุดท้ายหยุด → เซฟได้มีประกายทองกระเด็น · เจาะไม่เข้ามีประกายเทา · โดนจริงมีสีแดง ตัวสะดุ้ง · แผลหมดล้มลงแล้วจางหาย
+var FX = [], ACT_SPEED = 1;
+var SHIELDED = { hoplite:1, spartan:1, peltast:1, cavalry:1 }, SPEARS = { hoplite:1, spartan:1, cavalry:1 };
+var GUN_OF = { heavy:'carbine', infantry:'rifle', enemy:'smg', sniper:'sniper', hmg:'hmg', medic:'smg', mech:'cannon' };
+// สีกระสุนตามปืน: [แกนกลาง, แสงรอบ, ความหนาเป็นพิกเซลที่ระยะใกล้]
+var TRACER = { carbine:['#FFE2A0', 'rgba(255,170,70,0.45)', 2.2], rifle:['#FFF1C8', 'rgba(255,200,110,0.4)', 1.8],
+  smg:['#FFE9B0', 'rgba(255,180,90,0.4)', 1.6], sniper:['#E8FBFF', 'rgba(140,220,255,0.55)', 2.2],
+  hmg:['#FFE08A', 'rgba(255,160,60,0.5)', 2.4], cannon:['#FFD27A', 'rgba(255,120,40,0.55)', 4.6] };
+function vadd(a, b){ return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+function vsub(a, b){ return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function vmul(a, k){ return [a[0]*k, a[1]*k, a[2]*k]; }
+function vlen(a){ return Math.hypot(a[0], a[1], a[2]); }
+function vnorm(a){ var l = vlen(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; }
+function vmix(a, b, t){ return [a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t, a[2] + (b[2]-a[2])*t]; }
+function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
+function angLerp(a, b, t){ var d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return a + d*t; }
+function unitH(u){ return u.k === 'cavalry' ? 2.3 : 1.75*(u.scale||1); }
+function aimPoint(u){ return [u.x, heightAt(u.x, u.z) + unitH(u)*0.6, u.z]; }
+function yawTo(u, p){ return Math.atan2(p[0] - u.x, p[2] - u.z); }
+// model space: +z = the way the piece faces, +x = its left, y up, 1 = one metre of an unscaled figure (drawRig's transform)
+function toModelDir(u, w){ var c = Math.cos(u.rot||0), s = Math.sin(u.rot||0); return [w[0]*c - w[2]*s, w[1], w[0]*s + w[2]*c]; }
+function toWorld(u, m){ var c = Math.cos(u.rot||0), s = Math.sin(u.rot||0), S = u.scale||1;
+  return [u.x + (m[0]*c + m[2]*s)*S, heightAt(u.x, u.z) + m[1]*S, u.z + (-m[0]*s + m[2]*c)*S]; }
+function aimDir(u, a, fromModel){ return vnorm(toModelDir(u, vsub(aimPoint(a.tgt), toWorld(u, fromModel)))); }
+
+// ---- the pose an action starts from: the stance the piece is standing (or walking, or riding) in ----
+function clonePose(P){ var q = {}, n; for (n in P.q) q[n] = P.q[n]; return { root:P.root.slice(), q:q, breath:P.breath||0, sword:0, v:0, contact:null }; }
+function basePose(u){
+  if (u.k === 'cavalry') return MINI.riderPose();
+  var kit = kitOf(u), P;
+  if (u.mv && u.ctl && u.ctl.pose){ P = clonePose(u.ctl.pose); MINI.pose(kit, P); return P; }
+  if (u.rest && u.rest.P) return clonePose(u.rest.P);
+  P = RIGQ.idlePose((u.pv||0)*1.7); MINI.pose(kit, P); return P;
+}
+// both hands eased from where they rest to where the action wants them (w = 0..1), then the frames the model is built from
+function handsTo(a, P, W0, hr, hl, w, poleR, poleL){
+  if (hr) MINI.armIK(P, 'R', vmix(W0.handR.p, hr, w), poleR || [-0.7, -1, -0.3]);
+  if (hl) MINI.armIK(P, 'L', vmix(W0.handL.p, hl, w), poleL || [0.6, -1, 0.1]);
+  a.W = RIGQ.fk(P);
+}
+function inOut(t, tin, tout, dur){ return ease(t/tin) * (1 - ease((t - (dur - tout))/tout)); }
+
+var ACT_FN = {
+  // ปืน: ยกขึ้นประทับ ยิงทีละนัดมีแรงสะท้อน ไฟแลบที่ปากกระบอก กระสุนวิ่ง แล้วลดปืนลง (ปืนกลหนักยิงจากสะเอว)
+  fire: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, hip = a.gun === 'hmg';
+    var d = aimDir(u, a, sh), w = inOut(t, 0.22, 0.3, a.dur), kick = 0;
+    a.shots.forEach(function(s){ if (t >= s.t) kick = Math.max(kick, Math.exp(-(t - s.t)/0.05)); });
+    var r0 = hip ? vadd(sh, [0.04, -0.28, 0.22]) : vadd(sh, [0.07, 0.04, 0.2]);
+    var rh = vsub(r0, vmul(d, (a.gun === 'cannon' ? 0.07 : 0.04)*kick)), lh = vadd(vadd(rh, vmul(d, hip ? 0.36 : 0.3)), [0, 0.03*kick, 0]);
+    handsTo(a, P, W0, rh, lh, w);
+    a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; fireShot(u, a, s); } });
+  },
+  // ธนู: ชูคันธนูเล็งเป้า ง้างสายถึงแก้ม ปล่อย แล้วลดลง
+  bow: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, d = aimDir(u, a, W0.shoulderL.p), w = inOut(t, 0.25, 0.3, a.dur);
+    var lh = vadd(W0.shoulderL.p, vmul(d, 0.57)), anchor = vadd(W0.head.p, [-0.05, -0.06, 0.03]);
+    var dr = t < 0.25 ? 0 : t < 0.62 ? ease((t - 0.25)/0.37) : t < a.rel ? 1 : 0;
+    var rh = t < a.rel ? vmix(vsub(lh, vmul(d, 0.12)), anchor, dr) : vmix(anchor, vadd(anchor, [-0.05, 0.02, -0.1]), ease((t - a.rel)/0.12));
+    handsTo(a, P, W0, rh, lh, w, [-0.9, -0.1, -0.4], [0.5, -1, 0]);
+    a.gear = { aim:d, draw: t < a.rel ? dr*w : 0, arrow: t > 0.2 && t < a.rel };
+    if (!a.loosed && t >= a.rel){ a.loosed = true; var s = a.shots[0];
+      throwArc(u, a, s, toWorld(u, a.W.handL.p), 'arrow'); }
+  },
+  // หอกซัด: เงื้อไปด้านหลังเหนือศีรษะ พุ่งไปข้างหน้า ปล่อย ทีละเล่ม
+  throw: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh);
+    var n = a.shots.length, i = Math.max(0, Math.min(n - 1, Math.floor((t - 0.1)/0.8))), tt = t - 0.1 - i*0.8;
+    var back = vadd(sh, [-0.04, 0.24, -0.32]), front = vadd(sh, [0.02, 0.2, 0.42]), done = vadd(sh, [0.08, -0.12, 0.38]);
+    var rh = tt < 0.35 ? vmix(i ? done : W0.handR.p, back, ease(tt/0.35)) : tt < 0.47 ? vmix(back, front, ease((tt - 0.35)/0.12)) : vmix(front, done, ease((tt - 0.47)/0.18));
+    var w = 1 - ease((t - (a.dur - 0.25))/0.25);
+    handsTo(a, P, W0, vmix(W0.handR.p, rh, w), null, 1, [-0.6, -0.8, -0.4]);
+    a.gear = { jav: vnorm(vadd(d, [0, 0.35, 0])), javGone: tt >= 0.44 };
+    var s = a.shots[i]; if (s && !s.done && tt >= 0.44){ s.done = true; throwArc(u, a, s, toWorld(u, a.W.handR.p), 'jav'); }
+  },
+  // หอกยาว: ง้างขึ้นเหนือไหล่ พุ่งแทงพร้อมตัวที่โถมไปข้างหน้า ถอยกลับ (โล่ยังอยู่ที่แขนซ้าย)
+  thrust: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh);
+    var n = a.shots.length, i = Math.max(0, Math.min(n - 1, Math.floor((t - 0.15)/0.55))), tt = t - 0.15 - i*0.55;
+    var up = vadd(sh, [0.0, 0.22, -0.12]), hit = vadd(vadd(sh, [0.05, 0.1, 0]), vmul(d, 0.5));
+    var rh = tt < 0.2 ? vmix(i ? up : W0.handR.p, up, ease(tt/0.2)) : tt < 0.3 ? vmix(up, hit, ease((tt - 0.2)/0.1)) : vmix(hit, up, ease((tt - 0.3)/0.25));
+    var w = 1 - ease((t - (a.dur - 0.25))/0.25), lunge = tt >= 0.2 && tt < 0.55 ? Math.sin(Math.PI*clamp((tt - 0.2)/0.35, 0, 1)) : 0;
+    handsTo(a, P, W0, vmix(W0.handR.p, rh, w), null, 1, [-0.8, -0.6, -0.3]);
+    a.gear = { spear: vnorm(vmix([0, 1, 0.05], vadd(d, [0, -0.18, 0]), ease(t/0.2)*w)) };
+    a.xf = { push:[0, 0, 0.16*lunge*w] };
+    strikeAt(u, a, i, tt >= 0.28);
+  },
+  // ฟาดด้วยพานท้ายปืน (หรือของที่ถืออยู่) สองมือพุ่งไปข้างหน้า
+  bash: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh);
+    var n = a.shots.length, i = Math.max(0, Math.min(n - 1, Math.floor((t - 0.15)/0.55))), tt = t - 0.15 - i*0.55;
+    var cock = vadd(sh, [0.0, 0.08, 0.02]), jab = vadd(vadd(sh, [0.06, 0.12, 0]), vmul(d, 0.42));
+    var rh = tt < 0.2 ? vmix(W0.handR.p, cock, ease(tt/0.2)) : tt < 0.3 ? vmix(cock, jab, ease((tt - 0.2)/0.1)) : vmix(jab, cock, ease((tt - 0.3)/0.25));
+    var w = inOut(t, 0.15, 0.25, a.dur), lh = vadd(rh, vadd(vmul(d, 0.26), [0.1, 0.1, 0]));
+    var lunge = tt >= 0.2 && tt < 0.55 ? Math.sin(Math.PI*clamp((tt - 0.2)/0.35, 0, 1)) : 0;
+    handsTo(a, P, W0, rh, lh, w);
+    a.xf = { push:[0, 0, 0.14*lunge*w] };
+    strikeAt(u, a, i, tt >= 0.28);
+  },
+  // ยกโล่ขึ้นบังหน้าอกถึงใต้ตา หันหน้าโล่ไปทางคนที่โจมตี เอนตัวเข้าหาโล่นิดหนึ่ง โดนแล้วโล่สะท้าน
+  // ยกตั้งแต่ศัตรูเริ่มโจมตี ค้างไว้จนลูกเต๋าของการโจมตีนั้นหยุดครบ แล้วค่อยลดลง
+  //   up (0..1) eases toward raised while the attack lasts and back down after, so a second attack straight after keeps it up
+  brace: function(u, a){
+    var dt = a.t - (a.lt || 0), on = a.t < 0.5 || underAttack(u); a.lt = a.t;
+    a.up = clamp((a.up || 0) + (on ? dt/0.18 : -dt/0.3), 0, 1);
+    if (!on && a.up <= 0){ a.dur = a.t; return; }                    // lowered: actTick ends it next tick
+    var P = basePose(u), W0 = RIGQ.fk(P), w = ease(a.up), kn = a.knock != null ? Math.exp(-(a.t - a.knock)/0.09)*(a.hurt ? 2 : 1) : 0;
+    handsTo(a, P, W0, null, vadd(W0.shoulderL.p, [-0.36, 0.04 + 0.03*kn, 0.3 - 0.07*kn]), w, null, [1, -0.35, 0]);
+    a.gear = { shield: vnorm([0, 0.12, 1]), shieldW: w };
+    if (u.k !== 'cavalry') a.xf = tiltXf(awayAxis(u, { x:a.face[0], z:a.face[2] }), -0.07*w + 0.06*kn, [0, 0, 0.03*w - 0.04*kn], null);   // a horse doesn't lean
+    if (a.up >= 1 && kn < 0.01 && a.t - (a.turnT || 0) > 0.25) return 'still';   // held steady: nothing to redraw
+  },
+  // หมอ: ลดปืนลงข้างตัวด้วยมือขวา ยื่นมือซ้ายไปทางเพื่อนที่กำลังรักษา
+  heal: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), shL = W0.shoulderL.p, d = aimDir(u, a, shL), w = inOut(a.t, 0.25, 0.3, a.dur);
+    handsTo(a, P, W0, vadd(W0.shoulderR.p, [-0.06, -0.5, 0.1]), vadd(shL, vmul(d, 0.52)), w, [-0.2, 0, -1], [0.8, -1, 0]);
+    a.gear = { gunDir: vnorm(vmix(vnorm(vsub(W0.handL.p, W0.handR.p)), vnorm([0.05, -1, 0.35]), w)) };
+  },
+  // สะดุ้ง: เอนหนีไปทางตรงข้ามกับที่โดนมาแวบหนึ่ง
+  flinch: function(u, a){
+    var env = a.t < 0.07 ? a.t/0.07 : 1 - ease((a.t - 0.07)/0.3);
+    a.xf = tiltXf(a.axis, 0.22*env, [0, 0, -0.05*env], null);
+  },
+  // ล้ม: เอนหงายไปทางตรงข้ามกับที่โดน เร็วขึ้นเรื่อย ๆ กระแทกพื้นเด้งนิดหนึ่ง แล้วจางหาย
+  die: function(u, a){
+    var t = a.t, ang = t < 0.55 ? 1.5*Math.pow(t/0.55, 2) : t < 0.72 ? 1.5 - 0.1*Math.sin(Math.PI*(t - 0.55)/0.17) : 1.5;
+    if (!a.thud && t >= 0.55){ a.thud = true; fxAdd({ kind:'smoke', p: vadd([u.x, heightAt(u.x, u.z), u.z], [0, 0.1, 0]), life:0.7, size:0.55, col:'140,132,118' }); }
+    a.xf = tiltXf(a.axis, ang, [0, 0, -0.12*ease(t/0.55)], 1 - ease((t - 0.8)/0.6));
+  }
+};
+// the body tilts about its feet toward the side away from the hit: a rotation about a level axis, as a 3x3 matrix
+function tiltXf(k, ang, push, alpha){
+  var c = Math.cos(ang), s = Math.sin(ang), oc = 1 - c, x = k[0], y = k[1], z = k[2];
+  return { m:[c + x*x*oc, x*y*oc - z*s, x*z*oc + y*s,  y*x*oc + z*s, c + y*y*oc, y*z*oc - x*s,  z*x*oc - y*s, z*y*oc + x*s, c + z*z*oc],
+           push:push, alpha:alpha };
+}
+function awayAxis(u, from){      // model-space axis that tips the figure's head away from `from`
+  var away = toModelDir(u, vnorm([u.x - from.x, 0, u.z - from.z]));
+  if (!isFinite(away[0])) away = [0, 0, -1];
+  return vnorm([away[2], 0, -away[0]]);            // up x away
+}
+function startAct(u, a){ a.t = 0; a.from = u.rot || 0; u.act = a; dirty = true; }
+// an attack on u is still being rolled or its dice are still rolling
+function underAttack(u){
+  var on = function(P){ return P.t === u.id && !P.heal; };
+  return PEND.some(on) || TRAY.q.some(function(e){ return on(e.P); }) || (!!TRAY.cur && on(TRAY.cur.P) && TRAY.t < TRAY.cur.secs);
+}
+function knock(tgt){ var ta = tgt && tgt.act; if (ta && ta.kind === 'brace'){ ta.knock = ta.t; ta.hurt = false; } }   // a blow lands on a raised shield
+// one step of u's action; 'still' when this step changed nothing on screen
+function actStep(u, a){
+  if (a.face && !u.mv) u.rot = angLerp(a.from, yawTo(u, a.face), ease((a.t - (a.turnT || 0))/0.22));   // a walking piece keeps its heading: the walker steers by it
+  var fn = ACT_FN[a.kind]; return fn ? fn(u, a) : 'still';
+}
+function actTick(dt){
+  var any = FX.length > 0, lists = [units, FALLEN], L, i;
+  for (L=0;L<lists.length;L++) for (i=lists[L].length - 1; i >= 0; i--){ var u = lists[L][i], a = u.act; if (!a) continue;
+    a.t += dt*ACT_SPEED;
+    if (a.t >= a.dur){ u.act = null; any = true; if (a.kind === 'die'){ var k = FALLEN.indexOf(u); if (k >= 0) FALLEN.splice(k, 1); } continue; }
+    a.still = actStep(u, a) === 'still'; if (!a.still) any = true; }
+  for (i=FX.length - 1; i >= 0; i--){ var f = FX[i]; f.t += dt*ACT_SPEED;
+    if (f.arrive && !f.arrived && f.t >= f.dur){ f.arrived = true; f.arrive(f); }
+    if (f.t >= f.life) FX.splice(i, 1); }
+  if (any) dirty = true;
+}
+function fxAdd(f){ f.t = 0; FX.push(f); dirty = true; return f; }
+
+// ---- shots and what they hit ----
+function missPoint(u, tgt){        // a near miss: past the target and off to one side
+  var p = aimPoint(tgt), d = vnorm(vsub(p, [u.x, p[1], u.z])), side = [d[2], 0, -d[0]], s = Math.random() < 0.5 ? -1 : 1;
+  return vadd(vadd(p, vmul(side, s*(0.5 + Math.random()*0.6))), vadd(vmul(d, 2.5 + Math.random()*2), [0, (Math.random() - 0.4)*0.8, 0]));
+}
+function hitPoint(tgt){ var p = aimPoint(tgt), r = 0.14*(tgt.scale||1); return vadd(p, [(Math.random() - 0.5)*r*2, (Math.random() - 0.5)*r*2.5, (Math.random() - 0.5)*r*2]); }
+function sparks(p, col, n, spread, grav){ fxAdd({ kind:'spark', p:p, col:col, life:0.32, rays: Array.apply(null, Array(n)).map(function(){
+  return vnorm([Math.random() - 0.5, Math.random()*0.7 - 0.1, Math.random() - 0.5]); }), len: spread || 0.35, grav: grav || 0 }); }
+function fireShot(u, a, s){
+  var hr = a.W.handR.p, hl = a.W.handL.p, ax = vnorm(vsub(hl, hr)), g = MINI.GUN[a.gun] || MINI.GUN.rifle;
+  var mz = toWorld(u, vadd(hr, vmul(ax, g.len + 0.03))), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt);
+  var big = a.gun === 'cannon', dist = vlen(vsub(end, mz));
+  fxAdd({ kind:'flash', p:mz, life:big ? 0.1 : 0.065, size:(big ? 0.3 : a.gun === 'hmg' ? 0.2 : 0.15)*(u.scale||1), rot:Math.random()*3 });
+  fxAdd({ kind:'smoke', p:mz, life:big ? 0.9 : 0.5, size:big ? 0.5 : 0.22, col:'175,170,160' });
+  fxAdd({ kind:'tracer', a:mz, b:end, dur:clamp(dist/(big ? 30 : 48), 0.08, 0.6), life:clamp(dist/(big ? 30 : 48), 0.08, 0.6) + 0.08,
+    style:TRACER[a.gun] || TRACER.rifle, hit:s.hit, arrive:function(f){ if (f.hit){ sparks(f.b, big ? '255,170,80' : '255,236,170', big ? 9 : 5, big ? 0.6 : 0.28); knock(a.tgt); } } });
+}
+function throwArc(u, a, s, from, kind){
+  var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, from)), dur = 0.35 + dist*0.022;
+  fxAdd({ kind:kind, a:from, b:end, h:0.5 + dist*(kind === 'jav' ? 0.1 : 0.08), dur:dur, life:dur + 1.4, hit:s.hit,
+    arrive:function(f){ if (f.hit){ sparks(f.b, '255,236,170', 4, 0.22); knock(a.tgt); } } });
+}
+function strikeAt(u, a, i, now){ var s = a.shots[i]; if (!s || s.done || !now) return; s.done = true;
+  if (s.hit){ sparks(hitPoint(a.tgt), '255,236,170', 6, 0.3); knock(a.tgt); if (!a.tgt.act) startAct(a.tgt, { kind:'flinch', dur:0.4, axis:awayAxis(a.tgt, u) }); } }
+
+// ---- the tray says when: a throw starting and a throw coming to rest ----
+function startAttack(u, tgt, P, v){
+  var hits = v.dice.map(function(dv){ return dv >= v.need; }), a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i;
+  if (P.melee){ a.kind = SPEARS[u.k] ? 'thrust' : 'bash'; n = Math.min(3, hits.length);
+    for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.15 + n*0.55 + 0.25; }
+  else if (u.k === 'archer'){ a.kind = 'bow'; a.rel = 0.75; a.dur = 1.3; a.shots.push({ hit:hits[0] }); }
+  else if (u.k === 'peltast'){ a.kind = 'throw'; n = Math.min(2, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.1 + n*0.8 + 0.25; }
+  else { a.kind = 'fire'; a.gun = GUN_OF[u.k] || 'rifle'; n = hits.length;
+    // the sniper settles on the scope before the one shot; the walker's cannon takes a beat to swing onto the target
+    var gap = a.gun === 'cannon' ? 0.3 : a.gun === 'sniper' ? 0.3 : n > 3 ? 0.11 : 0.16, t0 = a.gun === 'sniper' ? 0.7 : a.gun === 'cannon' ? 0.42 : 0.28;
+    for (i=0;i<n;i++) a.shots.push({ t:t0 + i*gap, hit:hits[i] }); a.dur = t0 + (n - 1)*gap + 0.6; }
+  startAct(u, a);
+}
+function onThrowStart(v){
+  var P = v.P, att = unitById(P.u) || fallenById(P.u), tgt = unitById(P.t) || fallenById(P.t);
+  if (!att || !tgt || att === tgt) return;
+  if (v.stage === 'heal'){ startAct(att, { kind:'heal', tgt:tgt, face:aimPoint(tgt), dur:1.3 }); return; }
+  // a shield-bearer raises the shield as the attack starts and holds it until the attack's last dice stop; one already
+  // braced (the attack before was on it too) keeps it up and turns to face the new attacker
+  var b = tgt.act && tgt.act.kind === 'brace' ? tgt.act : null, guard = SHIELDED[tgt.k] && !(tgt.act && tgt.act.kind === 'die');
+  if (v.stage === 'hit') startAttack(att, tgt, P, v);
+  if (guard && (v.stage === 'hit' || v.stage === 'save')){
+    if (b){ b.face = [att.x, 0, att.z]; b.from = tgt.rot || 0; b.turnT = b.t; b.dur = 1e9; }
+    else startAct(tgt, { kind:'brace', face:[att.x, 0, att.z], dur:1e9 }); }
+}
+function onThrowSettle(v){
+  var P = v.P, att = unitById(P.u) || fallenById(P.u), tgt = unitById(P.t) || fallenById(P.t), i, n;
+  if (!tgt) return;
+  var at = aimPoint(tgt), toward = att ? vnorm([att.x - tgt.x, 0, att.z - tgt.z]) : [0, 0, 0], front = vadd(at, vmul(toward, 0.28*(tgt.scale||1)));
+  if (v.stage === 'heal'){ if (v.dice[0] >= v.need) fxAdd({ kind:'glow', p:[tgt.x, heightAt(tgt.x, tgt.z), tgt.z], life:1.3, r:0.7*(tgt.scale||1) }); return; }
+  if (v.stage === 'save'){ n = count(v.dice, v.need);
+    for (i=0;i<n;i++) (function(k){ setTimeout(function(){ sparks(vadd(front, [(Math.random() - 0.5)*0.3, (Math.random() - 0.3)*0.4, 0]), '255,210,120', 7, 0.38); dirty = true; }, k*70); })(i);
+    for (i=0;i<v.dice.length - n;i++) (function(k){ setTimeout(function(){ sparks(hitPoint(tgt), '235,70,55', 9, 0.34, 1.6); dirty = true; }, 60 + k*80); })(i); }
+  else if (v.stage === 'wound' && v.final){
+    if (!P.wounds) for (i=0;i<Math.min(3, P.hits);i++) sparks(vadd(front, [(Math.random() - 0.5)*0.3, (Math.random() - 0.3)*0.4, 0]), '215,215,210', 5, 0.3);
+    else for (i=0;i<Math.min(4, P.wounds);i++) sparks(hitPoint(tgt), '235,70,55', 9, 0.34, 1.6); }
+  if (v.final && att && att !== tgt){
+    var prev = tgt.act;
+    // falls as it stood: a shield still raised stays raised all the way down
+    if (P.result === 'ล้ม!'){ startAct(tgt, { kind:'die', dur:1.4, axis:awayAxis(tgt, att) }); if (prev && prev.W){ tgt.act.W = prev.W; tgt.act.gear = prev.gear; } }
+    else if (P.wounds - P.saved > 0){ if (prev && prev.kind === 'brace'){ prev.knock = prev.t; prev.hurt = true; }   // hurt behind the shield: a harder jolt
+      else startAct(tgt, { kind:'flinch', dur:0.4, axis:awayAxis(tgt, att) }); }
+  }
+}
+
+// ---- drawing the effects: over the finished scene, so a shot is never hidden behind the terrain it flies over ----
+function fxDraw(){ if (!FX.length) return; var list = FX.slice(); OVER.push(function(){ for (var i=0;i<list.length;i++) drawFx(list[i]); ctx.globalAlpha = 1; }); }
+function ppm(q){ return FL/q[2]; }                  // pixels per metre at a projected point
+function arcPos(f, s){ var p = vmix(f.a, f.b, s); p[1] += 4*f.h*s*(1 - s); return p; }
+function drawFx(f){
+  var t = f.t, q, r, i, k;
+  if (f.kind === 'flash'){ q = proj(f.p); if (q[2] < 0.4) return; r = ppm(q)*f.size*(1 - 0.4*t/f.life);
+    ctx.globalAlpha = 1 - t/f.life;
+    ctx.fillStyle = 'rgba(255,180,80,0.45)'; ctx.beginPath(); ctx.arc(q[0], q[1], r*1.5, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#FFF4CC'; ctx.beginPath();
+    for (i=0;i<12;i++){ var ang = f.rot + i*Math.PI/6, rr = i % 2 ? r*0.38 : r; i ? ctx.lineTo(q[0] + Math.cos(ang)*rr, q[1] + Math.sin(ang)*rr) : ctx.moveTo(q[0] + Math.cos(ang)*rr, q[1] + Math.sin(ang)*rr); }
+    ctx.closePath(); ctx.fill(); return; }
+  if (f.kind === 'smoke'){ var sp = vadd(f.p, [0, 0.25*t/f.life, 0]); q = proj(sp); if (q[2] < 0.4) return;
+    r = ppm(q)*f.size*(0.35 + 0.65*ease(t/f.life)); ctx.globalAlpha = 0.34*(1 - t/f.life);
+    ctx.fillStyle = 'rgb(' + f.col + ')'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, TAU); ctx.fill(); return; }
+  if (f.kind === 'tracer'){
+    var h = vmix(f.a, f.b, clamp(t/f.dur, 0, 1)), tl = vmix(f.a, f.b, clamp((t - 0.06)/f.dur, 0, 1)), qa = proj(tl), qb = proj(h);
+    if (qa[2] < 0.4 || qb[2] < 0.4) return; var wd = clamp(ppm(qb)*0.012, 0.8, 1.6)*f.style[2];
+    ctx.globalAlpha = 1; ctx.lineCap = 'round';
+    ctx.strokeStyle = f.style[1]; ctx.lineWidth = wd*2.6; ctx.beginPath(); ctx.moveTo(qa[0], qa[1]); ctx.lineTo(qb[0], qb[1]); ctx.stroke();
+    ctx.strokeStyle = f.style[0]; ctx.lineWidth = wd; ctx.beginPath(); ctx.moveTo(qa[0], qa[1]); ctx.lineTo(qb[0], qb[1]); ctx.stroke();
+    ctx.lineCap = 'butt'; return; }
+  if (f.kind === 'spark'){ q = proj(f.p); if (q[2] < 0.4) return; var s1 = ease(t/f.life), fade = 1 - t/f.life;
+    ctx.globalAlpha = fade; ctx.strokeStyle = 'rgb(' + f.col + ')'; ctx.lineWidth = clamp(ppm(q)*0.02, 1, 2.4); ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (i=0;i<f.rays.length;i++){ var d = f.rays[i], L1 = f.len*s1, L0 = L1*0.45, g = f.grav*t*t;
+      var a0 = proj(vadd(f.p, [d[0]*L0, d[1]*L0 - g*0.5, d[2]*L0])), a1 = proj(vadd(f.p, [d[0]*L1, d[1]*L1 - g, d[2]*L1]));
+      if (a0[2] < 0.4 || a1[2] < 0.4) continue; ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); }
+    ctx.stroke(); ctx.lineCap = 'butt';
+    if (t < 0.08){ ctx.globalAlpha = 1 - t/0.08; ctx.fillStyle = 'rgb(' + f.col + ')'; ctx.beginPath(); ctx.arc(q[0], q[1], ppm(q)*0.08, 0, TAU); ctx.fill(); }
+    return; }
+  if (f.kind === 'arrow' || f.kind === 'jav'){
+    var s = clamp(t/f.dur, 0, 1), pos = arcPos(f, s), nx = arcPos(f, Math.min(1, s + 0.02)), pv = arcPos(f, Math.max(0, s - 0.02));
+    var dir = vnorm(vsub(nx, pv)), len = f.kind === 'jav' ? 1.1 : 0.75, stuck = s >= 1;
+    if (stuck && !f.hit && t > f.dur + 0.5) return;               // a miss skids away out of sight
+    var tail = vsub(pos, vmul(dir, len*(stuck ? 0.75 : 0.85))), tip = vadd(pos, vmul(dir, stuck ? 0.05 : len*0.15));
+    var qt = proj(tail), qh = proj(tip); if (qt[2] < 0.4 || qh[2] < 0.4) return;
+    ctx.globalAlpha = stuck ? clamp((f.life - t)/0.4, 0, 1) : 1; var px = ppm(qh);
+    ctx.lineCap = 'round'; ctx.strokeStyle = f.kind === 'jav' ? '#9A7446' : '#8A6A42'; ctx.lineWidth = clamp(px*(f.kind === 'jav' ? 0.03 : 0.018), 1, 3.2);
+    ctx.beginPath(); ctx.moveTo(qt[0], qt[1]); ctx.lineTo(qh[0], qh[1]); ctx.stroke();
+    ctx.strokeStyle = f.kind === 'jav' ? '#C8A060' : '#C9C4B8'; ctx.lineWidth = clamp(px*0.035, 1.4, 4);   // bronze head / flight
+    var hd = proj(vsub(tip, vmul(dir, 0.08))); ctx.beginPath(); ctx.moveTo(hd[0], hd[1]); ctx.lineTo(qh[0], qh[1]); ctx.stroke();
+    if (f.kind === 'arrow'){ var fl = proj(vadd(tail, vmul(dir, 0.1))); ctx.strokeStyle = '#E4DCC8'; ctx.lineWidth = clamp(px*0.03, 1.2, 3);
+      ctx.beginPath(); ctx.moveTo(qt[0], qt[1]); ctx.lineTo(fl[0], fl[1]); ctx.stroke(); }
+    ctx.lineCap = 'butt'; return; }
+  if (f.kind === 'glow'){ ctx.lineWidth = 2;
+    for (k=0;k<3;k++){ var tk = t/f.life - k*0.18; if (tk < 0 || tk > 1) continue;
+      var y = f.p[1] + 0.1 + tk*1.6, pts = [];
+      for (i=0;i<=18;i++){ var an = i*TAU/18, pq = proj([f.p[0] + Math.cos(an)*f.r*(1 - tk*0.4), y, f.p[2] + Math.sin(an)*f.r*(1 - tk*0.4)]); if (pq[2] < 0.4) { pts = null; break; } pts.push(pq); }
+      if (!pts) continue; ctx.globalAlpha = (1 - tk)*0.9; ctx.strokeStyle = '#86E39A'; ctx.beginPath();
+      for (i=0;i<pts.length;i++) i ? ctx.lineTo(pts[i][0], pts[i][1]) : ctx.moveTo(pts[i][0], pts[i][1]); ctx.stroke(); }
+    return; }
 }
 
 // ---------- ผลัดเทิร์น ----------
@@ -3426,24 +3788,28 @@ function paintMapCards(){
 // The page is redraw-on-demand, and stays that way: the loop only does work while a piece is actually on the move, so
 // a table of pieces standing still costs nothing (no ambient breathing -- that would pin the CPU on a phone for good).
 var tPrev = 0, now = (window.performance && performance.now) ? function(){ return performance.now(); } : function(){ return Date.now(); };
+var CLOCK_STOP = false;        // tests: hold the game still and step it by hand (BT.clock / BT.tick)
+// Spectator speed has to reach the walking as well as the bots' timer, or at x4 the bots race ahead of pieces that
+// are still strolling. xk walks k ordinary frames: the rig then integrates in exactly the steps it gets at x1 (one
+// long step instead is coarser, and the feet took longer to settle at the end of each walk). Paused, the bots take
+// no new action but a piece already on its way finishes its walk -- that is what lets "one step at a time" show it.
+function simStep(dt){
+  var sp = watching(), k = sp ? SPEC.speed : 1, r;
+  for (r=0;r<k;r++) if (stepUnits(dt)) dirty = true;
+  if (!(sp && SPEC.paused)) botTick(dt*k);
+  clockTick(dt);
+  trayTick(dt);
+  actTick(dt);
+}
 function frame(ts){
   raf(frame);
   resize();                                                  // cheap: returns at once unless the size really changed
   var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
-  if (dt > 0 && dt < 0.5){                                   // a long gap (tab in the background) is skipped, not crammed in
-    // Spectator speed has to reach the walking as well as the bots' timer, or at x4 the bots race ahead of pieces that
-    // are still strolling. xk walks k ordinary frames: the rig then integrates in exactly the steps it gets at x1 (one
-    // long step instead is coarser, and the feet took longer to settle at the end of each walk). Paused, the bots take
-    // no new action but a piece already on its way finishes its walk -- that is what lets "one step at a time" show it.
-    var sp = watching(), k = sp ? SPEC.speed : 1, r;
-    for (r=0;r<k;r++) if (stepUnits(dt)) dirty = true;
-    if (!(sp && SPEC.paused)) botTick(dt*k);
-    clockTick(dt);
-    trayTick(dt);
-  }
+  if (dt > 0 && dt < 0.5 && !CLOCK_STOP) simStep(dt);        // a long gap (tab in the background) is skipped, not crammed in
   tickDice();
-  if (!dirty) return; dirty = false; drawScene();
+  if (!dirty) return; dirty = false; REDRAWS++; drawScene();
 }
+var REDRAWS = 0;                // tests: frames actually drawn (the page only draws when something changed)
 
 // ---------- กล้อง: เลื่อนแมพได้อิสระ ไม่ยึดจุดศูนย์กลางอีกแล้ว ----------
 // ย้ายเป้ากล้องด้วยจุดบนพื้นจริง ไม่ใช่สูตรพิกเซล: จุดที่อยู่ใต้นิ้วตอนเริ่มลากจะอยู่ใต้นิ้วตลอด
@@ -4081,6 +4447,12 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   aim:aimAt, myRoll:function(){ var r = myRoll(); return r ? (r.aim ? 'aim' : r.P.stage) + (r.human ? ':human' : ':auto') : null; },
   roll:function(){ var r = myRoll(); if (r) doRoll(r); return !!r; }, flush:flushPend,
   setAuto:function(v){ AUTO = !!v; WAIT_KEY = ''; },
+  clock:function(on){ CLOCK_STOP = !on; },
+  tick:function(dt, n){ for (var i=0;i<(n||1);i++) simStep(dt); drawScene(); },
+  acts:function(){ return units.concat(FALLEN).filter(function(u){ return u.act; }).map(function(u){ var a = u.act;
+    return { id:u.id, k:u.k, kind:a.kind, t:+a.t.toFixed(2), up:a.up != null ? +a.up.toFixed(2) : undefined, still:!!a.still }; }); },
+  redraws:function(){ return REDRAWS; },
+  fx:function(){ return FX.map(function(f){ return f.kind; }); },
   trayHold:function(on){ TRAY.hold = !!on; },            // เทสต์ถ่ายรูป: หยุดนาฬิกาของถาดไว้
   trayTop:function(){ var v = TRAY.cur; if (!v) return null;       // หน้าที่หงายขึ้นจริงของแต่ละลูก (ตามทิศของหน้าในโลก)
     return v.rolls.map(function(R){ var fr = R.frames[R.frames.length-1], best = -2, lab = null;
