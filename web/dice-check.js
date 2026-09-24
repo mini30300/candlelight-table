@@ -61,6 +61,19 @@ console.log('\n--- cost: this runs once when a roll arrives, not per frame ---')
   console.log('  building the solids (first roll only):', (Number(process.hrtime.bigint() - t0) / 1e6).toFixed(2), 'ms');
 }
 
+console.log('\n--- do the pages carry exactly this code? (board.html and battle-table.html paste it between markers) ---');
+{
+  const fs = require('fs'), path = require('path');
+  const block = s => { const m = /\/\/ ==DICE-BEGIN==\n([\s\S]*?)\/\/ ==DICE-END==/.exec(s); return m ? m[1] : null; };
+  const core = block(fs.readFileSync(path.join(__dirname, 'dice-core.js'), 'utf8'));
+  for (const f of ['board.html', 'battle-table.html']) {
+    const b = block(fs.readFileSync(path.join(__dirname, '..', 'app', 'src', 'main', 'assets', f), 'utf8'));
+    const same = b !== null && b === core;
+    console.log('  ' + f.padEnd(18) + (b === null ? 'FAIL: no DICE-BEGIN/END block' : same ? 'identical to dice-core.js' : 'FAIL: differs from dice-core.js'));
+    if (!same) bad++;
+  }
+}
+
 console.log('\n' + (bad ? bad + ' FAILURES' : 'all ' + total + ' throws land on the server\'s number; flights reproduce exactly'));
 console.log('longest flight ' + longest.toFixed(2) + 's, slowest throw ' + slowest.toFixed(2) + ' ms');
 process.exit(bad ? 1 : 0);

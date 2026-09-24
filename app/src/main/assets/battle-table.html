@@ -129,6 +129,22 @@
   background:rgba(11,11,14,0.86);border:1px solid var(--on);border-radius:12px;padding:8px 14px;font-size:15px;
   color:var(--ink);opacity:0;transition:opacity .18s;font-variant-numeric:tabular-nums;text-align:center;max-width:80%}
 #bt .dicepop.on{opacity:1}
+/* ---- ถาดลูกเต๋า: ลอยอยู่ล่างกระดาน ---- */
+#bt .tray{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(460px,calc(100% - 20px));z-index:4;
+  background:rgba(11,11,14,0.9);border:1px solid var(--chipB);border-radius:14px;padding:8px 10px 10px;display:flex;flex-direction:column;gap:4px}
+#bt .tray .th{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-width:0}
+#bt .tray .th>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bt .tray .tb{display:flex;gap:8px;align-items:stretch;min-width:0}
+#bt .tray canvas{flex:1 1 auto;width:auto;min-width:0;height:92px;min-height:0;border:0;border-radius:9px;
+  background:radial-gradient(ellipse at 50% 40%,#23302A 0%,#16201B 70%,#111814 100%);touch-action:auto}
+@media (max-width:899px),(max-height:620px){#bt .tray canvas{height:70px}}
+@media (max-height:460px){#bt .tray{padding:5px 8px 6px;gap:3px}#bt .tray canvas{height:54px}#bt .tray .th{font-size:12px}
+  #bt .tray button.auto{min-height:26px}#bt .tray button.roll{font-size:15px}#bt .tray .ts{font-size:12px;min-height:16px}}
+#bt .tray .ts{font-size:13px;color:var(--sub);text-align:center;font-variant-numeric:tabular-nums;min-height:18px}
+#bt .tray .ts b{color:var(--on)}
+#bt .tray button.auto{flex:0 0 auto;min-height:30px;font-size:12px;padding:0 10px;border-radius:999px}
+#bt .tray button.roll{flex:0 0 116px;min-height:0;font-size:17px;line-height:1.2;padding:4px 6px}
+#bt .tray button.roll .cd{display:block;font-weight:500;opacity:.85;font-size:12px;margin-top:2px}
 #bt .dicepop b{color:var(--on)}
 </style>
 <div id="bt">
@@ -139,6 +155,13 @@
       <div class="hud" id="btHud"></div>
       <div class="turnbar hide" id="btTurn"></div>
       <div class="dicepop" id="btDice"></div>
+      <div class="tray hide" id="btTray">
+        <div class="th"><span id="btTrayT">ถาดลูกเต๋า</span>
+          <button class="auto hide" id="btAimX">ยกเลิก</button>
+          <button class="auto" id="btAuto" aria-pressed="false" title="เปิดไว้ เครื่องนี้ทอยลูกเต๋าของเราให้ทันที ไม่ต้องกด">ออโต้</button></div>
+        <div class="tb"><canvas id="btTrayCv"></canvas><button class="go roll hide" id="btRoll"></button></div>
+        <div class="ts" id="btTraySt" aria-live="polite"></div>
+      </div>
     </div>
   </div>
 
@@ -287,6 +310,25 @@
 
       <div class="card" id="btWho" style="margin-bottom:4px"></div>
 
+      <h3>กองทัพ</h3>
+      <div class="modes" id="btFacs">
+        <button class="mode" data-f="gr">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 33V20c0-8 5-13 12-13s12 5 12 13v13h-5v-9h-4v9h-6v-9h-4v9z"/><path d="M9 9c4-7 18-7 22 0"/><path d="M20 3v4"/>
+            <circle cx="52" cy="20" r="11"/><circle cx="52" cy="20" r="3"/>
+            <path d="M74 35L90 3M88 2l3-2 0 5"/>
+          </svg>
+          <span><span class="t">กองทัพกรีก</span><span class="d">หอก โล่ ธนู ม้า — ต้องเข้าประชิด</span></span>
+        </button>
+        <button class="mode" data-f="mod">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 22c0-9 6-14 14-14s14 5 14 14z"/><path d="M4 22h32"/><path d="M12 26h16v7H12z"/>
+            <path d="M44 20h40v5H62l-3 8h-6l2-8h-11z"/><path d="M84 21h8"/><path d="M58 20v-4h10v4"/>
+          </svg>
+          <span><span class="t">กองทหาร</span><span class="d">ปืน เกราะ หุ่นรบ — ยิงจากระยะไกล</span></span>
+        </button>
+      </div>
+
       <h3>จัดการยูนิต</h3>
       <div class="budget"><span id="btUsedL">ใช้</span><span class="bar" id="btBar"><i></i></span><span id="btUsedV">0 / 400</span></div>
       <div id="btRoster" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
@@ -347,9 +389,7 @@
         <button data-m="look" class="on">ดู</button><button data-m="place">วางหน่วย</button><button data-m="measure">วัดระยะ</button><button data-m="erase">ลบ</button>
       </div></div>
       <h3>วางตัวไหน</h3>
-      <div class="row"><div class="grp" id="btKit">
-        <button data-k="heavy" class="on">เกราะหนัก</button><button data-k="infantry">ทหารราบ</button><button data-k="hoplite">กรีก</button><button data-k="enemy">ศัตรู</button>
-      </div></div>
+      <div id="btKit"></div>
       <div class="row" style="margin-top:8px"><button class="sm wide" id="btQuit2">‹ กลับไปตั้งสนาม</button></div>
     </div>
 
@@ -919,6 +959,12 @@ var ARM_LIGHT = R.norm([-0.5, 0.8, 0.45]);
 var ARM_KEYS = ['helm','chest','pauld','arms','legs','skirt','pack'];
 var ARM_TH = { helm:'หมวก', chest:'เกราะอก', pauld:'บ่า', arms:'แขน', legs:'ขา', skirt:'กระโปรง', pack:'เป้หลัง' };
 var FACES = [], FACE_POOL = [];
+// Level of detail. 1 = every facet; smaller = the same figure with fewer facets round each tube and dome, for a piece
+// that is small on screen or while the camera is moving. It is never replaced by a stand-in block: the silhouette, the
+// kit and the pose stay the model's own at every level. `lo` is the fewest facets a round part may drop to, so a limb
+// never turns into a three-sided stick.
+var LODK = 1;
+function segs(n, lo){ if (LODK >= 1) return n; if (LODK < 0.4) lo = Math.min(lo, 4); return Math.max(Math.min(n, lo), Math.round(n*LODK)); }
 function armFace(pts, n, kind, rim){ var f = FACE_POOL[FACES.length] || (FACE_POOL[FACES.length] = { p:[], n:null, k:0, z:0 }); f.p = pts; f.n = n; f.k = kind; f.rim = rim || RIM_ALL; FACES.push(f); }
 var RIM_ALL = [1,1,1,1], RIM_RING = [1,0,1,0], RIM_NONE = [0,0,0,0], RIM_BOT = [1,0,0,0], RIM_TOP = [0,0,1,0];
 // local -> world for a joint frame
@@ -934,7 +980,7 @@ function lp(p){ if (!LROT) return p; var q = R.qrot(LROT, p); return LCEN ? R.ad
 function withRot(rot, cen, fn){ var pr = LROT, pc = LCEN; LROT = rot; LCEN = cen || null; fn(); LROT = pr; LCEN = pc; }
 function armTube(Wj, y0, r0x, r0z, y1, r1x, r1z, seg, a0, a1, kind, xoff){
   a0 = a0==null ? 0 : a0; a1 = a1==null ? Math.PI*2 : a1; xoff = xoff||0;
-  var full = Math.abs(a1-a0-Math.PI*2) < 1e-6, n = seg, step = (a1-a0)/n;
+  var full = Math.abs(a1-a0-Math.PI*2) < 1e-6, n = segs(seg, 5), step = (a1-a0)/n;
   for (var i=0;i<n;i++){ var t0 = a0+i*step, t1 = a0+(i+1)*step, c0=Math.cos(t0), s0=Math.sin(t0), c1=Math.cos(t1), s1=Math.sin(t1);
     var p00=lp([xoff+r0x*s0, y0, r0z*c0]), p01=lp([xoff+r0x*s1, y0, r0z*c1]), p10=lp([xoff+r1x*s0, y1, r1z*c0]), p11=lp([xoff+r1x*s1, y1, r1z*c1]);
     if (y1 > y0) armQuad(Wj, p00, p01, p11, p10, kind, RIM_RING); else armQuad(Wj, p01, p00, p10, p11, kind, RIM_RING); }
@@ -943,6 +989,7 @@ function armTube(Wj, y0, r0x, r0z, y1, r1x, r1z, seg, a0, a1, kind, xoff){
 // lonA..lonB (deg, optional) limits the longitudes; thick (optional) adds a visible rim band of that thickness along the lower edge
 function armDome(Wj, c, r, lat0, lat1, nLon, nLat, skipLon, kind, sy, lonA, lonB, thick){
   sy = sy||1; var LA = lonA==null ? -180 : lonA, LB = lonB==null ? 180 : lonB;
+  nLon = segs(nLon, 6); nLat = segs(nLat, LODK < 0.4 ? 1 : 2);
   var f = function(la, lo, rr){ lo *= D; rr = rr||r; return lp([c[0]+rr*Math.cos(la)*Math.sin(lo), c[1]+sy*rr*Math.sin(la), c[2]+rr*Math.cos(la)*Math.cos(lo)]); };
   for (var j=0;j<nLat;j++){ var la0 = (lat0 + (lat1-lat0)*j/nLat)*D, la1 = (lat0 + (lat1-lat0)*(j+1)/nLat)*D;
     for (var i=0;i<nLon;i++){ var lo0 = LA + (LB-LA)*i/nLon, lo1 = LA + (LB-LA)*(i+1)/nLon;
@@ -953,6 +1000,7 @@ function armDome(Wj, c, r, lat0, lat1, nLon, nLat, skipLon, kind, sy, lonA, lonB
       if (thick && LB-LA < 359 && i===nLon-1) armQuad(Wj, f(la0,lo1,r-thick), f(la1,lo1,r-thick), f(la1,lo1), f(la0,lo1), kind, RIM_ALL); } }
 }
 function armBox(Wj, c, hx, hy, hz, kind){
+  if (LODK < 0.6 && Math.max(hx, hy, hz) < (LODK < 0.4 ? 0.035 : 0.02)) return;   // far away a buckle or a strap end is below a pixel
   var x0=c[0]-hx, x1=c[0]+hx, y0=c[1]-hy, y1=c[1]+hy, z0=c[2]-hz, z1=c[2]+hz, P = function(x,y,z){ return lp([x,y,z]); };
   armQuad(Wj,P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1),kind); armQuad(Wj,P(x1,y0,z0),P(x0,y0,z0),P(x0,y1,z0),P(x1,y1,z0),kind);
   armQuad(Wj,P(x1,y0,z1),P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),kind); armQuad(Wj,P(x0,y0,z0),P(x0,y0,z1),P(x0,y1,z1),P(x0,y1,z0),kind);
@@ -969,20 +1017,47 @@ var ARM_COL = {
 };
 // solid look (shaded plates): one palette per kit, used in both page styles
 var SOLID = {
-  heavy:    { helm:[92,112,150], plate:[88,110,150], pauld:[84,106,146], limb:[78,98,134], pack:[66,74,90], visor:[28,30,40], trim:[196,168,92], boot:[54,56,66], cloth:[90,100,120], pouch:[70,76,88] },
-  infantry: { helm:[84,94,62], plate:[96,104,72], pauld:[96,104,72], limb:[92,100,70], pack:[76,82,58], visor:[30,30,30], trim:[112,120,86], boot:[56,50,44], cloth:[98,106,74], pouch:[76,82,58] },
-  hoplite:  { helm:[184,134,66], plate:[214,204,182], pauld:[214,204,182], limb:[200,152,118], pack:[110,80,50], visor:[20,20,24], trim:[184,134,66], boot:[96,68,42], cloth:[158,40,40], pouch:[46,56,96], red:[160,36,36], flesh:[200,152,118], wood:[120,86,54], shield:[46,56,96] }
+  heavy:    { helm:[92,112,150], plate:[88,110,150], pauld:[84,106,146], limb:[78,98,134], pack:[66,74,90], visor:[28,30,40], trim:[196,168,92], boot:[54,56,66], cloth:[90,100,120], pouch:[70,76,88], gun:[44,46,52] },
+  infantry: { helm:[84,94,62], plate:[96,104,72], pauld:[96,104,72], limb:[92,100,70], pack:[76,82,58], visor:[30,30,30], trim:[112,120,86], boot:[56,50,44], cloth:[98,106,74], pouch:[76,82,58], gun:[46,48,40] },
+  hoplite:  { helm:[184,134,66], plate:[214,204,182], pauld:[214,204,182], limb:[200,152,118], pack:[110,80,50], visor:[20,20,24], trim:[184,134,66], boot:[96,68,42], cloth:[158,40,40], pouch:[46,56,96], red:[160,36,36], flesh:[200,152,118], wood:[120,86,54], shield:[46,56,96] },
+  enemy:    { helm:[92,112,150], plate:[88,110,150], pauld:[84,106,146], limb:[78,98,134], pack:[66,74,90], visor:[210,120,60], trim:[150,152,160], boot:[54,56,66], cloth:[90,100,120], pouch:[70,76,88], gun:[46,48,54], jet:[70,72,80], flame:[230,150,70] },
+  archer:   { helm:[128,96,62], plate:[196,180,150], cloth:[176,150,110], flesh:[200,152,118], limb:[200,152,118], boot:[96,68,42], wood:[120,86,54], string:[220,214,196], trim:[150,110,60], pouch:[110,80,50], red:[160,36,36], visor:[20,20,24] },
+  peltast:  { helm:[150,120,84], plate:[180,160,120], cloth:[120,112,80], flesh:[200,152,118], limb:[200,152,118], boot:[96,68,42], wood:[120,86,54], shield:[150,112,62], trim:[184,134,66], red:[140,60,40], visor:[20,20,24], pouch:[110,80,50] },
+  spartan:  { helm:[184,134,66], plate:[196,150,80], pauld:[196,150,80], limb:[200,152,118], cloth:[150,30,30], red:[168,30,30], flesh:[200,152,118], wood:[120,86,54], shield:[176,40,36], trim:[206,164,86], boot:[96,68,42], visor:[20,20,24], pack:[110,80,50], pouch:[46,56,96], lambda:[232,214,170] },
+  cavalry:  { helm:[184,134,66], plate:[214,204,182], pauld:[214,204,182], limb:[200,152,118], pack:[110,80,50], visor:[20,20,24], trim:[184,134,66], boot:[96,68,42], cloth:[158,40,40], pouch:[46,56,96], red:[160,36,36], flesh:[200,152,118], wood:[120,86,54], shield:[46,56,96],
+              coat:[122,84,52], mane:[44,32,26], hoof:[40,36,34], saddle:[96,62,40], blanket:[150,40,40], muzzle:[90,64,44] },
+  sniper:   { helm:[84,94,62], plate:[96,104,72], pauld:[96,104,72], limb:[92,100,70], pack:[76,82,58], visor:[30,30,30], trim:[112,120,86], boot:[56,50,44], cloth:[98,106,74], pouch:[76,82,58], gun:[46,48,40], scope:[30,32,30], ghillie:[90,104,62], ghillie2:[70,82,48] },
+  hmg:      { helm:[92,112,150], plate:[88,110,150], pauld:[84,106,146], limb:[78,98,134], pack:[66,74,90], visor:[28,30,40], trim:[196,168,92], boot:[54,56,66], cloth:[90,100,120], pouch:[70,76,88], gun:[44,46,52], ammo:[150,126,60], belt:[176,146,70] },
+  medic:    { helm:[222,220,212], plate:[96,104,72], pauld:[96,104,72], limb:[92,100,70], pack:[210,208,200], visor:[30,30,30], trim:[112,120,86], boot:[56,50,44], cloth:[98,106,74], pouch:[76,82,58], gun:[46,48,40], cross:[196,40,40], white:[226,224,216] },
+  mech:     { helm:[92,112,150], plate:[88,110,150], pauld:[84,106,146], limb:[70,86,120], pack:[66,74,90], visor:[240,190,90], trim:[196,168,92], boot:[54,56,66], cloth:[90,100,120], pouch:[70,76,88], gun:[44,46,52], joint:[40,42,50], vent:[30,30,34] }
 };
 
 // ---------- kits: whole figures built from primitives, anchored to joint frames ----------
 // 'heavy'    = original heavy power-armour trooper   'infantry' = original line infantry   'hoplite' = bronze-age spearman
+// and, built on those: 'enemy' (assault: jump pack), 'sniper', 'medic', 'hmg', 'mech' (a heavy scaled up to a walker);
+// 'archer', 'peltast', 'spartan', and 'cavalry' (a hoplite riding a horse built further down)
 var KIT = 'heavy';
 // per-kit arm overrides applied to the controller's pose before drawing (a hoplite carries the shield across the body, spear upright)
+var SHIELD = { hoplite:1, spartan:1, peltast:1, cavalry:1 }, GUNNER = { heavy:1, infantry:1, enemy:1, sniper:1, hmg:1, medic:1, mech:1 };
+// both hands on a gun, carried at the low ready: right hand at the grip by the hip, left hand forward on the barrel.
+// Solved from the rig so the hands land on (-0.13, 1.0, 0.24) and (0.02, 1.1, 0.52) with the elbows clear of the body.
+var HOLD = { sR:[16.3, 7.4, 5.5], eR:-106.3, sL:[-35.8, -57.6, 42.7], eL:-47.1 };
 function kitPose(P){
-  if (KIT !== 'hoplite') return;
-  P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-30, -90, 15), 0.92);   // upper arm turned in: the forearm crosses the chest
-  P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.eul(0, 0, 0);
-  P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-12, 0, -8), 0.7); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-20,0,0), 0.7);
+  if (SHIELD[KIT]){
+    P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-30, -90, 15), 0.92);   // upper arm turned in: the forearm crosses the chest
+    P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.eul(0, 0, 0);
+    P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-12, 0, -8), 0.7); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-20,0,0), 0.7);
+    return;
+  }
+  if (KIT === 'archer'){                                                     // bow held out low in the left hand
+    P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-38, 0, 8), 0.9); P.q.elbowL = R.eul(-12, 0, 0); P.q.wristL = R.eul(0, 0, 0);
+    P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-10, 0, -10), 0.6); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-55,0,0), 0.8);
+    return;
+  }
+  if (GUNNER[KIT]){                                                          // a gun is held, not swung: both arms fixed
+    P.q.shoulderR = R.eul(HOLD.sR[0], HOLD.sR[1], HOLD.sR[2]); P.q.elbowR = R.eul(HOLD.eR, 0, 0); P.q.wristR = R.eul(0, 0, 0);
+    P.q.shoulderL = R.eul(HOLD.sL[0], HOLD.sL[1], HOLD.sL[2]); P.q.elbowL = R.eul(HOLD.eL, 0, 0); P.q.wristL = R.eul(0, 0, 0);
+  }
 }
 var Q = { qx:function(a){ return [Math.sin(a/2),0,0,Math.cos(a/2)]; }, qy:function(a){ return [0,Math.sin(a/2),0,Math.cos(a/2)]; }, qz:function(a){ return [0,0,Math.sin(a/2),Math.cos(a/2)]; } };
 
@@ -1003,7 +1078,7 @@ function pauldron(C, s, r, tilt, thick, lame, kind, trimKind, dx, dy){
     if (lame) armDome(null, [0,-0.012,0], r*1.02, -48, -18, 8, 1, null, trimKind||kind, 0.9, -85, 85, thick*0.8);
   }); });
 }
-function kitHeavy(Wd){
+function kitHeavy(Wd, noPack){
   var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
   // ---- helmet: skull dome open at the face, an angular two-facet faceplate with a visor slot, chin block, side cheeks, collar
   J(H, function(){
@@ -1048,6 +1123,7 @@ function kitHeavy(Wd){
     armDome(Wd['ankle'+S], [0,-0.05,0.14], 0.065, -60, 60, 8, 2, null, 'boot', 0.8); });
   for (var i=0;i<6;i++){ var a0 = (i*60-24)*DEG, a1 = (i*60+24)*DEG; if (i===1||i===4) continue; armTube(Pv, -0.01, 0.17, 0.125, -0.19, 0.21, 0.16, 2, a0, a1, 'plate'); }
   // ---- power pack
+  if (noPack) return;
   armBox(C, [0,0.07,-0.215], 0.135, 0.135, 0.075, 'pack');
   armTube(C, 0.20, 0.04, 0.04, 0.29, 0.036, 0.036, 8, 0, Math.PI*2, 'pack', -0.085); armTube(C, 0.20, 0.04, 0.04, 0.29, 0.036, 0.036, 8, 0, Math.PI*2, 'pack', 0.085);
   armBox(C, [0,-0.09,-0.20], 0.10, 0.03, 0.06, 'pack');
@@ -1080,14 +1156,14 @@ function kitInfantry(Wd){
   armRollX(C, [0,0.19,-0.19], 0.13, 0.045, 8, 'cloth');
 }
 
-function kitHoplite(Wd){
+function kitHoplite(Wd, noCrest){
   var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
   // ---- helmet: bronze dome with cheek guards, a nasal bar, a tall horsehair crest front-to-back
   var r = hr*1.18;
   armDome(H, [0,0.01,0], r, -48, 90, 12, 5, [-40,40,4], 'helm');
   [-1,1].forEach(function(s){ armQuad(H, [s*0.078,0.0,0.086],[s*0.03,-0.005,0.112],[s*0.026,-0.105,0.09],[s*0.07,-0.09,0.055], 'helm'); });
   armBox(H, [0,-0.04,0.118], 0.011, 0.055, 0.008, 'helm');
-  J(H, function(){ var n = 10, rb = r*1.02, x = 0.014, prev = null;
+  if (!noCrest) J(H, function(){ var n = 10, rb = r*1.02, x = 0.014, prev = null;
     for (var i=0;i<=n;i++){ var a = (55 - 205*i/n)*DEG, h = 0.045 + 0.10*Math.sin(Math.PI*i/n), d = [0, Math.cos(a), Math.sin(a)];
       var b0 = [ x, 0.01+rb*d[1], rb*d[2] ], t0 = [ x*0.6, 0.01+(rb+h)*d[1], (rb+h)*d[2] ], b1 = [-x, b0[1], b0[2]], t1 = [-x*0.6, t0[1], t0[2]];
       if (prev){ armQuad(H, prev.b0, b0, t0, prev.t0, 'red'); armQuad(H, b1, prev.b1, prev.t1, t1, 'red'); armQuad(H, prev.t0, t0, t1, prev.t1, 'red'); }
@@ -1126,16 +1202,278 @@ function kitHoplite(Wd){
     armTube(Wd.wristR, 1.25, 0.03, 0.02, 1.47, 0.002, 0.002, 6, 0, Math.PI*2, 'helm'); armTube(Wd.wristR, -0.95, 0.02, 0.02, -1.0, 0.006, 0.006, 6, 0, Math.PI*2, 'helm'); });
 }
 function armRollX(Wj, c, hx, r, seg, kind){
+  seg = segs(seg, 5);
   for (var i=0;i<seg;i++){ var t0 = i/seg*Math.PI*2, t1 = (i+1)/seg*Math.PI*2;
     var y0 = c[1]+r*Math.cos(t0), z0 = c[2]+r*Math.sin(t0), y1 = c[1]+r*Math.cos(t1), z1 = c[2]+r*Math.sin(t1);
     armQuad(Wj, [c[0]-hx,y0,z0],[c[0]-hx,y1,z1],[c[0]+hx,y1,z1],[c[0]+hx,y0,z0], kind, RIM_RING); }
 }
 
-function build(kit, Wd){ KIT = kit; FACES.length = 0;
-  if (kit === 'heavy' || kit === 'enemy') kitHeavy(Wd); else if (kit === 'infantry') kitInfantry(Wd); else if (kit === 'hoplite') kitHoplite(Wd);
+
+// ---------- gear placed from where the hands actually are ----------
+// A gun is held in both hands whatever the arms are doing, so it is built from the hands' own positions rather than
+// hung off one joint: grip in the right hand, barrel laid along the line to the left hand and on past it.
+function m2q(X, Y, Z){                 // rotation whose columns are the images of the local axes
+  var t = X[0] + Y[1] + Z[2], s;
+  if (t > 0){ s = Math.sqrt(t + 1)*2; return [(Y[2]-Z[1])/s, (Z[0]-X[2])/s, (X[1]-Y[0])/s, 0.25*s]; }
+  if (X[0] > Y[1] && X[0] > Z[2]){ s = Math.sqrt(1 + X[0] - Y[1] - Z[2])*2; return [0.25*s, (Y[0]+X[1])/s, (Z[0]+X[2])/s, (Y[2]-Z[1])/s]; }
+  if (Y[1] > Z[2]){ s = Math.sqrt(1 + Y[1] - X[0] - Z[2])*2; return [(Y[0]+X[1])/s, 0.25*s, (Z[1]+Y[2])/s, (Z[0]-X[2])/s]; }
+  s = Math.sqrt(1 + Z[2] - X[0] - Y[1])*2; return [(Z[0]+X[2])/s, (Z[1]+Y[2])/s, 0.25*s, (X[1]-Y[0])/s];
+}
+// a frame at p whose local -Y runs along dir and whose local +Z is as near to `up` as it can be
+function frameOn(p, dir, up){
+  var Y = R.mul(R.norm(dir), -1), u = up || [0,1,0], Z = R.sub(u, R.mul(Y, R.dot(u, Y)));
+  if (R.len(Z) < 1e-4) Z = Math.abs(Y[2]) < 0.9 ? [0,0,1] : [1,0,0];
+  Z = R.norm(R.sub(Z, R.mul(Y, R.dot(Z, Y)))); var X = R.cross(Y, Z);
+  return { p: p.slice(), q: m2q(X, Y, Z) };
+}
+function lerp3(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+var QID = [0,0,0,1];
+function at(off, fn){ withRot(QID, off, fn); }            // build fn's primitives shifted by off in the current frame
+// a straight rod from a to b (tube of radius r0 at a, r1 at b)
+function rod(a, b, r0, r1, seg, kind){
+  var d = R.sub(b, a), L = R.len(d); if (L < 1e-5) return;
+  armTube(frameOn(a, d), 0, r0, r0, -L, r1, r1, seg, 0, TAU, kind);
+}
+
+// kinds: rifle (infantry, medic), carbine (heavy), smg (assault), sniper, hmg, cannon (mech)
+var GUN = {
+  rifle:   { len:0.66, back:0.30, w:0.020, h:0.036, br:0.012, mag:0.05 },
+  carbine: { len:0.62, back:0.24, w:0.034, h:0.052, br:0.020, mag:0.06, box:1 },
+  smg:     { len:0.40, back:0.16, w:0.024, h:0.040, br:0.014, mag:0.07 },
+  sniper:  { len:0.98, back:0.34, w:0.020, h:0.034, br:0.011, mag:0.03, scope:1 },
+  hmg:     { len:0.92, back:0.18, w:0.050, h:0.070, br:0.026, mag:0, ammo:1, shroud:1 },
+  cannon:  { len:0.70, back:0.10, w:0.070, h:0.080, br:0.050, mag:0, box:1, shroud:1 }
+};
+function gunIn(Wd, type){
+  var o = GUN[type], g = Wd.handR.p, s = Wd.handL.p, d = R.sub(s, g);
+  if (R.len(d) < 0.08) d = [0, -0.2, 1];             // hands together: point it ahead
+  var F = frameOn(g, d, [0,1,0]);
+  J(F, function(){
+    armBox(F, [0, -0.07, o.h*0.35], o.w, 0.17, o.h, 'gun');                           // receiver
+    armBox(F, [0, o.back*0.55, o.h*0.15], o.w*0.8, o.back*0.5, o.h*0.9, 'gun');      // stock
+    armBox(F, [0, 0.02, -o.h*0.9], o.w*0.7, 0.03, o.h*0.9, 'gun');                   // pistol grip
+    at([0, 0, o.h*0.35], function(){
+      armTube(F, -0.22, o.br, o.br, -o.len, o.br*0.85, o.br*0.85, 6, 0, TAU, 'gun');   // barrel
+      if (o.shroud) armTube(F, -0.2, o.br*1.8, o.br*1.8, -o.len*0.72, o.br*1.8, o.br*1.8, 8, 0, TAU, 'gun');
+    });
+    if (o.mag) armBox(F, [0, -0.13, -o.h*0.9], o.w*0.75, 0.028, o.mag, 'gun');        // magazine
+    if (o.box) armBox(F, [0, -0.2, o.h*0.9], o.w*1.1, 0.12, o.h*0.35, 'gun');         // carry handle / sight rail
+    if (o.scope) at([0, 0, o.h*1.55], function(){
+      armTube(F, 0.02, 0.022, 0.022, -0.26, 0.022, 0.022, 8, 0, TAU, 'scope');
+      armTube(F, -0.26, 0.03, 0.03, -0.3, 0.03, 0.03, 8, 0, TAU, 'scope'); });
+    if (o.ammo){ armBox(F, [0.09, -0.05, -0.02], 0.05, 0.08, 0.07, 'ammo');           // ammo box on the left side
+      for (var i=0;i<4;i++) armBox(F, [0.045, -0.12 - i*0.05, 0.02 + i*0.012], 0.012, 0.02, 0.018, 'belt'); }
+  });
+}
+
+// ---------- Greek gear ----------
+function bowIn(Wd){                     // a recurve bow gripped in the left hand, limbs up and down, string toward the archer
+  var h = Wd.handL.p, n = 8, prev = null, tips = [];
+  for (var i=0;i<=n;i++){ var t = -1 + 2*i/n, k = Math.abs(t);
+    var p = [h[0], h[1] + t*0.62, h[2] + 0.1*k*k - (k > 0.85 ? (k-0.85)*0.5 : 0)];
+    if (prev) rod(prev, p, 0.014*(1.2-0.5*k), 0.014*(1.2-0.5*k), 5, 'wood');
+    if (i === 0 || i === n) tips.push(p); prev = p; }
+  rod(tips[0], tips[1], 0.004, 0.004, 4, 'string');
+}
+function quiverOn(Wd){
+  var C = Wd.chest, a = fw(C, [0.10, -0.02, -0.17]), b = fw(C, [-0.06, 0.34, -0.2]);
+  rod(a, b, 0.05, 0.055, 8, 'pouch');
+  for (var i=0;i<4;i++){ var o = [(i%2 ? 0.02 : -0.02), 0, (i < 2 ? 0.02 : -0.02)];
+    rod(R.add(b, o), R.add(R.add(b, o), R.mul(R.norm(R.sub(b, a)), 0.12)), 0.006, 0.006, 4, 'wood'); }
+}
+function javelinsIn(Wd){
+  var h = Wd.handR.p;
+  [[0.02, 0.0], [-0.02, 0.03]].forEach(function(o){
+    var up = R.norm([0.06 + o[0], 1, 0.25 + o[1]]), a = R.sub(h, R.mul(up, 0.55)), b = R.add(h, R.mul(up, 0.95));
+    rod(a, b, 0.009, 0.008, 5, 'wood'); rod(b, R.add(b, R.mul(up, 0.13)), 0.018, 0.001, 5, 'helm'); });
+}
+function crescentShield(Wd){            // the pelte: a light crescent of wicker and hide on the left forearm
+  J(Wd.elbowL, function(){ var rot = Q.qz(-90*DEG), cen = [0.07,-0.14,0];
+    withRot(rot, cen, function(){
+      armDome(null, [0,-1.26,0], 1.3, 76, 90, 14, 2, [-40,40,79], 'shield', 1, -150, 150);
+      armTube(null, 0.0, 0.3, 0.3, 0.025, 0.29, 0.29, 14, (-150+90)*DEG, (150+90)*DEG, 'trim'); }); });
+}
+
+// ---------- the kits ----------
+function kitArcher(Wd){
+  var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
+  armDome(H, [0,0.02,0], hr*1.12, 5, 90, 12, 4, null, 'helm', 1.25);        // tall leather cap
+  armTube(H, 0.0, hr*1.13, hr*1.13, -0.02, hr*1.15, hr*1.15, 12, 0, TAU, 'trim');
+  armTube(Sp, 0.02, 0.145, 0.105, 0.17, 0.155, 0.112, 10, 0, TAU, 'cloth');   // linen chiton
+  armTube(Sp, 0.17, 0.155, 0.112, 0.28, 0.165, 0.115, 10, 0, TAU, 'cloth');
+  armTube(Pv, 0.04, 0.14, 0.1, -0.24, 0.17, 0.125, 12, 0, TAU, 'cloth');
+  armBox(Pv, [0,0.03,0], 0.15, 0.016, 0.108, 'pouch');
+  armTube(C, 0.0, 0.05, 0.045, 0.10, 0.045, 0.04, 8, 0, TAU, 'flesh');
+  ['L','R'].forEach(function(S){
+    armTube(Wd['shoulder'+S], -0.02, 0.052, 0.052, -0.27, 0.044, 0.044, 8, 0, TAU, 'flesh');
+    armTube(Wd['elbow'+S], -0.02, 0.044, 0.044, -0.215, 0.038, 0.038, 8, 0, TAU, 'flesh');
+    armDome(Wd['wrist'+S], [0,-0.055,0.005], 0.04, -90, 90, 8, 3, null, 'flesh');
+    armTube(Wd['hip'+S], -0.03, 0.074, 0.072, -0.37, 0.062, 0.062, 8, 0, TAU, 'flesh');
+    armTube(Wd['knee'+S], -0.03, 0.062, 0.064, -0.34, 0.052, 0.054, 8, 0, TAU, 'flesh');
+    armBox(Wd['ankle'+S], [0,-0.062,0.045], 0.05, 0.01, 0.11, 'boot'); });
+  quiverOn(Wd); bowIn(Wd);
+}
+function kitPeltast(Wd){
+  var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
+  armDome(H, [0,0.012,0], hr*1.18, -30, 90, 12, 4, [-40,40,10], 'helm');    // Thracian helmet with a forward peak
+  armQuad(H, [-0.09,0.03,0.1],[0.09,0.03,0.1],[0.1,0.04,0.17],[-0.1,0.04,0.17], 'helm');
+  armDome(H, [0,hr*1.05,0.03], 0.045, 0, 90, 8, 2, null, 'helm', 1.4);     // the forward-leaning apex
+  armTube(Sp, 0.02, 0.145, 0.105, 0.17, 0.155, 0.112, 10, 0, TAU, 'cloth');
+  armTube(Sp, 0.17, 0.155, 0.112, 0.28, 0.165, 0.115, 10, 0, TAU, 'cloth');
+  armTube(Pv, 0.04, 0.14, 0.1, -0.2, 0.16, 0.12, 12, 0, TAU, 'cloth');
+  armTube(C, 0.24, 0.17, 0.12, 0.02, 0.2, 0.15, 10, Math.PI*0.55, Math.PI*1.45, 'red');   // short cloak over the back
+  armTube(C, 0.0, 0.05, 0.045, 0.10, 0.045, 0.04, 8, 0, TAU, 'flesh');
+  ['L','R'].forEach(function(S){
+    armTube(Wd['shoulder'+S], -0.02, 0.052, 0.052, -0.27, 0.044, 0.044, 8, 0, TAU, 'flesh');
+    armTube(Wd['elbow'+S], -0.02, 0.044, 0.044, -0.215, 0.038, 0.038, 8, 0, TAU, 'flesh');
+    armDome(Wd['wrist'+S], [0,-0.055,0.005], 0.04, -90, 90, 8, 3, null, 'flesh');
+    armTube(Wd['hip'+S], -0.03, 0.074, 0.072, -0.37, 0.062, 0.062, 8, 0, TAU, 'flesh');
+    armTube(Wd['knee'+S], -0.03, 0.066, 0.068, -0.36, 0.058, 0.06, 8, 0, TAU, 'boot');   // fawnskin boots to the knee
+    armBox(Wd['ankle'+S], [0,-0.05,0.045], 0.055, 0.022, 0.11, 'boot'); });
+  crescentShield(Wd); javelinsIn(Wd);
+}
+function kitSpartan(Wd){
+  kitHoplite(Wd, true);
+  J(Wd.elbowL, function(){ withRot(Q.qz(-90*DEG), [0.075,-0.14,0], function(){   // the lambda on the shield face
+    // raised a little off the bowl and cut into short pieces, so the painter's sort keeps each piece in front of the bowl
+    var sy = function(x, z){ return -1.56 + Math.sqrt(2.56 - x*x - z*z) + 0.012; };
+    // the shield hangs tilted on the forearm: in its own plane, world-up is (0.62, 0.78) in local (X, Z)
+    var P = function(u, v){ var x = -0.78*u + 0.62*v, z = 0.62*u + 0.78*v; return [x, sy(x, z), z]; };
+    [-1, 1].forEach(function(s){ var n = 5, w = 0.028, u0 = s*0.2, v0 = -0.22, u1 = 0, v1 = 0.24;
+      for (var i=0;i<n;i++){ var a = i/n, b = (i+1)/n, ua = u0 + (u1-u0)*a, va = v0 + (v1-v0)*a, ub = u0 + (u1-u0)*b, vb = v0 + (v1-v0)*b;
+        var q0 = P(ua - w, va), q1 = P(ua + w, va), q2 = P(ub + w, vb), q3 = P(ub - w, vb);
+        armQuadL(null, q0, q1, q2, q3, 'lambda'); armQuadL(null, q3, q2, q1, q0, 'lambda'); } }); }); });
+  var H = Wd.head, C = Wd.chest, hr = Bm.headR, r = hr*1.18;
+  J(H, function(){ var n = 8, rb = r*1.02, prev = null;          // a transverse crest, ear to ear
+    for (var i=0;i<=n;i++){ var a = (-80 + 160*i/n)*DEG, h = 0.05 + 0.08*Math.cos(a*0.9), d = [Math.sin(a), Math.cos(a), 0];
+      var b0 = [rb*d[0], 0.01+rb*d[1], 0.014], t0 = [(rb+h)*d[0], 0.01+(rb+h)*d[1], 0.009], b1 = [b0[0], b0[1], -0.014], t1 = [t0[0], t0[1], -0.009];
+      if (prev){ armQuad(H, prev.b0, b0, t0, prev.t0, 'red'); armQuad(H, b1, prev.b1, prev.t1, t1, 'red'); armQuad(H, prev.t0, t0, t1, prev.t1, 'red'); }
+      prev = { b0:b0, t0:t0, b1:b1, t1:t1 }; } });
+  // the red cloak from the shoulders to the calves
+  J(C, function(){ var top = 0.06, bot = -1.02, n = 7;
+    for (var i=0;i<n;i++){ var a0 = Math.PI*(0.62 + 0.76*i/n), a1 = Math.PI*(0.62 + 0.76*(i+1)/n);
+      var r0 = 0.2, r1 = 0.3, w = function(a, rr, y){ return [rr*Math.sin(a), y, rr*Math.cos(a) - (y < 0 ? 0.03 : 0)]; };
+      armQuad(C, w(a1, r0, top), w(a0, r0, top), w(a0, r1, bot), w(a1, r1, bot), 'red'); } });
+}
+function kitSniper(Wd){
+  kitInfantry(Wd);
+  var H = Wd.head, C = Wd.chest, hr = Bm.headR;
+  armDome(H, [0,0.0,-0.01], hr*1.32, -25, 90, 10, 3, [-50,50,40], 'ghillie');      // hood over the helmet
+  J(C, function(){ for (var i=0;i<9;i++){ var a = Math.PI*(0.55 + 0.9*i/8), y0 = 0.14, y1 = -0.3 - (i%3)*0.09, rr = 0.19;
+    armQuad(C, [rr*Math.sin(a)-0.03, y0, rr*Math.cos(a)], [rr*Math.sin(a)+0.03, y0, rr*Math.cos(a)],
+                [rr*1.1*Math.sin(a)+0.025, y1, rr*1.1*Math.cos(a)], [rr*1.1*Math.sin(a)-0.025, y1, rr*1.1*Math.cos(a)], i%2 ? 'ghillie' : 'ghillie2'); } });
+  gunIn(Wd, 'sniper');
+}
+function kitMedic(Wd){
+  kitInfantry(Wd);
+  var H = Wd.head, C = Wd.chest, hr = Bm.headR;
+  [-1,1].forEach(function(s){                                     // red crosses on both sides of the white helmet
+    J(H, function(){ withRot(Q.qy(s*90*DEG), [0,0.035,0], function(){
+      armBox(null, [0,0,hr*1.17], 0.012, 0.042, 0.004, 'cross'); armBox(null, [0,0,hr*1.17], 0.042, 0.012, 0.004, 'cross'); }); }); });
+  armBox(C, [0,0.03,-0.26], 0.12, 0.13, 0.05, 'white');           // the medical pack, a cross on its back
+  armBox(C, [0,0.03,-0.312], 0.018, 0.07, 0.004, 'cross'); armBox(C, [0,0.03,-0.312], 0.07, 0.018, 0.004, 'cross');
+  armTube(Wd.shoulderL, -0.07, 0.056, 0.056, -0.13, 0.056, 0.056, 8, 0, TAU, 'white');   // armband
+  gunIn(Wd, 'smg');
+}
+function kitHmg(Wd){
+  kitHeavy(Wd);
+  var C = Wd.chest;
+  armTube(C, 0.2, 0.09, 0.09, -0.06, 0.09, 0.09, 10, 0, TAU, 'ammo', 0);                 // ammo drum on the back, over the pack
+  gunIn(Wd, 'hmg');
+}
+function kitAssault(Wd){
+  kitHeavy(Wd, true);
+  var C = Wd.chest;
+  [-1,1].forEach(function(s){                                     // jump pack: twin thrusters angled out and down
+    var a = fw(C, [s*0.09, 0.2, -0.24]), b = fw(C, [s*0.14, -0.18, -0.3]);
+    rod(a, b, 0.055, 0.07, 8, 'jet'); rod(b, R.add(b, R.mul(R.norm(R.sub(b, a)), 0.06)), 0.07, 0.05, 8, 'flame'); });
+  armBox(C, [0,0.06,-0.21], 0.1, 0.12, 0.05, 'pack');
+  gunIn(Wd, 'smg');
+}
+function kitMech(Wd){
+  kitHeavy(Wd);
+  var C = Wd.chest;
+  armBox(C, [-0.2, 0.2, -0.05], 0.09, 0.07, 0.12, 'pack');        // missile pod on the right shoulder
+  for (var i=0;i<3;i++) for (var j=0;j<2;j++) armBox(C, [-0.2 + (i-1)*0.05, 0.23 + j*0.04, 0.075], 0.016, 0.014, 0.004, 'vent');
+  gunIn(Wd, 'cannon');
+}
+
+// ---------- the horse (for the cavalry): built procedurally, legs driven by how far it has travelled ----------
+// Local space as the rig's: +z ahead, y up, x to the left. A small warhorse: withers about 1.45 m.
+function kitHorse(mo){
+  var tr = mo ? mo.travel || 0 : 0, sp = mo ? Math.min(1, (mo.v || 0)/1.2) : 0;
+  var ph = tr/2.3*TAU, bob = 0.035*sp*Math.sin(2*ph);
+  var bodyY = 1.13 + bob, chestZ = 0.62, rumpZ = -0.66;
+  var B = frameOn([0, bodyY, rumpZ], [0,0,1]);                  // barrel: local -Y runs forward
+  armTube(B, 0.0, 0.26, 0.30, -0.14, 0.31, 0.36, 10, 0, TAU, 'coat');
+  armTube(B, -0.14, 0.31, 0.36, -1.08, 0.3, 0.37, 10, 0, TAU, 'coat');
+  armTube(B, -1.08, 0.3, 0.37, -1.28, 0.24, 0.3, 10, 0, TAU, 'coat');
+  armDome(B, [0,0,0], 0.27, 0, 90, 10, 3, null, 'coat', 0.5);             // rump (local +Y is behind)
+  armDome(B, [0,-1.28,0], 0.25, -90, 0, 10, 3, null, 'coat', 0.45);      // breast
+  // saddle cloth and saddle over the back
+  var S = frameOn([0, bodyY + 0.02, -0.18], [0,0,1]);
+  armTube(S, -0.02, 0.33, 0.39, -0.52, 0.33, 0.39, 10, -Math.PI*0.52, Math.PI*0.52, 'blanket');
+  armBox(S, [0, -0.27, 0.37], 0.12, 0.2, 0.05, 'saddle');
+  // neck and head
+  var n0 = [0, bodyY + 0.2, chestZ + 0.1], n1 = [0, bodyY + 0.72 + bob*0.5, chestZ + 0.46];
+  rod(n0, n1, 0.2, 0.13, 10, 'coat');
+  var hd = [0, n1[1] - 0.06, n1[2] + 0.1], mz = [0, n1[1] - 0.34, n1[2] + 0.46];
+  rod(hd, mz, 0.12, 0.075, 10, 'coat'); armDome(frameOn(mz, R.sub(mz, hd)), [0,0,0], 0.075, -90, 0, 8, 2, null, 'muzzle');
+  armDome(frameOn(hd, R.sub(hd, mz)), [0,0,0], 0.12, -90, 0, 8, 2, null, 'coat');
+  [-1,1].forEach(function(s){ rod([s*0.06, n1[1] + 0.03, n1[2] + 0.02], [s*0.07, n1[1] + 0.17, n1[2] - 0.01], 0.03, 0.005, 5, 'coat'); });   // ears
+  for (var m=0;m<6;m++){ var a = lerp3(n0, n1, m/6), b = lerp3(n0, n1, (m+1)/6);                  // mane
+    armQuad(IDF, [0.012, a[1]+0.16, a[2]-0.1], [0.012, b[1]+0.16, b[2]-0.1], [0.012, b[1]+0.05, b[2]-0.04], [0.012, a[1]+0.05, a[2]-0.04], 'mane'); }
+  // tail
+  var t0 = [0, bodyY + 0.2, rumpZ - 0.24], t1 = [0, bodyY - 0.2, rumpZ - 0.42 - 0.05*sp*Math.sin(ph)], t2 = [0.03*Math.sin(ph*0.5), bodyY - 0.55, rumpZ - 0.38];
+  rod(t0, t1, 0.05, 0.07, 6, 'mane'); rod(t1, t2, 0.07, 0.03, 6, 'mane');
+  // legs: diagonal pairs in step (a trot), swing and knee bend grow with speed
+  [[1, chestZ - 0.06, 0], [-1, chestZ - 0.06, Math.PI], [1, rumpZ + 0.02, Math.PI], [-1, rumpZ + 0.02, 0]].forEach(function(L, i){
+    var s = L[0], front = i < 2, p = ph + L[2], swing = 0.5*sp*Math.sin(p), lift = Math.max(0, Math.sin(p + Math.PI/2))*sp;
+    var hip = [s*0.17, bodyY - 0.06, L[1]];
+    var up = 0.5, lo = 0.52, a1 = swing, a2 = front ? -0.9*lift : 0.9*lift;
+    var kn = [hip[0], hip[1] - up*Math.cos(a1), hip[2] + up*Math.sin(a1)];
+    var ft = [kn[0], kn[1] - lo*Math.cos(a1 + a2), kn[2] + lo*Math.sin(a1 + a2)];
+    if (ft[1] < 0.06){ var dy = 0.06 - ft[1]; ft[1] += dy; kn[1] += dy*0.5; }
+    rod(hip, kn, front ? 0.1 : 0.12, 0.065, 8, 'coat');
+    rod(kn, ft, 0.05, 0.042, 7, 'coat');
+    rod(ft, [ft[0], Math.max(0, ft[1] - 0.09), ft[2] + 0.02], 0.055, 0.065, 7, 'hoof'); });
+}
+// the rider sits the saddle: hips bent forward and spread round the barrel, knees down, a spear raised in the right hand
+var RIDER = null;
+function riderFrames(){
+  if (RIDER) return RIDER;
+  var P = R.idlePose(0), s;
+  P.root = [0, 1.62, 0.02];
+  P.q.pelvis = R.QI; P.q.spine = R.eul(4, 0, 0); P.q.chest = R.eul(2, 0, 0);
+  for (s=0;s<2;s++){ var S = s ? 'R' : 'L', sg = s ? -1 : 1;
+    P.q['hip'+S] = R.eul(-62, sg*8, sg*38); P.q['knee'+S] = Q.qx(78*DEG); P.q['ankle'+S] = R.eul(-10, 0, 0); }
+  KIT = 'hoplite'; kitPose(P);
+  RIDER = R.fk(P); return RIDER;
+}
+
+var IDF = { p:[0,0,0], q:[0,0,0,1] }, MECH_S = 2.2;
+function scaleFaces(s){ for (var i=0;i<FACES.length;i++){ var p = FACES[i].p; for (var j=0;j<p.length;j++) p[j] = [p[j][0]*s, p[j][1]*s, p[j][2]*s]; } }
+// mo (optional) = { travel, v }: how far the piece has walked and how fast -- only the horse needs it
+function build(kit, Wd, lod, mo){ KIT = kit; FACES.length = 0; LODK = lod || 1;
+  switch (kit){
+    case 'heavy':    kitHeavy(Wd); gunIn(Wd, 'carbine'); break;
+    case 'enemy':    kitAssault(Wd); break;
+    case 'infantry': kitInfantry(Wd); gunIn(Wd, 'rifle'); break;
+    case 'hoplite':  kitHoplite(Wd); break;
+    case 'archer':   kitArcher(Wd); break;
+    case 'peltast':  kitPeltast(Wd); break;
+    case 'spartan':  kitSpartan(Wd); break;
+    case 'cavalry':  kitHorse(mo); var RW = riderFrames(); KIT = 'cavalry'; kitHoplite(RW); break;
+    case 'sniper':   kitSniper(Wd); break;
+    case 'hmg':      kitHmg(Wd); break;
+    case 'medic':    kitMedic(Wd); break;
+    case 'mech':     kitMech(Wd); scaleFaces(MECH_S); break;
+    default:         kitHeavy(Wd);
+  }
+  LODK = 1;
   return FACES; }
 function pose(kit, P){ var k = KIT; KIT = kit; kitPose(P); KIT = k; }
-return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS };
+return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS, HOLD:HOLD, MECH_S:MECH_S };
 })();
 
 // ===== walking pieces: a destination on the table, the rig's own gait carrying the piece there =====
@@ -1214,7 +1552,10 @@ function stop(u){ u.tx = null; u.tz = null; if (u.ctl) u.ctl.set('idle'); }
 // One frame for one piece. Returns true while it still has something to do — walking, turning, or coming to rest.
 function step(u, dt, bounds){
   var c = u.ctl; if (!c) return false;
-  var has = u.tx != null, dx = has ? u.tx - u.x : 0, dz = has ? u.tz - u.z : 0, rem = has ? Math.hypot(dx, dz) : 0;
+  // A piece drawn at S times the rig's size (the walker mech) covers S times the ground per stride, or its feet would
+  // skate. So distances are read in the rig's own metres (rem / S) and every step of travel is laid down S times over.
+  var S = u.scale || 1;
+  var has = u.tx != null, dx = has ? u.tx - u.x : 0, dz = has ? u.tz - u.z : 0, rem = has ? Math.hypot(dx, dz)/S : 0;
   // `aim` is "there is a bearing worth turning to". Two things it is NOT. It is not "the bearing error is non-zero":
   // the moment the facing lands exactly on the mark the error is 0, and reading that as "no bearing" drops the hold on
   // the spot. And it is not "there is any distance left": inside the distance the piece needs to stop, the bearing to
@@ -1247,12 +1588,12 @@ function step(u, dt, bounds){
     // standing still, the facing can swing right round; under way it has to stay inside what the legs can reach
     if (aim && d){ var mx = (c.v > 0.05 ? C.TURN_WALK : C.TURN)*h, t = clamp(d, -mx, mx);
                    u.rot = wrap((u.rot||0) + t); turnRig(c, t); d -= t; }
-    t0 = c.travel; c.step(h); ds = c.travel - t0;
+    t0 = c.travel; c.step(h); ds = (c.travel - t0)*S;
     if (ds){ u.x += Math.sin(u.rot)*ds; u.z += Math.cos(u.rot)*ds; }
   }
   if (bounds){ u.x = clamp(u.x, -bounds.w/2, bounds.w/2); u.z = clamp(u.z, -bounds.d/2, bounds.d/2); }
   if (has){
-    rem = Math.hypot(u.tx-u.x, u.tz-u.z);
+    rem = Math.hypot(u.tx-u.x, u.tz-u.z)/S;
     // a mark it cannot close on must not leave it walking on the spot for ever -- but a pivot is standing still on
     // purpose, so it does not count against the piece
     if (rem < (u.best == null ? 1e9 : u.best) - 0.01){ u.best = rem; u.stall = 0; }
@@ -1265,6 +1606,192 @@ function step(u, dt, bounds){
 return { make:make, goTo:goTo, stop:stop, step:step, C:C };
 })();
 // ==MODULES-END==
+
+// ==DICE-BEGIN==
+// Shared dice: the same throw on every player's screen.
+//
+// The value is NOT decided here. The server rolls it and puts it in the room log, so every client already receives
+// the same number; this only has to SHOW it. Given (kind, value, seed) the throw is fully determined: the seed drives
+// a small PRNG instead of Math.random, the flight is simulated to rest offline, and the die's labels are then rotated
+// by a true symmetry of the solid so the face that ended up on top reads `value`. Same inputs on every phone means
+// the same tumble and the same landing face -- no syncing of the animation itself, and no way for two players to see
+// different numbers.
+//
+// Originally ported from the stand-alone dice tray page, which has since been removed; this is now the only copy
+// of the physics (board.html and battle-table.html carry it verbatim, checked by dice-check.js).
+var DICE = (function(){
+"use strict";
+var D = Math.PI/180;
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+function add(a,b){ return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]; }
+function sub(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
+function mul(a,s){ return [a[0]*s,a[1]*s,a[2]*s]; }
+function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function len(a){ return Math.sqrt(dot(a,a)); }
+function norm(a){ var l=len(a)||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+function qmul(a,b){ var ax=a[0],ay=a[1],az=a[2],aw=a[3],bx=b[0],by=b[1],bz=b[2],bw=b[3];
+  return [aw*bx+ax*bw+ay*bz-az*by, aw*by-ax*bz+ay*bw+az*bx, aw*bz+ax*by-ay*bx+az*bw, aw*bw-ax*bx-ay*by-az*bz]; }
+function qconj(q){ return [-q[0],-q[1],-q[2],q[3]]; }
+function qnorm(q){ var l=Math.sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3])||1; return [q[0]/l,q[1]/l,q[2]/l,q[3]/l]; }
+function qrot(q,v){ var x=q[0],y=q[1],z=q[2],w=q[3], ux=y*v[2]-z*v[1], uy=z*v[0]-x*v[2], uz=x*v[1]-y*v[0], vx=y*uz-z*uy, vy=z*ux-x*uz, vz=x*uy-y*ux;
+  return [v[0]+2*(w*ux+vx), v[1]+2*(w*uy+vy), v[2]+2*(w*uz+vz)]; }
+function qaxis(axis, ang){ var s = Math.sin(ang/2), a = norm(axis); return [a[0]*s, a[1]*s, a[2]*s, Math.cos(ang/2)]; }
+function qFromTo(a,b){ var c = cross(a,b), d = dot(a,b); if (d < -0.99999){ var ax = Math.abs(a[0]) < 0.9 ? [1,0,0] : [0,1,0]; return qaxis(cross(a,ax), Math.PI); } return qnorm([c[0],c[1],c[2],1+d]); }
+
+// mulberry32: small, fast, and identical on every engine, which is the whole point here
+function rngFrom(seed){ var a = (seed >>> 0) || 1; return function(){
+  a |= 0; a = a + 0x6D2B79F5 | 0;
+  var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ---------- polyhedra. values so that opposite faces sum to max+1 (or 9 for the d10), like real dice ----------
+function pairValues(verts, faces, max, sumTo){
+  var C = faces.map(function(f){ var c=[0,0,0]; f.forEach(function(vi){ c = add(c, verts[vi]); }); return norm(c); });
+  var vals = new Array(faces.length), used = {}, next = max === 9 ? 0 : 1, hi = sumTo;
+  for (var i=0;i<faces.length;i++){ if (vals[i] !== undefined) continue; var opp = -1, bd = 1; for (var j=0;j<faces.length;j++){ var d = dot(C[i],C[j]); if (d < bd){ bd = d; opp = j; } }
+    vals[i] = next; vals[opp] = hi - next; next++; while (used[next]) next++; used[vals[i]] = 1; used[vals[opp]] = 1; while (used[next]) next++; }
+  return vals;
+}
+function poly(verts, faces, values, opts){
+  var R = 0; verts.forEach(function(v){ R = Math.max(R, len(v)); }); verts = verts.map(function(v){ return mul(v, 1/R); });
+  var F = faces.map(function(f, i){ var c = [0,0,0]; f.forEach(function(vi){ c = add(c, verts[vi]); }); c = mul(c, 1/f.length);
+    var n = norm(cross(sub(verts[f[1]],verts[f[0]]), sub(verts[f[2]],verts[f[0]]))); if (dot(n,c) < 0){ n = mul(n,-1); f = f.slice().reverse(); }
+    return { v:f, n:n, c:c, val:values[i] }; });
+  var inr = 1e9; F.forEach(function(f){ inr = Math.min(inr, dot(f.n, f.c)); });
+  return { verts:verts, faces:F, inr:inr, opts:opts||{} };
+}
+var PHI = (1+Math.sqrt(5))/2;
+function facesFromHull(v, k, nF){
+  var n = v.length, faces = [], seen = {};
+  for (var a=0;a<n;a++) for (var b=a+1;b<n;b++) for (var c=b+1;c<n;c++){
+    var nn = cross(sub(v[b],v[a]), sub(v[c],v[a])); if (len(nn) < 1e-6) continue; nn = norm(nn); var d0 = dot(nn, v[a]);
+    var on = [], out = false, i, d;
+    for (i=0;i<n;i++){ d = dot(nn, v[i]) - d0; if (d > 1e-6){ out = true; break; } if (Math.abs(d) < 1e-6) on.push(i); }
+    if (out){ nn = mul(nn,-1); d0 = -d0; out = false; on = [];
+      for (i=0;i<n;i++){ d = dot(nn, v[i]) - d0; if (d > 1e-6){ out = true; break; } if (Math.abs(d) < 1e-6) on.push(i); } }
+    if (out || on.length !== k) continue;
+    var key = on.slice().sort(function(x,y){ return x-y; }).join(','); if (seen[key]) continue; seen[key] = 1;
+    var cen = [0,0,0]; on.forEach(function(i2){ cen = add(cen, v[i2]); }); cen = mul(cen, 1/k);
+    var ux = norm(sub(v[on[0]], cen)), uy = cross(nn, ux);
+    on.sort(function(p,q){ var dp = sub(v[p],cen), dq = sub(v[q],cen); return Math.atan2(dot(dp,uy),dot(dp,ux)) - Math.atan2(dot(dq,uy),dot(dq,ux)); });
+    faces.push(on); if (faces.length === nF) return faces;
+  }
+  return faces;
+}
+function tetra(){ var v=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]]; return poly(v, [[0,1,2],[0,3,1],[0,2,3],[1,3,2]], [1,2,3,4], { vertexRead:true }); }
+function cube(){ var v=[]; for (var i=0;i<8;i++) v.push([i&1?1:-1, i&2?1:-1, i&4?1:-1]);
+  var F = [[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]]; return poly(v, F, pairValues(v, F, 6, 7)); }
+function octa(){ var v=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  var F = [[0,2,4],[2,1,4],[1,3,4],[3,0,4],[2,0,5],[1,2,5],[3,1,5],[0,3,5]]; return poly(v, F, pairValues(v, F, 8, 9)); }
+function d10(){
+  var r = 0.72, A = 1, lo = 0, hi = 0.5, h;
+  for (var it=0; it<40; it++){ h = (lo+hi)/2; var T=[0,A,0], U1=[r,h,0], L=[r*Math.cos(36*D),-h,r*Math.sin(36*D)], U2=[r*Math.cos(72*D),h,r*Math.sin(72*D)];
+    var vol = dot(cross(sub(U1,T), sub(U2,T)), sub(L,T)); if (vol > 0) hi = h; else lo = h; }
+  var v=[[0,A,0],[0,-A,0]]; for (var i=0;i<10;i++){ var a=i*36*D; v.push([Math.cos(a)*r, (i%2?h:-h), Math.sin(a)*r]); }
+  var F=[]; for (var k=0;k<10;k++){ var a2=2+k, b=2+(k+1)%10, c=2+(k+2)%10; F.push(k%2 ? [0,a2,b,c] : [1,c,b,a2]); }
+  return poly(v, F, pairValues(v, F, 9, 9)); }
+function dodeca(){ var v=[], i, j, k; for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2) for (k=-1;k<=1;k+=2) v.push([i,j,k]);
+  for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2){ v.push([0, i/PHI, j*PHI]); v.push([i/PHI, j*PHI, 0]); v.push([i*PHI, 0, j/PHI]); }
+  var F = facesFromHull(v, 5, 12); return poly(v, F, pairValues(v, F, 12, 13)); }
+function icosa(){ var v=[], i, j; for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2){ v.push([0, i, j*PHI]); v.push([i, j*PHI, 0]); v.push([j*PHI, 0, i]); }
+  var F = facesFromHull(v, 3, 20); return poly(v, F, pairValues(v, F, 20, 21)); }
+var SHAPES = null;   // built on first use: a d12/d20 hull search is not worth paying for if nobody rolls
+function shapes(){ if (!SHAPES) SHAPES = { 4:tetra(), 6:cube(), 8:octa(), 10:d10(), 12:dodeca(), 20:icosa() }; return SHAPES; }
+
+// the rotation of the solid onto itself carrying face `from` onto face `to`
+function symmetry(S, from, to, j){
+  var fa = S.faces[from], fb = S.faces[to], q1 = qFromTo(fa.n, fb.n);
+  var va = sub(qrot(q1, S.verts[fa.v[j]]), mul(fb.n, dot(fb.n, qrot(q1, S.verts[fa.v[j]])))), vb = sub(S.verts[fb.v[0]], mul(fb.n, dot(fb.n, S.verts[fb.v[0]])));
+  var ang = Math.atan2(dot(cross(va,vb), fb.n), dot(va,vb));
+  return qmul(qaxis(fb.n, ang), q1);
+}
+// relabel so that face `up` shows `want`: the values move with a true symmetry, so it stays a real die
+function relabel(S, up, want){
+  var from = -1; S.faces.forEach(function(f,i){ if (f.val === want) from = i; }); if (from < 0 || from === up) return S.faces.map(function(f){ return f.val; });
+  var q = symmetry(S, from, up, 0), out = [];
+  S.faces.forEach(function(f, i){ var c = qrot(qconj(q), f.c), best = 0, bd = -2; S.faces.forEach(function(g, k){ var d = dot(c, g.c); if (d > bd){ bd = d; best = k; } }); out[i] = S.faces[best].val; });
+  return out;
+}
+
+// ---------- physics: rigid body with vertex contacts against a small tray ----------
+var TRAY = { x:0.62, z:0.62 }, G = -9.8, DT = 1/120;
+function stepDie(d, dt){
+  if (d.done) return;
+  var e = 0.32, mu = 0.45, hitAny = false;
+  d.v[1] += G*dt; d.p = add(d.p, mul(d.v, dt));
+  var wl = len(d.w); if (wl > 1e-6) d.q = qnorm(qmul(qaxis(d.w, wl*dt), d.q));
+  for (var it=0; it<2; it++){
+    var deepest = 0, dv = null, dn = null;
+    for (var i=0;i<d.S.verts.length;i++){ var r = qrot(d.q, mul(d.S.verts[i], d.r)), x = add(d.p, r);
+      var cands = [[x[1], [0,1,0]], [TRAY.x - x[0], [-1,0,0]], [x[0] + TRAY.x, [1,0,0]], [TRAY.z - x[2], [0,0,-1]], [x[2] + TRAY.z, [0,0,1]]];
+      for (var c=0;c<cands.length;c++){ var pen = -cands[c][0]; if (pen > deepest){ deepest = pen; dv = r; dn = cands[c][1]; } } }
+    if (!dv) break;
+    hitAny = true;
+    d.p = add(d.p, mul(dn, deepest));
+    var vp = add(d.v, cross(d.w, dv)), vn = dot(vp, dn);
+    if (vn < 0){
+      var rn = cross(dv, dn), k = 1/d.m + dot(cross(rn, dv), dn)/d.I, j = -(1+e)*vn/k;
+      d.v = add(d.v, mul(dn, j/d.m)); d.w = add(d.w, mul(cross(dv, mul(dn, j)), 1/d.I));
+      var vt = sub(vp, mul(dn, vn)), vtl = len(vt);
+      if (vtl > 1e-6){ var jt = Math.min(mu*j, vtl/k), imp = mul(vt, -jt/vtl); d.v = add(d.v, mul(imp, 1/d.m)); d.w = add(d.w, mul(cross(dv, imp), 1/d.I)); }
+    }
+  }
+  if (hitAny){ d.v = mul(d.v, 0.985); d.w = mul(d.w, 0.965); }
+  d.v = mul(d.v, 1 - 0.02*dt); d.w = mul(d.w, 1 - 0.05*dt);
+  var sp = len(d.v), wl2 = len(d.w);
+  if (sp < 0.12 && wl2 < 1.2 && d.p[1] < d.r*1.05){
+    var dnf = downFace(d), n = qrot(d.q, d.S.faces[dnf].n), tilt = Math.acos(clamp(-n[1],-1,1));
+    if (tilt < 14*D){ d.snapQ = qmul(qFromTo(n, [0,-1,0]), d.q); d.snapY = d.r*d.S.inr; d.done = true; }
+  }
+}
+function downFace(d){ var best = 0, bd = 2; d.S.faces.forEach(function(f, i){ var y = qrot(d.q, f.n)[1]; if (y < bd){ bd = y; best = i; } }); return best; }
+function upFace(d){ var best = 0, bd = -2; d.S.faces.forEach(function(f, i){ var y = qrot(d.q, f.n)[1]; if (y > bd){ bd = y; best = i; } }); return best; }
+function upVertex(d){ var best = 0, bd = -2; d.S.verts.forEach(function(v, i){ var y = qrot(d.q, v)[1]; if (y > bd){ bd = y; best = i; } }); return best; }
+
+// One throw of one die. `value` is the server's result; `seed` makes the flight identical on every device.
+// Returns the recorded flight plus the labelling that makes the resting face read `value`.
+function roll(kind, value, seed){
+  var S = shapes()[kind]; if (!S) return null;                       // d100 and anything else: no dice, just the number
+  var rnd = rngFrom(seed);
+  var size = kind === 4 ? 0.23 : kind === 6 ? 0.2 : kind === 20 ? 0.24 : 0.22;
+  var d = { kind:kind, S:S, r:size,
+    p: [(rnd()-0.5)*0.5, 0.62 + rnd()*0.2, TRAY.z - 0.2],
+    v: [(rnd()-0.5)*1.2, 0.2 + rnd()*0.5, -1.7 - rnd()*1.2],
+    q: qnorm([rnd()-0.5, rnd()-0.5, rnd()-0.5, rnd()-0.5]),
+    w: [(rnd()-0.5)*24, (rnd()-0.5)*14, (rnd()-0.5)*24],
+    m:1, I:0.4*size*size, done:false };
+  var frames = [], t = 0, maxT = 6;
+  while (t < maxT){
+    stepDie(d, DT); stepDie(d, DT); t += 2*DT;
+    frames.push({ p: d.p.slice(), q: d.q.slice() });
+    if (d.done) break;
+  }
+  if (!d.done){   // ran out of time still tumbling: drop it onto whichever face is down
+    var dn = downFace(d), nn = qrot(d.q, d.S.faces[dn].n);
+    d.snapQ = qmul(qFromTo(nn,[0,-1,0]), d.q); d.snapY = d.r*d.S.inr; d.done = true;
+  }
+  d.q = d.snapQ;
+  var labels;
+  if (S.opts.vertexRead){   // a d4 is read at the top vertex: that vertex's value sits on the face opposite it
+    var vi = upVertex(d), opp = -1;
+    S.faces.forEach(function(f,i){ if (f.v.indexOf(vi) < 0) opp = i; });
+    labels = relabel(S, opp, value);
+  } else labels = relabel(S, upFace(d), value);
+  var rest = { p: [d.p[0], d.snapY, d.p[2]], q: d.snapQ.slice() };
+  frames.push(rest);
+  return { kind:kind, value:value, r:size, S:S, labels:labels, frames:frames, rest:rest, secs: frames.length*2*DT };
+}
+// what the die actually reads at rest, from its own geometry -- used by the harness to prove the relabel is honest
+function faceUp(res){
+  var d = { S:res.S, q:res.rest.q, r:res.r };
+  if (res.S.opts.vertexRead){ var vi = upVertex(d), f = res.S.faces;
+    for (var i=0;i<f.length;i++) if (f[i].v.indexOf(vi) < 0) return res.labels[i]; return res.labels[0]; }
+  return res.labels[upFace(d)];
+}
+return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:rngFrom };
+})();
+// ==DICE-END==
 
 (function(){
 "use strict";
@@ -1365,9 +1892,9 @@ function resize(){
 var EYE=[0,0,0], RT=[0,0,0], UP=[0,0,0], FW=[0,0,0];
 function setupCam(){
   var cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
-  EYE = [ cam.tx + cam.dist*cp*Math.sin(cam.yaw), cam.dist*sp, cam.tz + cam.dist*cp*Math.cos(cam.yaw) ];
+  EYE = [ cam.tx + cam.dist*cp*Math.sin(cam.yaw), (cam.ty || 0) + cam.dist*sp, cam.tz + cam.dist*cp*Math.cos(cam.yaw) ];
   var gy = heightAt(EYE[0], EYE[2]) + 1.2; if (EYE[1] < gy) EYE[1] = gy;      // never sink into the ground
-  var tg = [cam.tx, 0, cam.tz], f = [tg[0]-EYE[0], tg[1]-EYE[1], tg[2]-EYE[2]], fl = Math.hypot(f[0],f[1],f[2]);
+  var tg = [cam.tx, cam.ty || 0, cam.tz], f = [tg[0]-EYE[0], tg[1]-EYE[1], tg[2]-EYE[2]], fl = Math.hypot(f[0],f[1],f[2]);
   FW = [f[0]/fl, f[1]/fl, f[2]/fl];
   var r = [ FW[2], 0, -FW[0] ], rl = Math.hypot(r[0],r[2]) || 1; RT = [r[0]/rl, 0, r[2]/rl];
   // up = cross(forward, right)
@@ -1420,6 +1947,7 @@ var FACES = [], LIGHT = (function(){ var v=[-0.45,0.78,0.44], l=Math.hypot(v[0],
 function shade(col, n, amb){
   var nl = n ? (n[0]*LIGHT[0] + n[1]*LIGHT[1] + n[2]*LIGHT[2]) : 1;
   var a0 = (amb == null ? 0.6 : amb), k = a0 + (1-a0)*Math.max(0, nl)*1.08;
+  k = Math.round(k*40)/40;          // 40 light steps: invisible banding, and far more neighbouring faces share one fill
   return 'rgb(' + (col[0]*k|0) + ',' + (col[1]*k|0) + ',' + (col[2]*k|0) + ')';
 }
 function normal(a, b, c){ var u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
@@ -1430,6 +1958,10 @@ function face(pts, col, opt){    // pts: world points (3 or 4), col: [r,g,b]
   if (n && opt && opt.cull !== false){    // back-face cull: skip faces pointing away from the eye
     var m = pts.length, ex = cx/m-EYE[0], ey = cy/m-EYE[1], ez = cz/m-EYE[2];
     if (n[0]*ex + n[1]*ey + n[2]*ez > 0) return;
+  }
+  if (opt && opt.minA){                   // a facet smaller than this many square pixels adds nothing you can see
+    var ar = 0; for (i=0;i<sp.length;i++){ var s0 = sp[i], s1 = sp[(i+1)%sp.length]; ar += s0[0]*s1[1] - s1[0]*s0[1]; }
+    if (Math.abs(ar) < opt.minA*2) return;
   }
   FACES.push({ d: d/pts.length + ((opt && opt.bias) || 0), sp: sp, fill: (opt && opt.flat) ? 'rgb('+col[0]+','+col[1]+','+col[2]+')' : shade(col, n, opt && opt.amb),
     line: opt && opt.line, lw: (opt && opt.lw) || 1, alpha: (opt && opt.alpha) ? opt.a : null });
@@ -1753,9 +2285,9 @@ function drawProp(o){
   }
 }
 
-// ---------- miniatures: a compact armoured figure on a base, ~28 faces ----------
+// ---------- miniatures: each piece is the rig in its armour kit, standing on a base ----------
 // ย้อมทุกทีม — เอาความสว่างของชุดเดิมมาทาบบนสีประจำทีม แสงเงาจึงยังอยู่ แต่สีเป็นของทีม
-// สี trim ปล่อยไว้ตามชนิดหน่วย จะได้ยังแยกออกว่าเกราะหนักหรือกรีก
+// สี trim ปล่อยไว้ตามชนิดหน่วย จะได้ยังแยกออกว่าเป็นหน่วยไหน
 function teamTint(c, T){
   var lum = (c[0]*0.35 + c[1]*0.45 + c[2]*0.20) / 150;
   return [ Math.min(255, T[0]*lum), Math.min(255, T[1]*lum), Math.min(255, T[2]*lum) ];
@@ -1771,35 +2303,46 @@ var UNIT_COL = {
   heavy:    { plate:[92,112,150], trim:[196,168,92], visor:[30,32,42], base:[52,54,60] },
   infantry: { plate:[96,104,72],  trim:[120,128,92], visor:[34,34,30], base:[52,54,60] },
   hoplite:  { plate:[184,134,66], trim:[214,204,182], visor:[24,22,20], base:[52,54,60] },
-  enemy:    { plate:[132,52,54],  trim:[70,26,28],   visor:[240,180,90], base:[44,40,42] }
+  enemy:    { plate:[132,52,54],  trim:[70,26,28],   visor:[240,180,90], base:[44,40,42] },
+  archer:   { plate:[176,150,110], trim:[128,96,62], visor:[24,22,20], base:[52,54,60] },
+  peltast:  { plate:[150,112,62], trim:[184,134,66], visor:[24,22,20], base:[52,54,60] },
+  spartan:  { plate:[176,40,36], trim:[206,164,86], visor:[24,22,20], base:[52,54,60] },
+  cavalry:  { plate:[122,84,52], trim:[184,134,66], visor:[24,22,20], base:[52,54,60] },
+  sniper:   { plate:[90,104,62], trim:[70,82,48], visor:[30,32,30], base:[52,54,60] },
+  hmg:      { plate:[88,110,150], trim:[150,126,60], visor:[28,30,40], base:[52,54,60] },
+  medic:    { plate:[222,220,212], trim:[196,40,40], visor:[30,30,30], base:[52,54,60] },
+  mech:     { plate:[70,86,120], trim:[196,168,92], visor:[240,190,90], base:[44,46,52] }
 };
 var units = [];
 var RIGQ = SKRIG, POSE_CACHE = {};
-// Three ways a piece gets its geometry, cheapest first:
-//   never moved      -> one shared idle build per kit, cached for the whole table (what this page already did)
-//   moved, now still -> the build it stopped in, frozen on the piece, so a stance costs nothing to hold
-//   moving           -> rebuilt from the live pose every frame. 0.2 ms each (bt_walk.js), and MINI hands back its own
-//                       face pool, so the caller has to draw what it gets before asking for another piece.
-function kitOf(u){ return u.k === 'enemy' ? 'heavy' : u.k; }
-function liveFaces(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return MINI.build(kit, RIGQ.fk(P)); }
-function freeze(u){ return liveFaces(u).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; }); }
-function rigFaces(u){                    // the kit's geometry, already moved onto the table
-  if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u);
-  if (u.rest) return u.rest;
-  var kit = kitOf(u), key = kit + '|' + (u.pv||0);
-  var cached = POSE_CACHE[key];
+// Every piece is drawn as its real model -- the rig in its armour kit -- never as a stand-in block. What changes with
+// distance is only how many facets it gets: LODS[0] every facet, [1] about 60 %, [2] about half (small on screen, or
+// while the camera is being dragged), [3] a quarter for a piece only a dozen pixels tall. Geometry comes three ways, cheapest first:
+//   never moved      -> one shared idle stance per kit, built once per level and cached for the whole table
+//   moved, now still -> the stance it stopped in (its joint frames), built once per level and kept on the piece
+//   moving           -> rebuilt from the live pose every frame, at its level. MINI hands back its own face pool,
+//                       so the caller has to draw what it gets before asking for another piece.
+var LODS = [1, 0.65, 0.45, 0.3];
+function kitOf(u){ return u.k; }
+function copyFaces(fs){ return fs.map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; }); }
+function copyFrames(Wd){ var out = {}, n; for (n in Wd) out[n] = { p: Wd[n].p.slice(), q: Wd[n].q.slice() }; return out; }
+function liveFaces(u, L){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P);
+  return MINI.build(kit, RIGQ.fk(P), LODS[L||0], { travel: u.ctl.travel*(u.scale||1), v: u.ctl.v }); }
+function freeze(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return { Wd: copyFrames(RIGQ.fk(P)), f: [] }; }
+function rigFaces(u, L){                    // the kit's geometry, in the model's own frame
+  L = L || 0;
+  var kit = kitOf(u);
+  if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u, L);
+  if (u.rest) return u.rest.f[L] || (u.rest.f[L] = copyFaces(MINI.build(kit, u.rest.Wd, LODS[L])));
+  var key = kit + '|' + (u.pv||0), cached = POSE_CACHE[key];
   if (!cached){
     var P = RIGQ.idlePose((u.pv||0)*1.7);           // a standing pose, each model at a slightly different breath phase
     MINI.pose(kit, P);
-    var Wd = RIGQ.fk(P), n, out = {};
-    for (n in Wd) out[n] = { p: Wd[n].p, q: Wd[n].q };
-    cached = POSE_CACHE[key] = { Wd: out, faces: null };
-    cached.faces = MINI.build(kit, out).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; });
+    cached = POSE_CACHE[key] = { Wd: copyFrames(RIGQ.fk(P)), f: [] };
   }
-  return cached.faces;
+  return cached.f[L] || (cached.f[L] = copyFaces(MINI.build(kit, cached.Wd, LODS[L])));
 }
 // ---------- moving pieces ----------
-var LIVE_RIG = 6;   // live rigs built per frame; a walker past the budget still moves, it is just drawn as a pawn
 function unitGoTo(u, x, z){
   var cx = clamp(x, -table.w/2, table.w/2), cz = clamp(z, -table.d/2, table.d/2);
   u.gx = cx; u.gz = cz;                        // ปลายทางที่กติกาอนุมัติแล้ว เก็บไว้วางให้ตรงเป๊ะตอนถึง
@@ -1817,57 +2360,48 @@ function stepUnits(dt){
   }
   return any;
 }
-function drawRig(u, S){
-  var faces = rigFaces(u), pal = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy;
-  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, TC = (u.side != null && G.on) ? TEAM(u.side).rgb : null;
-  for (i=0;i<faces.length;i++){
-    var f = faces[i], pts = [], col = pal[f.k] || pal.plate;
-    if (TC) col = teamTint(col, TC);
+// the kit's colours for this piece, already dyed in its team's colour -- worked out once, not once per facet per frame.
+// Skin, horse and wood keep their own colour, the way a painted miniature is: the team shows on armour, cloth and shields.
+var NATURAL = { flesh:1, coat:1, mane:1, hoof:1, muzzle:1, wood:1, string:1 };
+function rigPal(u){
+  var TC = (u.side != null && G.on) ? TEAM(u.side).rgb : null, key = (TC ? u.side : 'x') + '|' + u.k;
+  if (u._pk === key) return u._pal;
+  var src = MINI.SOLID[u.k] || MINI.SOLID.heavy, out = {}, n;
+  for (n in src){ var col = src[n];
+    if (TC){ if (!NATURAL[n]) col = teamTint(col, TC); }
     else if (u.k === 'enemy') col = [col[0]*0.55 + 120, col[1]*0.45, col[2]*0.45];
-    for (m=0;m<f.p.length;m++){ var q = f.p[m];
-      pts.push([ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]); }
-    face(pts, col, { bias:-0.15 });
+    out[n] = col; }
+  u._pk = key; u._pal = out; return out;
+}
+var RIG_OPT = { bias:-0.15 }, RIG_OPT_FAR = { bias:-0.15, minA:0.35 };
+function drawRig(u, S){
+  var faces = rigFaces(u, u.lod), pal = rigPal(u), opt = u.lod >= 2 ? RIG_OPT_FAR : RIG_OPT;
+  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m;
+  for (i=0;i<faces.length;i++){
+    var f = faces[i], fp = f.p, pts = new Array(fp.length), col = pal[f.k] || pal.plate;
+    for (m=0;m<fp.length;m++){ var q = fp[m];
+      pts[m] = [ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]; }
+    face(pts, col, opt);
   }
 }
-// Which pieces are worth the real model this frame: biggest on screen first, and a walking piece ahead of a standing one
-// of the same size, because a piece drawn as a pawn cannot show its gait. Allocation only -- the faces are depth-sorted
-// afterwards, so this never changes what ends up in front of what.
-function planRigs(){
-  var i, u, list = [];
-  for (i=0;i<units.length;i++){ u = units[i]; u.rig = false;
+// How much detail each piece gets this frame, from how tall it stands on screen. Pieces off screen are skipped whole.
+function planLod(){
+  var i, u;
+  for (i=0;i<units.length;i++){ u = units[i];
     var y = heightAt(u.x, u.z), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
     u.px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
-    if (u.px > 32) list.push(u); }
-  if (dragging) return;                                    // spinning the camera: pawns only, as before
-  list.sort(function(a,b){ return (b.px + (b.mv?400:0)) - (a.px + (a.mv?400:0)); });
-  var grant = 0, live = 0;
-  for (i=0;i<list.length && grant<rigBudget;i++){ u = list[i];
-    if (u.mv){ if (live >= LIVE_RIG) continue; live++; }    // live poses cost geometry every frame; cap them
-    u.rig = true; grant++; }
+    u.onScr = pa[2] > 0.4 && pa[0] > -120 && pa[0] < W + 120 && pa[1] > -40 && pa[1] < H + 200;
+    u.lod = u.px > 70 ? (dragging ? 2 : 0) : u.px > 36 ? (dragging ? 2 : 1) : u.px > 24 ? 2 : 3;
+  }
 }
 function drawUnit(u){
-  var C = unitCol(u), y = heightAt(u.x, u.z), s = 1.0, rot = u.rot || 0;
+  if (!u.onScr) return;
+  var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0;
   shadowAt(u.x, u.z, 0.8, 0.34);
-  if (u.rig){                                       // close enough, and in budget, to be worth the real model
-    prism(u.x, y, u.z, 0.62, 0.1, 12, C.base, rot, 1); drawRig(u, 1.0);
-    if (u.sel) ringAt(u.x, u.z, 0.95, '#E0B26A');
-    return;
-  }
-  prism(u.x, y, u.z, 0.62, 0.16, 12, C.base, rot, 1);              // base disc
-  var b = y + 0.16;
-  box(u.x, b + 0.38, u.z, 0.30, 0.38, 0.22, C.plate, rot);         // legs block
-  box(u.x, b + 0.95, u.z, 0.40, 0.30, 0.26, C.plate, rot);         // torso
-  box(u.x, b + 1.2, u.z, 0.16, 0.12, 0.30, C.trim, rot);           // chest trim
-  var sx = Math.cos(rot), sz = -Math.sin(rot);                      // shoulder axis
-  box(u.x + sx*0.46, b + 1.16, u.z + sz*0.46, 0.18, 0.20, 0.24, C.plate, rot);   // pauldrons
-  box(u.x - sx*0.46, b + 1.16, u.z - sz*0.46, 0.18, 0.20, 0.24, C.plate, rot);
-  box(u.x, b + 1.46, u.z, 0.19, 0.18, 0.21, C.plate, rot);          // helmet
-  var fx = Math.sin(rot), fz = Math.cos(rot);                       // facing
-  box(u.x + fx*0.19, b + 1.44, u.z + fz*0.19, 0.13, 0.07, 0.04, C.visor, rot);   // visor slit
-  if (u.k === 'hoplite'){ box(u.x, b + 1.72, u.z, 0.05, 0.16, 0.22, C.trim, rot);          // crest
-    box(u.x - sx*0.52, b + 1.0, u.z - sz*0.52, 0.06, 0.34, 0.34, C.trim, rot); }           // shield
-  else { box(u.x + sx*0.52 + fx*0.18, b + 0.92, u.z + sz*0.52 + fz*0.18, 0.09, 0.09, 0.42, C.visor, rot); }   // weapon
-  if (u.sel){ ringAt(u.x, u.z, 0.95, '#E0B26A'); }
+  var br = u.k === 'mech' ? 1.3 : u.k === 'cavalry' ? 0.95 : 0.62;
+  prism(u.x, y, u.z, br, 0.1, u.lod ? 8 : 12, C.base, rot, 1);     // base disc
+  drawRig(u, 1.0);
+  if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
 }
 function ringAt(x, z, r, col, dash){
   var pts = [], n = 20, i; for (i=0;i<=n;i++){ var a = i*TAU/n, px = x+Math.cos(a)*r, pz = z+Math.sin(a)*r, p = proj([px, heightAt(px,pz)+0.05, pz]); if (p[2] < 0.4) return; pts.push(p); }
@@ -1882,28 +2416,38 @@ function shadowAt(x, z, r, k){    // a soft dark patch on the ground so pieces s
 }
 
 // ---------- frame ----------
-var dirty = true, dragging = false, rigBudget = 10, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
+var dirty = true, dragging = false, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
 function drawScene(){
   setupCam(); FACES = []; OVER = [];
   var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-  var step = dragging ? 2 : 1; rigBudget = dragging ? 0 : 7;
-  planRigs();
+  var step = dragging ? 2 : 1;
+  planLod();
   drawGround(step); drawRails();
   var i, detail = dragging ? 46 : 26;
   // a dense forest on a big table is hundreds of pieces: one only a few pixels tall skips its shadow and trunk
   for (i=0;i<PROPS.length;i++){ var o = PROPS[i], ps = propScale(o);
     if (ps < detail){ var tiny = ps < 10; if (!tiny) shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o, tiny); } else drawProp(o); }
   for (i=0;i<units.length;i++) drawUnit(units[i]);
+  for (i=0;i<FALLEN.length;i++) drawUnit(FALLEN[i]);   // ล้มแล้ว แต่ลูกเต๋ายังไม่หยุด
   for (i=0;i<units.length;i++){ var mu = units[i];      // where a piece still on its way is heading
     if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
   if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
   if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
   gameOverlay();
   FACES.sort(function(a,b){ return b.d - a.d; });
-  for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp;
-    ctx.beginPath(); ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
-    if (f.alpha != null){ ctx.globalAlpha = f.alpha; ctx.fillStyle = f.fill; ctx.fill(); ctx.globalAlpha = 1; } else { ctx.fillStyle = f.fill; ctx.fill(); } if (f.line){ ctx.strokeStyle = f.line; ctx.lineWidth = f.lw; ctx.stroke(); } }
+  // Neighbours in depth order that share a colour go into one path and one fill: the fill is most of a frame's cost,
+  // and a figure's facets or a patch of ground mostly repeat the same few shades. Same colour, so their order among
+  // themselves cannot show. Faces with a line or their own alpha still go one at a time.
+  var run = null;
+  for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp, solo = f.alpha != null || !!f.line;
+    if (run !== null && (solo || f.fill !== run)){ ctx.fillStyle = run; ctx.fill(); run = null; }
+    if (run === null) ctx.beginPath();
+    ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
+    if (!solo){ run = f.fill; continue; }
+    if (f.alpha != null){ ctx.globalAlpha = f.alpha; ctx.fillStyle = f.fill; ctx.fill(); ctx.globalAlpha = 1; } else { ctx.fillStyle = f.fill; ctx.fill(); }
+    if (f.line){ ctx.strokeStyle = f.line; ctx.lineWidth = f.lw; ctx.stroke(); } }
+  if (run !== null){ ctx.fillStyle = run; ctx.fill(); }
   for (i=0;i<OVER.length;i++) OVER[i]();
   hud();
 }
@@ -1923,19 +2467,36 @@ function rulerLine(A, B, moving){
 }
 function hud(){
   var n = {}, i; for (i=0;i<units.length;i++) n[units[i].k] = (n[units[i].k]||0)+1;
-  var parts = []; if (n.heavy) parts.push('เกราะหนัก ' + n.heavy); if (n.infantry) parts.push('ราบ ' + n.infantry); if (n.hoplite) parts.push('กรีก ' + n.hoplite); if (n.enemy) parts.push('ศัตรู ' + n.enemy);
+  var parts = []; TYPES.forEach(function(T){ if (n[T.k]) parts.push(T.nm + ' ' + n[T.k]); });
   var mv = 0; for (i=0;i<units.length;i++) if (units[i].mv) mv++;
   $('btHud').innerHTML = TH().name + ' · ' + TR().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '') + (mv ? ' · กำลังเดิน <i>' + mv + '</i>' : '');
 }
 // ═══════════════════ เกม ═══════════════════
 // กติกาสั้นที่สุดที่ยังเล่นจบได้จริง: ผลัดกันเล่น หนึ่งเทิร์นสั่งได้ทุกตัว ตัวหนึ่งเดินหนึ่งครั้งยิงหนึ่งครั้ง
 // ทอย d6 ทั้งหมด (เข้า → เจาะ → เซฟ) แบบเดียวกับถาดลูกเต๋าในแอพ
+// ลำดับในตารางนี้คือลำดับในกองทัพที่ส่งข้ามเครื่อง — สี่ตัวแรกต้องอยู่ที่เดิม ตัวใหม่ต่อท้ายเสมอ
+// fac = อยู่กองทัพไหน · r = รัศมีฐาน (นิ้ว) ตัวใหญ่ยืนเบียดคนอื่นไม่ได้ · heal = รักษาเพื่อนได้ในระยะนี้แทนการยิง
 var TYPES = [
-  { k:'heavy',    nm:'เกราะหนัก', pts:26, mv:6, rng:24, sh:2, bs:3, ap:2, sv:3, w:2, d:'ช้า ทน ยิงไกลที่สุด' },
-  { k:'infantry', nm:'ทหารราบ',  pts:11, mv:6, rng:18, sh:1, bs:4, ap:0, sv:5, w:1, d:'ถูก เอาไว้คุมพื้นที่' },
-  { k:'hoplite',  nm:'กรีก',     pts:16, mv:8, rng:0,  sh:3, bs:3, ap:1, sv:4, w:1, d:'ไม่มีปืน ต้องวิ่งเข้าประชิด' },
-  { k:'enemy',    nm:'จู่โจม',   pts:14, mv:7, rng:12, sh:2, bs:4, ap:1, sv:6, w:1, d:'เร็ว ยิงใกล้ เกราะบาง' }
+  { k:'heavy',    fac:'mod', nm:'เกราะหนัก',   pts:26, mv:6,  rng:24, sh:2, bs:3, ap:2, sv:3, w:2, d:'ช้า ทน ยิงไกล' },
+  { k:'infantry', fac:'mod', nm:'ทหารราบ',    pts:11, mv:6,  rng:18, sh:1, bs:4, ap:0, sv:5, w:1, d:'ถูก เอาไว้คุมพื้นที่' },
+  { k:'hoplite',  fac:'gr',  nm:'โฮพไลต์',    pts:16, mv:8,  rng:0,  sh:3, bs:3, ap:1, sv:4, w:1, d:'หอกกับโล่ ต้องวิ่งเข้าประชิด' },
+  { k:'enemy',    fac:'mod', nm:'จู่โจม',      pts:14, mv:7,  rng:12, sh:2, bs:4, ap:1, sv:6, w:1, d:'เร็ว ยิงใกล้ เกราะบาง' },
+  { k:'archer',   fac:'gr',  nm:'นักธนู',      pts:10, mv:6,  rng:22, sh:1, bs:4, ap:0, sv:6, w:1, d:'ยิงไกล ตัวถูก เกราะบาง' },
+  { k:'peltast',  fac:'gr',  nm:'ทหารหอกซัด',  pts:12, mv:9,  rng:8,  sh:2, bs:4, ap:1, sv:6, w:1, d:'วิ่งเร็ว ขว้างหอกระยะใกล้' },
+  { k:'spartan',  fac:'gr',  nm:'สปาร์ตัน',    pts:24, mv:7,  rng:0,  sh:4, bs:3, ap:1, sv:3, w:2, d:'แพง ตีแรง ทนมาก' },
+  { k:'cavalry',  fac:'gr',  nm:'ทหารม้า',     pts:30, mv:14, rng:0,  sh:3, bs:3, ap:2, sv:4, w:2, r:1.1, d:'เร็วมาก พุ่งชนแรง' },
+  { k:'sniper',   fac:'mod', nm:'พลซุ่มยิง',   pts:18, mv:5,  rng:36, sh:1, bs:2, ap:3, sv:6, w:1, d:'ยิงไกลที่สุด แม่น เจาะเกราะ' },
+  { k:'hmg',      fac:'mod', nm:'ปืนกลหนัก',   pts:24, mv:4,  rng:24, sh:5, bs:4, ap:1, sv:4, w:2, d:'ยิงทีละห้านัด เดินช้า' },
+  { k:'medic',    fac:'mod', nm:'หน่วยแพทย์',  pts:14, mv:6,  rng:12, sh:1, bs:5, ap:0, sv:5, w:1, heal:3, d:'รักษาเพื่อนที่เจ็บในระยะ 3" แทนการยิง' },
+  { k:'mech',     fac:'mod', nm:'หุ่นรบ',       pts:60, mv:6,  rng:24, sh:4, bs:3, ap:2, sv:2, w:6, r:1.5, d:'ตัวใหญ่ ทนมาก ยิงหนัก' }
 ];
+// สองกองทัพ แต่ละคนเลือกของตัวเอง สู้ข้ามกองได้
+var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า — ต้องเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ หุ่นรบ — ยิงจากระยะไกล' } ];
+function emptyList(){ var out = [], i; for (i=0;i<TYPES.length;i++) out.push(0); return out; }
+function fitList(L){ var out = emptyList(), i; if (L) for (i=0;i<out.length;i++) out[i] = L[i] | 0; return out; }
+// กองทัพของรายชื่อนี้ ดูจากหน่วยที่มี · ยังว่างอยู่ก็ใช้ที่เลือกไว้ (ค่าตั้งต้น กองทหาร)
+function facOf(L, dflt){ if (L) for (var i=0;i<TYPES.length;i++) if ((L[i]|0) > 0) return TYPES[i].fac; return dflt || 'mod'; }
+function radOfType(T){ return (T && T.r) || 0.8; }
 function TY(k){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === k) return TYPES[i]; return TYPES[0]; }
 var MELEE = 2;                       // นิ้ว — ใกล้กว่านี้คือประชิด ตีได้แม้ไม่มีปืน
 var MAX_ROUND = 5;
@@ -1965,7 +2526,7 @@ function watching(){ return G.on && G.mode === 'spectator'; }
 function mkPlayers(){
   var out = [], t, i, k = 0;
   for (t=0;t<G.teams;t++) for (i=0;i<G.perTeam;i++){
-    out.push({ id:k, team:t, nm:'ผู้เล่น ' + (k+1), bot:false, list:[0,0,0,0], dep:null, done:false });
+    out.push({ id:k, team:t, nm:'ผู้เล่น ' + (k+1), bot:false, list:emptyList(), fac:'mod', dep:null, done:false });
     k++;
   }
   if (G.mode === 'pve') for (i=0;i<out.length;i++) if (out[i].team !== 0) out[i].bot = true;
@@ -2011,21 +2572,25 @@ function seededRoll(n){
   var x = Math.sin((SEED * 9301 + n * 49297 + 233) * 0.0001) * 233280;
   return x - Math.floor(x);
 }
+// บอทแต่ละตัวสุ่มกองทัพของตัวเอง (ผูกกับ SEED ทุกเครื่องได้เหมือนกัน) · คนจริงใช้กองทัพที่เลือกไว้
+var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry'], mod:['heavy','infantry','enemy','sniper','hmg','medic','mech'] };
 function autoList(s){
-  var out = [0,0,0,0], left = shareOf(), i, k, pass;
+  var out = emptyList(), left = shareOf(), k, pass;
   var P = G.players[s], tick = 0;
   // บอทต้องสุ่มเหมือนกันทุกเครื่อง คนจริงสุ่มยังไงก็ได้ เพราะกองของเขาถูกส่งขึ้นห้องอยู่แล้ว
   var rnd = (P && P.bot) ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
+  var fac = P && P.bot ? (rnd() < 0.5 ? 'gr' : 'mod') : (P && P.fac) || 'mod';
   var MAX_MODELS = Math.max(3, Math.ceil(12 / Math.max(1, G.perTeam)));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
-  var order = [0, 2, 3, 1];                      // หนัก · กรีก · จู่โจม · ราบ
-  function total(){ var t = 0, j; for (j=0;j<4;j++) t += out[j]; return t; }
+  var order = CORE[fac].map(function(key){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === key) return i; return 0; });
+  var cheap = order.reduce(function(a, i){ return TYPES[i].pts < TYPES[a].pts ? i : a; }, order[0]);
+  function total(){ var t = 0, j; for (j=0;j<out.length;j++) t += out[j]; return t; }
   for (pass=0; pass<3; pass++)
-    for (k=0;k<order.length;k++){ i = order[k];
-      if (TYPES[i].pts <= left && total() < MAX_MODELS && (pass === 0 || rnd() < 0.55)){
+    for (k=0;k<order.length;k++){ var i = order[k];
+      if (TYPES[i].pts <= left && total() < MAX_MODELS && (pass === 0 ? TYPES[i].pts <= left*0.5 || k < 2 : rnd() < 0.45)){
         out[i]++; left -= TYPES[i].pts; } }
-  while (TYPES[1].pts <= left && total() < MAX_MODELS){ out[1]++; left -= TYPES[1].pts; }
-  if (!total()) out[1] = 1;                      // งบเล็กมากก็ยังต้องมีสักตัว
-  if (G.players[s]) G.players[s].list = out;
+  while (TYPES[cheap].pts <= left && total() < MAX_MODELS){ out[cheap]++; left -= TYPES[cheap].pts; }
+  if (!total()) out[cheap] = 1;                  // งบเล็กมากก็ยังต้องมีสักตัว
+  if (P){ P.list = out; P.fac = fac; }
 }
 // กองของแต่ละคนกระจายรอบ "จุดลงสนาม" ที่เจ้าตัวเลือกเอง วนออกทีละวง เลี่ยงตึกด้วย freeSpot
 var DEPLOG = null;
@@ -2044,9 +2609,9 @@ function deploy(){
     var c = P.dep, face = Math.atan2(-c[0], -c[1]);       // หันหน้าเข้ากลางโต๊ะ
     for (i=0;i<row.length;i++){
       var ring = 1 + Math.floor(i/6), a = (i % 6) * TAU/6 + ring*0.7;
-      var sp = freeSpot(c[0] + Math.cos(a)*ring*2.2, c[1] + Math.sin(a)*ring*2.2, null);
+      var sp = freeSpot(c[0] + Math.cos(a)*ring*2.2, c[1] + Math.sin(a)*ring*2.2, null, null, null, radOfType(row[i]));
       units.push({ id:P.id + ':' + i, k:row[i].k, t:row[i].k, side:P.team, pl:P.id, hp:row[i].w,
-        x:sp[0], z:sp[1], rot:face, moved:false, shot:false, sel:false });
+        x:sp[0], z:sp[1], rot:face, moved:false, shot:false, sel:false, scale:row[i].k === 'mech' ? MINI.MECH_S : 1 });
     }
   }
 }
@@ -2140,21 +2705,23 @@ function blockAt(x, z){
   for (var i=0;i<PROPS.length;i++) if (propBlocks(PROPS[i], x, z)) return true;
   return false;
 }
-function crowded(x, z, skip){        // ฐานกว้าง 1.2 นิ้ว ยืนทับกันไม่ได้ — ตัวที่กำลังเดิน นับที่ปลายทางของมัน
+// ฐานยืนทับกันไม่ได้ — ตัวที่กำลังเดิน นับที่ปลายทางของมัน · ตัวทั่วไปรัศมี 0.8 นิ้ว ม้ากับหุ่นรบฐานใหญ่กว่า
+function crowded(x, z, skip, r){
+  var me = r != null ? r : skip ? radOfType(TY(skip.t)) : 0.8;
   for (var i=0;i<units.length;i++){ var q = units[i];
     if (q === skip) continue;
-    if (Math.hypot(gx(q) - x, gz(q) - z) < 1.6) return true; }
+    if (Math.hypot(gx(q) - x, gz(q) - z) < me + radOfType(TY(q.t))) return true; }
   return false;
 }
 // ที่ว่างที่ใกล้ที่สุด วนออกทีละวง · from/maxD คือเพดานระยะเดิน
 // ถ้าไม่ใส่เพดาน การเลี่ยงกำแพงจะกลายเป็นเดินฟรีเกินระยะที่หน่วยนั้นเดินได้
 // ไม่มีเพดาน (ตอนลงสนาม) ต้องได้ที่ว่างเสมอ: เดิมหาไม่เจอในวง 12 ม. ก็คืนจุดเดิม ซึ่งบนโต๊ะตึกแน่นคือกลางตึก
-function freeSpot(x, z, skip, from, maxD){
+function freeSpot(x, z, skip, from, maxD, rad){
   var lw = table.w/2 - 1.2, ld = table.d/2 - 1.2;
   function ok(nx, nz, crowd){
     if (Math.abs(nx) > lw || Math.abs(nz) > ld) return false;
     if (from && Math.hypot(nx - from[0], nz - from[1]) > maxD + 0.001) return false;
-    return !blockAt(nx, nz) && !(crowd && crowded(nx, nz, skip));
+    return !blockAt(nx, nz) && !(crowd && crowded(nx, nz, skip, rad));
   }
   if (ok(x, z, true)) return [x, z];
   var r, a, n, an, nx, nz;
@@ -2197,8 +2764,7 @@ function tickDice(){
 }
 
 // ---------- ยิง / ตี ----------
-// ทอยล่วงหน้าเป็นชุด เพื่อให้ส่งข้ามเครื่องได้ — คนที่ยิงทอย คนอื่นเอาเลขเดิมไปใช้
-// ไม่ใช่ต่างคนต่างทอยแล้วได้คนละผล
+// ทอยครบทั้งสามจังหวะในทีเดียว: ใช้กับตะขอเทสต์ (BT.shootAt) เท่านั้น เล่นจริงทอยทีละจังหวะในถาด (ถาดลูกเต๋า ข้างล่าง)
 function rollFor(u, tgt){
   var A = TY(u.t), d = dist2(u, tgt), melee = d <= MELEE;
   var shots = melee ? A.sh*2 : A.sh, out = { hit:[], wound:[], save:[] }, k;
@@ -2207,35 +2773,22 @@ function rollFor(u, tgt){
   for (k=0;k<shots;k++) out.save.push(d6());
   return out;
 }
-function resolveShot(u, tgt, R){
-  var A = TY(u.t), D = TY(tgt.t), d = dist2(u, tgt), melee = d <= MELEE;
-  var shots = melee ? A.sh*2 : A.sh, need = melee ? Math.max(2, A.bs-1) : A.bs;
-  R = R || rollFor(u, tgt);
-  var rolls = [], hits = 0, k;
-  for (k=0;k<shots;k++){ var r = R.hit[k] || d6(); rolls.push(r); if (r >= need) hits++; }
-  var wounds = 0; for (k=0;k<hits;k++) if ((R.wound[k] || d6()) >= 4) wounds++;
-  var sv = D.sv + A.ap, saved = 0;
-  for (k=0;k<wounds;k++) if (sv <= 6 && (R.save[k] || d6()) >= sv) saved++;
-  var dmg = wounds - saved;
-  tgt.hp -= dmg;
-  var dead = tgt.hp <= 0;
-  if (dead){ var ix = units.indexOf(tgt); if (ix >= 0) units.splice(ix, 1); }
-  u.shot = true;                   // ยิงแล้วยังเดินต่อได้ ตัวจะจบตาเมื่อทำครบทั้งเดินและยิง
-  var head = (melee ? 'ตี' : 'ยิง') + ' ' + A.nm + ' → ' + D.nm + ' ที่ ' + d.toFixed(1) + '"';
-  popDice('<b>' + rolls.join(' ') + '</b><br>' + head + '<br>เข้า ' + hits + ' · เจาะ ' + wounds + ' · เซฟ ' + saved +
-          '<br>' + (dead ? '<b>ล้ม!</b>' : 'เสียแผล ' + dmg));
-  // หลายทีมหรือฟรีฟาย บอกด้วยว่าโดนทีมไหน ไม่งั้นอ่านบันทึกแล้วไม่รู้ว่าใครยิงใคร
-  if (G.teams > 2 || G.freeFire) head = head.replace(' → ' + D.nm, ' → ' + D.nm + ' (' + TEAM(tgt.side).nm + ')');
-  say(TEAM(u.side).nm + ' ' + head + ' — เข้า ' + hits + '/' + shots + ' · เจาะ ' + wounds + ' · เซฟได้ ' + saved +
-      (dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
-  dirty = true;
-  checkOver();
-  return dmg;
+// ---------- รักษา (หน่วยแพทย์) ----------
+// แทนการยิงหนึ่งครั้ง: แตะเพื่อนที่เจ็บ (แผลไม่เต็ม) ในระยะ 3 นิ้ว ทอย d6 ได้ 3 ขึ้นไปคืนแผลให้ 1
+var HEAL_ON = 3;
+function canHeal(u, t){ var A = TY(u.t); return !!A.heal && u !== t && t.side === u.side && t.hp < TY(t.t).w && dist2(u, t) <= A.heal + 0.001; }
+function resolveHeal(u, tgt, roll){
+  var A = TY(u.t), D = TY(tgt.t), r = roll || d6(), ok = r >= HEAL_ON;
+  u.shot = true;
+  if (ok) tgt.hp = Math.min(D.w, tgt.hp + 1);
+  say(TEAM(u.side).nm + ' ' + A.nm + ' รักษา ' + D.nm + ' — ทอยได้ ' + r + (ok ? ' · แผลหาย 1' : ' · ไม่สำเร็จ'), ok ? 'hit' : '');
+  dirty = true; return ok;
 }
 function finish(w, why){          // w = ทีมที่ชนะ หรือ -1 ถ้าเสมอ
   G.over = true; G.sel = null; G.timeLeft = 0;
+  AIM = null; PEND.length = 0;     // การโจมตีอื่นที่ยังทอยไม่จบ ไม่มีผลแล้ว ถาดเล่นลูกที่ทอยไปแล้วให้จบเท่านั้น
   say(w < 0 ? '<b>' + why + 'เสมอ</b>' : '<b>' + why + TEAM(w).nm + ' ชนะ</b>', 'kill');
-  popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
+  winPop(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
   paintPlay(); dirty = true;
 }
 function checkOver(){             // เหลือทีมเดียวที่ยังมีตัวอยู่ = จบ
@@ -2252,11 +2805,286 @@ function endRoundCheck(){         // ครบรอบแล้วยังไ�
   finish(best.length === 1 ? best[0] : -1, 'ครบ ' + MAX_ROUND + ' รอบ — ');
 }
 
+// ═══════════════════ ถาดลูกเต๋า — ทอยกันจริงเหมือนบนโต๊ะ ═══════════════════
+// การโจมตีหนึ่งครั้งมีสามจังหวะ แต่ละจังหวะทอยกันจริง ลูกเต๋ากลิ้งในถาดให้ทุกเครื่องเห็นเหมือนกัน
+//   เข้าเป้า (คนยิงทอย) → เจาะเกราะ 4+ (คนยิงทอย) → เซฟ (ฝั่งที่โดนยิงทอยเอง)
+// เลขทุกลูกทอยที่เครื่องของคนทอยแล้วส่งขึ้นห้อง เครื่องอื่นเอาเลขนั้นไปใช้ ลูกเต๋าหมุนตกด้วย seed เดียวกัน
+// บอททอยเอง · คนไม่กดใน 10 วิ เครื่องทอยให้ · เปิด "ออโต้" ไว้ เครื่องนี้ทอยของเราให้ทันที
+var ROLL_WAIT = 10, OWNER_WAIT = 25, TRAY_RATE = 1.35, BOT_PAUSE = 0.7, HOLD = 0.9, LINGER = 3;
+var AUTO = (function(){ try { return localStorage.getItem('bt.autoDice') === '1'; } catch (e) { return false; } })();
+var PEND = [];            // การโจมตีที่ทอยเข้าเป้าไปแล้ว ยังไม่จบ เรียงตามลำดับ
+var AIM = null;           // เครื่องนี้เล็งไว้แล้วแต่ยังไม่ได้ทอย { u, t, kind:'atk'|'heal' }
+var FALLEN = [];          // ตัวที่เพิ่งล้ม ยังวาดไว้จนลูกเต๋าลูกสุดท้ายหยุด
+var WAIT_T = 0, WAIT_KEY = '', WIN_POP = '';
+function winPop(txt){ if (trayBusy()) WIN_POP = txt; else popDice(txt); }
+
+function atkMath(u, tgt){
+  var A = TY(u.t), D = TY(tgt.t), d = dist2(u, tgt), melee = d <= MELEE;
+  return { melee:melee, d:d, shots: melee ? A.sh*2 : A.sh, need: melee ? Math.max(2, A.bs-1) : A.bs, sv: D.sv + A.ap };
+}
+function pendOf(uid){ for (var i=0;i<PEND.length;i++) if (PEND[i].u === uid) return PEND[i]; return null; }
+function count(arr, need){ var n = 0; for (var i=0;i<arr.length;i++) if (arr[i] >= need) n++; return n; }
+function rollN(n){ var out = []; for (var i=0;i<n;i++) out.push(d6()); return out; }
+// ยิงเป้านี้ได้ไหม: '' = ได้ · ไม่ได้ก็ได้ข้อความสั้น ๆ ไว้เด้งบอก
+function shotWhyNot(u, tgt){
+  var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
+  if (!canTarget(u, tgt)) return 'ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>';
+  if (d > reach + 0.001) return 'ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"');
+  return '';
+}
+function healWhyNot(u, tgt){
+  if (canHeal(u, tgt)) return '';
+  return tgt.hp >= TY(tgt.t).w ? 'ตัวนี้ไม่ได้เจ็บ' : 'ไกลเกินไป<br>รักษาได้ในระยะ ' + TY(u.t).heal + '"';
+}
+// แตะเป้าแล้วยังไม่ทอย: เล็งไว้ก่อน ลูกเต๋าออกเมื่อกดปุ่มในถาด (ครบเวลาหรือเปิดออโต้ไว้ เครื่องทอยให้)
+function aimAt(u, tgt, kind){
+  if (!u || !tgt) return false;
+  if (u.shot || pendOf(u.id)){ say(kind === 'heal' ? 'ตัวนี้ใช้การกระทำไปแล้วในเทิร์นนี้' : 'ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
+  var why = kind === 'heal' ? healWhyNot(u, tgt) : shotWhyNot(u, tgt);
+  if (why){ popDice(why); return false; }
+  AIM = { u:u.id, t:tgt.id, kind:kind }; WAIT_KEY = '';
+  paintPlay(); dirty = true; return true;
+}
+
+// ---- จังหวะของการโจมตี: ใช้เหมือนกันทุกเครื่อง ไม่ว่าเลขมาจากเครื่องนี้หรือจากห้อง ----
+function applyAtk(u, tgt, hitR){
+  if (!u || !tgt || u.shot || pendOf(u.id)) return null;
+  var M = atkMath(u, tgt), A = TY(u.t), D = TY(tgt.t);
+  u.shot = true;
+  if (AIM && AIM.u === u.id) AIM = null;
+  var P = { u:u.id, t:tgt.id, side:u.side, tside:tgt.side, att:u.pl, def:tgt.pl, anm:A.nm, dnm:D.nm, melee:M.melee, d:M.d,
+            shots:M.shots, need:M.need, sv:M.sv, hitR:(hitR || []).slice(0, M.shots), woundR:null, saveR:null,
+            hits:0, wounds:0, saved:0, stage:'wound', since:now() };
+  while (P.hitR.length < M.shots) P.hitR.push(d6());
+  P.hits = count(P.hitR, P.need);
+  PEND.push(P);
+  trayThrow(P, 'hit', P.hitR, P.need, '');
+  if (!P.hits) finishAtk(P);
+  paintPlay(); dirty = true; return P;
+}
+function applyWnd(P, woundR){
+  if (!P || P.stage !== 'wound') return;
+  P.woundR = (woundR || []).slice(0, P.hits); while (P.woundR.length < P.hits) P.woundR.push(d6());
+  P.wounds = count(P.woundR, 4);
+  trayThrow(P, 'wound', P.woundR, 4, 'เข้า ' + P.hits + '/' + P.shots);
+  if (!P.wounds || P.sv > 6){ finishAtk(P); return; }        // เกราะเจาะทะลุจนเซฟไม่ได้เลย ก็ไม่ต้องทอยเซฟ
+  P.stage = 'save'; P.since = now(); paintPlay();
+}
+function applySav(P, saveR){
+  if (!P || P.stage !== 'save') return;
+  P.saveR = (saveR || []).slice(0, P.wounds); while (P.saveR.length < P.wounds) P.saveR.push(d6());
+  P.saved = count(P.saveR, P.sv);
+  trayThrow(P, 'save', P.saveR, P.sv, 'เข้า ' + P.hits + '/' + P.shots + ' › เจาะ ' + P.wounds + '/' + P.hits);
+  finishAtk(P);
+}
+function finishAtk(P){
+  var ix = PEND.indexOf(P); if (ix >= 0) PEND.splice(ix, 1);
+  P.stage = 'done';
+  var u = unitById(P.u), tgt = unitById(P.t), dmg = tgt ? P.wounds - P.saved : 0, dead = false;
+  if (tgt){ tgt.hp -= dmg; dead = tgt.hp <= 0;
+    if (dead){ var k = units.indexOf(tgt); if (k >= 0) units.splice(k, 1); FALLEN.push(tgt); if (G.sel === tgt) selectUnit(null); } }
+  var head = (P.melee ? 'ตี' : 'ยิง') + ' ' + P.anm + ' → ' + P.dnm + ((G.teams > 2 || G.freeFire) ? ' (' + TEAM(P.tside).nm + ')' : '') + ' ที่ ' + P.d.toFixed(1) + '"';
+  say(TEAM(P.side).nm + ' ' + head + ' — เข้า ' + P.hits + '/' + P.shots + ' · เจาะ ' + P.wounds + ' · เซฟได้ ' + P.saved +
+      (!tgt ? ' · เป้าล้มไปก่อนแล้ว' : dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
+  P.result = !tgt ? 'เป้าล้มไปก่อนแล้ว' : dead ? 'ล้ม!' : dmg ? 'เสียแผล ' + dmg : !P.hits ? 'พลาดหมด' : !P.wounds ? 'ไม่เจาะเกราะ' : 'เซฟได้หมด';
+  var last = TRAY.q.length ? TRAY.q[TRAY.q.length-1] : TRAY.cur;        // ผลบอกตอนลูกเต๋าลูกสุดท้ายหยุด ไม่ใช่ก่อนหน้า
+  if (last && last.P === P) last.final = P.result;
+  if (u && units.indexOf(u) >= 0 && u.moved && u.shot && G.sel === u) selectUnit(null);
+  dirty = true; paintPlay();
+  checkOver();
+}
+// การโจมตีทั้งครั้งที่ทอยมาครบแล้ว (Claude ทอยที่เซิร์ฟเวอร์ · เครื่องรุ่นเก่า · ตะขอเทสต์) — เล่นเป็นสามจังหวะเหมือนกัน
+function applyWhole(u, tgt, R){
+  var P = applyAtk(u, tgt, R.hit || []); if (!P || P.stage === 'done') return P;
+  applyWnd(P, R.wound || []); if (P.stage === 'done') return P;
+  applySav(P, R.save || []); return P;
+}
+
+// ---- ใครทอยจังหวะไหน ----
+// จังหวะเข้าเป้ากับเจาะเกราะเป็นของเจ้าของตัวที่ยิง จังหวะเซฟเป็นของเจ้าของตัวที่โดนยิง
+function rollerOf(P){ return P.stage === 'save' ? P.def : P.att; }
+// เครื่องนี้ทอยให้ผู้เล่นคนนี้ไหม: คนที่นั่งเครื่องนี้ · บอทกับ Claude (ในห้องเจ้าของห้องทอยให้ เล่นคนเดียวเครื่องนี้ทอย)
+function iRollFor(pi, P){
+  var Q = G.players[pi]; if (!Q || Q.bot || Q.ai) return !NET.on || NET.owner;
+  if (!NET.on || Q.pid === NET.pid) return true;
+  return NET.owner && !!P && now() - P.since > OWNER_WAIT*1000;     // เพื่อนเงียบไปนานเกิน เจ้าของห้องทอยแทน
+}
+function isHumanHere(pi){ var Q = G.players[pi]; return !!Q && !Q.bot && !Q.ai && (!NET.on || Q.pid === NET.pid); }
+// อะไรที่เครื่องนี้ต้องทอยตอนนี้ — การโจมตีที่ค้างอยู่ก่อน แล้วค่อยเป้าที่เล็งไว้
+function myRoll(){
+  var i = 0;
+  while (i < PEND.length){ var P = PEND[i];
+    if (!unitById(P.t)){ finishAtk(P); continue; }        // เป้าล้มไปแล้วจากการโจมตีก่อนหน้า ไม่ต้องทอยต่อ
+    var pi = rollerOf(P);
+    if (iRollFor(pi, P)) return { P:P, human:isHumanHere(pi) };
+    i++; }
+  if (AIM){ var u = unitById(AIM.u), t = unitById(AIM.t);
+    if (!u || !t || u.shot || pendOf(u.id) || !humanTurn()) AIM = null;
+    else return { aim:AIM, u:u, t:t, human:true }; }
+  return null;
+}
+function doRoll(r){
+  if (!r) return;
+  WAIT_KEY = '';
+  if (r.aim){ var u = r.u, t = r.t, heal = r.aim.kind === 'heal', why = heal ? healWhyNot(u, t) : shotWhyNot(u, t);
+    AIM = null;
+    if (why){ popDice(why); paintPlay(); return; }
+    if (heal){ var hv = d6(); netSend({ a:'heal', u:u.id, t:t.id, roll:hv }); resolveHeal(u, t, hv); trayHeal(u, t, hv); }
+    else { var hit = rollN(atkMath(u, t).shots); netSend({ a:'atk', u:u.id, t:t.id, hit:hit }); applyAtk(u, t, hit); }
+    if (units.indexOf(u) >= 0 && u.moved && u.shot && G.sel === u) selectUnit(null); else paintPlay();
+    return; }
+  var P = r.P;
+  if (P.stage === 'wound'){ var w = rollN(P.hits); netSend({ a:'wnd', u:P.u, t:P.t, wound:w }); applyWnd(P, w); }
+  else if (P.stage === 'save'){ var s = rollN(P.wounds); netSend({ a:'sav', u:P.u, t:P.t, save:s }); applySav(P, s); }
+}
+// จบตา: จังหวะที่ค้างและเครื่องนี้มีสิทธิ์ทอย ทอยให้จบก่อน (force = ทอยให้ทุกคน ใช้ตอนเล่นคนเดียวกับตะขอเทสต์)
+function flushPend(force){
+  AIM = null;
+  var guard = 0;
+  while (PEND.length && guard++ < 200){
+    var P = PEND[0];
+    if (!unitById(P.t)){ finishAtk(P); continue; }
+    if (!(force || iRollFor(rollerOf(P), P))) break;
+    doRoll({ P:P });
+  }
+}
+
+// ---- ถาด: คิวของการทอยที่รอแสดง ลูกเต๋ากลิ้งตามจริงจากเลขที่ได้ ----
+var TRAY = { q:[], cur:null, t:0 };
+var STAGE_NM = { hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา' };
+function seedOf(str){ var h = 2166136261; for (var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
+function trayThrow(P, stage, dice, need, prev){
+  var base = P.u + '>' + P.t + '#' + G.round + ':' + stage, rolls = [], secs = 0, i;
+  for (i=0;i<dice.length;i++){ var R = DICE.roll(6, dice[i], seedOf(base + ':' + i)); rolls.push(R); secs = Math.max(secs, R.secs); }
+  TRAY.q.push({ P:P, stage:stage, dice:dice.slice(), need:need, rolls:rolls, secs:secs, prev:prev || '', final:'' });
+  dirty = true;
+}
+function trayHeal(u, t, v){
+  var P = { u:u.id, t:t.id, side:u.side, tside:t.side, anm:TY(u.t).nm, dnm:TY(t.t).nm, heal:true };
+  trayThrow(P, 'heal', [v], HEAL_ON, '');
+  TRAY.q[TRAY.q.length-1].final = v >= HEAL_ON ? 'แผลหาย 1' : 'ไม่สำเร็จ';
+}
+function traySettled(){ return !TRAY.q.length && (!TRAY.cur || TRAY.t >= TRAY.cur.secs); }
+// ยังมีลูกเต๋ากลิ้งอยู่ หรือเพิ่งหยุดยังไม่ทันได้อ่าน — บอทรอจนพ้นช่วงนี้ก่อนทำอย่างต่อไป
+function trayBusy(){ return TRAY.q.length > 0 || (!!TRAY.cur && TRAY.t < TRAY.cur.secs + HOLD); }
+function resetTray(){ PEND.length = 0; AIM = null; FALLEN.length = 0; TRAY.q.length = 0; TRAY.cur = null; TRAY.t = 0; WAIT_KEY = ''; WIN_POP = ''; }
+function trayTick(dt){
+  var sp = watching() ? SPEC.speed : 1;
+  // ลูกที่หยุดแล้วโชว์ให้อ่านสักครู่ แล้วการทอยถัดไปในคิวค่อยมาแทน
+  if (TRAY.q.length && !TRAY.hold && (!TRAY.cur || TRAY.t >= TRAY.cur.secs + 0.45)){ TRAY.cur = TRAY.q.shift(); TRAY.t = 0; }
+  var anim = !!TRAY.cur && TRAY.t < TRAY.cur.secs;
+  // ตามไม่ทัน (แอพถูกพับไว้ แล้วการโจมตีหลายครั้งมาพร้อมกัน): เร่งลูกที่ค้างคิว ไม่ให้คนต้องนั่งดูของเก่าทีละลูก
+  var catchup = 1 + Math.max(0, TRAY.q.length - 1)*0.8;
+  if (TRAY.cur && !TRAY.hold) TRAY.t += dt*sp*TRAY_RATE*catchup;
+  var busy = trayBusy() || PEND.length > 0 || !!AIM; if (busy !== TRAY.busy){ TRAY.busy = busy; dirty = true; }
+  if (FALLEN.length && !trayBusy()){ FALLEN.length = 0; dirty = true; }
+  if (WIN_POP && !trayBusy()){ popDice(WIN_POP); WIN_POP = ''; }
+  // ถาดนิ่งแล้ว: ถึงคิวใครทอย
+  // ผู้ชมกดหยุด: ลูกที่ลอยอยู่ตกให้จบ แต่ไม่ทอยจังหวะใหม่ (กด "ทีละจังหวะ" ถึงจะไปต่อ)
+  var r = (traySettled() && G.on && !G.over && !(watching() && SPEC.paused)) ? myRoll() : null, key = '';
+  if (r){ key = r.aim ? 'aim:' + r.u.id + '>' + r.t.id : r.P.u + ':' + r.P.stage;
+    if (key !== WAIT_KEY){ WAIT_KEY = key; WAIT_T = 0; }
+    var auto = !r.human || AUTO || watching();
+    WAIT_T += auto ? dt*sp : dt;
+    if (WAIT_T >= (auto ? BOT_PAUSE : ROLL_WAIT)){ doRoll(r); r = null; }
+  } else WAIT_KEY = '';
+  if (r && r.aim && TRAY.cur && !anim){ TRAY.cur = null; drawTray(); }
+  paintTray(r);
+  if (anim || (TRAY.cur && TRAY.cur.drawn !== TRAY.t >= TRAY.cur.secs)) drawTray();
+}
+function setHTML(el, s){ if (el && el._h !== s){ el._h = s; el.innerHTML = s; } }
+// หัวถาด ข้อความ ปุ่มทอย
+function paintTray(r){
+  var el = $('btTray'); if (!el) return;
+  var v = TRAY.cur, fresh = !!v && TRAY.t < v.secs + LINGER;
+  var show = G.on && (fresh || !!r || PEND.length > 0);
+  el.classList.toggle('hide', !show);
+  if (!show) return;
+  var head = '', st = '', side = 0, P = null;
+  if (r && r.aim){ var heal = r.aim.kind === 'heal', M = heal ? null : atkMath(r.u, r.t);
+    side = r.u.side; head = TY(r.u.t).nm + (heal ? ' รักษา ' : M.melee ? ' ตี ' : ' ยิง ') + TY(r.t.t).nm;
+    st = heal ? 'ทอย 1 ลูก · ได้ ' + HEAL_ON + '+ แผลหาย 1' : 'เข้าเป้า ' + M.shots + ' ลูก · ต้องได้ ' + M.need + '+'; }
+  else { P = v ? v.P : r ? r.P : PEND[0];
+    if (P){ side = P.side; head = P.anm + (P.heal ? ' รักษา ' : P.melee ? ' ตี ' : ' ยิง ') + P.dnm; }
+    if (v){ var settled = TRAY.t >= v.secs, n = count(v.dice, v.need);
+      st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ' + v.need + '+' +
+           (settled ? ' → <b>ได้ ' + n + '</b>' + (v.dice.length > 1 ? ' จาก ' + v.dice.length : '') + (v.final ? ' · <b>' + v.final + '</b>' : '') : ' · ' + v.dice.length + ' ลูก…'); } }
+  setHTML($('btTrayT'), head ? '<span class="dot" style="background:' + TEAM(side).ui + '"></span>' + head : 'ถาดลูกเต๋า');
+  // ปุ่มทอยขึ้นเฉพาะเครื่องของคนที่ต้องทอย · คนอื่นเห็นว่ารอใครอยู่
+  var btn = $('btRoll'), mine = !!r && r.human && !AUTO && !watching(), wait = '';
+  if (!r && PEND.length && traySettled()){ var W = PEND[0], Q = G.players[rollerOf(W)];
+    wait = 'รอ ' + (Q ? esc(Q.nm) : TEAM(W.stage === 'save' ? W.tside : W.side).nm) + ' ทอย' + (W.stage === 'save' ? 'เซฟ' : 'เจาะเกราะ') + '…'; }
+  setHTML($('btTraySt'), st + (wait ? (st ? '<br>' : '') + wait : ''));
+  btn.classList.toggle('hide', !mine);
+  if (mine){ var left = Math.max(0, Math.ceil(ROLL_WAIT - WAIT_T));
+    var what = r.aim ? (r.aim.kind === 'heal' ? 'รักษา' : 'เข้าเป้า') : r.P.stage === 'save' ? 'เซฟ' : 'เจาะเกราะ';
+    setHTML(btn, '🎲 ทอย<span class="cd">' + what + ' · ' + left + ' วิ</span>'); }
+  $('btAimX').classList.toggle('hide', !AIM);
+  $('btAuto').classList.toggle('on', AUTO);
+  $('btAuto').setAttribute('aria-pressed', AUTO ? 'true' : 'false');
+}
+// ลูกเต๋าในถาด: ลูกบาศก์มีจุดแต้ม มองเฉียงลงจากด้านหน้า ลูกที่ผ่านเกณฑ์ขอบทอง ลูกที่ไม่ผ่านจางลง
+var PIPS = { 1:[[.5,.5]], 2:[[.27,.27],[.73,.73]], 3:[[.27,.27],[.5,.5],[.73,.73]], 4:[[.27,.27],[.73,.27],[.27,.73],[.73,.73]],
+  5:[[.27,.27],[.73,.27],[.5,.5],[.27,.73],[.73,.73]], 6:[[.27,.24],[.27,.5],[.27,.76],[.73,.24],[.73,.5],[.73,.76]] };
+var TRAY_TILT = 1.08, TRAY_LIGHT = [-0.35, 0.8, 0.5];    // มองชันพอให้หน้าบน (หน้าที่นับแต้ม) เด่นกว่าด้านข้าง
+function drawTray(){
+  var cv = $('btTrayCv'), v = TRAY.cur; if (!cv) return;
+  var W2 = cv.clientWidth, H2 = cv.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (!W2 || !H2) return;
+  if (cv.width !== Math.round(W2*dpr) || cv.height !== Math.round(H2*dpr)){ cv.width = Math.round(W2*dpr); cv.height = Math.round(H2*dpr); }
+  var g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W2, H2);
+  if (!v || !v.dice.length) return;
+  v.drawn = TRAY.t >= v.secs;
+  var n = v.dice.length, cols = Math.min(n, Math.max(1, Math.floor(W2 / 30))), rows = Math.ceil(n / cols);
+  var cw = W2 / cols, ch = H2 / rows;
+  // ขนาดลูก: ลูกเดียวไม่ใหญ่เกินถาด หลายลูกได้ช่องละลูก · ลูกเต๋าเก็บการไถลของจริงไว้นิดหน่อย จะได้ไม่ดูตอกติดที่
+  var s = Math.min(cw*1.75, ch*1.45, 150), cp = Math.cos(TRAY_TILT), sn = Math.sin(TRAY_TILT);
+  var S = DICE.shapes()[6], faces = [], shadows = [], i;
+  for (i=0;i<n;i++){ var R = v.rolls[i]; if (!R) continue;
+    var fi = Math.min(R.frames.length - 1, Math.floor(TRAY.t*60)), fr = R.frames[fi], settled = fi >= R.frames.length - 1;
+    var col = i % cols, row = Math.floor(i / cols), cx = (col + 0.5)*cw, cy = (row + 0.56)*ch;
+    var ok = v.dice[i] >= v.need, dim = settled && !ok;
+    var ox = fr.p[0]*0.28, oy = Math.max(0, fr.p[1] - R.r*S.inr)*0.55, oz = fr.p[2]*0.2;
+    var proj2 = function(p){ return [cx + p[0]*s, cy - (p[1]*cp - p[2]*sn)*s, p[1]*sn + p[2]*cp]; };
+    var sh = proj2([ox, 0, oz]); shadows.push([sh[0], sh[1], R.r*s*0.62, 0.35/(1 + oy*6)]);
+    S.faces.forEach(function(f, fk){
+      var nn = DICE.qrot(fr.q, f.n);
+      if (nn[1]*sn + nn[2]*cp <= 0.02) return;                    // หันหลังให้กล้อง
+      var pts = f.v.map(function(vi){ var q = DICE.qrot(fr.q, S.verts[vi]);
+        return proj2([ox + q[0]*R.r, R.r*S.inr + oy + q[1]*R.r, oz + q[2]*R.r]); });
+      var z = 0; pts.forEach(function(p){ z += p[2]; });
+      var li = Math.max(0, nn[0]*TRAY_LIGHT[0] + nn[1]*TRAY_LIGHT[1] + nn[2]*TRAY_LIGHT[2]);
+      faces.push({ pts:pts, z:z/pts.length, li:li, val:R.labels[fk], ok:ok, dim:dim, settled:settled });
+    });
+  }
+  shadows.forEach(function(q){ g.fillStyle = 'rgba(0,0,0,' + q[3].toFixed(3) + ')';
+    g.beginPath(); g.ellipse(q[0], q[1], q[2]*1.15, q[2]*0.5, 0, 0, TAU); g.fill(); });
+  faces.sort(function(a, b){ return a.z - b.z; });
+  faces.forEach(function(f){
+    var k = 0.62 + 0.38*f.li, base = f.dim ? [196,191,182] : [238,233,221], p = f.pts;
+    g.globalAlpha = f.dim ? 0.6 : 1;
+    g.beginPath(); g.moveTo(p[0][0], p[0][1]); for (var q=1;q<p.length;q++) g.lineTo(p[q][0], p[q][1]); g.closePath();
+    g.fillStyle = 'rgb(' + (base[0]*k|0) + ',' + (base[1]*k|0) + ',' + (base[2]*k|0) + ')'; g.fill();
+    var gold = f.settled && f.ok;
+    g.strokeStyle = gold ? '#E0B26A' : 'rgba(20,20,24,0.75)'; g.lineWidth = gold ? 2 : 1; g.lineJoin = 'round'; g.stroke();
+    // จุดแต้ม: วางบนหน้าลูกเต๋าด้วยการสอดแทรกจากสี่มุม
+    var pp = PIPS[f.val] || [], A = p[0], B = p[1], C = p[2], D = p[3];
+    var side = Math.min(Math.hypot(B[0]-A[0], B[1]-A[1]), Math.hypot(D[0]-A[0], D[1]-A[1])), rr = Math.max(0.9, side*0.09);
+    if (side < 3) { g.globalAlpha = 1; return; }
+    g.fillStyle = f.val === 1 ? '#B8322C' : '#1C1C20';
+    pp.forEach(function(uv){ var a = uv[0], b = uv[1];
+      var x = A[0]*(1-a)*(1-b) + B[0]*a*(1-b) + C[0]*a*b + D[0]*(1-a)*b, y = A[1]*(1-a)*(1-b) + B[1]*a*(1-b) + C[1]*a*b + D[1]*(1-a)*b;
+      g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill(); });
+    g.globalAlpha = 1;
+  });
+}
+
 // ---------- ผลัดเทิร์น ----------
 // ทีมเดียวกันเล่นพร้อมกัน แต่ละคนกด "ฉันเสร็จแล้ว" ของตัวเอง ครบทีมแล้วจึงจบตา
 function playerDone(pi){
   var P = G.players[pi];
   if (!P || P.team !== G.turn || G.over || P.done) return;
+  if (isHumanHere(pi)) flushPend(!NET.on);
   P.done = true;
   if (G.sel && G.sel.pl === pi) selectUnit(null);
   if (allDone(G.turn)){ endTurn(); return; }
@@ -2277,6 +3105,7 @@ function clockTick(dt){
   if (G.timeLeft <= 0){ G.timeLeft = 0;
     if (NET.on && !NET.owner) return;     // หมดเวลาแล้วรอเจ้าของห้องสั่งจบ จะได้ไม่จบกันคนละจังหวะ
     say('หมดเวลา — จบตาของ ' + TEAM(G.turn).nm);
+    flushPend(!NET.on);
     if (NET.on) netSend({ a:'endturn' });
     endTurn(); return; }
   if (Math.ceil(G.timeLeft) !== was) paintPlay();
@@ -2293,7 +3122,7 @@ function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<units.length;i++){ units[i].moved = false; units[i].shot = false; units[i].sel = false; }
   for (i=0;i<G.players.length;i++) G.players[i].done = false;
-  G.sel = null; G.act = null; G.timeLeft = 0;
+  G.sel = null; G.act = null; G.timeLeft = 0; AIM = null;
   G.turn = (G.turn + 1) % G.teams;
   if (G.turn === 0){ G.round++; endRoundCheck(); }
   if (G.over) return;
@@ -2311,12 +3140,16 @@ function botStep(){
   if (!foes.length) foes = units.filter(function(q){ return canTarget(u, q); });   // เหลือแต่พวกเดียวกันแล้วจริง ๆ
   if (!foes.length) return false;
   var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
+  if (A.heal && !u.shot){
+    var hurt = units.filter(function(q){ return canHeal(u, q); }).sort(function(a, b){ return (a.hp - TY(a.t).w) - (b.hp - TY(b.t).w); })[0];
+    if (hurt){ var hr = d6(); if (NET.on) netSend({ a:'heal', u:u.id, t:hurt.id, roll:hr }); resolveHeal(u, hurt, hr); trayHeal(u, hurt, hr); u.moved = true; return 'shoot'; }
+  }
   for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
   var reach = A.rng > 0 ? A.rng : MELEE;
-  if (bd <= reach){ u.moved = true;
-    var BR = rollFor(u, best);
-    if (NET.on) netSend({ a:'shoot', u:u.id, t:best.id, hit:BR.hit, wound:BR.wound, save:BR.save });
-    resolveShot(u, best, BR); return 'shoot'; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
+  if (bd <= reach){ u.moved = true;                 // บอทยิงแล้วจบตา ไม่เดินต่อ
+    var hit = rollN(atkMath(u, best).shots);          // บอททอยเข้าเป้าเอง เจาะเกราะก็ทอยเอง เซฟเป็นของฝั่งที่โดนยิง
+    if (NET.on) netSend({ a:'atk', u:u.id, t:best.id, hit:hit });
+    applyAtk(u, best, hit); return 'shoot'; }
   if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
     var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
     var nx = u.x + (gx(best) - u.x)*f, nz = u.z + (gz(best) - u.z)*f;
@@ -2332,12 +3165,13 @@ function botStep(){
   }
   u.shot = true; return 'move';
 }
-function botTick(dt){
+function botTick(dt, step){
   if (!G.on || G.over) return;
   if (NET.on && !NET.owner) return;       // ในห้อง เจ้าของห้องเป็นคนเล่นบอท คนอื่นรับผลตามสาย
   var ps = teamPlayers(G.turn), hasBot = false, i;
   for (i=0;i<ps.length;i++) if (ps[i].bot) hasBot = true;
   if (!hasBot) return;                       // ทีมนี้เป็นคนจริงล้วน ไม่ต้องยุ่ง
+  if (!step && (PEND.length || trayBusy())) return;   // ลูกเต๋ายังกลิ้ง หรือยังรอใครทอยอยู่ — บอทรอให้จบก่อน เหมือนนั่งโต๊ะเดียวกัน
   if (G.botTimer > 0){ G.botTimer -= dt; if (G.botTimer > 0) return; }
   var what = botStep();
   if (!what){                                // บอทในทีมนี้ทำครบแล้ว
@@ -2347,7 +3181,7 @@ function botTick(dt){
     return;
   }
   // หยุดให้อ่านลูกเต๋าตอนยิงเท่านั้น การเดินเฉย ๆ ไม่ต้องรอ
-  G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.85 : 0.12);
+  G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.3 : 0.12);
   dirty = true;
 }
 
@@ -2360,6 +3194,7 @@ function canAct(u){
 }
 function selectUnit(u){
   var i; for (i=0;i<units.length;i++) units[i].sel = false;
+  if (AIM && (!u || AIM.u !== u.id)) AIM = null;   // เปลี่ยนตัวที่เลือก = เลิกเล็ง
   G.sel = u; if (u) u.sel = true;
   G.act = u ? (u.moved ? 'shoot' : 'move') : null;
   paintPlay(); dirty = true;
@@ -2371,17 +3206,17 @@ function tryMove(u, x, z){
   if (blockAt(x, z)){ popDice('ตรงนั้นมีสิ่งกีดขวาง<br>ยืนไม่ได้'); return false; }
   if (crowded(x, z, u)){ popDice('ตรงนั้นมีตัวอื่นยืนอยู่แล้ว'); return false; }
   u.moved = true; unitGoTo(u, x, z);
+  if (AIM && AIM.u === u.id) AIM = null;       // เดินแล้วระยะเปลี่ยน เล็งใหม่
   say(TEAM(u.side).nm + ' เดิน ' + A.nm + ' ' + d.toFixed(1) + '"');
   netSend({ a:'move', u:u.id, x:x, z:z });
   G.act = 'shoot'; paintPlay(); dirty = true; return true;
 }
 function tryShoot(u, tgt, R){
-  var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
-  if (u.shot){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
-  if (!canTarget(u, tgt)){ popDice('ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>'); return false; }
-  if (d > reach + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"')); return false; }
-  if (!R){ R = rollFor(u, tgt); netSend({ a:'shoot', u:u.id, t:tgt.id, hit:R.hit, wound:R.wound, save:R.save }); }
-  resolveShot(u, tgt, R);
+  if (u.shot || pendOf(u.id)){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
+  var why = shotWhyNot(u, tgt); if (why){ popDice(why); return false; }
+  R = R || rollFor(u, tgt);                     // ทอยมาให้แล้ว (เทสต์) ก็ส่งขึ้นห้องเหมือนกัน ไม่งั้นเครื่องอื่นไม่รู้ว่ายิง
+  netSend({ a:'shoot', u:u.id, t:tgt.id, hit:R.hit, wound:R.wound, save:R.save });
+  applyWhole(u, tgt, R);
   if (units.indexOf(u) >= 0 && u.moved && u.shot) selectUnit(null); else paintPlay();
   return true;
 }
@@ -2400,11 +3235,14 @@ function paintRoster(){
   var who = $('btWho');
   if (who) who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + esc(P.nm) + '</div>' +
     '<div class="st">' + TEAM(P.team).nm + (G.perTeam > 1 ? ' · งบทีม ' + G.budget + ' หารกัน ' + G.perTeam + ' คน' : '') + '</div>';
+  P.fac = facOf(P.list, P.fac);
+  Array.prototype.forEach.call(document.querySelectorAll('#btFacs .mode'), function(x){ x.classList.toggle('on', x.dataset.f === P.fac); });
   for (i=0;i<TYPES.length;i++){
     var T = TYPES[i], n = P.list[i] || 0, C = UNIT_COL[T.k];
+    if (T.fac !== P.fac) continue;
     h += '<div class="unit"><span class="sw" style="background:rgb(' + C.plate.join(',') + ')"></span>' +
       '<span><span class="nm">' + T.nm + ' <em class="pts">' + T.pts + ' แต้ม</em></span>' +
-      '<span class="st">เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิดเท่านั้น') + ' · ยิง ' + T.sh + ' นัด</span>' +
+      '<span class="st">เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิดเท่านั้น') + ' · ' + (T.rng ? 'ยิง ' : 'ตี ') + T.sh + (T.rng ? ' นัด' : ' ครั้ง') + (T.heal ? ' · รักษาเพื่อน' : '') + '</span>' +
       (G.detail ? '<span class="st">เข้า ' + T.bs + '+ · ทะลุ ' + T.ap + ' · เกราะ ' + T.sv + '+ · แผล ' + T.w + ' — ' + T.d + '</span>' : '') +
       '</span><span class="pm"><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
       '</span><button data-i="' + i + '" data-v="1">+</button></span></div>';
@@ -2489,7 +3327,7 @@ function paintDone(){
 // โต๊ะเมืองพังบังตัวหมากจนหาไม่เจอ หมุดลอยเหนือหัวจึงไม่ใช่ของประดับ มันคือสิ่งเดียวที่ทำให้
 // รู้ว่าตัวของใครอยู่ตรงไหนตอนซูมออก หมุดจางลงเมื่อตัวนั้นทำครบตาแล้ว
 function pinAt(u, col, bright){
-  var top = proj([u.x, heightAt(u.x, u.z) + 2.5, u.z]); if (top[2] < 0.4) return;
+  var top = proj([u.x, heightAt(u.x, u.z) + (u.k === 'mech' ? 5 : u.k === 'cavalry' ? 3.3 : 2.5), u.z]); if (top[2] < 0.4) return;
   var s = clamp(300/top[2], 5.5, 14);
   OVER.push(function(){
     ctx.globalAlpha = bright ? 1 : 0.45;
@@ -2516,6 +3354,10 @@ function gameOverlay(){
   for (i=0;i<units.length;i++){ var q = units[i], ready = canAct(q);
     pinAt(q, TEAM(q.side).ui, q === u || ready || sp);     // ผู้ชมไม่มีตัวให้สั่ง หมุดจางหมดก็หาใครไม่เจอ
     if (ready && q !== u) ringAt(q.x, q.z, 0.8, TEAM(q.side).ui, [5,4]); }
+  // เส้นเล็ง: ใครยิงใคร ตอนเล็งรอทอย และตลอดที่ลูกเต๋าของการโจมตีนั้นยังอยู่ในถาด ทุกเครื่องเห็นเหมือนกัน
+  var L = AIM || (TRAY.cur && trayBusy() ? TRAY.cur.P : null) || PEND[0] || null;
+  if (L){ var la = unitById(L.u) || fallenById(L.u), lb = unitById(L.t) || fallenById(L.t);
+    if (la && lb && la !== lb) fireLine(la, lb, L.kind === 'heal' || L.heal ? '#7BC47F' : TEAM(la.side).ui); }
   if (!u || units.indexOf(u) < 0) return;
   var T = TY(u.t);
   ringAt(u.x, u.z, 0.95, TEAM(u.side).ui);
@@ -2526,6 +3368,25 @@ function gameOverlay(){
     for (i=0;i<units.length;i++){ var f = units[i];
       if (canTarget(u, f) && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, TEAM(f.side).ui); }
   }
+}
+
+function fallenById(id){ for (var i=0;i<FALLEN.length;i++) if (FALLEN[i].id === id) return FALLEN[i]; return null; }
+function fireLine(a, b, col){
+  var ka = a.scale || 1, kb = b.scale || 1;
+  var pa = proj([a.x, heightAt(a.x, a.z) + 1.0*ka, a.z]), pb = proj([b.x, heightAt(b.x, b.z) + 1.0*kb, b.z]);
+  ringAt(b.x, b.z, (b.k === 'mech' ? 1.5 : b.k === 'cavalry' ? 1.2 : 1.05), col);
+  if (pa[2] < 0.4 || pb[2] < 0.4) return;
+  OVER.push(function(){
+    var dx = pb[0] - pa[0], dy = pb[1] - pa[1], len = Math.hypot(dx, dy); if (len < 8) return;
+    var ux = dx/len, uy = dy/len, ex = pb[0] - ux*6, ey = pb[1] - uy*6, H2 = 12;
+    ctx.strokeStyle = 'rgba(11,11,14,0.55)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash([9,6]);
+    ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'butt';
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(ex + ux*6, ey + uy*6);
+    ctx.lineTo(ex - ux*H2 - uy*H2*0.55, ey - uy*H2 + ux*H2*0.55); ctx.lineTo(ex - ux*H2 + uy*H2*0.55, ey - uy*H2 - ux*H2*0.55);
+    ctx.closePath(); ctx.fill();
+  });
 }
 
 // ---------- ภาพตัวอย่างแมพในหน้าตั้งสนาม ----------
@@ -2578,6 +3439,7 @@ function frame(ts){
     for (r=0;r<k;r++) if (stepUnits(dt)) dirty = true;
     if (!(sp && SPEC.paused)) botTick(dt*k);
     clockTick(dt);
+    trayTick(dt);
   }
   tickDice();
   if (!dirty) return; dirty = false; drawScene();
@@ -2613,8 +3475,8 @@ function fitTable(){ cam.tx = 0; cam.tz = 0; cam.dist = table.w*1.15; clampPan()
 var mode = 'look', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt = null, drag = null, dragFrom = null, measure = null;
 var rightPan = false;
 function unitHit(sx, sy){
-  var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], p = proj([u.x, heightAt(u.x,u.z)+0.9, u.z]); if (p[2] < 0.4) continue;
-    var d = Math.hypot(p[0]-sx, p[1]-sy); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
+  var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], sc = u.scale || 1, p = proj([u.x, heightAt(u.x,u.z)+0.9*sc, u.z]); if (p[2] < 0.4) continue;
+    var d = Math.hypot(p[0]-sx, p[1]-sy) / (u.k === 'mech' || u.k === 'cavalry' ? 1.6 : 1); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
 }
 function twoMid(){ var ids = Object.keys(ptrs); if (ids.length < 2) return null;
   var a = ptrs[ids[0]], b = ptrs[ids[1]]; return [ (a[0]+b[0])/2, (a[1]+b[1])/2 ]; }
@@ -2651,7 +3513,7 @@ cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delet
   if (depMode) return tapDeploy(p);
   if (G.on) return tapGame(p);
   var w = groundHit(p[0], p[1]); if (!w) return;
-  if (mode === 'place'){ units.push({ k:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false }); dirty = true; }
+  if (mode === 'place'){ units.push({ k:kit, t:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false, scale:kit === 'mech' ? MINI.MECH_S : 1 }); dirty = true; }
   else if (mode === 'erase'){ var u = unitHit(p[0], p[1]); if (u){ units.splice(units.indexOf(u), 1); dirty = true; } }
   else if (mode === 'measure'){ if (!measure || measure.b) measure = { a:{x:w[0], z:w[2]}, b:null }; else measure.b = {x:w[0], z:w[2]}; dirty = true; } });
 
@@ -2668,11 +3530,13 @@ function tapGame(p){
   }
   if (G.over || !humanTurn()) return;
   var hit = unitHit(p[0], p[1]);
+  var sel = G.sel && units.indexOf(G.sel) >= 0 ? G.sel : null;
+  if (sel && hit && hit !== sel && TY(sel.t).heal && !sel.shot && hit.side === sel.side && hit.hp < TY(hit.t).w){ aimAt(sel, hit, 'heal'); return; }
   if (hit && hit.side === G.turn && canAct(hit)){ selectUnit(hit); return; }
   var u = G.sel; if (!u || units.indexOf(u) < 0) return;
   if (hit && hit === u) return;
   if (hit && hit.side === G.turn && !G.freeFire){ say('ตัวนี้ทำครบแล้วในเทิร์นนี้'); return; }
-  if (hit){ G.act = 'shoot'; tryShoot(u, hit); return; }
+  if (hit){ G.act = 'shoot'; aimAt(u, hit, 'atk'); return; }
   var w = groundHit(p[0], p[1]); if (!w) return;
   if (G.act === 'shoot' && !u.shot){ say('แตะที่ตัวศัตรูเพื่อยิง'); return; }
   tryMove(u, w[0], w[2]);
@@ -2762,9 +3626,14 @@ function netPoll(){
     })
     .catch(function(e){ NET.busy = false; netNote('เน็ตมีปัญหา — ' + e.message); });
 }
+// ส่งทีละคำสั่งตามลำดับ: ทอยเข้าเป้าต้องถึงห้องก่อนทอยเจาะเกราะเสมอ ถ้ายิงพร้อมกันเน็ตช้าอาจสลับกัน
+// แล้วเครื่องอื่นจะได้จังหวะที่สองก่อนจังหวะแรก (ทิ้งไป) การโจมตีนั้นค้างบนทุกจอยกเว้นเครื่องเรา
+var SENDQ = Promise.resolve();
 function netSend(act){
   if (!NET.on) return Promise.resolve();
-  return netPost('/' + NET.code + '/act', { pid:NET.pid, act:act }).catch(function(e){ netNote(e.message); });
+  var path = '/' + NET.code + '/act', body = { pid:NET.pid, act:act };
+  SENDQ = SENDQ.then(function(){ return netPost(path, body).catch(function(e){ netNote(e.message); }); });
+  return SENDQ;
 }
 // สถานะห้องล่าสุดคือความจริง — เอามาทับของในเครื่องทุกครั้งที่ถาม
 function adoptRoom(R){
@@ -2783,12 +3652,12 @@ function adoptRoom(R){
   // ที่นั่งว่างให้บอทนั่งแทน จะได้ครบทีมและเล่นจบได้แม้คนไม่ครบ
   var ps = [], k = 0;
   for (i=0;i<R.players.length;i++){ var q = R.players[i];
-    ps.push({ id:k, pid:q.pid, team:q.team, nm:q.nm, bot:!!q.bot || !!q.gone, list:(q.list||[0,0,0,0]).slice(),
+    ps.push({ id:k, pid:q.pid, team:q.team, nm:q.nm, bot:!!q.bot || !!q.gone, ai:!!q.ai, list:fitList(q.list), fac:facOf(q.list),
               dep:q.dep ? q.dep.slice() : null, done:false }); k++; }
   var t, n;
   for (t=0;t<G.teams;t++){
     n = 0; for (i=0;i<ps.length;i++) if (ps[i].team === t) n++;
-    while (n < G.perTeam){ ps.push({ id:k, pid:'', team:t, nm:'บอท', bot:true, list:[0,0,0,0], dep:null, done:false }); k++; n++; }
+    while (n < G.perTeam){ ps.push({ id:k, pid:'', team:t, nm:'บอท', bot:true, list:emptyList(), fac:'mod', dep:null, done:false }); k++; n++; }
   }
   // เก็บธง done ของรอบนี้ไว้ ไม่ให้โดนล้างทุกครั้งที่ถามเซิร์ฟเวอร์
   function spent(L){ var t = 0, q; for (q=0;q<TYPES.length;q++) t += (L[q]||0) * TYPES[q].pts; return t; }
@@ -2796,6 +3665,7 @@ function adoptRoom(R){
     if (!old || old.pid !== ps[i].pid) continue;
     ps[i].done = old.done;
     if (!spent(ps[i].list) && spent(old.list)) ps[i].list = old.list;   // กองที่ปั้นไว้ในเครื่อง ห้องยังไม่รู้
+    if (!spent(ps[i].list) && old.fac) ps[i].fac = old.fac;            // กองทัพที่เลือกไว้ ก่อนจะมีหน่วยสักตัว
     if (!ps[i].dep && old.dep) ps[i].dep = old.dep; }
   // ใครหลุด บอทรับช่วงต่อ จะได้เล่นจบ ไม่ใช่ค้างรอคนที่ไม่กลับมา
   for (i=0;i<ps.length;i++){ var was = G.players[i];
@@ -2812,9 +3682,20 @@ function applyAct(a){
   if (a.a === 'owner'){ NET.owner = (a.pid === NET.pid); if (G.on) say('เจ้าของห้องเดิมหลุดไป — ' + esc(a.nm) + ' คุมห้องต่อ'); return; }
   if (a.a === 'state'){ if (a.roster) adoptRoster(a.roster, a.bots); netPhase(a.state); return; }
   if (!G.on) return;
+  // สิ่งที่เครื่องนี้ส่งไปเอง ห้องส่งกลับมาให้ด้วย — ทำไปแล้วตอนกด ทำซ้ำไม่ได้ (จบตาซ้ำ = ข้ามตาของเพื่อน)
+  if (a.pid && a.pid === NET.pid) return;
   if (a.a === 'move'){ var u = unitById(a.u); if (u && !u.moved){ u.moved = true; unitGoTo(u, a.x, a.z); say(TEAM(u.side).nm + ' เดิน ' + TY(u.t).nm + ' ' + Math.hypot(a.x-u.x, a.z-u.z).toFixed(1) + '"'); dirty = true; } return; }
-  if (a.a === 'shoot'){ var s1 = unitById(a.u), t1 = unitById(a.t);
-    if (s1 && t1 && !s1.shot) resolveShot(s1, t1, { hit:a.hit||[], wound:a.wound||[], save:a.save||[] });
+  if (a.a === 'shoot'){ var s1 = unitById(a.u), t1 = unitById(a.t);      // ทอยครบในทีเดียว (Claude · เครื่องรุ่นเก่า)
+    if (s1 && t1 && !s1.shot && !pendOf(s1.id)) applyWhole(s1, t1, { hit:a.hit||[], wound:a.wound||[], save:a.save||[] });
+    paintPlay(); return; }
+  // ทีละจังหวะ: เข้าเป้า → เจาะเกราะ → เซฟ แต่ละจังหวะมาจากเครื่องของคนที่ทอย
+  if (a.a === 'atk'){ var s3 = unitById(a.u), t3 = unitById(a.t);
+    if (s3 && t3 && !s3.shot && !pendOf(s3.id)) applyAtk(s3, t3, a.hit || []);
+    return; }
+  if (a.a === 'wnd'){ var P1 = pendOf(a.u); if (P1 && P1.t === a.t) applyWnd(P1, a.wound || []); return; }
+  if (a.a === 'sav'){ var P2 = pendOf(a.u); if (P2 && P2.t === a.t) applySav(P2, a.save || []); return; }
+  if (a.a === 'heal'){ var h1 = unitById(a.u), h2 = unitById(a.t), hv = a.roll | 0 || 1;
+    if (h1 && h2 && !h1.shot){ resolveHeal(h1, h2, hv); trayHeal(h1, h2, hv); }
     paintPlay(); return; }
   if (a.a === 'skip'){ var s2 = unitById(a.u); if (s2){ s2.moved = true; s2.shot = true; paintPlay(); dirty = true; } return; }
   if (a.a === 'done'){ var pi = pidIndex(a.pid); if (pi >= 0) playerDone(pi); return; }
@@ -2826,7 +3707,7 @@ function adoptRoster(rs, bots){
     var k = 0;
     for (j=0;j<G.players.length;j++) if (!G.players[j].pid && k < bots.length){
       G.players[j].team = bots[k].team;
-      G.players[j].list = (bots[k].list || [0,0,0,0]).slice();
+      G.players[j].list = fitList(bots[k].list); G.players[j].fac = facOf(bots[k].list);
       G.players[j].dep = bots[k].dep ? bots[k].dep.slice() : null;
       k++;
     }
@@ -2834,7 +3715,7 @@ function adoptRoster(rs, bots){
   for (i=0;i<rs.length;i++){ var r = rs[i];
     for (j=0;j<G.players.length;j++) if (G.players[j].pid === r.pid){
       G.players[j].team = r.team;
-      G.players[j].list = (r.list || [0,0,0,0]).slice();
+      G.players[j].list = fitList(r.list); G.players[j].fac = facOf(r.list, G.players[j].fac);
       G.players[j].dep = r.dep ? r.dep.slice() : null;
     } }
 }
@@ -3035,6 +3916,11 @@ $('btBack1').addEventListener('click', function(){
 $('btPts').addEventListener('input', function(){ setBudget(+$('btPts').value);
   var i; for (i=0;i<G.players.length;i++) autoList(i); paintRoster(); });
 $('btDetail').addEventListener('click', function(){ G.detail = !G.detail; this.textContent = G.detail ? 'ซ่อนรายละเอียด' : 'แสดงรายละเอียด'; paintRoster(); });
+// เปลี่ยนกองทัพ: หน่วยของอีกกองออกจากรายชื่อ (กองหนึ่งมีได้แค่ชุดเดียว)
+$('btFacs').addEventListener('click', function(ev){ var b = ev.target.closest('.mode'); if (!b) return;
+  var P = G.players[G.cur]; if (!P || P.fac === b.dataset.f) return;
+  P.fac = b.dataset.f; for (var i=0;i<TYPES.length;i++) if (TYPES[i].fac !== P.fac) P.list[i] = 0;
+  paintRoster(); });
 $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   var i = +b.dataset.i, v = +b.dataset.v, P = G.players[G.cur]; if (!P) return;
   P.list[i] = Math.max(0, (P.list[i]||0) + v); paintRoster(); });
@@ -3048,7 +3934,7 @@ function toDeploy(){
 $('btStart').addEventListener('click', function(){
   if (NET.on){                                   // ในห้อง: ส่งกองของตัวเองขึ้นไป แล้วรอ/สั่งเลื่อนขั้น
     var me = G.players[G.mePl];
-    netPost('/' + NET.code + '/list', { pid:NET.pid, list:me ? me.list : [0,0,0,0] })
+    netPost('/' + NET.code + '/list', { pid:NET.pid, list:me ? me.list : emptyList() })
       .then(function(){ if (!NET.owner){ $('btArmyNote').textContent = 'ส่งกองทัพแล้ว — รอเจ้าของห้อง'; return; }
         return netPost('/' + NET.code + '/state', { pid:NET.pid, state:'deploy' }).then(function(){ netPoll(); }); })
       .catch(function(e){ $('btArmyNote').textContent = e.message; });
@@ -3103,7 +3989,7 @@ $('btDepGo').addEventListener('click', function(){
 
 function startMatch(){
   G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null;
-  G.timeLeft = 0; LOG.length = 0;
+  G.timeLeft = 0; LOG.length = 0; resetTray();
   var i;
   for (i=0;i<G.players.length;i++){
     G.players[i].done = false;
@@ -3123,14 +4009,19 @@ $('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('bu
   var a = b.dataset.a, u = G.sel;
   if (a === 'done'){ if (u){ u.moved = true; u.shot = true; netSend({ a:'skip', u:u.id }); } selectUnit(null); return; }
   G.act = a; paintPlay(); dirty = true; });
-$('btEnd').addEventListener('click', function(){ if (NET.on) netSend({ a:'endturn' }); endTurn(); });
+$('btEnd').addEventListener('click', function(){ flushPend(!NET.on); if (NET.on) netSend({ a:'endturn' }); endTurn(); });
+// ถาดลูกเต๋า: ปุ่มทอย · ออโต้ (จำไว้ในเครื่อง) · เลิกเล็ง
+$('btRoll').addEventListener('click', function(){ var r = myRoll(); if (r && r.human) doRoll(r); });
+$('btAuto').addEventListener('click', function(){ AUTO = !AUTO; WAIT_KEY = '';
+  try { localStorage.setItem('bt.autoDice', AUTO ? '1' : '0'); } catch (e) {} });
+$('btAimX').addEventListener('click', function(){ AIM = null; WAIT_KEY = ''; paintPlay(); dirty = true; });
 $('btDone').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   var pi = +b.dataset.p;
   if (NET.on){ if (pi !== G.mePl) return; netSend({ a:'done' }); }
   playerDone(pi); });
 function quitGame(){
   if (NET.on){ var c = NET.code, pd = NET.pid; netStop(); netPost('/' + c + '/leave', { pid:pd }).catch(function(){}); }
-  G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog();
+  G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog(); resetTray();
   SPEC.paused = false;
   var i; for (i=0;i<G.players.length;i++){ G.players[i].dep = null; G.players[i].done = false; }
   show('scSetup'); syncRulesUI(); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
@@ -3149,11 +4040,20 @@ $('btPause').addEventListener('click', function(){ SPEC.paused = !SPEC.paused; p
 $('btSpd').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; SPEC.speed = +b.dataset.s; paintPlay(); });
 // ทีละจังหวะ: หยุดไว้ แล้วให้บอทเล่นหนึ่งอย่าง — เวลาที่ใหญ่มากผ่านตัวจับเวลาได้ครั้งเดียว แล้วมันตั้งเวลาใหม่เอง
 // จึงได้การเดินหรือการยิงหนึ่งครั้ง หรือการจบตาหนึ่งครั้ง พอดี ๆ
+// ลูกเต๋า: การโจมตีหนึ่งครั้งคือหนึ่งจังหวะ ทอยครบทุกขั้นในการกดครั้งเดียว แล้วถาดค่อยเล่นให้ดูตามลำดับ
 $('btStep').addEventListener('click', function(){ if (!watching() || G.over) return;
-  SPEC.paused = true; botTick(1e9); paintPlay(); dirty = true; });
+  SPEC.paused = true;
+  if (PEND.length) flushPend(true); else { botTick(1e9, true); flushPend(true); }
+  paintPlay(); dirty = true; });
 $('btAgain').addEventListener('click', function(){ G.on = false; units.length = 0; newField(); spectate(); });
 
 $('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
+// ปุ่มเลือกหน่วยที่จะวาง แยกตามกองทัพ สร้างจากตาราง TYPES จะได้ไม่ตกหล่นเมื่อเพิ่มหน่วยใหม่
+(function(){ var h = '';
+  FACS.forEach(function(F){ h += '<div class="st" style="margin:4px 2px 2px">' + F.nm + '</div><div class="row"><div class="grp" style="flex-wrap:wrap">';
+    TYPES.forEach(function(T){ if (T.fac === F.k) h += '<button data-k="' + T.k + '"' + (T.k === kit ? ' class="on"' : '') + '>' + T.nm + '</button>'; });
+    h += '</div></div>'; });
+  $('btKit').innerHTML = h; })();
 $('btKit').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; kit = b.dataset.k; setOn($('btKit'), b); });
 
 $('btPan').addEventListener('click', function(){ panMode = !panMode; this.classList.toggle('on', panMode); });
@@ -3168,19 +4068,29 @@ buildTerrain(); genProps(); resize(); syncSetupUI(); show('scSetup');
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
 
 window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
-  setTheme:applyTheme, add:function(k,x,z){ units.push({k:k,x:x,z:z,rot:0}); dirty = true; },
+  setTheme:applyTheme, add:function(k,x,z){ units.push({k:k,t:k,x:x,z:z,rot:0,scale:k === 'mech' ? MINI.MECH_S : 1}); dirty = true; },
   goTo:function(i,x,z){ var u = units[i]; if (u) unitGoTo(u, x, z); return !!u; },   // send piece i walking to (x,z)
   stop:function(i){ var u = units[i]; if (u) unitStop(u); }, walking:function(){ return units.filter(function(u){ return u.mv; }).length; },
   draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
   // ตะขอสำหรับเทสต์อัตโนมัติ
   pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
-  props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt, botStep:botStep,
+  props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt,
+  botStep:function(){ var r = botStep(); flushPend(true); return r; },       // เทสต์วนเรียกทีละก้าว: ลูกเต๋าที่ค้างทอยให้จบในก้าวนั้น
+  tray:function(){ return { q:TRAY.q.length, cur:TRAY.cur ? { stage:TRAY.cur.stage, dice:TRAY.cur.dice.slice(), settled:TRAY.t >= TRAY.cur.secs, final:TRAY.cur.final } : null,
+    pend:PEND.map(function(P){ return { u:P.u, t:P.t, stage:P.stage, hits:P.hits, wounds:P.wounds }; }), aim:AIM, auto:AUTO, fallen:FALLEN.length }; },
+  aim:aimAt, myRoll:function(){ var r = myRoll(); return r ? (r.aim ? 'aim' : r.P.stage) + (r.human ? ':human' : ':auto') : null; },
+  roll:function(){ var r = myRoll(); if (r) doRoll(r); return !!r; }, flush:flushPend,
+  setAuto:function(v){ AUTO = !!v; WAIT_KEY = ''; },
+  trayHold:function(on){ TRAY.hold = !!on; },            // เทสต์ถ่ายรูป: หยุดนาฬิกาของถาดไว้
+  trayTop:function(){ var v = TRAY.cur; if (!v) return null;       // หน้าที่หงายขึ้นจริงของแต่ละลูก (ตามทิศของหน้าในโลก)
+    return v.rolls.map(function(R){ var fr = R.frames[R.frames.length-1], best = -2, lab = null;
+      DICE.shapes()[6].faces.forEach(function(f, k){ var y = DICE.qrot(fr.q, f.n)[1]; if (y > best){ best = y; lab = R.labels[k]; } }); return lab; }); },
   NET:NET, netPoll:netPoll, applyAct:applyAct, adoptRoom:adoptRoom, unitById:unitById, rollFor:rollFor,
   deploy:deploy, seedOf:function(){ return SEED; }, themeOf:function(){ return theme; },
   depLog:function(){ return DEPLOG; },
   server:function(){ return SERVER; }, setServer:function(u){ SERVER = u; },
   setList:function(pi, arr){ if (!G.players.length) mkPlayers();
-    if (G.players[pi]) G.players[pi].list = arr.slice(); paintRoster(); },
+    if (G.players[pi]){ G.players[pi].list = fitList(arr); G.players[pi].fac = facOf(arr, G.players[pi].fac); } paintRoster(); },
   players:function(){ return G.players; }, mkPlayers:mkPlayers, applyMode:function(){ applyMode(); },
   setDep:function(pi, x, z){ if (G.players[pi]) G.players[pi].dep = [x, z]; },
   autoDep:autoDep, depWhyNot:depWhyNot, depCapacity:depCapacity, teamPts:teamPts,
