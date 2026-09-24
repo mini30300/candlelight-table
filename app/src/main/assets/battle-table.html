@@ -74,6 +74,7 @@
 #bt .mode svg{flex:0 0 auto;width:84px;height:33px;color:var(--on)}
 #bt .mode .t{display:block;font-size:15px;font-weight:600;color:var(--ink)}
 #bt .mode.on .t{color:var(--on)}
+#bt .unit .st.ab{color:var(--on)}
 #bt .mode .d{display:block;font-size:12px;color:var(--sub);line-height:16px;white-space:normal}
 
 /* ---- roster ---- */
@@ -331,14 +332,62 @@
             <circle cx="52" cy="20" r="11"/><circle cx="52" cy="20" r="3"/>
             <path d="M74 35L90 3M88 2l3-2 0 5"/>
           </svg>
-          <span><span class="t">กองทัพกรีก</span><span class="d">หอก โล่ ธนู ม้า — ต้องเข้าประชิด</span></span>
+          <span><span class="t">กองทัพกรีก</span><span class="d">หอก โล่ ธนู ม้า วีรบุรุษ อสูร — ต้องเข้าประชิด</span></span>
         </button>
         <button class="mode" data-f="mod">
           <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 22c0-9 6-14 14-14s14 5 14 14z"/><path d="M4 22h32"/><path d="M12 26h16v7H12z"/>
             <path d="M44 20h40v5H62l-3 8h-6l2-8h-11z"/><path d="M84 21h8"/><path d="M58 20v-4h10v4"/>
           </svg>
-          <span><span class="t">กองทหาร</span><span class="d">ปืน เกราะ หุ่นรบ — ยิงจากระยะไกล</span></span>
+          <span><span class="t">กองทหาร</span><span class="d">ปืน เกราะ รถถัง — ยิงจากระยะไกล</span></span>
+        </button>
+        <button class="mode" data-f="kn">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 34V14c0-7 5-11 11-11s11 4 11 11v20z"/><path d="M12 16h14"/><path d="M19 16v8"/><path d="M15 28h8"/>
+            <path d="M44 6h18l-2 18c-1 6-5 10-7 11-2-1-6-5-7-11z"/><path d="M53 10v20M47 18h12"/>
+            <path d="M76 34l14-30M86 6l5 2M74 30l6 4"/>
+          </svg>
+          <span><span class="t">อัศวินเกราะพลัง</span><span class="d">เกราะหนา ยิงแม่น ตีแรง — น้อยตัวแต่แกร่ง</span></span>
+        </button>
+        <button class="mode" data-f="sw">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 30c2-12 8-20 18-22 6 6 6 16 2 24"/><path d="M14 10l-4-7M22 8l2-7"/><circle cx="19" cy="20" r="1.6"/>
+            <path d="M40 34c4-10 4-20 0-30M48 34c5-10 5-20 0-30M40 4c4 2 7 5 8 8"/>
+            <path d="M62 32c10-2 18-10 24-24M70 34c10-4 16-12 20-22"/><path d="M84 6l6 2"/>
+          </svg>
+          <span><span class="t">ฝูงสัตว์ต่างดาว</span><span class="d">ฝูงใหญ่ วิ่งเร็ว เล็บคม — มาเป็นร้อย</span></span>
+        </button>
+        <button class="mode" data-f="rb">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 20c0-10 5-16 12-16s12 6 12 16c0 6-3 10-6 12H14c-3-2-6-6-6-12z"/><path d="M13 18h4M23 18h4"/><path d="M20 24v6M17 26v4M23 26v4"/>
+            <path d="M42 8h14M42 14h14M42 20h14M42 26h14M49 4v28"/>
+            <path d="M70 34V8M66 8c3-6 9-6 12 0"/><circle cx="72" cy="6" r="1.5"/><path d="M84 34l6-26"/>
+          </svg>
+          <span><span class="t">หุ่นยนต์โลหะโบราณ</span><span class="d">โครงเหล็กอมตะ — ล้มแล้วลุกขึ้นมาใหม่</span></span>
+        </button>
+        <button class="mode" data-f="or">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 16c2-8 8-12 14-12s12 4 14 12l-2 10c-4 5-20 5-24 0z"/><path d="M12 14l5 2M28 14l-5 2"/><path d="M13 24l2-5M27 24l-2-5"/>
+            <path d="M46 34V10"/><path d="M46 10h14l-3 6 3 6H46"/>
+            <path d="M70 34l10-24"/><path d="M78 6c6 0 10 4 10 8l-10 2z"/>
+          </svg>
+          <span><span class="t">ออร์คเขียว</span><span class="d">ตัวใหญ่ บ้าบิ่น ยิงห่วยแต่ตีโหด</span></span>
+        </button>
+        <button class="mode" data-f="th">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2l3 6-3 3-3-3z"/><path d="M13 13h10l-2 4h-6z"/><path d="M12 34v-12c0-4 3-5 6-5s6 1 6 5v12"/>
+            <path d="M36 34V22c0-8 8-12 18-12 8 0 14 4 14 10v14"/><path d="M68 18c4 2 5 8 2 14"/><path d="M40 34v-6M48 34v-6M58 34v-6M64 34v-6"/><path d="M60 22c-2 0-4 2-4 4"/>
+            <path d="M80 34c0-10 4-18 10-22M84 34c2-8 4-12 8-16"/>
+          </svg>
+          <span><span class="t">ตำนานสยาม</span><span class="d">ช้างศึก ยักษ์ หนุมาน พญานาค ดาบสองมือ</span></span>
+        </button>
+        <button class="mode" data-f="lg">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20c6-8 14-12 24-12l-6 6 8 2-10 4 6 6c-10 2-18 0-22-6z"/><circle cx="20" cy="15" r="1.4"/>
+            <path d="M40 30c0-8 4-14 10-14s10 6 10 14z"/><path d="M42 16c2-6 6-9 8-9s6 3 8 9"/><path d="M50 7V3"/>
+            <path d="M76 34V16"/><path d="M68 8h16v8H68z"/><path d="M88 4l-3 6h3l-4 7"/>
+          </svg>
+          <span><span class="t">ตำนานโลก</span><span class="d">ซามูไร นินจา ไวกิ้ง มัมมี่ เทพสายฟ้า มังกร</span></span>
         </button>
       </div>
 
@@ -1056,18 +1105,20 @@ var SHIELD = { hoplite:1, spartan:1, peltast:1, cavalry:1 }, GUNNER = { heavy:1,
 // Solved from the rig so the hands land on (-0.13, 1.0, 0.24) and (0.02, 1.1, 0.52) with the elbows clear of the body.
 var HOLD = { sR:[16.3, 7.4, 5.5], eR:-106.3, sL:[-35.8, -57.6, 42.7], eL:-47.1 };
 function kitPose(P){
-  if (SHIELD[KIT]){
+  var K = KITS[KIT], hd = K && K.hold;
+  if (K && K.pose){ K.pose(P); return; }
+  if (SHIELD[KIT] || hd === 'shield'){
     P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-30, -90, 15), 0.92);   // upper arm turned in: the forearm crosses the chest
     P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.eul(0, 0, 0);
     P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-12, 0, -8), 0.7); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-20,0,0), 0.7);
     return;
   }
-  if (KIT === 'archer'){                                                     // bow held out low in the left hand
+  if (KIT === 'archer' || hd === 'bow'){                                     // bow held out low in the left hand
     P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-38, 0, 8), 0.9); P.q.elbowL = R.eul(-12, 0, 0); P.q.wristL = R.eul(0, 0, 0);
     P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-10, 0, -10), 0.6); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-55,0,0), 0.8);
     return;
   }
-  if (GUNNER[KIT]){                                                          // a gun is held, not swung: both arms fixed
+  if (GUNNER[KIT] || hd === 'gun'){                                          // a gun is held, not swung: both arms fixed
     P.q.shoulderR = R.eul(HOLD.sR[0], HOLD.sR[1], HOLD.sR[2]); P.q.elbowR = R.eul(HOLD.eR, 0, 0); P.q.wristR = R.eul(0, 0, 0);
     P.q.shoulderL = R.eul(HOLD.sL[0], HOLD.sL[1], HOLD.sL[2]); P.q.elbowL = R.eul(HOLD.eL, 0, 0); P.q.wristL = R.eul(0, 0, 0);
   }
@@ -1243,6 +1294,8 @@ function frameOn(p, dir, up){
   return { p: p.slice(), q: m2q(X, Y, Z) };
 }
 function lerp3(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+// a held thing's direction during an action: the kit's own resting direction eased toward the action's (w = 0..1, 1 when absent)
+function aimed(idle, dir, w){ if (!dir) return idle; if (w == null) w = 1; var a = R.norm(idle); return R.norm(R.add(R.mul(a, 1 - w), R.mul(R.norm(dir), w))); }
 var QID = [0,0,0,1];
 function at(off, fn){ withRot(QID, off, fn); }            // build fn's primitives shifted by off in the current frame
 // a straight rod from a to b (tube of radius r0 at a, r1 at b)
@@ -1258,10 +1311,28 @@ var GUN = {
   smg:     { len:0.40, back:0.16, w:0.024, h:0.040, br:0.014, mag:0.07 },
   sniper:  { len:0.98, back:0.34, w:0.020, h:0.034, br:0.011, mag:0.03, scope:1 },
   hmg:     { len:0.92, back:0.18, w:0.050, h:0.070, br:0.026, mag:0, ammo:1, shroud:1 },
-  cannon:  { len:0.70, back:0.10, w:0.070, h:0.080, br:0.050, mag:0, box:1, shroud:1 }
+  cannon:  { len:0.70, back:0.10, w:0.070, h:0.080, br:0.050, mag:0, box:1, shroud:1, big:1 },
+  // Round 3: the muzzle sits `len` along the gun from the hand that holds it, whatever the kit draws it as
+  bolter:  { len:0.60, back:0.22, w:0.040, h:0.060, br:0.022, mag:0.07, box:1 },
+  plasma:  { len:0.86, back:0.16, w:0.055, h:0.075, br:0.034, mag:0, shroud:1 },
+  stormgun:{ len:0.46, back:0.10, w:0.045, h:0.060, br:0.020, mag:0.05, box:1 },
+  pistol:  { len:0.22, back:0.02, w:0.020, h:0.040, br:0.012, mag:0.04 },
+  rotary:  { len:0.95, back:0.05, w:0.090, h:0.090, br:0.045, mag:0, shroud:1, big:1 },
+  bio:     { len:0.50, back:0.12, w:0.045, h:0.060, br:0.030, mag:0 },
+  gauss:   { len:0.78, back:0.26, w:0.024, h:0.040, br:0.016, mag:0 },
+  gaussh:  { len:0.72, back:0.20, w:0.034, h:0.052, br:0.022, mag:0, shroud:1 },
+  staff:   { len:0.95, back:0.60, w:0.020, h:0.020, br:0.018, mag:0 },
+  slugga:  { len:0.28, back:0.04, w:0.030, h:0.050, br:0.018, mag:0.05 },
+  deffgun: { len:0.92, back:0.20, w:0.060, h:0.080, br:0.040, mag:0, box:1, shroud:1, big:1 },
+  dakka:   { len:0.62, back:0.12, w:0.050, h:0.070, br:0.030, mag:0.08, shroud:1 },
+  grotgun: { len:0.42, back:0.12, w:0.018, h:0.030, br:0.012, mag:0.03 },
+  musket:  { len:1.05, back:0.36, w:0.020, h:0.034, br:0.014, mag:0 },
+  flamer:  { len:0.55, back:0.18, w:0.035, h:0.050, br:0.030, mag:0 },
+  mortar:  { len:0.70, back:0.05, w:0.050, h:0.050, br:0.045, mag:0 },
+  tankgun: { len:2.40, back:0.00, w:0.100, h:0.100, br:0.090, mag:0, big:1 }
 };
 function gunIn(Wd, type){
-  var o = GUN[type], g = Wd.handR.p, s = Wd.handL.p, d = ACT && ACT.gunDir ? ACT.gunDir : R.sub(s, g);   // gunDir: held one-handed, pointing that way
+  var o = GUN[type], g = Wd.handR.p, s = Wd.handL.p, d = ACT && ACT.gunDir ? aimed(R.sub(s, g), ACT.gunDir, ACT.gunW) : R.sub(s, g);   // gunDir: held one-handed, pointing that way
   if (R.len(d) < 0.08) d = [0, -0.2, 1];             // hands together: point it ahead
   var F = frameOn(g, d, [0,1,0]);
   J(F, function(){
@@ -1469,18 +1540,20 @@ function kitHorse(mo){
     rod(kn, ft, 0.05, 0.042, 7, 'coat');
     rod(ft, [ft[0], Math.max(0, ft[1] - 0.09), ft[2] + 0.02], 0.055, 0.065, 7, 'hoof'); });
 }
-// the rider sits the saddle: hips bent forward and spread round the barrel, knees down, a spear raised in the right hand
-var RIDER = null;
-function riderPose(){
-  var P = R.idlePose(0), s, k = KIT;
-  P.root = [0, 1.62, 0.02];
-  P.q.pelvis = R.QI; P.q.spine = R.eul(4, 0, 0); P.q.chest = R.eul(2, 0, 0);
-  for (s=0;s<2;s++){ var S = s ? 'R' : 'L', sg = s ? -1 : 1;
-    P.q['hip'+S] = R.eul(-62, sg*8, sg*38); P.q['knee'+S] = Q.qx(78*DEG); P.q['ankle'+S] = R.eul(-10, 0, 0); }
-  KIT = 'hoplite'; kitPose(P); KIT = k;
+// the rider sits the saddle: hips bent forward and spread round the barrel, knees down, arms held as the mount says
+// (mount.hold: 'shield' = the hoplite's shield and spear, 'bow', 'gun', or a kit name whose own pose to borrow)
+var RIDER = {};
+function riderPose(k){
+  var P = R.idlePose(0), s, kk = KIT, K = KITS[k || 'cavalry'] || KITS.cavalry, M = K.mount || KITS.cavalry.mount;
+  P.root = [0, M.y, M.z];
+  P.q.pelvis = R.QI; P.q.spine = R.eul(4 + (M.lean || 0), 0, 0); P.q.chest = R.eul(2, 0, 0);
+  for (s=0;s<2;s++){ var S = s ? 'R' : 'L', sg = s ? -1 : 1, sp = M.spread == null ? 38 : M.spread;
+    P.q['hip'+S] = R.eul(-62, sg*8, sg*sp); P.q['knee'+S] = Q.qx(78*DEG); P.q['ankle'+S] = R.eul(-10, 0, 0); }
+  var h = M.hold || 'shield';
+  KIT = h === 'shield' ? 'hoplite' : h === 'bow' ? 'archer' : h === 'gun' ? 'infantry' : h; kitPose(P); KIT = kk;
   return P;
 }
-function riderFrames(){ return RIDER || (RIDER = R.fk(riderPose())); }
+function riderFrames(k){ k = k || 'cavalry'; return RIDER[k] || (RIDER[k] = R.fk(riderPose(k))); }
 
 // ---------- actions (aim, draw, throw, thrust, brace): the page poses the arms, the gear follows ----------
 // ACT is set for the length of one build() from mo.act: { aim, draw, arrow, spear, jav, javGone, shield, shieldW } in model space.
@@ -1518,27 +1591,54 @@ function armIK(P, side, target, pole){
 
 var IDF = { p:[0,0,0], q:[0,0,0,1] }, MECH_S = 2.2;
 function scaleFaces(s){ for (var i=0;i<FACES.length;i++){ var p = FACES[i].p; for (var j=0;j<p.length;j++) p[j] = [p[j][0]*s, p[j][1]*s, p[j][2]*s]; } }
-// mo (optional) = { travel, v }: how far the piece has walked and how fast -- only the horse needs it
+
+// ---------- the kit registry: every figure the table can draw ----------
+// KITS[k] = { build(Wd, mo)  draws the figure from the rig's joint frames Wd (mo = { travel, v, act, rider })
+//             hold            'gun' | 'shield' | 'bow': how it carries its arms, or pose(P) to set them itself
+//             scale           drawn this many times the rig's size (the page walks it that much further per stride)
+//             mount           { y, z, hold }: a rider sits on a creature this high (m); build draws both, the rider
+//                             from mo.rider (a posed rider during an action) or its resting frames
+//             creature        no rig to draw: legs, wheels, tracks or coils come from mo.travel (the rig still walks it)
+//             mouth / h       model-space point breath and spit leave from, and how tall it stands (unscaled m) }
+var KITS = {};
+function kit(k, def){ KITS[k] = def; return def; }
+kit('heavy',    { hold:'gun', build:function(Wd){ kitHeavy(Wd); gunIn(Wd, 'carbine'); } });
+kit('enemy',    { hold:'gun', build:function(Wd){ kitAssault(Wd); } });
+kit('infantry', { hold:'gun', build:function(Wd){ kitInfantry(Wd); gunIn(Wd, 'rifle'); } });
+kit('hoplite',  { hold:'shield', build:function(Wd){ kitHoplite(Wd); } });
+kit('archer',   { hold:'bow', build:function(Wd){ kitArcher(Wd); } });
+kit('peltast',  { hold:'shield', build:function(Wd){ kitPeltast(Wd); } });
+kit('spartan',  { hold:'shield', build:function(Wd){ kitSpartan(Wd); } });
+kit('cavalry',  { mount:{ y:1.62, z:0.02, hold:'shield' }, h:2.3, build:function(Wd, mo){ kitHorse(mo); kitHoplite(riderOf('cavalry', mo)); } });
+kit('sniper',   { hold:'gun', build:function(Wd){ kitSniper(Wd); } });
+kit('hmg',      { hold:'gun', build:function(Wd){ kitHmg(Wd); } });
+kit('medic',    { hold:'gun', build:function(Wd){ kitMedic(Wd); } });
+kit('mech',     { hold:'gun', scale:MECH_S, build:function(Wd){ kitMech(Wd); } });
+// the rider's joint frames: posed for an action (mo.rider), or sitting at rest (built once per mount)
+function riderOf(k, mo){ return (mo && mo.rider) || riderFrames(k); }
+// stand-ins for the Round 3 armies until their own figures are spliced in below (the kit files re-register each key)
+(function(){ var S = { knight:['heavy'], kblade:['hoplite'], kheavy:['heavy'], kterm:['heavy', 1.18], kcapt:['heavy'], kdread:['mech', 1.9],
+  gaunt:['infantry', 0.78], hound:['infantry', 0.8], warrior:['heavy', 1.3], spitter:['infantry', 0.95], gargoyle:['infantry', 0.8], brute:['mech', 2.1],
+  rwar:['infantry'], rimm:['heavy'], rguard:['heavy'], rscarab:['infantry', 0.5], rlord:['heavy'], rspider:['mech', 1.5],
+  boy:['infantry', 1.08], loota:['infantry', 1.08], nob:['heavy', 1.22], boss:['heavy', 1.4], grot:['infantry', 0.62], odread:['mech', 1.6],
+  troy:['cavalry'], achil:['hoplite'], herc:['spartan', 1.12], cyclops:['spartan', 2.4], mino:['spartan', 1.5], medusa:['archer'],
+  centaur:['cavalry'], pegasus:['cavalry'], flamer:['infantry'], mortar:['infantry'], tank:['mech', 1.6], cmdr:['infantry'],
+  dabsong:['peltast'], musket:['infantry'], eleph:['cavalry'], yak:['spartan', 2.3], hanu:['spartan'], naga:['cavalry'],
+  samurai:['spartan'], ninja:['archer'], viking:['hoplite'], mummy:['archer'], thunder:['spartan', 1.1], dragon:['cavalry'] }, k;
+  for (k in S){ var B = KITS[S[k][0]], sc = S[k][1] ? (S[k][0] === 'mech' ? S[k][1] : S[k][1]) : B.scale;
+    kit(k, { hold:B.hold, mount:B.mount, h:B.h, scale:sc, stand:S[k][0], build:(function(b0, k0){ return function(Wd, mo){ var kk = KIT; KIT = k0; b0(Wd, mo); KIT = kk; }; })(B.build, S[k][0]) }); } })();
+// ==KITS-EXTRA==
+function kitInfo(k){ return KITS[k] || KITS.heavy; }
+// mo (optional) = { travel, v, act, rider }: how far the piece has walked and how fast, the action it is in
 function build(kit, Wd, lod, mo){ KIT = kit; FACES.length = 0; LODK = lod || 1; ACT = (mo && mo.act) || null;
-  switch (kit){
-    case 'heavy':    kitHeavy(Wd); gunIn(Wd, 'carbine'); break;
-    case 'enemy':    kitAssault(Wd); break;
-    case 'infantry': kitInfantry(Wd); gunIn(Wd, 'rifle'); break;
-    case 'hoplite':  kitHoplite(Wd); break;
-    case 'archer':   kitArcher(Wd); break;
-    case 'peltast':  kitPeltast(Wd); break;
-    case 'spartan':  kitSpartan(Wd); break;
-    case 'cavalry':  kitHorse(mo); var RW = (mo && mo.rider) || riderFrames(); KIT = 'cavalry'; kitHoplite(RW); break;
-    case 'sniper':   kitSniper(Wd); break;
-    case 'hmg':      kitHmg(Wd); break;
-    case 'medic':    kitMedic(Wd); break;
-    case 'mech':     kitMech(Wd); scaleFaces(MECH_S); break;
-    default:         kitHeavy(Wd);
-  }
+  var K = kitInfo(kit);
+  K.build(Wd, mo);
+  if (K.scale && K.scale !== 1) scaleFaces(K.scale);
   LODK = 1; ACT = null;
   return FACES; }
 function pose(kit, P){ var k = KIT; KIT = kit; kitPose(P); KIT = k; }
-return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS, HOLD:HOLD, MECH_S:MECH_S, armIK:armIK, riderPose:riderPose, GUN:GUN };
+return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS, HOLD:HOLD, MECH_S:MECH_S, armIK:armIK, riderPose:riderPose, GUN:GUN,
+         kitInfo:kitInfo, KITS:KITS };
 })();
 
 // ===== walking pieces: a destination on the table, the rig's own gait carrying the piece there =====
@@ -2359,7 +2459,7 @@ function teamTint(c, T){
 }
 function unitCol(u){
   if (!u._ct){
-    var C = UNIT_COL[u.k] || UNIT_COL.heavy, T = TEAM(u.side).rgb;
+    var C = colOf(u.k), T = TEAM(u.side).rgb;
     u._ct = { plate:teamTint(C.plate, T), trim:C.trim, visor:C.visor, base:C.base };
   }
   return u._ct;
@@ -2378,6 +2478,10 @@ var UNIT_COL = {
   medic:    { plate:[222,220,212], trim:[196,40,40], visor:[30,30,30], base:[52,54,60] },
   mech:     { plate:[70,86,120], trim:[196,168,92], visor:[240,190,90], base:[44,46,52] }
 };
+// หน่วยใหม่ไม่ต้องเขียนสีซ้ำ: เอาจากชุดสีของโมเดล (สีเกราะ ขอบ กระจก) ฐานสีเทาเข้ม
+function colOf(k){ if (UNIT_COL[k]) return UNIT_COL[k];
+  var S = MINI.SOLID[k] || MINI.SOLID.heavy, pl = S.plate || S.helm || S.skin || S.cloth || [120,120,120];
+  return (UNIT_COL[k] = { plate:pl, trim:S.trim || pl, visor:S.visor || S.eye || [30,30,30], base:[52,54,60] }); }
 var units = [];
 var RIGQ = SKRIG, POSE_CACHE = {};
 // Every piece is drawn as its real model -- the rig in its armour kit -- never as a stand-in block. What changes with
@@ -2389,6 +2493,11 @@ var RIGQ = SKRIG, POSE_CACHE = {};
 //                       so the caller has to draw what it gets before asking for another piece.
 var LODS = [1, 0.65, 0.45, 0.3];
 function kitOf(u){ return u.k; }
+// what the kit says about its size and shape: drawn bigger or smaller, ridden, or a creature with no rig to draw
+function kitScale(k){ return MINI.kitInfo(k).scale || 1; }
+function isMount(k){ return !!MINI.kitInfo(k).mount; }
+function isBeast(k){ var K = MINI.kitInfo(k); return !!(K.mount || K.creature); }
+function baseR(k){ var r = radOfType(TY(k)); return r <= 0.8 ? 0.62 : Math.round(r*17.27)/20; }   // the base disc drawn under it (1.1" -> 0.95, 1.5" -> 1.3)
 function copyFaces(fs){ return fs.map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; }); }
 function copyFrames(Wd){ var out = {}, n; for (n in Wd) out[n] = { p: Wd[n].p.slice(), q: Wd[n].q.slice() }; return out; }
 function liveFaces(u, L){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P);
@@ -2397,7 +2506,7 @@ function freeze(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); retur
 function rigFaces(u, L){                    // the kit's geometry, in the model's own frame
   L = L || 0;
   var kit = kitOf(u);
-  if (u.act && u.act.W) return MINI.build(kit, u.act.W, LODS[L], { act: u.act.gear || null, rider: u.k === 'cavalry' ? u.act.W : null,
+  if (u.act && u.act.W) return MINI.build(kit, u.act.W, LODS[L], { act: u.act.gear || null, rider: isMount(u.k) ? u.act.W : null,
     travel: u.ctl ? u.ctl.travel*(u.scale||1) : 0, v: u.ctl && u.mv ? u.ctl.v : 0 });
   if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u, L);
   if (u.rest) return u.rest.f[L] || (u.rest.f[L] = copyFaces(MINI.build(kit, u.rest.Wd, LODS[L])));
@@ -2429,7 +2538,10 @@ function stepUnits(dt){
 }
 // the kit's colours for this piece, already dyed in its team's colour -- worked out once, not once per facet per frame.
 // Skin, horse and wood keep their own colour, the way a painted miniature is: the team shows on armour, cloth and shields.
-var NATURAL = { flesh:1, coat:1, mane:1, hoof:1, muzzle:1, wood:1, string:1 };
+var NATURAL = { flesh:1, coat:1, mane:1, hoof:1, muzzle:1, wood:1, string:1,
+  // รอบ 3: ผิว กระดูก เขา เล็บ ตา แสง ขน เกล็ด งา หิน เหล็ก ทอง เชือก หนัง ผม ไฟ ขนนก — สีของมันเอง ไม่ย้อมสีทีม
+  skin:1, green:1, bone:1, horn:1, claw:1, eye:1, glow:1, fur:1, scales:1, ivory:1, stone:1, steel:1, gold:1, rope:1,
+  leather:1, hair:1, fire:1, feather:1, tusk:1 };
 function rigPal(u){
   var TC = (u.side != null && G.on) ? TEAM(u.side).rgb : null, key = (TC ? u.side : 'x') + '|' + u.k;
   if (u._pk === key) return u._pal;
@@ -2444,7 +2556,7 @@ var RIG_OPT = { bias:-0.15 }, RIG_OPT_FAR = { bias:-0.15, minA:0.35 };
 function drawRig(u, S){
   var faces = rigFaces(u, u.lod), pal = rigPal(u), opt = u.lod >= 2 ? RIG_OPT_FAR : RIG_OPT;
   var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m;
-  var X = u.act && u.act.xf, M = X && X.m, pu = X && X.push, al = X && X.alpha != null ? X.alpha : 1, ms = u.k === 'mech' ? MINI.MECH_S : 1;
+  var X = u.act && u.act.xf, M = X && X.m, pu = X && X.push, al = X && X.alpha != null ? X.alpha : 1, ms = u.scale || 1;
   if (al < 0.999) opt = { bias:opt.bias, minA:opt.minA, alpha:true, a:Math.max(0, al) };
   for (i=0;i<faces.length;i++){
     var f = faces[i], fp = f.p, pts = new Array(fp.length), col = pal[f.k] || pal.plate;
@@ -2471,7 +2583,7 @@ function drawUnit(u){
   if (al <= 0.01) return;                                          // faded out after falling
   var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0;
   shadowAt(u.x, u.z, 0.8, 0.34*al);
-  var br = u.k === 'mech' ? 1.3 : u.k === 'cavalry' ? 0.95 : 0.62;
+  var br = baseR(u.k);
   prism(u.x, y, u.z, br, 0.1, u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
   drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
@@ -2580,10 +2692,115 @@ var TYPES = [
   { k:'medic',    fac:'mod', nm:'หน่วยแพทย์',  n:1, pts:35,  mv:6,  T:3,  sv:5, w:2,  ld:6, oc:1, heal:3,
     gun:{ nm:'ปืนพก', rng:12, a:1, bs:4, s:3, ap:0, d:1, pi:1 }, mel:{ nm:'มีด', a:1, ws:4, s:3, ap:0, d:1 }, d:'แทนการยิง: รักษาหน่วยเพื่อนในระยะ 3" (คืนแผล หรือชุบตัวที่ล้ม)' },
   { k:'mech',     fac:'mod', nm:'หุ่นรบ',       n:1, pts:170, mv:8,  T:10, sv:2, w:12, ld:6, oc:4, r:1.5,
-    gun:{ nm:'ปืนใหญ่หุ่น', rng:36, a:4, bs:3, s:9, ap:3, d:3 }, mel:{ nm:'หมัดเหล็ก', a:4, ws:3, s:12, ap:2, d:3 }, d:'ตัวใหญ่ ทนมาก ยิงหนัก ตีหนัก' }
+    gun:{ nm:'ปืนใหญ่หุ่น', rng:36, a:4, bs:3, s:9, ap:3, d:3 }, mel:{ nm:'หมัดเหล็ก', a:4, ws:3, s:12, ap:2, d:3 }, d:'ตัวใหญ่ ทนมาก ยิงหนัก ตีหนัก' },
+  // ── รอบ 3: กองทัพใหม่ (ต่อท้ายเสมอ ลำดับนี้ส่งข้ามเครื่อง) ──
+  // ความสามารถของหน่วย: hero ตัวเอก · aoc เกราะศรัทธา (ค่าเจาะที่โดน −1) · ac วิ่งแล้วบุกได้ · ca บุกเข้ามาตานี้ตี +1 ครั้ง
+  //   fly บิน (ถอยจากประชิดแล้วยังยิงและบุกได้) · st พรางตัว (โดนยิง −1 เข้า) · aura:'hit' พวกเดียวกันในระยะ 6" เข้าเป้า +1
+  //   aura:'ld' พวกเดียวกันในระยะ 6" ผ่านทดสอบขวัญเสมอ · rez:5 ซ่อมตัวเอง (เฟสคำสั่ง ตัวที่ล้มทอยได้ 5+ ลุกขึ้น)
+  //   heel ส้นเท้าอคิลลีส (ทอยเจาะได้ 6 ใส่เขา ตายทันที) · spawn ม้าไม้ (เปิดท้องม้า หน่วยที่ซ่อนอยู่ออกมา)
+  // ค่าพิเศษของอาวุธเพิ่ม: tr พ่น (โดนอัตโนมัติ ไม่ต้องทอยเข้า) · lh เข้าเป้าได้ 6 เจาะอัตโนมัติ · dw เจาะได้ 6 เป็นแผลตรง ไม่มีเซฟ
+  { k:'knight',   fac:'kn',  nm:'อัศวินเหล็ก',     n:5, pts:100, mv:6,  T:4,  sv:3, w:2,  ld:6, oc:2, aoc:1,
+    gun:{ nm:'ปืนไรเฟิลระเบิด', rng:24, a:2, bs:3, s:4, ap:1, d:1 }, mel:{ nm:'ดาบสั้น', a:3, ws:3, s:4, ap:0, d:1 }, d:'แกนกองทัพ เกราะหนา ยิงแม่น' },
+  { k:'kblade',   fac:'kn',  nm:'อัศวินดาบโล่',    n:5, pts:115, mv:6,  T:4,  sv:3, inv:5, w:2, ld:6, oc:2, aoc:1,
+    gun:null, mel:{ nm:'ดาบพลัง', a:4, ws:3, s:5, ap:2, d:1 }, d:'ดาบกับโล่ บุกเข้าฟัน โล่กันได้ 5++' },
+  { k:'kheavy',   fac:'kn',  nm:'อัศวินปืนใหญ่',   n:3, pts:120, mv:5,  T:4,  sv:3, w:2,  ld:6, oc:1, aoc:1,
+    gun:{ nm:'ปืนพลาสมาหนัก', rng:36, a:2, bs:3, s:7, ap:2, d:2, hv:1 }, mel:{ nm:'หมัดเกราะ', a:2, ws:3, s:4, ap:0, d:1 }, d:'ยิงไกล แรง เจาะเกราะ ยืนนิ่งแม่นขึ้น' },
+  { k:'kterm',    fac:'kn',  nm:'อัศวินเกราะยักษ์', n:3, pts:150, mv:5,  T:5,  sv:2, inv:4, w:3, ld:6, oc:1, aoc:1, r:1.0,
+    gun:{ nm:'ปืนระเบิดคู่', rng:24, a:2, bs:3, s:4, ap:0, d:1, rf:2 }, mel:{ nm:'หมัดพลัง', a:3, ws:3, s:8, ap:2, d:2 }, d:'เกราะหนาที่สุด 2+ กับ 4++ หมัดพลังทุบรถได้' },
+  { k:'kcapt',    fac:'kn',  nm:'แม่ทัพอัศวิน',    n:1, pts:90,  mv:6,  T:4,  sv:2, inv:4, w:5, ld:6, oc:1, aoc:1, hero:1, aura:'hit',
+    gun:{ nm:'ปืนพกพลาสมา', rng:12, a:1, bs:2, s:7, ap:2, d:2, pi:1 }, mel:{ nm:'ดาบศักดิ์สิทธิ์', a:5, ws:2, s:5, ap:2, d:2 }, d:'ตัวเอก หน่วยพวกเดียวกันในระยะ 6" เข้าเป้า +1' },
+  { k:'kdread',   fac:'kn',  nm:'หุ่นศักดิ์สิทธิ์',  n:1, pts:160, mv:6,  T:9,  sv:2, w:10, ld:6, oc:3, aoc:1, r:1.4,
+    gun:{ nm:'ปืนใหญ่หมุน', rng:24, a:6, bs:3, s:6, ap:1, d:1 }, mel:{ nm:'กำปั้นยักษ์', a:4, ws:3, s:12, ap:2, d:3 }, d:'หุ่นเดินได้ ยิงรัว ต่อยหนัก' },
+  { k:'gaunt',    fac:'sw',  nm:'ตัวเขี้ยว',       n:10, pts:60, mv:6,  T:3,  sv:5, w:1,  ld:8, oc:2,
+    gun:{ nm:'ปืนเข็มชีวะ', rng:18, a:1, bs:4, s:5, ap:0, d:1, as:1 }, mel:{ nm:'กรงเล็บ', a:1, ws:4, s:3, ap:0, d:1 }, d:'ฝูงละสิบตัว ถูก วิ่งไปยิงไป' },
+  { k:'hound',    fac:'sw',  nm:'ตัวล่า',          n:10, pts:65, mv:10, T:3,  sv:5, w:1,  ld:8, oc:2, ac:1,
+    gun:null, mel:{ nm:'เคียวกระดูก', a:2, ws:4, s:4, ap:1, d:1 }, d:'เร็วมาก วิ่งแล้วยังบุกได้' },
+  { k:'warrior',  fac:'sw',  nm:'นักรบฝูง',        n:3, pts:105, mv:6,  T:5,  sv:4, w:3,  ld:7, oc:1, r:1.0, aura:'ld',
+    gun:{ nm:'ปืนกรดกระดูก', rng:24, a:3, bs:4, s:5, ap:1, d:1 }, mel:{ nm:'เคียวคู่', a:4, ws:3, s:5, ap:2, d:1 }, d:'ผู้นำฝูง ฝูงรอบตัว 6" ไม่เสียขวัญ' },
+  { k:'spitter',  fac:'sw',  nm:'ตัวพ่นกรด',       n:3, pts:80,  mv:5,  T:4,  sv:5, w:2,  ld:8, oc:1,
+    gun:{ nm:'พ่นกรด', rng:12, a:3, bs:0, s:5, ap:1, d:1, tr:1 }, mel:{ nm:'งับ', a:1, ws:4, s:4, ap:0, d:1 }, d:'พ่นกรดใส่ โดนอัตโนมัติ' },
+  { k:'gargoyle', fac:'sw',  nm:'ค้างคาวต่างดาว',  n:6, pts:70,  mv:12, T:3,  sv:6, w:1,  ld:8, oc:1, fly:1,
+    gun:{ nm:'ปืนเข็มบิน', rng:18, a:1, bs:4, s:4, ap:0, d:1, as:1 }, mel:{ nm:'กรงเล็บ', a:1, ws:4, s:3, ap:0, d:1 }, d:'บินเร็ว ถอยแล้วยังยิงได้' },
+  { k:'brute',    fac:'sw',  nm:'อสูรเกราะหนา',    n:1, pts:150, mv:8,  T:9,  sv:2, w:10, ld:8, oc:3, r:1.4, ac:1, ca:1,
+    gun:{ nm:'ปืนหนามกระดูก', rng:18, a:4, bs:4, s:6, ap:1, d:1 }, mel:{ nm:'กรงเล็บยักษ์', a:5, ws:4, s:9, ap:2, d:3 }, d:'ตัวยักษ์ วิ่งแล้วบุกได้ บุกเข้าตีเพิ่ม' },
+  { k:'rwar',     fac:'rb',  nm:'ทหารโครงเหล็ก',   n:10, pts:110, mv:5, T:4,  sv:4, w:1,  ld:7, oc:2, rez:5,
+    gun:{ nm:'ปืนสลายอะตอม', rng:24, a:1, bs:4, s:4, ap:0, d:1, rf:1, lh:1 }, mel:{ nm:'ด้ามปืน', a:1, ws:4, s:4, ap:0, d:1 }, d:'ล้มแล้วลุกได้ ยิงได้ 6 เจาะเลย' },
+  { k:'rimm',     fac:'rb',  nm:'ผู้พิทักษ์อมตะ',   n:5, pts:95,  mv:5,  T:5,  sv:3, w:1,  ld:7, oc:2, rez:5,
+    gun:{ nm:'ปืนสลายหนัก', rng:24, a:2, bs:3, s:5, ap:1, d:1, lh:1 }, mel:{ nm:'ด้ามปืน', a:2, ws:4, s:4, ap:0, d:1 }, d:'เกราะดี ยิงแม่น ล้มแล้วลุกได้' },
+  { k:'rguard',   fac:'rb',  nm:'องครักษ์เคียว',    n:5, pts:115, mv:5,  T:5,  sv:3, w:2,  ld:6, oc:1, rez:5,
+    gun:null, mel:{ nm:'เคียวสงคราม', a:3, ws:3, s:7, ap:2, d:2 }, d:'เคียวสองมือ ฟันหนัก ล้มแล้วลุกได้' },
+  { k:'rscarab',  fac:'rb',  nm:'ฝูงแมงเต่าโลหะ',  n:3, pts:40,  mv:10, T:2,  sv:6, w:3,  ld:8, oc:0, fly:1, r:0.9,
+    gun:null, mel:{ nm:'ขากรรไกร', a:4, ws:4, s:2, ap:0, d:1 }, d:'ฝูงแมลงเหล็ก ถูก เร็ว คอยขวางทาง' },
+  { k:'rlord',    fac:'rb',  nm:'จักรพรรดิโลหะ',    n:1, pts:90,  mv:5,  T:5,  sv:2, inv:4, w:6, ld:6, oc:1, hero:1, aura:'hit',
+    gun:{ nm:'คทาแสง', rng:18, a:3, bs:2, s:5, ap:2, d:1 }, mel:{ nm:'คทาแสง', a:4, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก หน่วยพวกเดียวกันในระยะ 6" เข้าเป้า +1' },
+  { k:'rspider',  fac:'rb',  nm:'แมงมุมสุสาน',     n:1, pts:130, mv:8,  T:8,  sv:3, w:9,  ld:8, oc:3, r:1.4, heal:6,
+    gun:{ nm:'ปืนแสงสลาย', rng:18, a:2, bs:4, s:6, ap:1, d:2 }, mel:{ nm:'ขาแหลม', a:4, ws:4, s:7, ap:1, d:2 }, d:'แทนการยิง: ซ่อมหน่วยเพื่อนในระยะ 6"' },
+  { k:'boy',      fac:'or',  nm:'ออร์คพลทหาร',     n:10, pts:85, mv:6,  T:5,  sv:5, w:1,  ld:7, oc:2, ca:1,
+    gun:{ nm:'ปืนพกเถื่อน', rng:12, a:1, bs:5, s:4, ap:0, d:1, pi:1 }, mel:{ nm:'ขวานสับ', a:2, ws:3, s:4, ap:1, d:1 }, d:'ฝูงละสิบ ทนทาน บุกเข้าไปตีเพิ่ม' },
+  { k:'loota',    fac:'or',  nm:'ออร์คปืนปล้น',    n:5, pts:85,  mv:6,  T:5,  sv:5, w:1,  ld:7, oc:1, ca:1,
+    gun:{ nm:'ปืนใหญ่ปล้นมา', rng:36, a:2, bs:5, s:8, ap:1, d:2, hv:1 }, mel:{ nm:'ด้ามปืน', a:2, ws:3, s:4, ap:0, d:1 }, d:'ปืนใหญ่ปล้นมา ยิงไกล แรง แต่ไม่ค่อยแม่น' },
+  { k:'nob',      fac:'or',  nm:'ออร์คหัวโจก',     n:3, pts:110, mv:6,  T:5,  sv:4, w:2,  ld:7, oc:1, ca:1,
+    gun:{ nm:'ปืนพกเถื่อน', rng:12, a:1, bs:5, s:4, ap:0, d:1, pi:1 }, mel:{ nm:'ก้ามพลัง', a:3, ws:3, s:9, ap:2, d:2 }, d:'ตัวโต ก้ามพลังบีบเกราะแตก' },
+  { k:'boss',     fac:'or',  nm:'จ่าฝูงออร์ค',     n:1, pts:95,  mv:6,  T:6,  sv:4, inv:5, w:6, ld:6, oc:1, ca:1, hero:1, aura:'ld',
+    gun:{ nm:'ปืนกลปล้น', rng:18, a:3, bs:5, s:5, ap:1, d:1 }, mel:{ nm:'ก้ามยักษ์', a:5, ws:2, s:10, ap:2, d:3 }, d:'ตัวเอก พวกรอบตัว 6" ไม่เสียขวัญ' },
+  { k:'grot',     fac:'or',  nm:'ก็อบลินจิ๋ว',      n:10, pts:40, mv:6,  T:2,  sv:7, w:1,  ld:8, oc:2,
+    gun:{ nm:'ปืนกระบอกเล็ก', rng:18, a:1, bs:4, s:3, ap:0, d:1 }, mel:{ nm:'ข่วน', a:1, ws:5, s:2, ap:0, d:1 }, d:'ถูกที่สุด ตัวเล็ก ไม่มีเกราะ เอาไว้ยึดจุด' },
+  { k:'odread',   fac:'or',  nm:'หุ่นกระป๋องออร์ค', n:1, pts:140, mv:6,  T:9,  sv:2, w:8,  ld:7, oc:3, r:1.3, ca:1,
+    gun:{ nm:'ปืนกลกระป๋อง', rng:24, a:4, bs:5, s:6, ap:1, d:1, su:1 }, mel:{ nm:'ก้ามเลื่อย', a:4, ws:3, s:12, ap:2, d:3 }, d:'กระป๋องเดินได้ ก้ามเลื่อยฉีกเกราะ' },
+  { k:'troy',     fac:'gr',  nm:'ม้าไม้เมืองทรอย',  n:1, pts:180, mv:5,  T:9,  sv:3, w:14, ld:6, oc:4, r:1.7, spawn:{ k:'hoplite', n:5 },
+    gun:null, mel:{ nm:'กีบไม้กระแทก', a:3, ws:4, s:8, ap:1, d:2 }, d:'ทหารห้าคนซ่อนในท้อง ออกมารอบ 2 หรือตอนม้าพัง' },
+  { k:'achil',    fac:'gr',  nm:'อคิลลีส',          n:1, pts:100, mv:7,  T:4,  sv:2, inv:3, w:5, ld:6, oc:1, hero:1, heel:1, brave:1,
+    gun:{ nm:'หอกซัดเทพ', rng:12, a:1, bs:2, s:6, ap:2, d:2, as:1 }, mel:{ nm:'หอกและดาบ', a:6, ws:2, s:6, ap:2, d:2 }, d:'เกือบอมตะ 3++ แต่ทอยเจาะได้ 6 ใส่ส้นเท้า ตายทันที' },
+  { k:'herc',     fac:'gr',  nm:'เฮอร์คิวลีส',      n:1, pts:110, mv:6,  T:6,  sv:4, inv:4, w:7, ld:6, oc:1, hero:1, aura:'hit',
+    gun:{ nm:'ขว้างก้อนหิน', rng:12, a:1, bs:3, s:8, ap:1, d:3 }, mel:{ nm:'กระบองยักษ์', a:5, ws:2, s:9, ap:2, d:3 }, d:'ตัวเอก หนังสิงห์ กระบองยักษ์ พวกรอบตัวเข้าเป้า +1' },
+  { k:'cyclops',  fac:'gr',  nm:'ไซคลอปส์',        n:1, pts:160, mv:8,  T:9,  sv:4, w:12, ld:7, oc:3, r:1.4,
+    gun:{ nm:'ขว้างหินผา', rng:24, a:2, bs:5, s:10, ap:2, d:3 }, mel:{ nm:'กระบองต้นไม้', a:4, ws:3, s:10, ap:2, d:3 }, d:'ยักษ์ตาเดียว ขว้างหินก้อนเท่าบ้าน' },
+  { k:'mino',     fac:'gr',  nm:'มิโนทอร์',        n:1, pts:120, mv:8,  T:7,  sv:4, w:8,  ld:6, oc:2, r:1.1, ca:1,
+    gun:null, mel:{ nm:'ขวานสองคม', a:5, ws:3, s:8, ap:2, d:2, la:1 }, d:'หัววัว ขวานสองคม บุกเข้ามาแรงมาก' },
+  { k:'medusa',   fac:'gr',  nm:'เมดูซ่า',          n:1, pts:110, mv:6,  T:4,  sv:5, inv:4, w:6, ld:6, oc:1,
+    gun:{ nm:'สายตาศิลา', rng:18, a:2, bs:2, s:6, ap:3, d:3, dw:1 }, mel:{ nm:'เขี้ยวงู', a:3, ws:3, s:4, ap:1, d:1 }, d:'สบตากลายเป็นหิน เจาะได้ 6 เป็นแผลตรง' },
+  { k:'centaur',  fac:'gr',  nm:'เซนทอร์',          n:3, pts:120, mv:12, T:5,  sv:5, w:3,  ld:7, oc:1, r:1.1,
+    gun:{ nm:'ธนูเซนทอร์', rng:24, a:2, bs:3, s:5, ap:1, d:1, as:1 }, mel:{ nm:'กีบม้า', a:2, ws:4, s:5, ap:0, d:1 }, d:'ครึ่งคนครึ่งม้า วิ่งไปยิงธนูไป' },
+  { k:'pegasus',  fac:'gr',  nm:'อัศวินม้าบิน',     n:3, pts:130, mv:14, T:5,  sv:4, w:3,  ld:7, oc:2, r:1.1, fly:1,
+    gun:null, mel:{ nm:'หอกม้าบิน', a:3, ws:3, s:5, ap:1, d:2, la:1 }, d:'ม้ามีปีก บินเร็วที่สุด บุกแล้วแทงแรง' },
+  { k:'flamer',   fac:'mod', nm:'พลพ่นไฟ',         n:5, pts:70,  mv:6,  T:3,  sv:5, w:1,  ld:7, oc:2,
+    gun:{ nm:'ปืนพ่นไฟ', rng:12, a:2, bs:0, s:4, ap:0, d:1, tr:1 }, mel:{ nm:'ด้ามปืน', a:1, ws:4, s:3, ap:0, d:1 }, d:'พ่นไฟ โดนอัตโนมัติ ไม่ต้องทอยเข้า' },
+  { k:'mortar',   fac:'mod', nm:'ทีมปืนครก',       n:2, pts:60,  mv:5,  T:3,  sv:5, w:2,  ld:7, oc:1,
+    gun:{ nm:'ปืนครก', rng:48, a:2, bs:4, s:5, ap:0, d:1, hv:1 }, mel:{ nm:'ด้ามปืน', a:1, ws:4, s:3, ap:0, d:1 }, d:'ยิงโค้งไกลสุดโต๊ะ ยืนนิ่งแม่นขึ้น' },
+  { k:'tank',     fac:'mod', nm:'รถถัง',            n:1, pts:200, mv:10, T:11, sv:2, w:13, ld:7, oc:3, r:1.8,
+    gun:{ nm:'ปืนใหญ่รถถัง', rng:48, a:3, bs:4, s:9, ap:2, d:3 }, mel:{ nm:'ตีนตะขาบทับ', a:3, ws:4, s:7, ap:0, d:1 }, d:'ทนที่สุด ปืนใหญ่ยิงไกลสุดโต๊ะ' },
+  { k:'cmdr',     fac:'mod', nm:'ผู้บัญชาการ',      n:1, pts:60,  mv:6,  T:3,  sv:4, inv:5, w:4, ld:6, oc:1, hero:1, aura:'hit',
+    gun:{ nm:'ปืนพกกล', rng:12, a:2, bs:3, s:4, ap:1, d:1, pi:1 }, mel:{ nm:'ดาบนายทหาร', a:3, ws:3, s:4, ap:1, d:1 }, d:'ตัวเอก สั่งการ หน่วยในระยะ 6" เข้าเป้า +1' },
+  { k:'dabsong',  fac:'th',  nm:'ทหารดาบสองมือ',   n:5, pts:70,  mv:7,  T:3,  sv:5, w:1,  ld:7, oc:2, ca:1,
+    gun:null, mel:{ nm:'ดาบสองมือ', a:3, ws:3, s:4, ap:1, d:1 }, d:'ดาบคู่ เร็ว บุกเข้าไปฟันเพิ่ม' },
+  { k:'musket',   fac:'th',  nm:'ทหารปืนไฟ',       n:5, pts:55,  mv:6,  T:3,  sv:5, w:1,  ld:7, oc:2,
+    gun:{ nm:'ปืนคาบศิลา', rng:24, a:1, bs:4, s:5, ap:1, d:1, hv:1 }, mel:{ nm:'ดาบสั้น', a:1, ws:4, s:3, ap:0, d:1 }, d:'ปืนโบราณ ยิงแรง ยืนนิ่งแม่นขึ้น' },
+  { k:'eleph',    fac:'th',  nm:'ช้างศึก',          n:1, pts:190, mv:8,  T:10, sv:3, w:14, ld:7, oc:4, r:1.8,
+    gun:null, mel:{ nm:'งาช้างและง้าว', a:5, ws:3, s:9, ap:2, d:2, la:1 }, d:'ยุทธหัตถี ช้างใหญ่ บุกเข้าไปแทงแรงมาก' },
+  { k:'yak',      fac:'th',  nm:'ยักษ์',            n:1, pts:170, mv:7,  T:9,  sv:3, w:12, ld:6, oc:3, r:1.4,
+    gun:null, mel:{ nm:'กระบองยักษ์', a:5, ws:3, s:10, ap:2, d:3 }, d:'ยักษ์เฝ้าวัด ตัวใหญ่ กระบองฟาดหนัก' },
+  { k:'hanu',     fac:'th',  nm:'หนุมาน',           n:1, pts:100, mv:10, T:5,  sv:4, inv:4, w:6, ld:6, oc:1, hero:1, fly:1, aura:'hit',
+    gun:null, mel:{ nm:'ตรีเพชร', a:6, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก ลิงเผือกเหาะได้ พวกรอบตัวเข้าเป้า +1' },
+  { k:'naga',     fac:'th',  nm:'พญานาค',           n:1, pts:170, mv:8,  T:9,  sv:3, w:12, ld:6, oc:3, r:1.5,
+    gun:{ nm:'พ่นพิษ', rng:12, a:6, bs:0, s:6, ap:1, d:1, tr:1 }, mel:{ nm:'รัดและฉก', a:4, ws:3, s:8, ap:2, d:2 }, d:'งูยักษ์ พ่นพิษโดนอัตโนมัติ รัดแน่น' },
+  { k:'samurai',  fac:'lg',  nm:'ซามูไร',           n:5, pts:90,  mv:6,  T:4,  sv:3, w:1,  ld:6, oc:2,
+    gun:null, mel:{ nm:'ดาบคาตานะ', a:3, ws:2, s:5, ap:2, d:1, lh:1 }, d:'ดาบคม เข้าได้ 6 เจาะเลย' },
+  { k:'ninja',    fac:'lg',  nm:'นินจา',            n:5, pts:80,  mv:8,  T:3,  sv:5, w:1,  ld:7, oc:1, st:1,
+    gun:{ nm:'ดาวกระจาย', rng:12, a:2, bs:3, s:3, ap:1, d:1, as:1 }, mel:{ nm:'ดาบนินจา', a:2, ws:3, s:4, ap:1, d:1 }, d:'พรางตัว โดนยิงยากขึ้น 1' },
+  { k:'viking',   fac:'lg',  nm:'ไวกิ้งคลั่ง',       n:5, pts:75,  mv:6,  T:4,  sv:6, w:2,  ld:7, oc:2, ca:1,
+    gun:{ nm:'ขวานขว้าง', rng:8, a:1, bs:4, s:5, ap:0, d:1, as:1 }, mel:{ nm:'ขวานศึก', a:3, ws:3, s:5, ap:1, d:1 }, d:'คลั่ง บุกเข้าไปตีเพิ่ม' },
+  { k:'mummy',    fac:'lg',  nm:'มัมมี่',           n:5, pts:70,  mv:5,  T:5,  sv:6, w:2,  ld:8, oc:2, rez:5,
+    gun:null, mel:{ nm:'มือเน่า', a:2, ws:4, s:4, ap:0, d:1 }, d:'ช้า ทน ล้มแล้วลุกขึ้นมาใหม่' },
+  { k:'thunder',  fac:'lg',  nm:'เทพสายฟ้า',        n:1, pts:120, mv:6,  T:6,  sv:3, inv:4, w:6, ld:6, oc:1, hero:1, aura:'ld',
+    gun:{ nm:'สายฟ้าฟาด', rng:18, a:2, bs:2, s:8, ap:2, d:2 }, mel:{ nm:'ค้อนสายฟ้า', a:5, ws:2, s:9, ap:2, d:3 }, d:'ตัวเอก เรียกสายฟ้า พวกรอบตัวไม่เสียขวัญ' },
+  { k:'dragon',   fac:'lg',  nm:'มังกร',            n:1, pts:220, mv:12, T:10, sv:3, w:14, ld:6, oc:4, r:1.8, fly:1,
+    gun:{ nm:'ลมหายใจไฟ', rng:12, a:6, bs:0, s:6, ap:1, d:2, tr:1 }, mel:{ nm:'กรงเล็บและเขี้ยว', a:5, ws:3, s:8, ap:2, d:3 }, d:'บินได้ พ่นไฟโดนอัตโนมัติ' }
 ];
 // สองกองทัพ แต่ละคนเลือกของตัวเอง สู้ข้ามกองได้
-var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า — ต้องบุกเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ หุ่นรบ — ยิงจากระยะไกล' } ];
+var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า วีรบุรุษ อสูร — ต้องบุกเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ รถถัง — ยิงจากระยะไกล' },
+  { k:'kn', nm:'อัศวินเกราะพลัง', d:'เกราะหนา ยิงแม่น ตีแรง — น้อยตัวแต่แกร่ง' }, { k:'sw', nm:'ฝูงสัตว์ต่างดาว', d:'ฝูงใหญ่ วิ่งเร็ว เล็บคม — มาเป็นร้อย' },
+  { k:'rb', nm:'หุ่นยนต์โลหะโบราณ', d:'โครงเหล็กอมตะ — ล้มแล้วลุกขึ้นมาใหม่' }, { k:'or', nm:'ออร์คเขียว', d:'ตัวใหญ่ บ้าบิ่น ยิงห่วยแต่ตีโหด' },
+  { k:'th', nm:'ตำนานสยาม', d:'ช้างศึก ยักษ์ หนุมาน พญานาค ดาบสองมือ' }, { k:'lg', nm:'ตำนานโลก', d:'ซามูไร นินจา ไวกิ้ง มัมมี่ เทพสายฟ้า มังกร' } ];
 function emptyList(){ var out = [], i; for (i=0;i<TYPES.length;i++) out.push(0); return out; }
 function fitList(L){ var out = emptyList(), i; if (L) for (i=0;i<out.length;i++) out[i] = L[i] | 0; return out; }
 // กองทัพของรายชื่อนี้ ดูจากหน่วยที่มี · ยังว่างอยู่ก็ใช้ที่เลือกไว้ (ค่าตั้งต้น กองทหาร)
@@ -2696,15 +2913,21 @@ function seededRoll(n){
   return x - Math.floor(x);
 }
 // บอทแต่ละตัวสุ่มกองทัพของตัวเอง (ผูกกับ SEED ทุกเครื่องได้เหมือนกัน) · คนจริงใช้กองทัพที่เลือกเอง
-var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry'], mod:['infantry','heavy','enemy','hmg','sniper','medic','mech'] };
+var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry','centaur','troy','herc','mino','cyclops','achil','medusa','pegasus'],
+  mod:['infantry','heavy','enemy','hmg','sniper','medic','mech','flamer','cmdr','mortar','tank'],
+  kn:['knight','kblade','kcapt','kterm','kheavy','kdread'], sw:['gaunt','hound','warrior','spitter','gargoyle','brute'],
+  rb:['rwar','rimm','rlord','rguard','rscarab','rspider'], or:['boy','grot','boss','nob','loota','odread'],
+  th:['dabsong','musket','hanu','eleph','yak','naga'], lg:['samurai','ninja','viking','mummy','thunder','dragon'] };
+// ตัวหมากต่อคนไม่เกินเท่านี้ (ฝูงละสิบตัวซื้อได้เยอะ โต๊ะจะหนักเกิน): รวมทั้งโต๊ะราว 200 ตัว
+function armyCap(){ return Math.min(80, Math.floor(200 / Math.max(1, G.players.length || 2))); }
 function autoList(s){
   var out = emptyList(), left = shareOf(), k, pass;
   var P = G.players[s], tick = 0;
   // บอทต้องสุ่มเหมือนกันทุกเครื่อง คนจริงสุ่มยังไงก็ได้ เพราะกองของเขาถูกส่งขึ้นห้องอยู่แล้ว
   // Claude (ai) ก็ไม่มีใครเลือกให้ — สุ่มแบบผูกกับ SEED เหมือนบอท ทุกเครื่องจะได้กองเดียวกัน
   var seeded = P && (P.bot || P.ai), rnd = seeded ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
-  var fac = seeded ? (rnd() < 0.5 ? 'gr' : 'mod') : (P && P.fac) || 'mod';
-  var MAX_MODELS = Math.max(6, Math.ceil(40 / Math.max(1, G.perTeam)));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
+  var fac = seeded ? FACS[Math.min(FACS.length - 1, Math.floor(rnd()*FACS.length))].k : (P && P.fac) || 'mod';
+  var MAX_MODELS = Math.min(armyCap(), Math.max(6, Math.ceil(40 / Math.max(1, G.perTeam))));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
   var order = CORE[fac].map(function(key){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === key) return i; return 0; });
   var cheap = order.reduce(function(a, i){ return TYPES[i].pts < TYPES[a].pts ? i : a; }, order[0]);
   function models(){ var t = 0, j; for (j=0;j<out.length;j++) t += out[j]*TYPES[j].n; return t; }
@@ -2750,7 +2973,7 @@ function deploy(){
       for (j=0;j<T.n;j++){
         var sp = freeSpot(slots[j][0], slots[j][1], null, null, null, radOfType(T));
         units.push({ id:id + '.' + j, sq:id, k:T.k, t:T.k, side:P.team, pl:P.id, hp:T.w,
-          x:sp[0], z:sp[1], rot:face, sel:false, scale:T.k === 'mech' ? MINI.MECH_S : 1 });
+          x:sp[0], z:sp[1], rot:face, sel:false, scale:kitScale(T.k) });
       }
     }
   }
@@ -2910,22 +3133,29 @@ function tickDice(){
 // ทอยเจาะ: แรง S เทียบความทน T ของเป้า
 function woundNeed(S, T){ return S >= 2*T ? 2 : S > T ? 3 : S === T ? 4 : 2*S <= T ? 6 : 5; }
 function clampNeed(n){ return Math.max(2, Math.min(6, n)); }
-function INF(k){ return k !== 'cavalry' && k !== 'mech'; }        // ทหารเดินเท้า (หมอบหลบได้)
+function INF(k){ return !isBeast(k) && kitScale(k) < 1.5; }       // ทหารเดินเท้า (หมอบหลบได้ ปาระเบิดได้) — ไม่ใช่สัตว์ พาหนะ หรือตัวยักษ์
 // ตัวไหนในหน่วยยิงถึง: อยู่ในระยะของตัวใดตัวหนึ่งในหน่วยเป้า
 function shootersOf(s, t, W){ var ms = sqModels(s), ts = sqModels(t), out = [];
   ms.forEach(function(m){ var best = 1e9; ts.forEach(function(q){ var d = dist2(m, q); if (d < best) best = d; });
     if (best <= W.rng + 0.001) out.push({ m:m, d:best }); }); return out; }
 // how: 'shoot' ยิง · 'fight' ตะลุมบอน · 'ow' ยิงสกัดตอนโดนบุก (เข้าได้แค่ 6)
+// ออร่าของตัวเอก: หน่วยพวกเดียวกัน (รวมตัวเอง) ที่อยู่ในระยะ 6" ของหน่วยที่มีออร่านั้น
+var AURA_R = 6;
+function inAura(s, kind){ return sqList().some(function(q){ return TY(q.k).aura === kind && q.side === s.side && sqDist(s, q) <= AURA_R + 0.001; }); }
 function atkMath(s, t, how){
   var A = TY(s.k), D = TY(t.k), melee = how === 'fight', W = melee ? A.mel : A.gun;
   if (!W) return null;
-  var shots = 0, who = [];
-  if (melee) sqModels(s).forEach(function(m){ shots += W.a; who.push(m.id); });
+  var shots = 0, who = [], fury = melee && A.ca && s.charged ? 1 : 0;          // บุกเข้ามาตานี้ ตีเพิ่มตัวละครั้ง
+  if (melee) sqModels(s).forEach(function(m){ shots += W.a + fury; who.push(m.id); });
   else shootersOf(s, t, W).forEach(function(x){ shots += W.a + (W.rf && x.d <= W.rng/2 + 0.001 ? W.rf : 0); who.push(x.m.id); });
-  var need = how === 'ow' ? 6 : clampNeed((melee ? W.ws : W.bs) - (!melee && W.hv && s.still ? 1 : 0));
+  // ตัวปรับการทอยเข้า รวมกันแล้วไม่เกิน ±1: ยืนนิ่งกับอาวุธหนัก +1 · ออร่าตัวเอก +1 · เป้าพรางตัว (โดนยิง) −1
+  var mod = (!melee && W.hv && s.still ? 1 : 0) + (inAura(s, 'hit') ? 1 : 0) - (!melee && how !== 'ow' && D.st ? 1 : 0);
+  mod = Math.max(-1, Math.min(1, mod));
+  var need = W.tr ? 0 : how === 'ow' ? 6 : clampNeed((melee ? W.ws : W.bs) - mod);        // พ่น: โดนอัตโนมัติ ไม่ต้องทอยเข้า
   var wneed = clampNeed(woundNeed(W.s, D.T) - (melee && W.la && s.charged ? 1 : 0));
-  return { melee:melee, d:sqDist(s, t), shots:shots, who:who, need:need, wneed:wneed,
-           sv:Math.min(D.sv + (W.ap || 0), D.inv || 7), dmg:W.d || 1, su:W.su || 0, W:W };
+  var ap = Math.max(0, (W.ap || 0) - (D.aoc ? 1 : 0));                                       // เกราะศรัทธา: ค่าเจาะที่โดน −1
+  return { melee:melee, d:sqDist(s, t), shots:shots, who:who, need:need, wneed:wneed, mod:mod,
+           sv:Math.min(D.sv + ap, D.inv || 7), dmg:W.d || 1, su:W.su || 0, W:W, tr:!!W.tr, lh:!!W.lh, dw:!!W.dw, heel:!!D.heel };
 }
 function count(arr, need){ var n = 0; for (var i=0;i<arr.length;i++) if (arr[i] >= need) n++; return n; }
 function sum(arr){ var n = 0; for (var i=0;i<arr.length;i++) n += arr[i]; return n; }
@@ -2937,7 +3167,7 @@ function shotWhyNot(s, t){
   if (!W) return 'หน่วยนี้ไม่มีอาวุธยิง<br><span style="font-size:12px">ต้องบุกเข้าประชิดในเฟสบุก</span>';
   if (!canTarget(s, t)) return 'ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>';
   if (s.shot) return 'หน่วยนี้ยิงไปแล้วในเทิร์นนี้';
-  if (s.fell) return 'ถอยออกจากการประชิดมา ยิงไม่ได้ในเทิร์นนี้';
+  if (s.fell && !A.fly) return 'ถอยออกจากการประชิดมา ยิงไม่ได้ในเทิร์นนี้';
   if (s.adv && !W.as) return 'วิ่งมา ยิงไม่ได้<br><span style="font-size:12px">(เว้นอาวุธที่ยิงได้แม้วิ่ง)</span>';
   var eng = engagedWith(s);
   if (eng.length && (!W.pi || eng.indexOf(t) < 0)) return 'ติดประชิดอยู่ ยิงไม่ได้' + (W.pi ? '<br><span style="font-size:12px">ปืนพกยิงได้แค่หน่วยที่ประชิดอยู่</span>' : '');
@@ -2957,8 +3187,8 @@ function healWhyNot(s, t){
 function chargeWhyNot(s, t){
   if (!canTarget(s, t) || t.side === s.side) return 'บุกได้แค่ศัตรู';
   if (s.chDone) return 'หน่วยนี้บุกไปแล้วในเทิร์นนี้';
-  if (s.adv) return 'วิ่งมา บุกไม่ได้ในเทิร์นนี้';
-  if (s.fell) return 'ถอยมา บุกไม่ได้ในเทิร์นนี้';
+  if (s.adv && !TY(s.k).ac) return 'วิ่งมา บุกไม่ได้ในเทิร์นนี้';
+  if (s.fell && !TY(s.k).fly) return 'ถอยมา บุกไม่ได้ในเทิร์นนี้';
   if (isEngaged(s)) return 'ติดประชิดอยู่แล้ว';
   var d = sqEdge(s, t); if (d > CHARGE_R + 0.001) return 'ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / บุกได้ ' + CHARGE_R + '"';
   return '';
@@ -3010,44 +3240,59 @@ function mkAtk(s, t, how){
   var M = atkMath(s, t, how); if (!M || !M.shots) return null;
   var P = { kind:'atk', how:how, u:s.id, t:t.id, side:s.side, tside:t.side, att:s.pl, def:t.pl, anm:TY(s.k).nm, dnm:TY(t.k).nm,
             melee:M.melee, ow:how === 'ow', d:M.d, shots:M.shots, who:M.who, need:M.need, wneed:M.wneed, sv:M.sv, dmg:M.dmg, su:M.su,
-            hitR:null, woundR:null, saveR:null, hits:0, wounds:0, saved:0, stage:'hit', since:now() };
+            tr:M.tr, lh:M.lh, dw:M.dw, heel:M.heel,
+            hitR:null, woundR:null, saveR:null, hits:0, lethal:0, wounds:0, mortal:0, slay:0, saved:0, stage:'hit', since:now() };
   PEND.push(P); return P;
 }
+// เข้าเป้า: พ่น (tr) โดนหมดไม่ต้องทอย · ได้ 6 นับเข้าเพิ่ม (su) · ได้ 6 เจาะอัตโนมัติ (lh) ไม่ต้องทอยเจาะลูกนั้น
+function countHits(P){ var six = count(P.hitR, 6);
+  P.hits = P.tr ? P.shots : count(P.hitR, P.need) + P.su*six; P.lethal = P.lh && !P.tr ? six : 0; }
 function applyHit(P, hitR){
   if (!P || P.stage !== 'hit') return;
   var s = sqById(P.u);
   if (s){ if (P.how === 'shoot') s.shot = true; if (P.how === 'fight') s.fought = true; }
-  P.hitR = (hitR || []).slice(0, P.shots); while (P.hitR.length < P.shots) P.hitR.push(d6());
-  P.hits = count(P.hitR, P.need) + P.su*count(P.hitR, 6);
-  trayThrow(P, 'hit', P.hitR, P.need, '');
+  if (P.tr) P.hitR = [];
+  else { P.hitR = (hitR || []).slice(0, P.shots); while (P.hitR.length < P.shots) P.hitR.push(d6()); }
+  countHits(P);
+  trayThrow(P, 'hit', P.hitR, P.need, P.tr ? 'พ่นโดนอัตโนมัติ ' + P.hits + ' ครั้ง' : '');
   P.stage = 'wound'; P.since = now();
   if (!P.hits) finishAtk(P);
+  else if (P.hits === P.lethal) applyWnd(P, []);            // เข้าได้ 6 ทุกลูก เจาะหมดโดยไม่ต้องทอย
   paintPlay(); dirty = true;
 }
 // ทอยใหม่ (1 CP): ลูกเข้าเป้าที่ต่ำที่สุดที่ไม่ผ่าน ก่อนทอยเจาะ
 function applyReroll(P, v){
-  if (!P || P.stage !== 'wound' || P.rr) return;
+  if (!P || P.stage !== 'wound' || P.rr || P.tr) return;
   var i, lo = -1; for (i=0;i<P.hitR.length;i++) if (P.hitR[i] < P.need && (lo < 0 || P.hitR[i] < P.hitR[lo])) lo = i;
   if (lo < 0) return;
   P.rr = true; P.hitR[lo] = v || d6();
-  P.hits = count(P.hitR, P.need) + P.su*count(P.hitR, 6);
+  countHits(P);
   trayThrow(P, 'hit', [P.hitR[lo]], P.need, 'ทอยใหม่');
   P.since = now(); paintPlay(); dirty = true;
 }
+// เจาะ: ลูกที่เข้าเป้าด้วย 6 (lh) เจาะแล้วไม่ต้องทอย · เจาะได้ 6 กับอาวุธ dw เป็นแผลตรง ไม่มีเซฟ
+//   เจาะได้ 6 ใส่อคิลลีส (heel) โดนส้นเท้า ตายทันที · ที่เหลือเจ้าของเป้าทอยเซฟ
+function woundDice(P){ return Math.max(0, P.hits - (P.lethal || 0)); }
+function saveDice(P){ return Math.max(0, P.wounds - (P.mortal || 0) - (P.slay || 0)); }
 function applyWnd(P, woundR){
   if (!P || P.stage !== 'wound') return;
-  P.woundR = (woundR || []).slice(0, P.hits); while (P.woundR.length < P.hits) P.woundR.push(d6());
-  P.wounds = count(P.woundR, P.wneed);
-  trayThrow(P, 'wound', P.woundR, P.wneed, 'เข้า ' + P.hits + '/' + P.shots);
-  if (!P.wounds || P.sv > 6){ finishAtk(P); return; }        // เกราะเจาะทะลุจนเซฟไม่ได้เลย ก็ไม่ต้องทอยเซฟ
+  var nd = woundDice(P);
+  P.woundR = (woundR || []).slice(0, nd); while (P.woundR.length < nd) P.woundR.push(d6());
+  var six = count(P.woundR, 6);
+  P.wounds = (P.lethal || 0) + count(P.woundR, P.wneed);
+  P.slay = P.heel && six ? 1 : 0;
+  P.mortal = P.dw ? six - P.slay : 0;
+  if (nd) trayThrow(P, 'wound', P.woundR, P.wneed, 'เข้า ' + P.hits + '/' + P.shots + (P.lethal ? ' (เจาะเลย ' + P.lethal + ')' : ''));
+  if (!P.wounds || P.sv > 6 || !saveDice(P)){ finishAtk(P); return; }        // เซฟไม่ได้เลย หรือไม่มีแผลให้เซฟ ก็ไม่ต้องทอยเซฟ
   P.stage = 'save'; P.since = now(); paintPlay();
 }
 function applySav(P, saveR, gtg){
   if (!P || P.stage !== 'save') return;
   if (gtg && !P.melee && P.sv > 3){ P.sv = P.sv - 1; P.gtg = true; }        // หมอบหลบ: เซฟดีขึ้น 1 (ไม่เกิน 3+)
-  P.saveR = (saveR || []).slice(0, P.wounds); while (P.saveR.length < P.wounds) P.saveR.push(d6());
+  var nd = saveDice(P);
+  P.saveR = (saveR || []).slice(0, nd); while (P.saveR.length < nd) P.saveR.push(d6());
   P.saved = count(P.saveR, P.sv);
-  trayThrow(P, 'save', P.saveR, P.sv, 'เข้า ' + P.hits + '/' + P.shots + ' › เจาะ ' + P.wounds + '/' + P.hits);
+  trayThrow(P, 'save', P.saveR, P.sv, 'เข้า ' + P.hits + '/' + P.shots + ' › เจาะ ' + P.wounds + '/' + P.hits + (P.mortal ? ' · แผลตรง ' + P.mortal : ''));
   finishAtk(P);
 }
 // ลงแผลทีละตัว: ตัวที่เจ็บอยู่ก่อน ไม่งั้นตัวที่ใกล้คนโจมตีที่สุด · ดาเมจเกินที่ตัวนั้นรับได้หายไป (แผลตรงไหลต่อตัวถัดไป)
@@ -3070,13 +3315,24 @@ function dealDamage(t, from, n, dmg, spill, P){
 }
 function finishAtk(P){
   unPend(P); P.stage = 'done';
-  var s = sqById(P.u), t = sqById(P.t), alive0 = t ? sqAlive(t) : 0, dmgN = t ? P.wounds - P.saved : 0, dead = 0, gone = false;
-  if (t && dmgN > 0){ dead = dealDamage(t, s, dmgN, P.dmg, false, P); gone = !sqAlive(t); }
+  var s = sqById(P.u), t = sqById(P.t), alive0 = t ? sqAlive(t) : 0, dmgN = t ? saveDice(P) - P.saved : 0, dead = 0, gone = false;
+  var killed = [], hurt = [];
+  function take(n, dmg, spill){ if (!t || n <= 0 || !sqAlive(t)) return; var R0 = {};
+    dead += dealDamage(t, s, n, dmg, spill, R0); killed = killed.concat(R0.killed);
+    R0.hurt.forEach(function(id){ if (hurt.indexOf(id) < 0) hurt.push(id); }); }
+  take(P.slay || 0, 999, false);                       // ส้นเท้า: ตายทันที
+  take(P.mortal || 0, P.dmg, true);                    // แผลตรง: ไม่มีเซฟ ดาเมจเกินไหลไปตัวถัดไป
+  take(dmgN, P.dmg, false);
+  P.killed = killed; P.hurt = hurt.filter(function(id){ return killed.indexOf(id) < 0; });
+  if (t) gone = !sqAlive(t);
+  afterKills(P);
   var head = (P.melee ? 'ตี' : P.ow ? 'ยิงสกัด' : 'ยิง') + ' ' + P.anm + ' → ' + P.dnm + ((G.teams > 2 || G.freeFire) ? ' (' + TEAM(P.tside).nm + ')' : '');
-  say(TEAM(P.side).nm + ' ' + head + ' — เข้า ' + P.hits + '/' + P.shots + ' · เจาะ ' + P.wounds + ' · เซฟได้ ' + P.saved +
+  var extra = (P.slay ? ' · <b>โดนส้นเท้า!</b>' : '') + (P.mortal ? ' · แผลตรง ' + P.mortal : '');
+  say(TEAM(P.side).nm + ' ' + head + ' — ' + (P.tr ? 'พ่นโดน ' + P.hits : 'เข้า ' + P.hits + '/' + P.shots) + ' · เจาะ ' + P.wounds + ' · เซฟได้ ' + P.saved + extra +
       (!t || !alive0 ? ' · เป้าล้มไปก่อนแล้ว' : gone ? ' · <b>หมดหน่วย!</b>' : dead ? ' · <b>ล้ม ' + dead + ' ตัว</b>' : dmgN ? ' · เสียแผล ' + dmgN*P.dmg : ''),
-      gone || dead ? 'kill' : (dmgN ? 'hit' : ''));
-  P.result = !t || !alive0 ? 'เป้าล้มไปก่อนแล้ว' : gone ? 'หมดหน่วย!' : dead ? 'ล้ม ' + dead + ' ตัว' : dmgN ? 'เสียแผล ' + dmgN*P.dmg :
+      gone || dead ? 'kill' : (dmgN || P.mortal ? 'hit' : ''));
+  P.result = !t || !alive0 ? 'เป้าล้มไปก่อนแล้ว' : gone ? 'หมดหน่วย!' : P.slay ? 'โดนส้นเท้า!' : dead ? 'ล้ม ' + dead + ' ตัว' :
+             dmgN || P.mortal ? 'เสียแผล ' + (dmgN + (P.mortal || 0))*P.dmg :
              !P.hits ? 'พลาดหมด' : !P.wounds ? 'ไม่เจาะเกราะ' : 'เซฟได้หมด';
   markFinal(P);
   dirty = true; paintPlay(); checkOver();
@@ -3183,7 +3439,7 @@ function applyGren(P, roll){
   P.roll = (roll || []).slice(0, 6); while (P.roll.length < 6) P.roll.push(d6());
   var mw = count(P.roll, 4);
   trayThrow(P, 'gren', P.roll, 4, '');
-  var dead = t && mw ? dealDamage(t, s, mw, 1, true, P) : 0, gone = t && !sqAlive(t);
+  var dead = t && mw ? dealDamage(t, s, mw, 1, true, P) : 0; afterKills(P); var gone = t && !sqAlive(t);
   P.result = !mw ? 'ไม่โดน' : gone ? 'หมดหน่วย!' : dead ? 'ล้ม ' + dead + ' ตัว' : 'แผลตรง ' + mw; markFinal(P);
   say(sqLabel(s) + ' ปาระเบิดมือใส่ ' + P.dnm + ' — แผลตรง ' + mw + (dead ? ' · <b>ล้ม ' + dead + ' ตัว</b>' : ''), dead ? 'kill' : mw ? 'hit' : '');
   dirty = true; paintPlay(); checkOver();
@@ -3208,10 +3464,44 @@ function reviveOne(t){
   ms.forEach(function(m){ have[m.id] = 1; });
   for (i=0;i<t.n0;i++){ var id = t.id + '.' + i; if (have[id]) continue;
     var near = ms[0], sp = freeSpot(gx(near) + 1.8, gz(near), null, null, null, radOfType(T));
-    var m = { id:id, sq:t.id, k:T.k, t:T.k, side:t.side, pl:t.pl, hp:1, x:sp[0], z:sp[1], rot:near.rot || 0, sel:false, scale:T.k === 'mech' ? MINI.MECH_S : 1 };
+    var m = { id:id, sq:t.id, k:T.k, t:T.k, side:t.side, pl:t.pl, hp:1, x:sp[0], z:sp[1], rot:near.rot || 0, sel:false, scale:kitScale(T.k) };
     units.push(m); var f = FALLEN.indexOf(fallenById(id)); if (f >= 0) FALLEN.splice(f, 1);
     return m; }
   return null;
+}
+
+// ---- ซ่อมตัวเอง (หุ่นโลหะ มัมมี่): ต้นเฟสคำสั่งของทีม ตัวที่ล้มในหน่วยที่ยังเหลืออยู่ทอยคนละลูก ได้ถึงเกณฑ์ลุกขึ้นแผลเต็ม ----
+function applyRez(P, roll){
+  if (!P || P.stage !== 'rez') return;
+  var s = sqById(P.u); unPend(P); P.stage = 'done'; if (!s || !sqAlive(s)) return;
+  P.roll = (roll || []).slice(0, P.n); while (P.roll.length < P.n) P.roll.push(d6());
+  var ok = count(P.roll, P.need), back = [], k;
+  for (k=0;k<ok;k++){ var m = reviveOne(s); if (!m) break; m.hp = TY(s.k).w; back.push(m.id); startAct(m, { kind:'down', dur:1e9 }); }
+  P.back = back;
+  trayThrow(P, 'rez', P.roll, P.need, '', { pass:back.length > 0 });
+  P.result = back.length ? 'ลุกขึ้น ' + back.length + ' ตัว' : 'ไม่มีใครลุก'; markFinal(P);
+  say(sqLabel(s) + ' ซ่อมตัวเอง — ทอย ' + P.roll.join(' ') + ' ต้องได้ ' + P.need + '+' + (back.length ? ' · <b>ลุกขึ้น ' + back.length + ' ตัว</b>' : ' · ไม่มีใครลุก'), back.length ? 'hit' : '');
+  dirty = true; paintPlay();
+}
+// ---- ม้าไม้เมืองทรอย: เปิดท้องม้า หน่วยที่ซ่อนอยู่ลงมายืนรอบ ๆ (ครั้งเดียว) ----
+//   เปิดเองตอนเฟสคำสั่งของทีมตั้งแต่รอบ 2 หรือตอนม้าพัง · ทุกเครื่องเปิดตรงจังหวะเดียวกันเพราะมาจากกติกาล้วน ๆ
+function spawnFrom(s, x, z){
+  var H = TY(s.k).spawn; if (!H || s.opened) return null;
+  s.opened = true;
+  var T = TY(H.k), id = s.id + 'x', n = H.n || T.n, q = { id:id, k:T.k, side:s.side, pl:s.pl, n0:n }, face = 0, j;
+  var m0 = sqModels(s)[0]; if (m0){ x = gx(m0); z = gz(m0); face = m0.rot || 0; }
+  resetSq(q); q.moved = false; SQ[id] = q; SQ_ORDER.push(id);
+  var slots = formation(n, x + Math.sin(face)*2.6, z + Math.cos(face)*2.6, face, radOfType(T));
+  for (j=0;j<n;j++){ var sp = freeSpot(slots[j][0], slots[j][1], null, null, null, radOfType(T));
+    units.push({ id:id + '.' + j, sq:id, k:T.k, t:T.k, side:s.side, pl:s.pl, hp:T.w, x:sp[0], z:sp[1], rot:face, sel:false, scale:kitScale(T.k) }); }
+  fxAdd({ kind:'smoke', p:[x, heightAt(x, z) + 0.8, z], life:1.4, size:1.6, col:'150,140,120' });
+  say('<b>' + TEAM(s.side).nm + ' ' + TY(s.k).nm + ' เปิดท้องม้า!</b> ' + T.nm + ' ' + n + ' ตัวกระโดดลงมา', 'kill');
+  dirty = true; return q;
+}
+// หลังตัวไหนล้ม: ม้าไม้ที่พังก่อนเปิด ทหารข้างในยังออกมาได้
+function afterKills(P){
+  (P && P.killed || []).forEach(function(id){ var m = fallenById(id), q = m && SQ[m.sq];
+    if (q && TY(q.k).spawn && !q.opened) spawnFrom(q, m.x, m.z); });
 }
 
 // ---- ใครทอยจังหวะไหน ----
@@ -3257,22 +3547,23 @@ function doRoll(r, opt){
       var gr = rollN(6); netSend({ a:'gren', u:u.id, t:t.id, roll:gr });
       applyGren(mkPend({ kind:'gren', u:u.id, t:t.id, side:u.side, att:u.pl, anm:TY(u.k).nm, dnm:TY(t.k).nm, stage:'gren' }), gr); }
     else { var P0 = mkAtk(u, t, 'shoot'); if (!P0){ popDice('ไม่มีใครในหน่วยยิงถึง'); return; }
-      var hit = rollN(P0.shots); netSend({ a:'atk', u:u.id, t:t.id, how:'shoot', hit:hit }); applyHit(P0, hit); }
+      var hit = P0.tr ? [] : rollN(P0.shots); netSend({ a:'atk', u:u.id, t:t.id, how:'shoot', hit:hit }); applyHit(P0, hit); }
     if (G.sel === u && u.shot) G.act = null;
     paintPlay(); return; }
   var P = r.P;
   if (P.kind === 'atk'){
-    if (P.stage === 'hit'){ var h = rollN(P.shots); netSend({ a:'atk', u:P.u, t:P.t, how:P.how, hit:h }); applyHit(P, h); }
-    else if (P.stage === 'wound'){ var w = rollN(P.hits); netSend({ a:'wnd', u:P.u, t:P.t, wound:w }); applyWnd(P, w); }
-    else if (P.stage === 'save'){ var g = !!opt.gtg && useStrat('gtg', P.def), sv = rollN(P.wounds); netSend({ a:'sav', u:P.u, t:P.t, save:sv, gtg:g ? 1 : 0 }); applySav(P, sv, g); }
+    if (P.stage === 'hit'){ var h = P.tr ? [] : rollN(P.shots); netSend({ a:'atk', u:P.u, t:P.t, how:P.how, hit:h }); applyHit(P, h); }
+    else if (P.stage === 'wound'){ var w = rollN(woundDice(P)); netSend({ a:'wnd', u:P.u, t:P.t, wound:w }); applyWnd(P, w); }
+    else if (P.stage === 'save'){ var g = !!opt.gtg && useStrat('gtg', P.def), sv = rollN(saveDice(P)); netSend({ a:'sav', u:P.u, t:P.t, save:sv, gtg:g ? 1 : 0 }); applySav(P, sv, g); }
     return; }
   if (P.kind === 'shock'){ var b = !!opt.brave && useStrat('brave', P.att), sr = b ? [] : rollN(2);
     netSend({ a:'shock', u:P.u, roll:sr, brave:b ? 1 : 0 }); applyShock(P, sr, b); return; }
   if (P.kind === 'adv'){ var av = d6(); netSend({ a:'adv', u:P.u, roll:av }); applyAdv(P, av); return; }
+  if (P.kind === 'rez'){ var rz = rollN(P.n); netSend({ a:'rez', u:P.u, roll:rz }); applyRez(P, rz); return; }
   if (P.kind === 'chg'){
     if (P.stage === 'ow'){ var use = !!opt.yes; netSend({ a:'ow', u:P.u, t:P.t, use:use ? 1 : 0 }); applyOw(P, use);
       var OW = use && PEND.filter(function(A){ return A.kind === 'atk' && A.ow && A.t === P.u && A.stage === 'hit'; })[0];
-      if (OW){ var oh = rollN(OW.shots); netSend({ a:'atk', u:OW.u, t:OW.t, how:'ow', hit:oh }); applyHit(OW, oh); }   // ยิงเลย ไม่ต้องกดอีกรอบ
+      if (OW){ var oh = OW.tr ? [] : rollN(OW.shots); netSend({ a:'atk', u:OW.u, t:OW.t, how:'ow', hit:oh }); applyHit(OW, oh); }   // ยิงเลย ไม่ต้องกดอีกรอบ
       return; }
     if (P.stage === 'move'){ sendCMove(P); return; }                 // เครื่องคนบุกล่มไประหว่างทอยกับเดิน: เจ้าของห้องเดินให้
     if (P.stage === 'charge'){ var cr = rollN(2); netSend({ a:'chr', u:P.u, t:P.t, roll:cr }); applyCharge(P, cr); if (P.stage === 'move') sendCMove(P); return; }
@@ -3313,7 +3604,7 @@ function botChoice(P){
 
 // ---- ถาด: คิวของการทอยที่รอแสดง ลูกเต๋ากลิ้งตามจริงจากเลขที่ได้ ----
 var TRAY = { q:[], cur:null, t:0 };
-var STAGE_NM = { hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา', shock:'ทดสอบขวัญ', adv:'วิ่ง', charge:'บุก', gren:'ระเบิดมือ' };
+var STAGE_NM = { rez:'ซ่อมตัวเอง', hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา', shock:'ทดสอบขวัญ', adv:'วิ่ง', charge:'บุก', gren:'ระเบิดมือ' };
 function seedOf(str){ var h = 2166136261; for (var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
 // ท่าทางการกลิ้งผูกกับเมล็ดสุ่มที่ทุกเครื่องคิดได้เหมือนกัน: ใคร→ใคร รอบ ตา จังหวะ และครั้งที่เท่าไรของสิ่งนี้
 function trayThrow(P, stage, dice, need, prev, o){
@@ -3379,12 +3670,13 @@ function paintTray(r){
     else { var M = atkMath(r.u, r.t, 'shoot'); st = M ? 'เข้าเป้า ' + M.shots + ' ลูก · ต้องได้ ' + M.need + '+ · เจาะ ' + M.wneed + '+' : ''; } }
   else { P = v ? v.P : r ? r.P : PEND[0];
     if (P){ side = P.side;
-      head = P.kind === 'shock' ? TEAM(P.side).nm + ' ' + P.anm + ' ทดสอบขวัญ' : P.kind === 'adv' ? P.anm + ' วิ่ง'
+      head = P.kind === 'shock' ? TEAM(P.side).nm + ' ' + P.anm + ' ทดสอบขวัญ' : P.kind === 'rez' ? TEAM(P.side).nm + ' ' + P.anm + ' ซ่อมตัวเอง' : P.kind === 'adv' ? P.anm + ' วิ่ง'
            : P.kind === 'chg' ? P.anm + ' บุก ' + P.dnm : P.kind === 'gren' ? P.anm + ' ปาระเบิดใส่ ' + P.dnm
            : P.kind === 'heal' ? P.anm + ' รักษา ' + P.dnm : P.anm + (P.melee ? ' ตี ' : P.ow ? ' ยิงสกัด ' : ' ยิง ') + P.dnm; }
     if (v){ var settled = TRAY.t >= v.secs, n = count(v.dice, v.need);
       if (v.total != null) st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ต้องได้ ' + v.need + (settled ? ' → <b>ได้ ' + v.total + '</b>' + (v.final ? ' · <b>' + v.final + '</b>' : '') : ' · 2 ลูก…');
       else if (v.stage === 'adv') st = 'วิ่ง' + (settled ? ' → <b>+' + v.dice[0] + '"</b>' + (v.final ? ' · ' + v.final : '') : '…');
+      else if (v.stage === 'hit' && v.P && v.P.tr) st = 'พ่นใส่ — <b>โดนอัตโนมัติ ' + v.P.shots + ' ครั้ง</b>' + (v.final ? ' · <b>' + v.final + '</b>' : '');
       else st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ' + v.need + '+' +
            (settled ? ' → <b>ได้ ' + n + '</b>' + (v.dice.length > 1 ? ' จาก ' + v.dice.length : '') + (v.final ? ' · <b>' + v.final + '</b>' : '') : ' · ' + v.dice.length + ' ลูก…'); } }
   setHTML($('btTrayT'), head ? '<span class="dot" style="background:' + TEAM(side).ui + '"></span>' + head : 'ถาดลูกเต๋า');
@@ -3412,7 +3704,7 @@ function paintTray(r){
   $('btAuto').classList.toggle('on', AUTO);
   $('btAuto').setAttribute('aria-pressed', AUTO ? 'true' : 'false');
 }
-function stageWhat(P){ return P.kind === 'shock' ? 'ทดสอบขวัญ' : P.kind === 'adv' ? 'วิ่ง' : P.kind === 'chg' ? 'บุก' : P.kind === 'gren' ? 'ระเบิดมือ'
+function stageWhat(P){ return P.kind === 'shock' ? 'ทดสอบขวัญ' : P.kind === 'rez' ? 'ซ่อมตัวเอง' : P.kind === 'adv' ? 'วิ่ง' : P.kind === 'chg' ? 'บุก' : P.kind === 'gren' ? 'ระเบิดมือ'
   : P.kind === 'heal' ? 'รักษา' : P.stage === 'save' ? 'เซฟ' : P.stage === 'hit' ? 'เข้าเป้า' : 'เจาะเกราะ'; }
 function waitWhat(P){ return P.kind === 'chg' && P.stage === 'ow' ? 'ตัดสินใจยิงสกัด' : P.kind === 'chg' && P.stage === 'chrr' ? 'ตัดสินใจทอยใหม่'
   : 'ทอย' + stageWhat(P); }
@@ -3478,12 +3770,55 @@ function drawTray(){
 //   ตัวที่ถือโล่ยกโล่ขึ้นรับตั้งแต่ศัตรูเริ่มโจมตี ค้างไว้จนลูกเต๋าของการโจมตีนั้นหยุดครบ โดนแล้วโล่สะท้าน
 //   ลูกสุดท้ายหยุด → เซฟได้มีประกายทองกระเด็น · เจาะไม่เข้ามีประกายเทา · โดนจริงมีสีแดง ตัวสะดุ้ง · แผลหมดล้มลงแล้วจางหาย
 var FX = [], ACT_SPEED = 1;
-var SHIELDED = { hoplite:1, spartan:1, peltast:1, cavalry:1 }, SPEARS = { hoplite:1, spartan:1, cavalry:1 };
-var GUN_OF = { heavy:'carbine', infantry:'rifle', enemy:'smg', sniper:'sniper', hmg:'hmg', medic:'smg', mech:'cannon' };
+// ท่าของแต่ละหน่วยตอนโจมตี
+//   r = ท่ายิง: fire ปืน · bow ธนู · throw ขว้าง (g = ของที่ขว้าง) · hurl ทุ่มหิน · flame พ่นไฟจากปืน · spray/breath พ่นจากปาก
+//       gaze สายตา · lob ปืนครก · cast คทา · zap สายฟ้า · turret ป้อมปืนรถถัง · beam ลำแสงจากตัว
+//   g = ปืนหรือของที่ยิงออกไป · hand = ถือยิงมือเดียว (R ขวา · L ซ้าย)
+//   m = ท่าตี: thrust แทงหอก · bash กระแทกด้วยปืน · swing ฟันมือเดียว · swing2 ฟันสองมือ · twin ดาบสองมือสลับกัน
+//       claw ตะปบสองมือ · lunge สัตว์พุ่งงับ/ชน
+//   sh = มีโล่ ยกโล่รับตอนโดนโจมตี
+var ANIM = {
+  heavy:{ r:'fire', g:'carbine', m:'bash' }, infantry:{ r:'fire', g:'rifle', m:'bash' }, hoplite:{ m:'thrust', sh:1 },
+  enemy:{ r:'fire', g:'smg', m:'bash' }, archer:{ r:'bow', m:'bash' }, peltast:{ r:'throw', g:'jav', m:'bash', sh:1 },
+  spartan:{ m:'thrust', sh:1 }, cavalry:{ m:'thrust', sh:1 }, sniper:{ r:'fire', g:'sniper', m:'bash' },
+  hmg:{ r:'fire', g:'hmg', m:'bash' }, medic:{ r:'fire', g:'smg', m:'bash' }, mech:{ r:'fire', g:'cannon', m:'bash' },
+  knight:{ r:'fire', g:'bolter', m:'bash' }, kblade:{ m:'swing', sh:1 }, kheavy:{ r:'fire', g:'plasma', m:'bash' },
+  kterm:{ r:'fire', g:'stormgun', hand:'R', m:'bash' }, kcapt:{ r:'fire', g:'pistol', hand:'L', m:'swing' },
+  kdread:{ r:'fire', g:'rotary', hand:'R', m:'bash' },
+  gaunt:{ r:'fire', g:'bio', m:'claw' }, hound:{ m:'claw' }, warrior:{ r:'fire', g:'bio', m:'claw' },
+  spitter:{ r:'spray', g:'acid', m:'claw' }, gargoyle:{ r:'fire', g:'bio', m:'claw' }, brute:{ r:'fire', g:'bio', hand:'R', m:'claw' },
+  rwar:{ r:'fire', g:'gauss', m:'bash' }, rimm:{ r:'fire', g:'gaussh', m:'bash' }, rguard:{ m:'swing2' },
+  rscarab:{ m:'lunge' }, rlord:{ r:'cast', g:'staff', m:'swing' }, rspider:{ r:'beam', g:'gauss', m:'lunge' },
+  boy:{ r:'fire', g:'slugga', hand:'L', m:'swing' }, loota:{ r:'fire', g:'deffgun', m:'bash' },
+  nob:{ r:'fire', g:'slugga', hand:'R', m:'bash' }, boss:{ r:'fire', g:'dakka', hand:'R', m:'bash' },
+  grot:{ r:'fire', g:'grotgun', m:'bash' }, odread:{ r:'fire', g:'dakka', hand:'R', m:'claw' },
+  troy:{ m:'lunge' }, achil:{ r:'throw', g:'jav', m:'thrust', sh:1 }, herc:{ r:'hurl', g:'rock', m:'swing' },
+  cyclops:{ r:'hurl', g:'boulder', m:'swing2' }, mino:{ m:'swing2' }, medusa:{ r:'gaze', g:'stone', m:'claw' },
+  centaur:{ r:'bow', m:'lunge' }, pegasus:{ m:'thrust', sh:1 },
+  flamer:{ r:'flame', g:'flamer', m:'bash' }, mortar:{ r:'lob', g:'mortar', m:'bash' }, tank:{ r:'turret', g:'tankgun', m:'lunge' },
+  cmdr:{ r:'fire', g:'pistol', hand:'L', m:'swing' },
+  dabsong:{ m:'twin' }, musket:{ r:'fire', g:'musket', m:'bash' }, eleph:{ m:'thrust' }, yak:{ m:'swing2' },
+  hanu:{ m:'thrust' }, naga:{ r:'spray', g:'venom', m:'lunge' },
+  samurai:{ m:'swing2' }, ninja:{ r:'throw', g:'star', m:'swing' }, viking:{ r:'throw', g:'axe', m:'swing', sh:1 },
+  mummy:{ m:'claw' }, thunder:{ r:'zap', g:'hammer', m:'swing' }, dragon:{ r:'breath', g:'fire', m:'lunge' }
+};
+function animOf(k){ return ANIM[k] || ANIM.infantry; }
+var SHIELDED = {}; (function(){ for (var k in ANIM) if (ANIM[k].sh) SHIELDED[k] = 1; })();
 // สีกระสุนตามปืน: [แกนกลาง, แสงรอบ, ความหนาเป็นพิกเซลที่ระยะใกล้]
 var TRACER = { carbine:['#FFE2A0', 'rgba(255,170,70,0.45)', 2.2], rifle:['#FFF1C8', 'rgba(255,200,110,0.4)', 1.8],
   smg:['#FFE9B0', 'rgba(255,180,90,0.4)', 1.6], sniper:['#E8FBFF', 'rgba(140,220,255,0.55)', 2.2],
-  hmg:['#FFE08A', 'rgba(255,160,60,0.5)', 2.4], cannon:['#FFD27A', 'rgba(255,120,40,0.55)', 4.6] };
+  hmg:['#FFE08A', 'rgba(255,160,60,0.5)', 2.4], cannon:['#FFD27A', 'rgba(255,120,40,0.55)', 4.6],
+  bolter:['#FFE7A8', 'rgba(255,150,60,0.5)', 2.6], plasma:['#E6F4FF', 'rgba(90,170,255,0.65)', 4.2],
+  stormgun:['#FFE7A8', 'rgba(255,150,60,0.5)', 2.4], pistol:['#FFF1C8', 'rgba(255,200,110,0.4)', 1.6],
+  rotary:['#FFE08A', 'rgba(255,160,60,0.5)', 2.6], bio:['#F4FFB0', 'rgba(170,230,60,0.5)', 2.0],
+  gauss:['#D8FFE0', 'rgba(60,255,120,0.6)', 2.8], gaussh:['#D8FFE0', 'rgba(60,255,120,0.65)', 3.6],
+  staff:['#FFF6C8', 'rgba(255,220,90,0.65)', 3.4], slugga:['#FFE9B0', 'rgba(255,170,80,0.4)', 1.8],
+  deffgun:['#FFD27A', 'rgba(255,130,50,0.55)', 3.6], dakka:['#FFE08A', 'rgba(255,160,60,0.5)', 2.4],
+  grotgun:['#FFF1C8', 'rgba(255,200,110,0.35)', 1.4], musket:['#FFF1C8', 'rgba(255,200,110,0.4)', 2.0],
+  tankgun:['#FFD27A', 'rgba(255,120,40,0.6)', 5.2], stone:['#F2F0E6', 'rgba(210,220,200,0.6)', 3.6] };
+// ไฟที่พ่นออกไป: [แกน, ขอบ, สีประกายตอนโดน]
+var FLAME = { flamer:['255,236,160', '255,120,30', '255,190,90'], fire:['255,240,170', '255,110,20', '255,190,90'],
+  acid:['226,255,150', '120,200,40', '200,250,120'], venom:['210,255,230', '40,190,140', '160,250,210'] };
 function vadd(a, b){ return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
 function vsub(a, b){ return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
 function vmul(a, k){ return [a[0]*k, a[1]*k, a[2]*k]; }
@@ -3492,7 +3827,7 @@ function vnorm(a){ var l = vlen(a) || 1; return [a[0]/l, a[1]/l, a[2]/l]; }
 function vmix(a, b, t){ return [a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t, a[2] + (b[2]-a[2])*t]; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
 function angLerp(a, b, t){ var d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return a + d*t; }
-function unitH(u){ return u.k === 'cavalry' ? 2.3 : 1.75*(u.scale||1); }
+function unitH(u){ return (MINI.kitInfo(u.k).h || 1.75)*(u.scale||1); }
 function aimPoint(u){ return [u.x, heightAt(u.x, u.z) + unitH(u)*0.6, u.z]; }
 function yawTo(u, p){ return Math.atan2(p[0] - u.x, p[2] - u.z); }
 // model space: +z = the way the piece faces, +x = its left, y up, 1 = one metre of an unscaled figure (drawRig's transform)
@@ -3504,7 +3839,7 @@ function aimDir(u, a, fromModel){ return vnorm(toModelDir(u, vsub(aimPoint(a.tgt
 // ---- the pose an action starts from: the stance the piece is standing (or walking, or riding) in ----
 function clonePose(P){ var q = {}, n; for (n in P.q) q[n] = P.q[n]; return { root:P.root.slice(), q:q, breath:P.breath||0, sword:0, v:0, contact:null }; }
 function basePose(u){
-  if (u.k === 'cavalry') return MINI.riderPose();
+  if (isMount(u.k)) return MINI.riderPose(u.k);
   var kit = kitOf(u), P;
   if (u.mv && u.ctl && u.ctl.pose){ P = clonePose(u.ctl.pose); MINI.pose(kit, P); return P; }
   if (u.rest && u.rest.P) return clonePose(u.rest.P);
@@ -3521,9 +3856,15 @@ function inOut(t, tin, tout, dur){ return ease(t/tin) * (1 - ease((t - (dur - to
 var ACT_FN = {
   // ปืน: ยกขึ้นประทับ ยิงทีละนัดมีแรงสะท้อน ไฟแลบที่ปากกระบอก กระสุนวิ่ง แล้วลดปืนลง (ปืนกลหนักยิงจากสะเอว)
   fire: function(u, a){
-    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, hip = a.gun === 'hmg';
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = a.hand === 'L' ? W0.shoulderL.p : W0.shoulderR.p, hip = a.gun === 'hmg';
     var d = aimDir(u, a, sh), w = inOut(t, 0.22, 0.3, a.dur), kick = 0;
     a.shots.forEach(function(s){ if (t >= s.t) kick = Math.max(kick, Math.exp(-(t - s.t)/0.05)); });
+    if (a.hand){                                  // ปืนมือเดียว: เหยียดแขนตรงไปที่เป้า ปืนตามแนวแขน
+      var hp = vsub(vadd(sh, vmul(d, 0.5)), vmul(d, 0.06*kick));
+      if (a.hand === 'L'){ handsTo(a, P, W0, null, hp, w, null, [0.7, -1, -0.2]); a.gear = { gunDirL:d, gunW:w }; }
+      else { handsTo(a, P, W0, hp, null, w, [-0.7, -1, -0.2]); a.gear = { gunDir:d, gunW:w }; }
+      a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; fireShot(u, a, s); } });
+      return; }
     var r0 = hip ? vadd(sh, [0.04, -0.28, 0.22]) : vadd(sh, [0.07, 0.04, 0.2]);
     var rh = vsub(r0, vmul(d, (a.gun === 'cannon' ? 0.07 : 0.04)*kick)), lh = vadd(vadd(rh, vmul(d, hip ? 0.36 : 0.3)), [0, 0.03*kick, 0]);
     handsTo(a, P, W0, rh, lh, w);
@@ -3549,7 +3890,7 @@ var ACT_FN = {
     var w = 1 - ease((t - (a.dur - 0.25))/0.25);
     handsTo(a, P, W0, vmix(W0.handR.p, rh, w), null, 1, [-0.6, -0.8, -0.4]);
     a.gear = { jav: vnorm(vadd(d, [0, 0.35, 0])), javGone: tt >= 0.44 };
-    var s = a.shots[i]; if (s && !s.done && tt >= 0.44){ s.done = true; throwArc(u, a, s, toWorld(u, a.W.handR.p), 'jav'); }
+    var s = a.shots[i]; if (s && !s.done && tt >= 0.44){ s.done = true; throwArc(u, a, s, toWorld(u, a.W.handR.p), a.proj || 'jav'); }
   },
   // หอกยาว: ง้างขึ้นเหนือไหล่ พุ่งแทงพร้อมตัวที่โถมไปข้างหน้า ถอยกลับ (โล่ยังอยู่ที่แขนซ้าย)
   thrust: function(u, a){
@@ -3585,7 +3926,7 @@ var ACT_FN = {
     var P = basePose(u), W0 = RIGQ.fk(P), w = ease(a.up), kn = a.knock != null ? Math.exp(-(a.t - a.knock)/0.09)*(a.hurt ? 2 : 1) : 0;
     handsTo(a, P, W0, null, vadd(W0.shoulderL.p, [-0.36, 0.04 + 0.03*kn, 0.3 - 0.07*kn]), w, null, [1, -0.35, 0]);
     a.gear = { shield: vnorm([0, 0.12, 1]), shieldW: w };
-    if (u.k !== 'cavalry') a.xf = tiltXf(awayAxis(u, { x:a.face[0], z:a.face[2] }), -0.07*w + 0.06*kn, [0, 0, 0.03*w - 0.04*kn], null);   // a horse doesn't lean
+    if (!isBeast(u.k)) a.xf = tiltXf(awayAxis(u, { x:a.face[0], z:a.face[2] }), -0.07*w + 0.06*kn, [0, 0, 0.03*w - 0.04*kn], null);   // a horse doesn't lean
     if (a.up >= 1 && kn < 0.01 && a.t - (a.turnT || 0) > 0.25) return 'still';   // held steady: nothing to redraw
   },
   // หมอ: ลดปืนลงข้างตัวด้วยมือขวา ยื่นมือซ้ายไปทางเพื่อนที่กำลังรักษา
@@ -3606,6 +3947,164 @@ var ACT_FN = {
     a.xf = tiltXf(a.axis, ang, [0, 0, -0.12*ease(t/0.55)], 1 - ease((t - 0.8)/0.6));
   }
 };
+// ---- ท่าของกองทัพใหม่ (รอบ 3) ----
+// ครั้งที่ i ของท่าตี และเวลาในครั้งนั้น: ทุกท่าตีเว้นครั้งละ 0.55 วินาที เหมือนแทงหอก
+function blowAt(a){ var n = a.shots.length, i = Math.max(0, Math.min(n - 1, Math.floor((a.t - 0.15)/0.55))); return { i:i, tt:a.t - 0.15 - i*0.55 }; }
+function blowPhase(tt){ return tt < 0.2 ? 0 : tt < 0.3 ? ease((tt - 0.2)/0.1) : 1 - ease((tt - 0.3)/0.25); }   // 0 = ง้าง · 1 = ฟาดถึง
+function lungeOf(tt){ return tt >= 0.2 && tt < 0.55 ? Math.sin(Math.PI*clamp((tt - 0.2)/0.35, 0, 1)) : 0; }
+// ฟัน: ง้างอาวุธขึ้นเหนือไหล่ขวา ฟาดเฉียงลงไปทางเป้า แล้วง้างใหม่ · สองมือ (swing2) มือซ้ายจับด้ามต่ำลงมา
+// gear.blade = ทางที่ใบดาบ/หัวขวาน/กระบองชี้ (ในพิกัดของตัวหมาก) · bladeW = น้ำหนักเทียบกับท่าพักของชุดนั้น
+function swingAct(u, a, two){
+  var P = basePose(u), W0 = RIGQ.fk(P), sh = W0.shoulderR.p, d = aimDir(u, a, sh), b = blowAt(a), ph = blowPhase(b.tt);
+  var up = vadd(sh, [0.02, 0.3, -0.08]), hit = vadd(vadd(sh, vmul(d, 0.46)), [0.18, -0.3, 0]);
+  var rh = b.tt < 0.2 ? vmix(b.i ? up : W0.handR.p, up, ease(b.tt/0.2)) : vmix(up, hit, ph);
+  var w = 1 - ease((a.t - (a.dur - 0.25))/0.25), bl = vnorm(vmix([0.15, 0.8, -0.55], vadd(d, [0.35, -0.55, 0]), ph));
+  rh = vmix(W0.handR.p, rh, w);
+  var lh = two ? vmix(W0.handL.p, vadd(vsub(rh, vmul(bl, 0.16)), [0.04, 0, 0]), w) : null;
+  handsTo(a, P, W0, rh, lh, 1, [-0.8, -0.6, -0.3], [0.8, -0.6, -0.3]);
+  a.gear = { blade:bl, bladeW:w };
+  a.xf = { push:[0, 0, 0.12*lungeOf(b.tt)*w] };
+  strikeAt(u, a, b.i, b.tt >= 0.27);
+}
+ACT_FN.swing = function(u, a){ swingAct(u, a, false); };
+ACT_FN.swing2 = function(u, a){ swingAct(u, a, true); };
+// ดาบสองมือ: ขวา ซ้าย ขวา สลับกันฟาด มืออีกข้างตั้งการ์ดไว้ข้างหน้า
+ACT_FN.twin = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), d = aimDir(u, a, W0.shoulderR.p), b = blowAt(a), ph = blowPhase(b.tt), R1 = b.i % 2 === 0;
+  var w = 1 - ease((a.t - (a.dur - 0.25))/0.25), wi = ease(a.t/0.15)*w;
+  function arm(side, striking){ var sg = side === 'R' ? 1 : -1, sh = W0['shoulder' + side].p;
+    var up = vadd(sh, [sg*0.0, 0.28, -0.06]), hit = vadd(vadd(sh, vmul(d, 0.46)), [sg*0.18, -0.28, 0]), guard = vadd(sh, [sg*0.1, -0.12, 0.3]);
+    var p = striking ? (b.tt < 0.2 ? vmix(guard, up, ease(b.tt/0.2)) : vmix(up, hit, ph)) : guard;
+    var bl = striking ? vnorm(vmix([sg*0.15, 0.8, -0.55], vadd(d, [sg*0.35, -0.55, 0]), ph)) : vnorm([sg*0.25, 0.6, 0.75]);
+    return { p:vmix(W0['hand' + side].p, p, wi), bl:bl }; }
+  var r = arm('R', R1), l = arm('L', !R1);
+  handsTo(a, P, W0, r.p, l.p, 1, [-0.8, -0.6, -0.3], [0.8, -0.6, -0.3]);
+  a.gear = { blade:r.bl, bladeL:l.bl, bladeW:wi };
+  a.xf = { push:[0, 0, 0.12*lungeOf(b.tt)*w] };
+  strikeAt(u, a, b.i, b.tt >= 0.27);
+};
+// ตะปบ: สองมือ (กรงเล็บ เคียว มือเน่า) ง้างขึ้นพร้อมกัน แล้วตะปบลงมาที่เป้า
+ACT_FN.claw = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), d = aimDir(u, a, W0.shoulderR.p), b = blowAt(a), ph = blowPhase(b.tt);
+  var w = 1 - ease((a.t - (a.dur - 0.25))/0.25), wi = ease(a.t/0.15)*w, out = {};
+  ['R', 'L'].forEach(function(S){ var sg = S === 'R' ? 1 : -1, sh = W0['shoulder' + S].p;
+    var up = vadd(sh, [-sg*0.08, 0.26, 0.02]), hit = vadd(vadd(sh, vmul(d, 0.5)), [sg*0.1, -0.32, 0]);
+    var p = b.tt < 0.2 ? vmix(b.i ? up : W0['hand' + S].p, up, ease(b.tt/0.2)) : vmix(up, hit, ph);
+    out[S] = vmix(W0['hand' + S].p, p, wi);
+    out['b' + S] = vnorm(vmix([-sg*0.2, 0.9, 0.3], vadd(d, [sg*0.2, -0.7, 0]), ph)); });
+  handsTo(a, P, W0, out.R, out.L, 1, [-0.8, -0.6, -0.3], [0.8, -0.6, -0.3]);
+  a.gear = { blade:out.bR, bladeL:out.bL, bladeW:wi, jaw:ph*wi };
+  a.xf = { push:[0, 0, 0.14*lungeOf(b.tt)*w] };
+  strikeAt(u, a, b.i, b.tt >= 0.27);
+};
+// สัตว์ รถ หรือของที่ไม่มีแขน: ถอยตั้งหลักนิดหนึ่ง แล้วพุ่งเข้าใส่ (งับ ชน ขวิด) · gear.jaw = อ้าปาก · gear.lunge = พุ่งแค่ไหน
+ACT_FN.lunge = function(u, a){
+  var P = basePose(u), b = blowAt(a), tt = b.tt, w = 1 - ease((a.t - (a.dur - 0.25))/0.25);
+  var k = tt < 0.18 ? -0.35*ease(tt/0.18) : tt < 0.32 ? -0.35 + 1.35*ease((tt - 0.18)/0.14) : 1 - ease((tt - 0.32)/0.23);
+  a.W = RIGQ.fk(P);
+  a.gear = { jaw:clamp(k, 0, 1)*w, lunge:k*w };
+  a.xf = tiltXf([1, 0, 0], 0.07*k*w, [0, 0, 0.3*k*w], null);
+  strikeAt(u, a, b.i, tt >= 0.3);
+};
+// พ่นจากปืน (พ่นไฟ): ยกปืนขึ้นเหมือนยิง ไฟพุ่งเป็นสายจากปากกระบอก
+ACT_FN.flame = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh), w = inOut(t, 0.22, 0.3, a.dur);
+  var rh = vadd(sh, [0.06, -0.06, 0.24]), lh = vadd(rh, vmul(d, 0.3));
+  handsTo(a, P, W0, rh, lh, w);
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true;
+    var g = MINI.GUN[a.gun] || MINI.GUN.flamer, hr = a.W.handR.p, ax = vnorm(vsub(a.W.handL.p, hr));
+    flameShot(u, a, s, toWorld(u, vadd(hr, vmul(ax, g.len + 0.03)))); } });
+};
+// พ่นจากปาก (กรด พิษ ลมหายใจไฟ): เงยหน้า อ้าปาก พ่นเป็นสาย · จุดปากมาจากชุดของตัวนั้น (mouth)
+function mouthAct(u, a){
+  var P = basePose(u), t = a.t, w = inOut(t, 0.2, 0.3, a.dur), K = MINI.kitInfo(u.k), m = K.mouth || [0, 1.5, 0.2];
+  a.W = RIGQ.fk(P); a.gear = { jaw:w, aim:aimDir(u, a, m), lunge:0.25*w };
+  a.xf = { push:[0, 0, 0.05*w] };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; flameShot(u, a, s, toWorld(u, vadd(m, [0, 0, 0.05*w]))); } });
+}
+ACT_FN.spray = mouthAct; ACT_FN.breath = mouthAct;
+// ลำแสงจากตัว (แมงมุมสุสาน): ตัวเล็งไปที่เป้า ยิงลำแสงจากจุดปาก
+ACT_FN.beam = function(u, a){
+  var P = basePose(u), t = a.t, w = inOut(t, 0.2, 0.3, a.dur), K = MINI.kitInfo(u.k), m = K.mouth || [0, 1.2, 0.5];
+  a.W = RIGQ.fk(P); a.gear = { glow:w, aim:aimDir(u, a, m) };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; beamShot(u, a, s, toWorld(u, m)); } });
+};
+// สายตา (เมดูซ่า): ยืนนิ่ง ตาเรือง แสงจากตาพุ่งไปที่เป้า
+ACT_FN.gaze = function(u, a){
+  var P = basePose(u), t = a.t, w = inOut(t, 0.25, 0.3, a.dur);
+  a.W = RIGQ.fk(P); a.gear = { glow:w };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; beamShot(u, a, s, toWorld(u, vadd(a.W.head.p, [0, 0.02, 0.1]))); } });
+};
+// คทา: ชูคทาไปทางเป้าด้วยมือขวา ลำแสงออกจากปลายคทา
+ACT_FN.cast = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh), w = inOut(t, 0.25, 0.3, a.dur);
+  handsTo(a, P, W0, vadd(sh, vadd(vmul(d, 0.42), [0, 0.12, 0])), null, w, [-0.7, -1, -0.2]);
+  var sd = vnorm(vadd(d, [0, 0.35, 0])); a.gear = { gunDir:sd, gunW:w, glow:w };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; var g = MINI.GUN[a.gun] || MINI.GUN.staff;
+    beamShot(u, a, s, toWorld(u, vadd(a.W.handR.p, vmul(a.gear.gunDir, g.len)))); } });
+};
+// สายฟ้า: ชูค้อนขึ้นฟ้า สายฟ้าฟาดจากหัวค้อนไปที่เป้า
+ACT_FN.zap = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh), w = inOut(t, 0.3, 0.3, a.dur);
+  handsTo(a, P, W0, vadd(sh, [-0.05, 0.5, 0.12]), null, w, [-0.7, -0.4, -0.5]);
+  a.gear = { blade:vnorm([0, 1, 0.15]), bladeW:w, glow:w };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true;
+    var from = toWorld(u, vadd(a.W.handR.p, [0, 0.3, 0])), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt);
+    fxAdd({ kind:'zap', a:from, b:end, life:0.35, seed:Math.random()*100 });
+    fxAdd({ kind:'flash', p:from, life:0.12, size:0.35*(u.scale||1), rot:Math.random()*3 });
+    if (s.hit){ sparks(end, '200,220,255', 8, 0.4); knock(a.tgt); } } });
+};
+// ปืนครก: ตั้งกระบอกชันขึ้น ลูกโค้งสูงตกใส่เป้า ระเบิด
+ACT_FN.lob = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh), w = inOut(t, 0.25, 0.3, a.dur);
+  var up = vnorm([d[0]*0.5, 0.85, d[2]*0.5 + 0.2]), rh = vadd(sh, [0.08, -0.25, 0.22]), lh = vadd(rh, vmul(up, 0.35));
+  handsTo(a, P, W0, rh, lh, w);
+  a.gear = { gunDir:up, gunW:w };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true; var g = MINI.GUN[a.gun] || MINI.GUN.mortar;
+    var from = toWorld(u, vadd(a.W.handR.p, vmul(up, g.len))), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, from));
+    fxAdd({ kind:'flash', p:from, life:0.08, size:0.2, rot:Math.random()*3 }); fxAdd({ kind:'smoke', p:from, life:0.7, size:0.35, col:'175,170,160' });
+    fxAdd({ kind:'shell', a:from, b:end, h:2 + dist*0.25, dur:0.8 + dist*0.02, life:0.9 + dist*0.02, hit:s.hit,
+      arrive:function(f){ fxAdd({ kind:'boom', p:f.b, life:0.5, size:0.9 }); fxAdd({ kind:'smoke', p:f.b, life:1.1, size:0.8, col:'120,112,100' });
+        if (f.hit){ sparks(f.b, '255,190,90', 9, 0.5); knock(a.tgt); } } }); } });
+};
+// ทุ่มหิน: สองมือยกหินขึ้นเหนือหัว ทุ่มไปข้างหน้า (เฮอร์คิวลีส ไซคลอปส์)
+ACT_FN.hurl = function(u, a){
+  var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, shR = W0.shoulderR.p, shL = W0.shoulderL.p, d = aimDir(u, a, shR);
+  var n = a.shots.length, i = Math.max(0, Math.min(n - 1, Math.floor((t - 0.1)/0.8))), tt = t - 0.1 - i*0.8;
+  var mid = vmix(shR, shL, 0.5), back = vadd(mid, [0, 0.42, -0.2]), front = vadd(vadd(mid, vmul(d, 0.45)), [0, 0.2, 0]);
+  var c = tt < 0.35 ? vmix(i ? front : vmix(W0.handR.p, W0.handL.p, 0.5), back, ease(tt/0.35)) : tt < 0.47 ? vmix(back, front, ease((tt - 0.35)/0.12)) : front;
+  var w = 1 - ease((t - (a.dur - 0.25))/0.25);
+  handsTo(a, P, W0, vmix(W0.handR.p, vadd(c, [-0.1, 0, 0]), w), vmix(W0.handL.p, vadd(c, [0.1, 0, 0]), w), 1, [-0.6, -0.8, -0.4], [0.6, -0.8, -0.4]);
+  a.gear = { rock:tt < 0.44 && w > 0.5 ? a.proj : null };
+  var s = a.shots[i]; if (s && !s.done && tt >= 0.44){ s.done = true; throwArc(u, a, s, toWorld(u, vmix(a.W.handR.p, a.W.handL.p, 0.5)), a.proj); }
+};
+// ป้อมปืนรถถัง: หมุนป้อมไปทางเป้า ยิง ลำกล้องถอยหลัง ฝุ่นฟุ้ง
+ACT_FN.turret = function(u, a){
+  var P = basePose(u), t = a.t, K = MINI.kitInfo(u.k), T = K.turret || { y:1.6, len:2.4 }, piv = [0, T.y, T.z || 0];
+  var d = aimDir(u, a, piv), w = inOut(t, 0.35, 0.4, a.dur), kick = 0;
+  a.shots.forEach(function(s){ if (t >= s.t) kick = Math.max(kick, Math.exp(-(t - s.t)/0.12)); });
+  a.W = RIGQ.fk(P); a.gear = { turret:vnorm(vmix([0, 0, 1], d, w)), recoil:kick };
+  a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true;
+    var mz = toWorld(u, vadd(piv, vmul(d, T.len))), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, mz));
+    fxAdd({ kind:'flash', p:mz, life:0.12, size:0.55, rot:Math.random()*3 });
+    fxAdd({ kind:'smoke', p:mz, life:1.1, size:0.8, col:'175,170,160' });
+    fxAdd({ kind:'tracer', a:mz, b:end, dur:clamp(dist/34, 0.08, 0.6), life:clamp(dist/34, 0.08, 0.6) + 0.08, style:TRACER.tankgun, hit:s.hit,
+      arrive:function(f){ fxAdd({ kind:'boom', p:f.b, life:0.45, size:0.8 }); if (f.hit){ sparks(f.b, '255,170,80', 10, 0.6); knock(a.tgt); } } }); } });
+};
+function flameShot(u, a, s, from){
+  var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, from)), dur = clamp(dist/16, 0.18, 0.8), c = a.fcol || FLAME.fire;
+  fxAdd({ kind:'flame', a:from, b:end, dur:dur, life:dur + 0.3, col:c, hit:s.hit, seed:Math.random()*10,
+    arrive:function(f){ if (f.hit){ sparks(f.b, c[2], 6, 0.32); knock(a.tgt); } } });
+}
+function beamShot(u, a, s, from){
+  var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), st = TRACER[a.gun] || TRACER.gauss;
+  fxAdd({ kind:'beam', a:from, b:end, life:0.32, style:st });
+  fxAdd({ kind:'flash', p:from, life:0.08, size:0.14*(u.scale||1), rot:Math.random()*3 });
+  if (s.hit){ sparks(end, '200,255,210', 7, 0.34); knock(a.tgt); }
+}
+// ซ่อมตัวเอง: นอนหงายจาง ๆ รอจนลูกเต๋าหยุด แล้วค่อยลุกขึ้นยืน
+ACT_FN.down = function(u, a){ a.xf = tiltXf([1, 0, 0], -1.5, [0, 0, -0.12], 0.35); return a.t > 0.05 ? 'still' : undefined; };
+ACT_FN.rise = function(u, a){ var k = ease(a.t/0.8); a.xf = tiltXf([1, 0, 0], -1.5*(1 - k), [0, 0, -0.12*(1 - k)], 0.35 + 0.65*ease(a.t/0.5)); };
 // the body tilts about its feet toward the side away from the hit: a rotation about a level axis, as a 3x3 matrix
 function tiltXf(k, ang, push, alpha){
   var c = Math.cos(ang), s = Math.sin(ang), oc = 1 - c, x = k[0], y = k[1], z = k[2];
@@ -3651,9 +4150,10 @@ function hitPoint(tgt){ var p = aimPoint(tgt), r = 0.14*(tgt.scale||1); return v
 function sparks(p, col, n, spread, grav){ fxAdd({ kind:'spark', p:p, col:col, life:0.32, rays: Array.apply(null, Array(n)).map(function(){
   return vnorm([Math.random() - 0.5, Math.random()*0.7 - 0.1, Math.random() - 0.5]); }), len: spread || 0.35, grav: grav || 0 }); }
 function fireShot(u, a, s){
-  var hr = a.W.handR.p, hl = a.W.handL.p, ax = vnorm(vsub(hl, hr)), g = MINI.GUN[a.gun] || MINI.GUN.rifle;
+  var g = MINI.GUN[a.gun] || MINI.GUN.rifle, one = a.hand, hr = one === 'L' ? a.W.handL.p : a.W.handR.p;
+  var ax = one ? (one === 'L' ? a.gear.gunDirL : a.gear.gunDir) : vnorm(vsub(a.W.handL.p, a.W.handR.p));
   var mz = toWorld(u, vadd(hr, vmul(ax, g.len + 0.03))), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt);
-  var big = a.gun === 'cannon', dist = vlen(vsub(end, mz));
+  var big = !!g.big, dist = vlen(vsub(end, mz));
   fxAdd({ kind:'flash', p:mz, life:big ? 0.1 : 0.065, size:(big ? 0.3 : a.gun === 'hmg' ? 0.2 : 0.15)*(u.scale||1), rot:Math.random()*3 });
   fxAdd({ kind:'smoke', p:mz, life:big ? 0.9 : 0.5, size:big ? 0.5 : 0.22, col:'175,170,160' });
   fxAdd({ kind:'tracer', a:mz, b:end, dur:clamp(dist/(big ? 30 : 48), 0.08, 0.6), life:clamp(dist/(big ? 30 : 48), 0.08, 0.6) + 0.08,
@@ -3668,15 +4168,24 @@ function strikeAt(u, a, i, now){ var s = a.shots[i]; if (!s || s.done || !now) r
   if (s.hit){ sparks(hitPoint(a.tgt), '255,236,170', 6, 0.3); knock(a.tgt); if (!a.tgt.act) startAct(a.tgt, { kind:'flinch', dur:0.4, axis:awayAxis(a.tgt, u) }); } }
 
 // ---- the tray says when: a throw starting and a throw coming to rest ----
+// [เริ่มยิงนัดแรก, เว้นระหว่างนัด] ของปืนที่ไม่ได้ยิงเร็วแบบปืนทั่วไป
+var GUN_T = { sniper:[0.7, 0.3], cannon:[0.42, 0.3], plasma:[0.4, 0.26], deffgun:[0.42, 0.3], musket:[0.55, 0.3], rotary:[0.4, 0.08],
+  dakka:[0.3, 0.09], gaussh:[0.32, 0.2], gauss:[0.32, 0.2] };
 function startAttack(u, tgt, P, hits){
-  var a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i;
-  if (P.melee){ a.kind = SPEARS[u.k] ? 'thrust' : 'bash'; n = Math.min(3, hits.length);
-    for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.15 + n*0.55 + 0.25; }
-  else if (u.k === 'archer'){ a.kind = 'bow'; a.rel = 0.75; a.dur = 1.3; a.shots.push({ hit:hits[0] }); }
-  else if (u.k === 'peltast'){ a.kind = 'throw'; n = Math.min(2, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.1 + n*0.8 + 0.25; }
-  else { a.kind = 'fire'; a.gun = GUN_OF[u.k] || 'rifle'; n = hits.length;
+  var A = animOf(u.k), a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i, k = P.melee ? (A.m || 'bash') : (A.r || 'fire');
+  a.kind = k;
+  if (P.melee){ n = Math.min(3, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.15 + n*0.55 + 0.25; }
+  else if (k === 'bow'){ a.rel = 0.75; a.dur = 1.3; a.shots.push({ hit:hits[0] }); }
+  else if (k === 'throw' || k === 'hurl'){ a.proj = A.g || 'jav'; n = Math.min(2, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.1 + n*0.8 + 0.25; }
+  else if (k === 'flame' || k === 'spray' || k === 'breath'){ a.gun = A.g; a.fcol = FLAME[A.g] || FLAME.fire; n = Math.min(6, hits.length);
+    for (i=0;i<n;i++) a.shots.push({ t:0.3 + i*0.12, hit:hits[i] }); a.dur = 0.3 + n*0.12 + 0.75; }
+  else if (k === 'gaze' || k === 'cast' || k === 'zap' || k === 'beam'){ a.gun = A.g; n = Math.min(4, hits.length);
+    for (i=0;i<n;i++) a.shots.push({ t:0.55 + i*0.3, hit:hits[i] }); a.dur = 0.55 + (n - 1)*0.3 + 0.7; }
+  else if (k === 'lob'){ a.gun = A.g; n = Math.min(3, hits.length); for (i=0;i<n;i++) a.shots.push({ t:0.45 + i*0.5, hit:hits[i] }); a.dur = 0.45 + (n - 1)*0.5 + 0.8; }
+  else if (k === 'turret'){ a.gun = A.g; n = Math.min(4, hits.length); for (i=0;i<n;i++) a.shots.push({ t:0.7 + i*0.5, hit:hits[i] }); a.dur = 0.7 + (n - 1)*0.5 + 0.8; }
+  else { a.kind = 'fire'; a.gun = A.g || 'rifle'; a.hand = A.hand || null; n = hits.length;
     // the sniper settles on the scope before the one shot; the walker's cannon takes a beat to swing onto the target
-    var gap = a.gun === 'cannon' ? 0.3 : a.gun === 'sniper' ? 0.3 : n > 3 ? 0.11 : 0.16, t0 = a.gun === 'sniper' ? 0.7 : a.gun === 'cannon' ? 0.42 : 0.28;
+    var gt = GUN_T[a.gun], t0 = gt ? gt[0] : 0.28, gap = gt ? gt[1] : n > 3 ? 0.11 : 0.16;
     for (i=0;i<n;i++) a.shots.push({ t:t0 + i*gap, hit:hits[i] }); a.dur = t0 + (n - 1)*gap + 0.6; }
   if (!a.shots.length) return;
   startAct(u, a);
@@ -3691,7 +4200,8 @@ function onThrowStart(v){
   if (P.kind !== 'atk' || !att || !tgt || att === tgt) return;
   if (v.stage === 'hit' && v.prev !== 'ทอยใหม่'){
     // every model that fires takes its share of the dice, hits first so a volley reads as hits landing across the squad
-    var who = (P.who || []).map(fallenOr).filter(Boolean), dice = v.dice.map(function(dv){ return dv >= v.need; }), k;
+    var who = (P.who || []).map(fallenOr).filter(Boolean), k,
+        dice = P.tr ? Array.apply(null, Array(Math.max(1, P.shots))).map(function(){ return true; }) : v.dice.map(function(dv){ return dv >= v.need; });
     if (who.length){ var per = Math.max(1, Math.ceil(dice.length / who.length));
       for (k=0;k<who.length;k++){ var mine = dice.slice(k*per, (k + 1)*per), m = who[k], tm = nearestOf(m, tgt);
         if (mine.length && tm && units.indexOf(m) >= 0) startAttack(m, tm, P, mine); } }
@@ -3708,6 +4218,8 @@ function onThrowSettle(v){
   var P = v.P, att = sqById(P.u), tgt = P.t != null ? sqById(P.t) : null, i, n;
   if (P.kind === 'heal'){ var pm = fallenOr(P.tm); if (v.dice[0] >= v.need && pm) fxAdd({ kind:'glow', p:[pm.x, heightAt(pm.x, pm.z), pm.z], life:1.3, r:0.7*(pm.scale||1) }); return; }
   if (P.kind === 'gren' && v.final){ endBlows(P, att); return; }
+  if (P.kind === 'rez'){ (P.back || []).forEach(function(id){ var m = unitById(id); if (!m) return;
+      startAct(m, { kind:'rise', dur:1.0 }); fxAdd({ kind:'glow', p:[m.x, heightAt(m.x, m.z), m.z], life:1.3, r:0.7*(m.scale||1) }); }); return; }
   if (P.kind !== 'atk') return;
   var tm = tgt && sqModels(tgt)[0] || fallenOr((P.killed || [])[0]);
   if (!tm) return;
@@ -3783,6 +4295,49 @@ function drawFx(f){
       if (!pts) continue; ctx.globalAlpha = (1 - tk)*0.9; ctx.strokeStyle = '#86E39A'; ctx.beginPath();
       for (i=0;i<pts.length;i++) i ? ctx.lineTo(pts[i][0], pts[i][1]) : ctx.moveTo(pts[i][0], pts[i][1]); ctx.stroke(); }
     return; }
+  // ไฟ กรด พิษ: ก้อนไฟหลายก้อนไหลไปตามทาง ใหญ่ขึ้นและจางลงเมื่อไกลปาก
+  if (f.kind === 'flame'){ var head = clamp(t/f.dur, 0, 1), tail = clamp((t - 0.3)/f.dur, 0, 1), m = 9;
+    for (i=m-1;i>=0;i--){ var sI = tail + (head - tail)*i/(m - 1), wob = Math.sin(f.seed + i*1.7 + t*20)*0.12*sI;
+      var fp = vadd(vmix(f.a, f.b, sI), [wob, 0.06*sI + wob*0.5, -wob]); q = proj(fp); if (q[2] < 0.4) continue;
+      r = ppm(q)*(0.06 + 0.32*sI); var al = (1 - 0.6*sI)*clamp((f.life - t)/0.25, 0, 1);
+      ctx.globalAlpha = al*0.55; ctx.fillStyle = 'rgb(' + f.col[1] + ')'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, TAU); ctx.fill();
+      ctx.globalAlpha = al*0.9; ctx.fillStyle = 'rgb(' + f.col[0] + ')'; ctx.beginPath(); ctx.arc(q[0], q[1], r*0.5, 0, TAU); ctx.fill(); }
+    return; }
+  // ลำแสง: เส้นหนาเรืองแสงจากต้นทางถึงเป้าทั้งเส้นในทันที แล้วบางลงจนหาย
+  if (f.kind === 'beam'){ var qa2 = proj(f.a), qb2 = proj(f.b); if (qa2[2] < 0.4 || qb2[2] < 0.4) return;
+    var k1 = 1 - t/f.life, bw = clamp(ppm(qb2)*0.012, 0.8, 1.6)*f.style[2]*(0.5 + 0.5*k1);
+    ctx.globalAlpha = k1; ctx.lineCap = 'round';
+    ctx.strokeStyle = f.style[1]; ctx.lineWidth = bw*3; ctx.beginPath(); ctx.moveTo(qa2[0], qa2[1]); ctx.lineTo(qb2[0], qb2[1]); ctx.stroke();
+    ctx.strokeStyle = f.style[0]; ctx.lineWidth = bw; ctx.beginPath(); ctx.moveTo(qa2[0], qa2[1]); ctx.lineTo(qb2[0], qb2[1]); ctx.stroke();
+    ctx.lineCap = 'butt'; return; }
+  // สายฟ้า: เส้นหักไปมา สุ่มใหม่ทุกเฟรม สว่างวาบแล้วดับ
+  if (f.kind === 'zap'){ var qa3 = proj(f.a), qb3 = proj(f.b); if (qa3[2] < 0.4 || qb3[2] < 0.4) return;
+    var seg = 9, px2 = [qa3], dx2 = qb3[0] - qa3[0], dy2 = qb3[1] - qa3[1], nl = Math.hypot(dx2, dy2) || 1, amp = Math.min(22, nl*0.08);
+    for (i=1;i<seg;i++){ var jt = Math.sin(f.seed + i*12.9898 + Math.floor(t*30)*3.1)*amp; px2.push([qa3[0] + dx2*i/seg - dy2/nl*jt, qa3[1] + dy2*i/seg + dx2/nl*jt]); }
+    px2.push(qb3); ctx.globalAlpha = 1 - t/f.life; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(150,180,255,0.55)'; ctx.lineWidth = 7; ctx.beginPath(); px2.forEach(function(pp, j){ j ? ctx.lineTo(pp[0], pp[1]) : ctx.moveTo(pp[0], pp[1]); }); ctx.stroke();
+    ctx.strokeStyle = '#F4F8FF'; ctx.lineWidth = 2.2; ctx.beginPath(); px2.forEach(function(pp, j){ j ? ctx.lineTo(pp[0], pp[1]) : ctx.moveTo(pp[0], pp[1]); }); ctx.stroke();
+    ctx.lineJoin = 'miter'; return; }
+  // ระเบิด: วงไฟขยายออกแล้วจาง
+  if (f.kind === 'boom'){ q = proj(vadd(f.p, [0, 0.2, 0])); if (q[2] < 0.4) return; var kb = t/f.life; r = ppm(q)*f.size*(0.3 + 0.9*ease(kb));
+    ctx.globalAlpha = 0.8*(1 - kb); ctx.fillStyle = 'rgba(255,150,60,0.8)'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1 - kb; ctx.fillStyle = '#FFF0C0'; ctx.beginPath(); ctx.arc(q[0], q[1], r*0.45*(1 - kb), 0, TAU); ctx.fill(); return; }
+  // ของที่ลอยโค้งไป: ลูกปืนครก หิน ดาวกระจาย ขวาน
+  if (f.kind === 'shell' || f.kind === 'rock' || f.kind === 'boulder' || f.kind === 'star' || f.kind === 'axe'){
+    var s2 = clamp(t/f.dur, 0, 1); if (s2 >= 1 && f.kind !== 'rock' && f.kind !== 'boulder') return;
+    var pos2 = arcPos(f, s2); q = proj(pos2); if (q[2] < 0.4) return; var px3 = ppm(q);
+    ctx.globalAlpha = s2 >= 1 ? clamp((f.life - t)/0.4, 0, 1) : 1;
+    if (f.kind === 'shell'){ ctx.fillStyle = '#3A3C40'; ctx.beginPath(); ctx.arc(q[0], q[1], clamp(px3*0.06, 1.5, 5), 0, TAU); ctx.fill(); return; }
+    if (f.kind === 'rock' || f.kind === 'boulder'){ r = clamp(px3*(f.kind === 'boulder' ? 0.42 : 0.14), 2, 60);
+      ctx.fillStyle = '#7A7266'; ctx.beginPath();
+      for (i=0;i<7;i++){ var an2 = i*TAU/7 + t*6, rr2 = r*(0.8 + 0.2*Math.sin(i*2.3)); i ? ctx.lineTo(q[0] + Math.cos(an2)*rr2, q[1] + Math.sin(an2)*rr2) : ctx.moveTo(q[0] + Math.cos(an2)*rr2, q[1] + Math.sin(an2)*rr2); }
+      ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(40,36,30,0.7)'; ctx.lineWidth = 1; ctx.stroke(); return; }
+    if (f.kind === 'star'){ r = clamp(px3*0.07, 2, 8); ctx.fillStyle = '#C8CCD4'; ctx.beginPath();
+      for (i=0;i<8;i++){ var an3 = i*Math.PI/4 + t*30, rr3 = i % 2 ? r*0.35 : r; i ? ctx.lineTo(q[0] + Math.cos(an3)*rr3, q[1] + Math.sin(an3)*rr3) : ctx.moveTo(q[0] + Math.cos(an3)*rr3, q[1] + Math.sin(an3)*rr3); }
+      ctx.closePath(); ctx.fill(); return; }
+    r = clamp(px3*0.16, 3, 14); var an4 = t*18;                           // ขวานหมุนตีลังกา
+    ctx.strokeStyle = '#8A6A42'; ctx.lineWidth = clamp(px3*0.02, 1, 3); ctx.beginPath(); ctx.moveTo(q[0] - Math.cos(an4)*r, q[1] - Math.sin(an4)*r); ctx.lineTo(q[0] + Math.cos(an4)*r, q[1] + Math.sin(an4)*r); ctx.stroke();
+    ctx.fillStyle = '#B8BCC4'; ctx.beginPath(); ctx.arc(q[0] + Math.cos(an4)*r, q[1] + Math.sin(an4)*r, r*0.45, an4 - 1.4, an4 + 1.4); ctx.fill(); return; }
 }
 
 
@@ -3822,7 +4377,13 @@ function startTurn(){
   teamPlayers(G.turn).forEach(function(P){ P.cp = (P.cp || 0) + 1; });          // ทุกคนในทีมได้ 1 แต้มคำสั่ง
   sqList().forEach(function(s){ if (s.side !== G.turn || !sqHalf(s)) return;
     if (TY(s.k).brave){ say(sqLabel(s) + ' เหลือไม่ถึงครึ่ง แต่ไม่เคยถอย — ผ่านทดสอบขวัญ'); return; }
+    if (inAura(s, 'ld')){ say(sqLabel(s) + ' เหลือไม่ถึงครึ่ง แต่ผู้นำอยู่ใกล้ — ผ่านทดสอบขวัญ'); return; }
     mkPend({ kind:'shock', u:s.id, side:s.side, att:s.pl, anm:TY(s.k).nm, stage:'shock', need:TY(s.k).ld }); });
+  // ซ่อมตัวเอง: หลังทดสอบขวัญ ตัวที่ล้มในหน่วยที่ยังเหลืออยู่ทอยคนละลูก
+  sqList().forEach(function(s){ var T = TY(s.k), lost = s.n0 - sqAlive(s); if (s.side !== G.turn || !T.rez || lost <= 0) return;
+    mkPend({ kind:'rez', u:s.id, side:s.side, att:s.pl, anm:T.nm, stage:'rez', need:T.rez, n:Math.min(10, lost) }); });
+  // ม้าไม้เมืองทรอย: ตั้งแต่รอบ 2 เปิดท้องม้าในเฟสคำสั่งของทีม
+  if (G.round >= 2) sqList().forEach(function(s){ if (s.side === G.turn && TY(s.k).spawn && !s.opened) spawnFrom(s); });
   G.cmdWait = true;
   paintPlay(); dirty = true;
 }
@@ -3873,7 +4434,7 @@ function advance(){
   var guard = 0;
   while (guard++ < 60){
     if (!G.on || G.over) return;
-    if (G.phase === 'cmd' && G.cmdWait && !PEND.some(function(P){ return P.kind === 'shock'; })){ finishCommand(); continue; }
+    if (G.phase === 'cmd' && G.cmdWait && !PEND.some(function(P){ return P.kind === 'shock' || P.kind === 'rez'; })){ finishCommand(); continue; }
     if (G.phase === 'fight' && !PEND.length){
       if (!G.fights){ startFight(); say('เฟสตะลุมบอน' + (G.fights.length ? ' — หน่วยที่บุกได้ตีก่อน' : ' — ไม่มีใครติดประชิด')); }
       if (scheduleFight()) { paintPlay(); dirty = true; return; } endTurn(); continue; }
@@ -3924,7 +4485,7 @@ function boardState(){
       shaken:!!s.shaken, engaged:isEngaged(s) }; }),
     units:units.map(function(u){ return { id:u.id, sq:u.sq, pl:u.pl, team:u.side, k:u.t, hp:u.hp, x:+gx(u).toFixed(1), z:+gz(u).toFixed(1) }; }) };
 }
-var RULES_V = 2;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
+var RULES_V = 3;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -4094,8 +4655,12 @@ function doCharge(s, t){
 // หนึ่งก้าวต่อครั้ง ตามเฟส: เดินเข้าหาจุดยึดหรือศัตรู · ยิงเป้าที่คุ้มที่สุด · บุกถ้าเป็นหน่วยตีประชิด · หมอรักษา
 function botSquads(){ return sqList().filter(function(s){ return s.side === G.turn && isBotUnit({ pl:s.pl }); }); }
 function expDmg(s, t, how){ var M = atkMath(s, t, how); if (!M || !M.shots) return 0;
-  var ph = (7 - M.need)/6, pw = (7 - M.wneed)/6, ps = M.sv > 6 ? 1 : (M.sv - 1)/6;
-  return M.shots*ph*pw*ps*M.dmg*(1 + 0.3*(TY(t.k).pts/Math.max(1, TY(t.k).n))/30); }
+  var ph = M.tr ? 1 : (7 - M.need)/6, p6 = M.tr ? 0 : 1/6, pw = (7 - M.wneed)/6, ps = M.sv > 6 ? 1 : (M.sv - 1)/6;
+  var hw = M.lh ? (ph - p6)*pw + p6 : ph*pw;                          // เข้าได้ 6 เจาะเลย
+  var e = M.shots*hw*ps*M.dmg;
+  if (M.dw) e += M.shots*ph*(1/6)*(1 - ps)*M.dmg;                       // เจาะได้ 6 เป็นแผลตรง
+  if (M.heel) e += M.shots*ph*(1/6)*TY(t.k).w;                          // ส้นเท้า
+  return e*(1 + 0.3*(TY(t.k).pts/Math.max(1, TY(t.k).n))/30); }
 function melee(s){ var T = TY(s.k); return !T.gun || T.gun.rng <= 12; }
 // nothing for this squad to do in this phase: every device marks it the same way
 function botSkip(s){ if (G.phase === 'shoot') s.shot = true; else if (G.phase === 'charge') s.chDone = true; else s.moved = true; netSend({ a:'skip', u:s.id, ph:G.phase }); }
@@ -4144,7 +4709,7 @@ function botStep(){
           applyGren(mkPend({ kind:'gren', u:s.id, t:gt.id, side:s.side, att:s.pl, anm:A.nm, dnm:TY(gt.k).nm, stage:'gren' }), gr); return 'shoot'; }
         botSkip(s); continue; }
       var P0 = mkAtk(s, best, 'shoot'); if (!P0){ botSkip(s); continue; }
-      var hit = rollN(P0.shots); netSend({ a:'atk', u:s.id, t:best.id, how:'shoot', hit:hit }); applyHit(P0, hit);
+      var hit = P0.tr ? [] : rollN(P0.shots); netSend({ a:'atk', u:s.id, t:best.id, how:'shoot', hit:hit }); applyHit(P0, hit);
       return 'shoot'; }
     return false; }
   if (G.phase === 'charge'){
@@ -4196,16 +4761,17 @@ function paintRoster(){
   P.fac = facOf(P.list, P.fac);
   Array.prototype.forEach.call(document.querySelectorAll('#btFacs .mode'), function(x){ x.classList.toggle('on', x.dataset.f === P.fac); });
   for (i=0;i<TYPES.length;i++){
-    var T = TYPES[i], n = P.list[i] || 0, C = UNIT_COL[T.k];
+    var T = TYPES[i], n = P.list[i] || 0, C = colOf(T.k);
     if (T.fac !== P.fac) continue;
     var G1 = T.gun, M1 = T.mel;
     h += '<div class="unit"><span class="sw" style="background:rgb(' + C.plate.join(',') + ')"></span>' +
       '<span><span class="nm">' + T.nm + ' <em class="pts">×' + T.n + ' · ' + T.pts + ' แต้ม</em></span>' +
       '<span class="st">เดิน ' + T.mv + '" · ' + (G1 ? G1.nm + ' ' + G1.rng + '" ' + G1.a + ' นัด' : 'ต้องบุกเข้าประชิด') + ' · ' + M1.nm + ' ' + M1.a + ' ครั้ง' + (T.heal ? ' · รักษาเพื่อน' : '') + '</span>' +
-      (G.detail ? '<span class="st">ทน ' + T.T + ' · เกราะ ' + T.sv + '+' + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc +
-        (G1 ? ' · ยิง เข้า ' + G1.bs + '+ แรง ' + G1.s + ' เจาะ ' + G1.ap + ' ดาเมจ ' + G1.d : '') + ' · ตี เข้า ' + M1.ws + '+ แรง ' + M1.s + ' เจาะ ' + M1.ap + ' ดาเมจ ' + M1.d + ' — ' + T.d + '</span>' : '') +
+      (abilityText(T) ? '<span class="st ab">' + abilityText(T) + '</span>' : '') +
+      (G.detail ? '<span class="st">ทน ' + T.T + ' · เกราะ ' + (T.sv > 6 ? 'ไม่มี' : T.sv + '+') + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc +
+        (G1 ? ' · ยิง ' + (G1.tr ? 'โดนอัตโนมัติ' : 'เข้า ' + G1.bs + '+') + ' แรง ' + G1.s + ' เจาะ ' + G1.ap + ' ดาเมจ ' + G1.d : '') + ' · ตี เข้า ' + M1.ws + '+ แรง ' + M1.s + ' เจาะ ' + M1.ap + ' ดาเมจ ' + M1.d + ' — ' + T.d + '</span>' : '') +
       '</span><span class="pm"><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
-      '</span><button data-i="' + i + '" data-v="1">+</button></span></div>';
+      '</span><button data-i="' + i + '" data-v="1"' + (totalModels(s) + T.n > armyCap() ? ' disabled title="เกินจำนวนตัวสูงสุด"' : '') + '>+</button></span></div>';
   }
   host.innerHTML = h;
   var used = ptsOf(s), over = used > share, empty = used === 0;
@@ -4222,7 +4788,7 @@ function paintRoster(){
   }
   $('btArmyNote').innerHTML = over ? '<b style="color:var(--p2)">เกินงบ</b> ลดหน่วยลงก่อน'
     : empty ? 'ต้องมีหน่วยอย่างน้อยหนึ่งตัว'
-    : 'พร้อม · ' + used + ' แต้ม · ' + totalModels(s) + ' ตัว';
+    : 'พร้อม · ' + used + ' แต้ม · ' + totalModels(s) + '/' + armyCap() + ' ตัว';
 }
 function totalModels(pi){ var P = G.players[pi], n = 0, i; if (!P) return 0;
   for (i=0;i<TYPES.length;i++) n += (P.list[i] || 0)*TYPES[i].n; return n; }
@@ -4259,9 +4825,17 @@ function phaseHint(){ return G.phase === 'move' ? 'เฟสเคลื่อ�
   : G.phase === 'charge' ? 'เฟสบุก — หน่วยที่ศัตรูอยู่ในระยะ ' + CHARGE_R + '" บุกได้' : G.phase === 'fight' ? 'ตะลุมบอน — หน่วยที่ติดประชิดตีกันเอง' : 'เฟสคำสั่ง'; }
 function wpnLine(W, melee){ if (!W) return '';
   var kw = []; if (W.as) kw.push('ยิงได้แม้วิ่ง'); if (W.hv) kw.push('ยืนนิ่ง +1'); if (W.rf) kw.push('ใกล้ครึ่งระยะ +' + W.rf); if (W.pi) kw.push('ยิงตอนประชิดได้');
-  if (W.su) kw.push('6 = เข้าเพิ่ม'); if (W.la) kw.push('บุกมา +1 เจาะ');
-  return '<div class="wp"><b>' + W.nm + '</b> ' + (melee ? 'ประชิด' : W.rng + '"') + ' · ' + W.a + ' ครั้ง · เข้า ' + (melee ? W.ws : W.bs) + '+ · แรง ' + W.s +
+  if (W.su) kw.push('6 = เข้าเพิ่ม'); if (W.la) kw.push('บุกมา +1 เจาะ'); if (W.lh) kw.push('เข้า 6 = เจาะเลย'); if (W.dw) kw.push('เจาะ 6 = แผลตรง');
+  return '<div class="wp"><b>' + W.nm + '</b> ' + (melee ? 'ประชิด' : W.rng + '"') + ' · ' + W.a + ' ครั้ง · ' + (W.tr ? 'พ่น โดนอัตโนมัติ' : 'เข้า ' + (melee ? W.ws : W.bs) + '+') + ' · แรง ' + W.s +
     ' · เจาะ ' + (W.ap || 0) + ' · ดาเมจ ' + W.d + (kw.length ? ' <em>(' + kw.join(' · ') + ')</em>' : '') + '</div>'; }
+// ความสามารถพิเศษของหน่วย เป็นข้อความสั้น ๆ
+function abilityText(T){ var a = [];
+  if (T.hero) a.push('★ ตัวเอก'); if (T.brave) a.push('ไม่เคยถอย'); if (T.aoc) a.push('เกราะศรัทธา (โดนเจาะ −1)');
+  if (T.aura === 'hit') a.push('ผู้นำ: พวกในระยะ ' + AURA_R + '" เข้าเป้า +1'); if (T.aura === 'ld') a.push('ผู้นำ: พวกในระยะ ' + AURA_R + '" ไม่เสียขวัญ');
+  if (T.ca) a.push('บุกมา ตีเพิ่ม 1'); if (T.ac) a.push('วิ่งแล้วบุกได้'); if (T.fly) a.push('บิน (ถอยแล้วยิง/บุกได้)'); if (T.st) a.push('พรางตัว (โดนยิง −1)');
+  if (T.rez) a.push('ซ่อมตัวเอง ' + T.rez + '+'); if (T.heel) a.push('ส้นเท้า: โดนเจาะได้ 6 ตายทันที');
+  if (T.spawn) a.push('ซ่อน' + TY(T.spawn.k).nm + ' ' + T.spawn.n + ' ตัวในท้อง'); if (T.heal) a.push('รักษาเพื่อนในระยะ ' + T.heal + '"');
+  return a.join(' · '); }
 function sqCard(s){
   var T = TY(s.k), ms = sqModels(s), hp = 0, P = G.players[s.pl]; ms.forEach(function(m){ hp += m.hp; });
   var st = [];
@@ -4269,9 +4843,10 @@ function sqCard(s){
     if (s.shot) st.push('ยิงแล้ว'); if (s.charged) st.push('บุกเข้ามา'); }
   if (isEngaged(s)) st.push('<b>ติดประชิด</b>'); if (s.shaken) st.push('<b style="color:var(--p2)">ขวัญเสีย</b>');
   return '<div class="nm">' + T.nm + ' <span class="st">×' + ms.length + '/' + s.n0 + ' · ' + (P ? esc(P.nm) + ' · ' : '') + TEAM(s.side).nm + '</span></div>' +
-    '<div class="st dsh">เดิน ' + T.mv + '" · ทน ' + T.T + ' · เกราะ ' + T.sv + '+' + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w +
+    '<div class="st dsh">เดิน ' + T.mv + '" · ทน ' + T.T + ' · เกราะ ' + (T.sv > 6 ? 'ไม่มี' : T.sv + '+') + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w +
     (T.w > 1 || ms.length > 1 ? ' (เหลือรวม ' + hp + ')' : '') + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc + '</div>' +
-    wpnLine(T.gun, false) + wpnLine(T.mel, true) + (st.length ? '<div class="st">' + st.join(' · ') + '</div>' : '');
+    wpnLine(T.gun, false) + wpnLine(T.mel, true) + (abilityText(T) ? '<div class="st">' + abilityText(T) + '</div>' : '') +
+    (st.length ? '<div class="st">' + st.join(' · ') + '</div>' : '');
 }
 // ปุ่มของหน่วยที่เลือก เปลี่ยนตามเฟส
 function paintActs(s){
@@ -4321,7 +4896,7 @@ function paintDone(){
 // โต๊ะเมืองพังบังตัวหมากจนหาไม่เจอ หมุดลอยเหนือหัวจึงไม่ใช่ของประดับ มันคือสิ่งเดียวที่ทำให้
 // รู้ว่าตัวของใครอยู่ตรงไหนตอนซูมออก หมุดจางลงเมื่อตัวนั้นทำครบตาแล้ว
 function pinAt(u, col, bright){
-  var top = proj([u.x, heightAt(u.x, u.z) + (u.k === 'mech' ? 5 : u.k === 'cavalry' ? 3.3 : 2.5), u.z]); if (top[2] < 0.4) return;
+  var top = proj([u.x, heightAt(u.x, u.z) + unitH(u)*1.1 + 0.6, u.z]); if (top[2] < 0.4) return;
   var s = clamp(300/top[2], 5.5, 14);
   OVER.push(function(){
     ctx.globalAlpha = bright ? 1 : 0.45;
@@ -4389,7 +4964,7 @@ function fallenById(id){ for (var i=0;i<FALLEN.length;i++) if (FALLEN[i].id === 
 function fireLine(a, b, col){
   var ka = a.scale || 1, kb = b.scale || 1;
   var pa = proj([a.x, heightAt(a.x, a.z) + 1.0*ka, a.z]), pb = proj([b.x, heightAt(b.x, b.z) + 1.0*kb, b.z]);
-  ringAt(b.x, b.z, (b.k === 'mech' ? 1.5 : b.k === 'cavalry' ? 1.2 : 1.05), col);
+  ringAt(b.x, b.z, radOfType(TY(b.k)) + 0.25, col);
   if (pa[2] < 0.4 || pb[2] < 0.4) return;
   OVER.push(function(){
     var dx = pb[0] - pa[0], dy = pb[1] - pa[1], len = Math.hypot(dx, dy); if (len < 8) return;
@@ -4495,7 +5070,7 @@ var mode = 'look', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt
 var rightPan = false;
 function unitHit(sx, sy){
   var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], sc = u.scale || 1, p = proj([u.x, heightAt(u.x,u.z)+0.9*sc, u.z]); if (p[2] < 0.4) continue;
-    var d = Math.hypot(p[0]-sx, p[1]-sy) / (u.k === 'mech' || u.k === 'cavalry' ? 1.6 : 1); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
+    var d = Math.hypot(p[0]-sx, p[1]-sy) / (radOfType(TY(u.k)) > 1 ? 1.6 : 1); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
 }
 function twoMid(){ var ids = Object.keys(ptrs); if (ids.length < 2) return null;
   var a = ptrs[ids[0]], b = ptrs[ids[1]]; return [ (a[0]+b[0])/2, (a[1]+b[1])/2 ]; }
@@ -4532,7 +5107,7 @@ cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delet
   if (depMode) return tapDeploy(p);
   if (G.on) return tapGame(p);
   var w = groundHit(p[0], p[1]); if (!w) return;
-  if (mode === 'place'){ units.push({ k:kit, t:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false, scale:kit === 'mech' ? MINI.MECH_S : 1 }); dirty = true; }
+  if (mode === 'place'){ units.push({ k:kit, t:kit, x:w[0], z:w[2], rot: Math.atan2(cam.tx - w[0], cam.tz - w[2]) + Math.PI, sel:false, scale:kitScale(kit) }); dirty = true; }
   else if (mode === 'erase'){ var u = unitHit(p[0], p[1]); if (u){ units.splice(units.indexOf(u), 1); dirty = true; } }
   else if (mode === 'measure'){ if (!measure || measure.b) measure = { a:{x:w[0], z:w[2]}, b:null }; else measure.b = {x:w[0], z:w[2]}; dirty = true; } });
 
@@ -4695,6 +5270,7 @@ function netAct(a){
     case 'wnd': P = pendAt(a.u, a.t, 'atk'); if (P) applyWnd(P, a.wound || []); return;
     case 'sav': P = pendAt(a.u, a.t, 'atk'); if (P && P.stage === 'save') applySav(P, a.save || [], !!a.gtg && useStrat('gtg', P.def)); return;
     case 'shock': P = pendAt(a.u, null, 'shock'); if (P) applyShock(P, a.roll || [], !!a.brave && useStrat('brave', P.att)); return;
+    case 'rez': P = pendAt(a.u, null, 'rez'); if (P) applyRez(P, a.roll || []); return;
     case 'chg': if (s && t && !s.chDone) declareCharge(s, t); return;
     case 'ow': P = pendAt(a.u, a.t, 'chg'); if (P) applyOw(P, !!a.use); return;
     case 'chr': P = pendAt(a.u, a.t, 'chg'); if (!P) return; chgReady(P);
@@ -4718,7 +5294,7 @@ function applyWhole(s, t, R, how){
   applyWnd(P, R.wound || []); if (P.stage === 'done') return P;
   applySav(P, R.save || []); return P;
 }
-function rollFor(s, t, how){ var M = atkMath(s, t, how || 'shoot'), n = M ? M.shots : 0; return { hit:rollN(n), wound:rollN(n*2), save:rollN(n*2) }; }
+function rollFor(s, t, how){ var M = atkMath(s, t, how || 'shoot'), n = M ? M.shots : 0; return { hit:M && M.tr ? [] : rollN(n), wound:rollN(n*2), save:rollN(n*2) }; }
 
 function applyAct(a){
   if (!a) return;
@@ -4951,6 +5527,7 @@ $('btFacs').addEventListener('click', function(ev){ var b = ev.target.closest('.
   paintRoster(); });
 $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   var i = +b.dataset.i, v = +b.dataset.v, P = G.players[G.cur]; if (!P) return;
+  if (v > 0 && totalModels(G.cur) + TYPES[i].n > armyCap()){ popDice('ตัวหมากเต็มแล้ว<br><span style="font-size:12px">คนละไม่เกิน ' + armyCap() + ' ตัว</span>'); return; }
   P.list[i] = Math.max(0, (P.list[i]||0) + v); paintRoster(); });
 
 // หน้าจัดกองทัพกดถัดไป: คนต่อไป หรือถ้าครบแล้วก็ไปหน้าเลือกจุดลงสนาม
@@ -5119,7 +5696,13 @@ cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
 
 function sq_(x){ return !x ? null : SQ[x.id] === x ? x : typeof x === 'string' ? (SQ[x] || sqOf(unitById(x))) : sqOf(x); }   // เทสต์ส่งได้ทั้งหน่วย ตัวหมาก หรือรหัส
 window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
-  setTheme:applyTheme, add:function(k,x,z){ units.push({k:k,t:k,x:x,z:z,rot:0,scale:k === 'mech' ? MINI.MECH_S : 1}); dirty = true; },
+  setTheme:applyTheme, add:function(k,x,z){ units.push({k:k,t:k,x:x,z:z,rot:0,scale:kitScale(k)}); dirty = true; },
+  // เทสต์ท่าทาง: ให้ตัวที่ i โจมตีตัวที่ j (โดนทุกนัด) · ยกโล่รับ · นับหน้าของชุดหนึ่งที่ความละเอียดหนึ่ง
+  animate:function(i, j, melee, n){ var u = units[i], t = units[j], hits = [], k; for (k=0;k<(n||2);k++) hits.push(true);
+    if (u && t) startAttack(u, t, { melee:!!melee }, hits); return !!(u && u.act); },
+  brace:function(i, j){ var q = units[i], f = units[j]; if (q && f) startAct(q, { kind:'brace', face:[f.x, 0, f.z], dur:1.5 }); },
+  kitFaces:function(k, L){ var P = RIGQ.idlePose(0); MINI.pose(k, P); return MINI.build(k, RIGQ.fk(P), LODS[L || 0]).length; },
+  kitInfo:function(k){ var K = MINI.kitInfo(k); return { scale:K.scale || 1, h:K.h || 1.75, mount:!!K.mount, creature:!!K.creature, known:!!MINI.KITS[k] }; },
   goTo:function(i,x,z){ var u = units[i]; if (u) unitGoTo(u, x, z); return !!u; },   // send piece i walking to (x,z)
   stop:function(i){ var u = units[i]; if (u) unitStop(u); }, walking:function(){ return units.filter(function(u){ return u.mv; }).length; },
   draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
@@ -5178,6 +5761,10 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   select:function(u){ selectUnit(sq_(u)); return G.sel ? G.sel.id : null; }, act:function(a){ G.act = a; paintPlay(); },
   tap:function(x, z){ var s = G.sel; if (!s) return false; if (G.phase === 'move') return tryMoveSq(s, x, z); return false; },
   stratOk:function(k, pi){ return canStrat(k, pi); },
+  why:function(kind, u, t){ var a = sq_(u), b = sq_(t); return kind === 'chg' ? chargeWhyNot(a, b) : kind === 'heal' ? healWhyNot(a, b) : shotWhyNot(a, b); },
+  seed:function(n){ SEED = n; buildTerrain(); genProps(); dirty = true; }, armyCap:armyCap, inAura:function(u, k){ return inAura(sq_(u), k); }, pend:function(){ return PEND.map(function(P){ return { kind:P.kind, u:P.u, stage:P.stage, n:P.n }; }); },
+  fell:function(u, v){ var s = sq_(u); if (s){ s.fell = !!v; if (v) s.moved = true; } }, advd:function(u, v){ var s = sq_(u); if (s){ s.adv = !!v; s.advR = 3; } },
+  charged:function(u, v){ var s = sq_(u); if (s) s.charged = !!v; },
   live:liveOf, log:function(){ return LOG.slice(); },
   // สนาม: ภูมิประเทศ สิ่งก่อสร้าง · ห้อง: เข้าด้วยรหัส (หน้าเลือกเกมของเว็บเรียกอันนี้) · โหมดผู้ชม
   setTerrain:setTerrain, terrainOf:function(){ return terrain; },
