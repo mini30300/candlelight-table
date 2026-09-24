@@ -146,6 +146,18 @@
 #bt .tray button.roll{flex:0 0 116px;min-height:0;font-size:17px;line-height:1.2;padding:4px 6px}
 #bt .tray button.roll .cd{display:block;font-weight:500;opacity:.85;font-size:12px;margin-top:2px}
 #bt .dicepop b{color:var(--on)}
+#bt .turnbar .phs{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
+#bt .turnbar .ph{font-size:11.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--sub);white-space:nowrap}
+#bt .turnbar .ph.on{border-color:var(--on);color:var(--on);font-weight:600}
+#bt .turnbar .cp{color:var(--on);font-weight:600;white-space:nowrap}
+#bt .card .dsh{font-variant-numeric:tabular-nums}
+#bt .card .wp{font-size:12.5px;color:var(--sub);margin-top:2px;line-height:1.45}
+#bt .card .wp b{color:var(--ink);font-weight:600}
+#bt .card .wp em{font-style:normal;color:var(--sub)}
+#bt .tray .tx{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;border:0;background:none;padding:0;box-shadow:none}
+#bt #btAct .stx{font-size:13px;color:var(--sub);line-height:1.45;padding:4px 2px;text-align:left}
+#bt .tray .tx:empty{display:none}
+#bt .tray .tx button{min-height:30px;font-size:12.5px;padding:0 12px;border-radius:999px}
 </style>
 <div id="bt">
  <div class="shell">
@@ -161,6 +173,7 @@
           <button class="auto" id="btAuto" aria-pressed="false" title="เปิดไว้ เครื่องนี้ทอยลูกเต๋าของเราให้ทันที ไม่ต้องกด">ออโต้</button></div>
         <div class="tb"><canvas id="btTrayCv"></canvas><button class="go roll hide" id="btRoll"></button></div>
         <div class="ts" id="btTraySt" aria-live="polite"></div>
+        <div class="tx" id="btTrayX"></div>
       </div>
     </div>
   </div>
@@ -277,7 +290,7 @@
       <div id="btSpecOpt" class="hide">
         <h3>บอทกี่ฝ่าย · งบฝ่ายละเท่าไร</h3>
         <div class="row"><label class="sl">ฝ่าย <input type="range" id="btSpecN" min="2" max="8" step="1" value="2"><em id="btSpecNV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">2 ฝ่าย</em></label></div>
-        <div class="row" style="margin-top:4px"><label class="sl">แต้ม <input type="range" id="btSpecPts" min="60" max="600" step="10" value="150"><em id="btSpecPtsV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">150</em></label></div>
+        <div class="row" style="margin-top:4px"><label class="sl">แต้ม <input type="range" id="btSpecPts" min="200" max="2000" step="50" value="500"><em id="btSpecPtsV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">500</em></label></div>
       </div>
       <div id="btRules">
         <h3>กติกาเพิ่มเติม</h3>
@@ -306,7 +319,7 @@
     <!-- ══════════ จัดกองทัพ ══════════ -->
     <div id="scArmy" class="hide">
       <h3>ขนาดคะแนน</h3>
-      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="60" max="600" step="10" value="150"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">150</em></label></div>
+      <div class="row"><label class="sl">แต้ม <input type="range" id="btPts" min="200" max="2000" step="50" value="500"><em id="btPtsV" style="font-style:normal;color:var(--ink);min-width:60px;text-align:right">500</em></label></div>
 
       <div class="card" id="btWho" style="margin-bottom:4px"></div>
 
@@ -2533,35 +2546,56 @@ function hud(){
   $('btHud').innerHTML = TH().name + ' · ' + TR().name + ' · โต๊ะ <i>' + table.w + '×' + table.d + '</i> นิ้ว/ม.<br>ชิ้นภูมิประเทศ <i>' + PROPS.length + '</i> · หน้า <i>' + FACES.length + '</i>' + (parts.length ? '<br>' + parts.join(' · ') : '') + (mv ? ' · กำลังเดิน <i>' + mv + '</i>' : '');
 }
 // ═══════════════════ เกม ═══════════════════
-// กติกาสั้นที่สุดที่ยังเล่นจบได้จริง: ผลัดกันเล่น หนึ่งเทิร์นสั่งได้ทุกตัว ตัวหนึ่งเดินหนึ่งครั้งยิงหนึ่งครั้ง
-// ทอย d6 ทั้งหมด (เข้า → เจาะ → เซฟ) แบบเดียวกับถาดลูกเต๋าในแอพ
-// ลำดับในตารางนี้คือลำดับในกองทัพที่ส่งข้ามเครื่อง — สี่ตัวแรกต้องอยู่ที่เดิม ตัวใหม่ต่อท้ายเสมอ
-// fac = อยู่กองทัพไหน · r = รัศมีฐาน (นิ้ว) ตัวใหญ่ยืนเบียดคนอื่นไม่ได้ · heal = รักษาเพื่อนได้ในระยะนี้แทนการยิง
+// กติกาแบบเกมโต๊ะ 40k ในชื่อของเราเอง:
+//   หน่วยหนึ่งมีหลายตัว เดิน ยิง บุก ตีไปด้วยกัน · เทิร์นของแต่ละทีมมีห้าเฟส: คำสั่ง → เคลื่อนที่ → ยิง → บุก → ตะลุมบอน
+//   ยิง/ตี: ทอยเข้าเป้า (ฝีมือ) → ทอยเจาะ (แรง S เทียบความทน T) → ทอยเซฟ (เกราะ + ค่าเจาะ หรือเกราะพิเศษ) → เสียแผลทีละตัวตามดาเมจ
+//   ยึดจุดได้แต้มชัย · แต้มคำสั่ง (CP) ใช้กลยุทธ์ · หน่วยที่เหลือไม่ถึงครึ่งทดสอบขวัญในเฟสคำสั่ง
+// ลำดับในตารางนี้คือลำดับในกองทัพที่ส่งข้ามเครื่อง — ห้ามสลับ ตัวใหม่ต่อท้าย · รายชื่อกองทัพนับเป็น "กี่หน่วย"
+// ต่อหนึ่งตัว: mv เดิน (นิ้ว) · T ความทน · sv เกราะ (ทอยได้เท่านี้ขึ้นไป) · inv เกราะพิเศษ (ค่าเจาะไม่มีผล) · w แผล · ld ขวัญ (2 ลูกรวมกัน) · oc คุมจุด
+// n = กี่ตัวต่อหน่วย · pts = แต้มทั้งหน่วย · r = รัศมีฐาน (นิ้ว) · heal = รักษาเพื่อนในระยะนี้แทนการยิง · brave = ผ่านทดสอบขวัญเสมอ
+// gun = อาวุธยิง · mel = อาวุธประชิด: a ครั้งต่อตัว · bs/ws ทอยเข้าเท่านี้ขึ้นไป · s แรง · ap ค่าเจาะ (เกราะอีกฝั่งแย่ลงเท่านี้) · d ดาเมจ
+//   as = ยิงได้แม้วิ่งมา · hv = ยืนนิ่งทั้งตา +1 เข้า · rf = ระยะครึ่งหนึ่งยิงเพิ่มเท่านี้ · pi = ยิงได้ตอนติดประชิด
+//   su = ทอยเข้าได้ 6 นับเข้าเพิ่มเท่านี้ · la = บุกเข้ามาตานี้ +1 ตอนทอยเจาะ
 var TYPES = [
-  { k:'heavy',    fac:'mod', nm:'เกราะหนัก',   pts:26, mv:6,  rng:24, sh:2, bs:3, ap:2, sv:3, w:2, d:'ช้า ทน ยิงไกล' },
-  { k:'infantry', fac:'mod', nm:'ทหารราบ',    pts:11, mv:6,  rng:18, sh:1, bs:4, ap:0, sv:5, w:1, d:'ถูก เอาไว้คุมพื้นที่' },
-  { k:'hoplite',  fac:'gr',  nm:'โฮพไลต์',    pts:16, mv:8,  rng:0,  sh:3, bs:3, ap:1, sv:4, w:1, d:'หอกกับโล่ ต้องวิ่งเข้าประชิด' },
-  { k:'enemy',    fac:'mod', nm:'จู่โจม',      pts:14, mv:7,  rng:12, sh:2, bs:4, ap:1, sv:6, w:1, d:'เร็ว ยิงใกล้ เกราะบาง' },
-  { k:'archer',   fac:'gr',  nm:'นักธนู',      pts:10, mv:6,  rng:22, sh:1, bs:4, ap:0, sv:6, w:1, d:'ยิงไกล ตัวถูก เกราะบาง' },
-  { k:'peltast',  fac:'gr',  nm:'ทหารหอกซัด',  pts:12, mv:9,  rng:8,  sh:2, bs:4, ap:1, sv:6, w:1, d:'วิ่งเร็ว ขว้างหอกระยะใกล้' },
-  { k:'spartan',  fac:'gr',  nm:'สปาร์ตัน',    pts:24, mv:7,  rng:0,  sh:4, bs:3, ap:1, sv:3, w:2, d:'แพง ตีแรง ทนมาก' },
-  { k:'cavalry',  fac:'gr',  nm:'ทหารม้า',     pts:30, mv:14, rng:0,  sh:3, bs:3, ap:2, sv:4, w:2, r:1.1, d:'เร็วมาก พุ่งชนแรง' },
-  { k:'sniper',   fac:'mod', nm:'พลซุ่มยิง',   pts:18, mv:5,  rng:36, sh:1, bs:2, ap:3, sv:6, w:1, d:'ยิงไกลที่สุด แม่น เจาะเกราะ' },
-  { k:'hmg',      fac:'mod', nm:'ปืนกลหนัก',   pts:24, mv:4,  rng:24, sh:5, bs:4, ap:1, sv:4, w:2, d:'ยิงทีละห้านัด เดินช้า' },
-  { k:'medic',    fac:'mod', nm:'หน่วยแพทย์',  pts:14, mv:6,  rng:12, sh:1, bs:5, ap:0, sv:5, w:1, heal:3, d:'รักษาเพื่อนที่เจ็บในระยะ 3" แทนการยิง' },
-  { k:'mech',     fac:'mod', nm:'หุ่นรบ',       pts:60, mv:6,  rng:24, sh:4, bs:3, ap:2, sv:2, w:6, r:1.5, d:'ตัวใหญ่ ทนมาก ยิงหนัก' }
+  { k:'heavy',    fac:'mod', nm:'เกราะหนัก',   n:3, pts:90,  mv:6,  T:4,  sv:3, w:2,  ld:6, oc:1,
+    gun:{ nm:'ปืนคาร์บีนหนัก', rng:24, a:2, bs:3, s:4, ap:1, d:1 }, mel:{ nm:'หมัดเกราะ', a:3, ws:3, s:4, ap:0, d:1 }, d:'ทน ยิงแม่น ตีก็ได้' },
+  { k:'infantry', fac:'mod', nm:'ทหารราบ',    n:5, pts:45,  mv:6,  T:3,  sv:5, w:1,  ld:7, oc:2,
+    gun:{ nm:'ปืนเล็กยาว', rng:24, a:1, bs:4, s:3, ap:0, d:1, rf:1 }, mel:{ nm:'ด้ามปืน', a:1, ws:4, s:3, ap:0, d:1 }, d:'ถูก คนเยอะ ใกล้ครึ่งระยะยิงเพิ่ม คุมจุดเก่ง' },
+  { k:'hoplite',  fac:'gr',  nm:'โฮพไลต์',    n:5, pts:65,  mv:6,  T:3,  sv:4, w:1,  ld:7, oc:2,
+    gun:null, mel:{ nm:'หอกยาว', a:2, ws:3, s:4, ap:0, d:1 }, d:'หอกกับโล่ คุมจุดเก่ง ต้องบุกเข้าประชิด' },
+  { k:'enemy',    fac:'mod', nm:'จู่โจม',      n:5, pts:75,  mv:10, T:3,  sv:5, w:1,  ld:7, oc:1,
+    gun:{ nm:'ปืนกลมือ', rng:12, a:2, bs:4, s:3, ap:0, d:1, as:1, pi:1 }, mel:{ nm:'มีดรบ', a:2, ws:3, s:4, ap:1, d:1 }, d:'บินกระโดดไกล ยิงใกล้แล้วบุก' },
+  { k:'archer',   fac:'gr',  nm:'นักธนู',      n:5, pts:50,  mv:6,  T:3,  sv:6, w:1,  ld:7, oc:1,
+    gun:{ nm:'ธนู', rng:24, a:1, bs:4, s:3, ap:0, d:1, hv:1 }, mel:{ nm:'มีดสั้น', a:1, ws:5, s:3, ap:0, d:1 }, d:'ยิงไกล ยืนนิ่งแม่นขึ้น เกราะบาง' },
+  { k:'peltast',  fac:'gr',  nm:'ทหารหอกซัด',  n:5, pts:55,  mv:8,  T:3,  sv:5, w:1,  ld:7, oc:1,
+    gun:{ nm:'หอกซัด', rng:9, a:1, bs:4, s:4, ap:1, d:1, as:1 }, mel:{ nm:'หอกสั้น', a:1, ws:4, s:3, ap:0, d:1 }, d:'วิ่งเร็ว ขว้างได้แม้วิ่งมา แล้วบุก' },
+  { k:'spartan',  fac:'gr',  nm:'สปาร์ตัน',    n:3, pts:90,  mv:6,  T:4,  sv:3, inv:5, w:2, ld:6, oc:2, brave:1,
+    gun:null, mel:{ nm:'หอกสปาร์ตา', a:3, ws:2, s:5, ap:1, d:1 }, d:'ตีแรงที่สุด เกราะพิเศษ 5+ ไม่เคยถอย' },
+  { k:'cavalry',  fac:'gr',  nm:'ทหารม้า',     n:3, pts:105, mv:12, T:5,  sv:4, w:3,  ld:7, oc:2, r:1.1,
+    gun:null, mel:{ nm:'หอกม้า', a:3, ws:3, s:5, ap:1, d:2, la:1 }, d:'เร็วมาก บุกเข้ามาตานั้นแทงเจาะง่ายขึ้น' },
+  { k:'sniper',   fac:'mod', nm:'พลซุ่มยิง',   n:1, pts:40,  mv:6,  T:3,  sv:5, w:2,  ld:7, oc:1,
+    gun:{ nm:'ไรเฟิลซุ่มยิง', rng:36, a:1, bs:2, s:5, ap:2, d:3, hv:1 }, mel:{ nm:'มีด', a:1, ws:4, s:3, ap:0, d:1 }, d:'ยิงไกลที่สุด แม่น ดาเมจสูง' },
+  { k:'hmg',      fac:'mod', nm:'ปืนกลหนัก',   n:2, pts:65,  mv:5,  T:3,  sv:5, w:2,  ld:7, oc:1,
+    gun:{ nm:'ปืนกลหนัก', rng:36, a:5, bs:4, s:5, ap:1, d:1, hv:1, su:1 }, mel:{ nm:'ด้ามปืน', a:1, ws:4, s:3, ap:0, d:1 }, d:'รัวทีละห้านัด ยืนนิ่งแม่นขึ้น ได้ 6 เข้าเพิ่ม' },
+  { k:'medic',    fac:'mod', nm:'หน่วยแพทย์',  n:1, pts:35,  mv:6,  T:3,  sv:5, w:2,  ld:6, oc:1, heal:3,
+    gun:{ nm:'ปืนพก', rng:12, a:1, bs:4, s:3, ap:0, d:1, pi:1 }, mel:{ nm:'มีด', a:1, ws:4, s:3, ap:0, d:1 }, d:'แทนการยิง: รักษาหน่วยเพื่อนในระยะ 3" (คืนแผล หรือชุบตัวที่ล้ม)' },
+  { k:'mech',     fac:'mod', nm:'หุ่นรบ',       n:1, pts:170, mv:8,  T:10, sv:2, w:12, ld:6, oc:4, r:1.5,
+    gun:{ nm:'ปืนใหญ่หุ่น', rng:36, a:4, bs:3, s:9, ap:3, d:3 }, mel:{ nm:'หมัดเหล็ก', a:4, ws:3, s:12, ap:2, d:3 }, d:'ตัวใหญ่ ทนมาก ยิงหนัก ตีหนัก' }
 ];
 // สองกองทัพ แต่ละคนเลือกของตัวเอง สู้ข้ามกองได้
-var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า — ต้องเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ หุ่นรบ — ยิงจากระยะไกล' } ];
+var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า — ต้องบุกเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ หุ่นรบ — ยิงจากระยะไกล' } ];
 function emptyList(){ var out = [], i; for (i=0;i<TYPES.length;i++) out.push(0); return out; }
 function fitList(L){ var out = emptyList(), i; if (L) for (i=0;i<out.length;i++) out[i] = L[i] | 0; return out; }
 // กองทัพของรายชื่อนี้ ดูจากหน่วยที่มี · ยังว่างอยู่ก็ใช้ที่เลือกไว้ (ค่าตั้งต้น กองทหาร)
 function facOf(L, dflt){ if (L) for (var i=0;i<TYPES.length;i++) if ((L[i]|0) > 0) return TYPES[i].fac; return dflt || 'mod'; }
 function radOfType(T){ return (T && T.r) || 0.8; }
 function TY(k){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === k) return TYPES[i]; return TYPES[0]; }
-var MELEE = 2;                       // นิ้ว — ใกล้กว่านี้คือประชิด ตีได้แม้ไม่มีปืน
+var ENGAGE = 1;                      // นิ้ว (ขอบฐานถึงขอบฐาน) — ใกล้เท่านี้คือติดประชิด ต้องตะลุมบอน ยิงไม่ได้ (เว้นปืนพก)
+var CHARGE_R = 12;                   // บุกได้ถ้าศัตรูอยู่ในระยะนี้
 var MAX_ROUND = 5;
-// แปดทีม (ฟรีฟอร์ออลกับโหมดผู้ชมมีได้ถึง 8 ฝ่าย) เลือกสีให้ห่างกันในวงล้อสี และสว่างพอจะเห็นบนซากตึกสีเทาในฉากมืด
+var PHASES = ['cmd', 'move', 'shoot', 'charge', 'fight'];
+var PHASE_NM = { cmd:'คำสั่ง', move:'เคลื่อนที่', shoot:'ยิง', charge:'บุก', fight:'ตะลุมบอน' };
+// แปดทีม (ฟรีฟอร์ออลกับโหมดผู้ชมมีได้ถึง 8 ฝ่าย) เลือกสีให้ห่างกันในวงล้อสี และสว่างพอจะเห็นบนโต๊ะมืด
 var TEAMS = [
   { nm:'ทีมน้ำเงิน', ui:'#6FA8D8', rgb:[ 72,132,214] },
   { nm:'ทีมแดง',    ui:'#D8746A', rgb:[212, 78, 66] },
@@ -2576,18 +2610,19 @@ function TEAM(i){ return TEAMS[(i||0) % TEAMS.length]; }
 var DEP_FOE = 20, DEP_MATE = 5;     // นิ้ว — จุดลงสนามห่างทีมอื่น 20 ห่างเพื่อนร่วมทีม 5
 
 // G.budget คืองบ "ต่อทีม" แล้วหารกันเองในทีม · G.teams จำนวนทีม · G.perTeam คนต่อทีม
-var G = { on:false, mode:'pve', budget:150, teams:2, perTeam:1, freeFire:false, clock:0,
-          turn:0, round:1, sel:null, act:null, over:false, cur:0, timeLeft:0,
-          players:[], detail:false, botTimer:0, mePl:-1 };
+// G.phase เฟสของทีมที่ถึงตา · G.vp แต้มชัยของแต่ละทีม · ผู้เล่นแต่ละคนมี cp ของตัวเอง
+var G = { on:false, mode:'pve', budget:500, teams:2, perTeam:1, freeFire:false, clock:0,
+          turn:0, round:1, phase:'cmd', sel:null, act:null, over:false, cur:0, timeLeft:0,
+          players:[], detail:false, botTimer:0, mePl:-1, vp:[], used:{}, fights:[], fightAt:0 };
 // โหมดผู้ชม: ทุกฝ่ายเป็นบอท เราคุมได้แค่ความเร็ว — หยุด / ×1 ×2 ×4 / ทีละจังหวะ
 var SPEC = { speed:1, paused:false };
 function watching(){ return G.on && G.mode === 'spectator'; }
 
-// ผู้เล่นหนึ่งคน: อยู่ทีมไหน เป็นบอทไหม กองทัพของตัวเอง จุดลงสนาม และกดจบตาหรือยัง
+// ผู้เล่นหนึ่งคน: อยู่ทีมไหน เป็นบอทไหม กองทัพของตัวเอง จุดลงสนาม แต้มคำสั่ง และกดเสร็จเฟสนี้หรือยัง
 function mkPlayers(){
   var out = [], t, i, k = 0;
   for (t=0;t<G.teams;t++) for (i=0;i<G.perTeam;i++){
-    out.push({ id:k, team:t, nm:'ผู้เล่น ' + (k+1), bot:false, list:emptyList(), fac:'mod', dep:null, done:false });
+    out.push({ id:k, team:t, nm:'ผู้เล่น ' + (k+1), bot:false, list:emptyList(), fac:'mod', dep:null, done:false, cp:0 });
     k++;
   }
   if (G.mode === 'pve') for (i=0;i<out.length;i++) if (out[i].team !== 0) out[i].bot = true;
@@ -2600,16 +2635,17 @@ function teamIsBot(t){ var ps = teamPlayers(t), i;
   for (i=0;i<ps.length;i++) if (!ps[i].bot) return false;
   return true; }
 function isBotUnit(u){ var P = G.players[u.pl]; return !!P && P.bot; }
-function shareOf(){ return Math.max(20, Math.floor(G.budget / Math.max(1, G.perTeam))); }
-// ยิงใครได้บ้าง — เพื่อนร่วมทีมยิงไม่ได้ เว้นแต่เจ้าของห้องเปิดฟรีฟาย
-function canTarget(u, t){ return u !== t && (G.freeFire ? true : t.side !== u.side); }
-// โต๊ะรับจุดลงสนามได้กี่จุด: วางเป็นตารางห่างกัน DEP_FOE พอดี เป็นการวางที่มีอยู่จริง ไม่ใช่การเดา
+function shareOf(){ return Math.max(40, Math.floor(G.budget / Math.max(1, G.perTeam))); }
+// ยิงใครได้บ้าง — เพื่อนร่วมทีมยิงไม่ได้ เว้นแต่เจ้าของห้องเปิดฟรีฟาย (ใช้ได้ทั้งตัวหมากและหน่วย)
+function canTarget(a, b){ if (!a || !b || a === b || (a.sq && b.sq && a.sq === b.sq)) return false; return G.freeFire ? true : b.side !== a.side; }
+// โต๊ะรับจุดลงสนามได้กี่จุด: วางเป็นตารางห่างกัน DEP_FOE พอดี เป็นการวางที่มีอยู่จริง ไม่ใช่กะเอา
 function depCapacity(w, d){
   return (Math.floor((w - 5) / DEP_FOE) + 1) * (Math.floor((d - 5) / DEP_FOE) + 1);
 }
 
-function d6(){ return 1 + Math.floor(Math.random()*6); }
-// ระยะวัดจากปลายทางที่กติกาอนุมัติแล้ว (gx/gz) ไม่ใช่จุดกลางทางที่ตัวหมากกำลังเดินอยู่ — บอทยิงหลังเดิน 0.25 วิ
+var DQ = [];                     // tests: the next dice to come up (BT.dice)
+function d6(){ return DQ.length ? DQ.shift() : 1 + Math.floor(Math.random()*6); }
+// ระยะวัดจากปลายทางที่กติกาอนุมัติแล้ว (gx/gz) ไม่ใช่จุดกลางทางที่ตัวหมากกำลังเดินอยู่ — บอทสั่งเดินแล้วยิงต่อทันที
 // ตอนนั้นตัวยังเดินไม่ถึง วัดจากกลางทางแล้วหลุดระยะ และแต่ละเครื่องเห็นกลางทางไม่ตรงกัน
 function gx(u){ return u.gx != null ? u.gx : u.x; }
 function gz(u){ return u.gz != null ? u.gz : u.z; }
@@ -2620,43 +2656,79 @@ function teamPts(t){ var ps = teamPlayers(t), n = 0, i; for (i=0;i<ps.length;i++
 function liveOf(t){ var n = 0, i; for (i=0;i<units.length;i++) if (units[i].side === t) n++; return n; }
 function teamsAlive(){ var out = [], t; for (t=0;t<G.teams;t++) if (liveOf(t) > 0) out.push(t); return out; }
 function humanTurn(){ return G.on && !G.over && !teamIsBot(G.turn); }
-// ทีมจบตาเมื่อคนจริงในทีมกดครบ — บอทไม่ต้องรอ
+// ทีมไปเฟสต่อไปเมื่อคนจริงในทีมกดครบ — บอทไม่ต้องรอ
 function allDone(t){ var ps = teamPlayers(t), i;
   for (i=0;i<ps.length;i++) if (!ps[i].bot && !ps[i].done) return false;
   return true; }
 
+// ---------- หน่วย: ตัวหมากหลายตัวที่ไปด้วยกัน ----------
+// ตัวหมากแต่ละตัวยังเป็นหนึ่งช่องใน units (วาด เดิน ท่าทาง เหมือนเดิม) มี u.sq บอกว่าอยู่หน่วยไหน
+// สถานะของหน่วยอยู่ที่ SQ[id]: เดิน/วิ่ง/ถอยแล้ว ยิงแล้ว บุกแล้ว ตีแล้ว ขวัญเสีย
+var SQ = {}, SQ_ORDER = [];
+function sqOf(u){ return u && SQ[u.sq] || null; }
+function sqById(id){ return SQ[id] || null; }
+function sqModels(s){ var out = [], i; if (!s) return out; for (i=0;i<units.length;i++) if (units[i].sq === s.id) out.push(units[i]); return out; }
+function sqAlive(s){ var n = 0, i; if (!s) return 0; for (i=0;i<units.length;i++) if (units[i].sq === s.id) n++; return n; }
+function sqList(){ var out = [], i; for (i=0;i<SQ_ORDER.length;i++){ var s = SQ[SQ_ORDER[i]]; if (s && sqAlive(s)) out.push(s); } return out; }
+function sqCenter(s){ var ms = sqModels(s), x = 0, z = 0, i; if (!ms.length) return { x:0, z:0 };
+  for (i=0;i<ms.length;i++){ x += gx(ms[i]); z += gz(ms[i]); } return { x:x/ms.length, z:z/ms.length }; }
+function sqT(s){ return TY(s.k); }
+// ระยะระหว่างสองหน่วย = ตัวที่ใกล้กันที่สุด (กลางฐานถึงกลางฐาน) · edge = ขอบฐานถึงขอบฐาน
+function sqDist(a, b){ var A = sqModels(a), B = sqModels(b), best = 1e9, i, j;
+  for (i=0;i<A.length;i++) for (j=0;j<B.length;j++){ var d = dist2(A[i], B[j]); if (d < best) best = d; } return best; }
+function mEdge(a, b){ return dist2(a, b) - radOfType(TY(a.t)) - radOfType(TY(b.t)); }
+function sqEdge(a, b){ var A = sqModels(a), B = sqModels(b), best = 1e9, i, j;
+  for (i=0;i<A.length;i++) for (j=0;j<B.length;j++){ var d = mEdge(A[i], B[j]); if (d < best) best = d; } return best; }
+function foesOf(s){ return sqList().filter(function(q){ return q.side !== s.side || (G.freeFire && q !== s); }); }
+function realFoes(s){ return sqList().filter(function(q){ return q.side !== s.side; }); }
+// ติดประชิดอยู่กับใครบ้าง (หน่วยศัตรูที่ขอบฐานห่างไม่เกิน 1")
+function engagedWith(s){ return realFoes(s).filter(function(q){ return sqEdge(s, q) <= ENGAGE + 0.001; }); }
+function isEngaged(s){ return engagedWith(s).length > 0; }
+function sqHalf(s){ return sqAlive(s)*2 < s.n0 || (s.n0 === 1 && sqModels(s)[0] && sqModels(s)[0].hp*2 < TY(s.k).w); }
+function sqOwner(s){ return G.players[s.pl]; }
+function sqName(s){ return TY(s.k).nm; }
+
 // ---------- ตั้งกองทัพลงโต๊ะ ----------
-// สุ่มล้วนได้กองที่มีแต่ตัวถูกเป็นสิบ ๆ ตัว อ่านสนามไม่ออกและบอทเดินนานมาก
-// จัดเป็นชุด: เอาอย่างละตัวเป็นแกนก่อน แล้วค่อยเติม และจำกัดจำนวนตัวไม่ให้ล้นโต๊ะ
+// สุ่มล้วนได้กองที่มีแต่หน่วยถูก ๆ อ่านสนามไม่ออก — จัดเป็นชุด: เอาอย่างละหน่วยเป็นแกนก่อน แล้วค่อยเติม และจำกัดจำนวนตัวไม่ให้ล้นโต๊ะ
 // สุ่มแบบผูกกับ SEED — ทุกเครื่องได้ชุดเดียวกัน ใช้กับกองของบอทที่ไม่มีใครส่งขึ้นห้อง
 function seededRoll(n){
   var x = Math.sin((SEED * 9301 + n * 49297 + 233) * 0.0001) * 233280;
   return x - Math.floor(x);
 }
-// บอทแต่ละตัวสุ่มกองทัพของตัวเอง (ผูกกับ SEED ทุกเครื่องได้เหมือนกัน) · คนจริงใช้กองทัพที่เลือกไว้
-var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry'], mod:['heavy','infantry','enemy','sniper','hmg','medic','mech'] };
+// บอทแต่ละตัวสุ่มกองทัพของตัวเอง (ผูกกับ SEED ทุกเครื่องได้เหมือนกัน) · คนจริงใช้กองทัพที่เลือกเอง
+var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry'], mod:['infantry','heavy','enemy','hmg','sniper','medic','mech'] };
 function autoList(s){
   var out = emptyList(), left = shareOf(), k, pass;
   var P = G.players[s], tick = 0;
   // บอทต้องสุ่มเหมือนกันทุกเครื่อง คนจริงสุ่มยังไงก็ได้ เพราะกองของเขาถูกส่งขึ้นห้องอยู่แล้ว
-  var rnd = (P && P.bot) ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
-  var fac = P && P.bot ? (rnd() < 0.5 ? 'gr' : 'mod') : (P && P.fac) || 'mod';
-  var MAX_MODELS = Math.max(3, Math.ceil(12 / Math.max(1, G.perTeam)));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
+  // Claude (ai) ก็ไม่มีใครเลือกให้ — สุ่มแบบผูกกับ SEED เหมือนบอท ทุกเครื่องจะได้กองเดียวกัน
+  var seeded = P && (P.bot || P.ai), rnd = seeded ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
+  var fac = seeded ? (rnd() < 0.5 ? 'gr' : 'mod') : (P && P.fac) || 'mod';
+  var MAX_MODELS = Math.max(6, Math.ceil(40 / Math.max(1, G.perTeam)));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
   var order = CORE[fac].map(function(key){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === key) return i; return 0; });
   var cheap = order.reduce(function(a, i){ return TYPES[i].pts < TYPES[a].pts ? i : a; }, order[0]);
-  function total(){ var t = 0, j; for (j=0;j<out.length;j++) t += out[j]; return t; }
+  function models(){ var t = 0, j; for (j=0;j<out.length;j++) t += out[j]*TYPES[j].n; return t; }
+  function fits(i){ return TYPES[i].pts <= left && models() + TYPES[i].n <= MAX_MODELS; }
   for (pass=0; pass<3; pass++)
     for (k=0;k<order.length;k++){ var i = order[k];
-      if (TYPES[i].pts <= left && total() < MAX_MODELS && (pass === 0 ? TYPES[i].pts <= left*0.5 || k < 2 : rnd() < 0.45)){
-        out[i]++; left -= TYPES[i].pts; } }
-  while (TYPES[cheap].pts <= left && total() < MAX_MODELS){ out[cheap]++; left -= TYPES[cheap].pts; }
-  if (!total()) out[cheap] = 1;                  // งบเล็กมากก็ยังต้องมีสักตัว
+      if (fits(i) && (pass === 0 ? TYPES[i].pts <= left*0.5 || k < 2 : rnd() < 0.45)){ out[i]++; left -= TYPES[i].pts; } }
+  while (fits(cheap)){ out[cheap]++; left -= TYPES[cheap].pts; }
+  if (!models()) out[cheap] = 1;                 // งบเล็กมากก็ยังต้องมีสักหน่วย
   if (P){ P.list = out; P.fac = fac; }
 }
-// กองของแต่ละคนกระจายรอบ "จุดลงสนาม" ที่เจ้าตัวเลือกเอง วนออกทีละวง เลี่ยงตึกด้วย freeSpot
+// ตำแหน่งของตัวหมากในหน่วย รอบจุดกลาง (cx, cz) หันไปทาง face (มุมแบบ atan2(dx, dz)) — แถวละไม่เกินสามตัว ห่างกันพอให้ฐานไม่ชน
+function formation(n, cx, cz, face, r){
+  var gap = Math.max(1.7, r*2 + 0.35), per = n <= 3 ? n : n === 4 ? 2 : 3, rows = Math.ceil(n/per), out = [], i;
+  var fx = Math.sin(face), fz = Math.cos(face), sx = fz, sz = -fx;        // ไปข้างหน้า กับ ด้านข้าง
+  for (i=0;i<n;i++){ var row = Math.floor(i/per), inRow = Math.min(per, n - row*per), col = i - row*per;
+    var off = (col - (inRow - 1)/2)*gap, back = (row - (rows - 1)/2)*gap*0.9;
+    out.push([cx + sx*off - fx*back, cz + sz*off - fz*back]); }
+  return out;
+}
+// กองของแต่ละคนกระจายรอบ "จุดลงสนาม" ที่เจ้าตัวเลือกเอง: หน่วยละกลุ่ม วนออกทีละวง เลี่ยงตึกด้วย freeSpot
 var DEPLOG = null;
 function deploy(){
-  units.length = 0;
+  units.length = 0; SQ = {}; SQ_ORDER = [];
   DEPLOG = { seed:SEED, theme:theme, w:table.w, d:table.d, props:PROPS.length,
              propFp:PROPS.map(function(o){ return o.kind + o.x.toFixed(2) + ',' + o.z.toFixed(2) + ',' + o.s.toFixed(3); }).join(';'),
              uCount:units.length,
@@ -2669,13 +2741,23 @@ function deploy(){
     if (!P.dep) P.dep = autoDep(pi);
     var c = P.dep, face = Math.atan2(-c[0], -c[1]);       // หันหน้าเข้ากลางโต๊ะ
     for (i=0;i<row.length;i++){
-      var ring = 1 + Math.floor(i/6), a = (i % 6) * TAU/6 + ring*0.7;
-      var sp = freeSpot(c[0] + Math.cos(a)*ring*2.2, c[1] + Math.sin(a)*ring*2.2, null, null, null, radOfType(row[i]));
-      units.push({ id:P.id + ':' + i, k:row[i].k, t:row[i].k, side:P.team, pl:P.id, hp:row[i].w,
-        x:sp[0], z:sp[1], rot:face, moved:false, shot:false, sel:false, scale:row[i].k === 'mech' ? MINI.MECH_S : 1 });
+      T = row[i];
+      var ring = i ? 1 + Math.floor((i - 1)/6) : 0, a = ((i - 1) % 6) * TAU/6 + ring*0.7;
+      var cx = c[0] + (ring ? Math.cos(a)*ring*5.2 : 0), cz = c[1] + (ring ? Math.sin(a)*ring*5.2 : 0);
+      var id = P.id + ':' + i, s = { id:id, k:T.k, side:P.team, pl:P.id, n0:T.n };
+      resetSq(s); SQ[id] = s; SQ_ORDER.push(id);
+      var slots = formation(T.n, cx, cz, face, radOfType(T));
+      for (j=0;j<T.n;j++){
+        var sp = freeSpot(slots[j][0], slots[j][1], null, null, null, radOfType(T));
+        units.push({ id:id + '.' + j, sq:id, k:T.k, t:T.k, side:P.team, pl:P.id, hp:T.w,
+          x:sp[0], z:sp[1], rot:face, sel:false, scale:T.k === 'mech' ? MINI.MECH_S : 1 });
+      }
     }
   }
 }
+// ของที่ล้างทุกต้นเทิร์นของหน่วย
+function resetSq(s){ s.moved = false; s.adv = false; s.fell = false; s.still = true; s.shot = false; s.charged = false; s.chTgt = null;
+  s.fought = false; s.advR = 0; s.chDone = false; }
 // จุดลงสนามคือกลางวงของกองทัพ ไม่ใช่ที่ยืนของตัวใดตัวหนึ่ง (deploy ให้ freeSpot หาที่ว่างให้ทีละตัว)
 // ปักบนเครื่องกีดขวางชิ้นเล็กได้ ขอแค่รอบ ๆ มีพื้นว่างให้วงแรกยืน — กลางตึกใหญ่ไม่มี จึงไม่ผ่าน
 function roomToLand(x, z){
@@ -2807,7 +2889,7 @@ var LOG = [];
 function say(txt, cls){          // บรรทัดเดิมซ้ำ ๆ รวมเป็นบรรทัดเดียวแล้วนับ ไม่งั้นบอทท่วมบันทึก
   var last = LOG[LOG.length-1];
   if (last && last.base === txt){ last.n++; last.t = txt + ' ×' + last.n; paintLog(); return; }
-  LOG.push({ t:txt, base:txt, c:cls || '', n:1 }); if (LOG.length > 60) LOG.shift(); paintLog(); }
+  LOG.push({ t:txt, base:txt, c:cls || '', n:1 }); if (LOG.length > 80) LOG.shift(); paintLog(); }
 function paintLog(){
   var el = $('btLog'); if (!el) return;
   var h = '', i; for (i=LOG.length-1;i>=0;i--) h += '<div class="' + LOG[i].c + '">' + LOG[i].t + '</div>';
@@ -2824,207 +2906,425 @@ function tickDice(){
   if ((window.performance ? performance.now() : Date.now()) > dicePopT){ el.classList.remove('on'); dicePopT = 0; }
 }
 
-// ---------- ยิง / ตี ----------
-// ทอยครบทั้งสามจังหวะในทีเดียว: ใช้กับตะขอเทสต์ (BT.shootAt) เท่านั้น เล่นจริงทอยทีละจังหวะในถาด (ถาดลูกเต๋า ข้างล่าง)
-function rollFor(u, tgt){
-  var A = TY(u.t), d = dist2(u, tgt), melee = d <= MELEE;
-  var shots = melee ? A.sh*2 : A.sh, out = { hit:[], wound:[], save:[] }, k;
-  for (k=0;k<shots;k++) out.hit.push(d6());
-  for (k=0;k<shots;k++) out.wound.push(d6());
-  for (k=0;k<shots;k++) out.save.push(d6());
-  return out;
+// ---------- คณิตของการโจมตี ----------
+// ทอยเจาะ: แรง S เทียบความทน T ของเป้า
+function woundNeed(S, T){ return S >= 2*T ? 2 : S > T ? 3 : S === T ? 4 : 2*S <= T ? 6 : 5; }
+function clampNeed(n){ return Math.max(2, Math.min(6, n)); }
+function INF(k){ return k !== 'cavalry' && k !== 'mech'; }        // ทหารเดินเท้า (หมอบหลบได้)
+// ตัวไหนในหน่วยยิงถึง: อยู่ในระยะของตัวใดตัวหนึ่งในหน่วยเป้า
+function shootersOf(s, t, W){ var ms = sqModels(s), ts = sqModels(t), out = [];
+  ms.forEach(function(m){ var best = 1e9; ts.forEach(function(q){ var d = dist2(m, q); if (d < best) best = d; });
+    if (best <= W.rng + 0.001) out.push({ m:m, d:best }); }); return out; }
+// how: 'shoot' ยิง · 'fight' ตะลุมบอน · 'ow' ยิงสกัดตอนโดนบุก (เข้าได้แค่ 6)
+function atkMath(s, t, how){
+  var A = TY(s.k), D = TY(t.k), melee = how === 'fight', W = melee ? A.mel : A.gun;
+  if (!W) return null;
+  var shots = 0, who = [];
+  if (melee) sqModels(s).forEach(function(m){ shots += W.a; who.push(m.id); });
+  else shootersOf(s, t, W).forEach(function(x){ shots += W.a + (W.rf && x.d <= W.rng/2 + 0.001 ? W.rf : 0); who.push(x.m.id); });
+  var need = how === 'ow' ? 6 : clampNeed((melee ? W.ws : W.bs) - (!melee && W.hv && s.still ? 1 : 0));
+  var wneed = clampNeed(woundNeed(W.s, D.T) - (melee && W.la && s.charged ? 1 : 0));
+  return { melee:melee, d:sqDist(s, t), shots:shots, who:who, need:need, wneed:wneed,
+           sv:Math.min(D.sv + (W.ap || 0), D.inv || 7), dmg:W.d || 1, su:W.su || 0, W:W };
 }
-// ---------- รักษา (หน่วยแพทย์) ----------
-// แทนการยิงหนึ่งครั้ง: แตะเพื่อนที่เจ็บ (แผลไม่เต็ม) ในระยะ 3 นิ้ว ทอย d6 ได้ 3 ขึ้นไปคืนแผลให้ 1
-var HEAL_ON = 3;
-function canHeal(u, t){ var A = TY(u.t); return !!A.heal && u !== t && t.side === u.side && t.hp < TY(t.t).w && dist2(u, t) <= A.heal + 0.001; }
-function resolveHeal(u, tgt, roll){
-  var A = TY(u.t), D = TY(tgt.t), r = roll || d6(), ok = r >= HEAL_ON;
-  u.shot = true;
-  if (ok) tgt.hp = Math.min(D.w, tgt.hp + 1);
-  say(TEAM(u.side).nm + ' ' + A.nm + ' รักษา ' + D.nm + ' — ทอยได้ ' + r + (ok ? ' · แผลหาย 1' : ' · ไม่สำเร็จ'), ok ? 'hit' : '');
-  dirty = true; return ok;
+function count(arr, need){ var n = 0; for (var i=0;i<arr.length;i++) if (arr[i] >= need) n++; return n; }
+function sum(arr){ var n = 0; for (var i=0;i<arr.length;i++) n += arr[i]; return n; }
+function rollN(n){ var out = []; for (var i=0;i<n;i++) out.push(d6()); return out; }
+
+// ---------- ทำอะไรได้ไหม: '' = ได้ · ไม่ได้ก็ได้ข้อความสั้น ๆ ไว้เด้งบอก ----------
+function shotWhyNot(s, t){
+  var A = TY(s.k), W = A.gun;
+  if (!W) return 'หน่วยนี้ไม่มีอาวุธยิง<br><span style="font-size:12px">ต้องบุกเข้าประชิดในเฟสบุก</span>';
+  if (!canTarget(s, t)) return 'ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>';
+  if (s.shot) return 'หน่วยนี้ยิงไปแล้วในเทิร์นนี้';
+  if (s.fell) return 'ถอยออกจากการประชิดมา ยิงไม่ได้ในเทิร์นนี้';
+  if (s.adv && !W.as) return 'วิ่งมา ยิงไม่ได้<br><span style="font-size:12px">(เว้นอาวุธที่ยิงได้แม้วิ่ง)</span>';
+  var eng = engagedWith(s);
+  if (eng.length && (!W.pi || eng.indexOf(t) < 0)) return 'ติดประชิดอยู่ ยิงไม่ได้' + (W.pi ? '<br><span style="font-size:12px">ปืนพกยิงได้แค่หน่วยที่ประชิดอยู่</span>' : '');
+  if (!eng.length && realFoes(t).some(function(q){ return q.side === s.side && sqEdge(t, q) <= ENGAGE + 0.001; }))
+    return 'เป้าติดประชิดกับพวกเรา<br><span style="font-size:12px">ยิงไม่ได้ เดี๋ยวโดนพวกเดียวกัน</span>';
+  if (!shootersOf(s, t, W).length) return 'ไกลเกินไป<br><b>' + sqDist(s, t).toFixed(1) + '"</b> / ยิงได้ ' + W.rng + '"';
+  return '';
 }
-function finish(w, why){          // w = ทีมที่ชนะ หรือ -1 ถ้าเสมอ
-  G.over = true; G.sel = null; G.timeLeft = 0;
-  AIM = null; PEND.length = 0;     // การโจมตีอื่นที่ยังทอยไม่จบ ไม่มีผลแล้ว ถาดเล่นลูกที่ทอยไปแล้วให้จบเท่านั้น
-  say(w < 0 ? '<b>' + why + 'เสมอ</b>' : '<b>' + why + TEAM(w).nm + ' ชนะ</b>', 'kill');
-  winPop(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
-  paintPlay(); dirty = true;
+function canHeal(s, t){ var A = TY(s.k); if (!A.heal || t.side !== s.side || s.shot || s.fell) return false;
+  if (sqDist(s, t) > A.heal + 0.001) return false;
+  return sqModels(t).some(function(m){ return m.hp < TY(m.t).w; }) || sqAlive(t) < t.n0; }
+function healWhyNot(s, t){
+  if (canHeal(s, t)) return '';
+  if (s.shot) return 'หน่วยนี้ใช้การกระทำไปแล้วในเทิร์นนี้';
+  return !(sqModels(t).some(function(m){ return m.hp < TY(m.t).w; }) || sqAlive(t) < t.n0) ? 'หน่วยนี้ไม่มีใครเจ็บ' : 'ไกลเกินไป<br>รักษาได้ในระยะ ' + TY(s.k).heal + '"';
 }
-function checkOver(){             // เหลือทีมเดียวที่ยังมีตัวอยู่ = จบ
-  if (!G.on || G.over) return;
-  var alive = teamsAlive();
-  if (alive.length > 1) return;
-  finish(alive.length === 1 ? alive[0] : -1, 'จบการรบ — '); pushBoard();
+function chargeWhyNot(s, t){
+  if (!canTarget(s, t) || t.side === s.side) return 'บุกได้แค่ศัตรู';
+  if (s.chDone) return 'หน่วยนี้บุกไปแล้วในเทิร์นนี้';
+  if (s.adv) return 'วิ่งมา บุกไม่ได้ในเทิร์นนี้';
+  if (s.fell) return 'ถอยมา บุกไม่ได้ในเทิร์นนี้';
+  if (isEngaged(s)) return 'ติดประชิดอยู่แล้ว';
+  var d = sqEdge(s, t); if (d > CHARGE_R + 0.001) return 'ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / บุกได้ ' + CHARGE_R + '"';
+  return '';
 }
-function endRoundCheck(){         // ครบรอบแล้วยังไม่มีใครล้มหมด — ทีมที่เหลือตัวมากที่สุดชนะ
-  if (G.round <= MAX_ROUND || G.over) return;
-  var t, top = -1, best = [];
-  for (t=0;t<G.teams;t++){ var n = liveOf(t);
-    if (n > top){ top = n; best = [t]; } else if (n === top) best.push(t); }
-  finish(best.length === 1 ? best[0] : -1, 'ครบ ' + MAX_ROUND + ' รอบ — ');
+var GREN_R = 8;
+function grenWhyNot(s, t){
+  if (!INF(s.k) || !TY(s.k).gun) return 'หน่วยนี้ไม่มีระเบิดมือ';
+  if (s.shot) return 'หน่วยนี้ยิงไปแล้วในเทิร์นนี้';
+  if (s.adv || s.fell) return 'วิ่งหรือถอยมา ใช้ไม่ได้';
+  if (isEngaged(s)) return 'ติดประชิดอยู่';
+  if (!canTarget(s, t) || t.side === s.side) return 'ปาได้แค่ศัตรู';
+  if (sqDist(s, t) > GREN_R + 0.001) return 'ไกลเกินไป<br>ปาได้ ' + GREN_R + '"';
+  return '';
 }
 
+// ---------- ผู้เล่น แต้มคำสั่ง กลยุทธ์ ----------
+// กลยุทธ์ใช้ได้ทีมละครั้งต่อเฟส · ใจเหล็กใช้ได้ทีมละครั้งต่อเทิร์น
+var STRATS = { rr:{ nm:'ทอยใหม่', cp:1 }, ow:{ nm:'ยิงสกัด', cp:1 }, gtg:{ nm:'หมอบหลบ', cp:1 }, gren:{ nm:'ระเบิดมือ', cp:1 }, brave:{ nm:'ใจเหล็ก', cp:1 } };
+function stratKey(k, team){ return k + ':' + team + ':' + G.round + ':' + G.turn + ':' + (k === 'brave' ? '' : G.phase); }
+function canStrat(k, pi){ var P = G.players[pi]; if (!P || G.over) return false;
+  return (P.cp || 0) >= STRATS[k].cp && !G.used[stratKey(k, P.team)]; }
+function useStrat(k, pi){ var P = G.players[pi]; if (!canStrat(k, pi)) return false;
+  P.cp -= STRATS[k].cp; G.used[stratKey(k, P.team)] = true;
+  say(esc(P.nm) + ' ใช้กลยุทธ์ <b>' + STRATS[k].nm + '</b> (' + STRATS[k].cp + ' CP)', 'hit'); return true; }
+
 // ═══════════════════ ถาดลูกเต๋า — ทอยกันจริงเหมือนบนโต๊ะ ═══════════════════
-// การโจมตีหนึ่งครั้งมีสามจังหวะ แต่ละจังหวะทอยกันจริง ลูกเต๋ากลิ้งในถาดให้ทุกเครื่องเห็นเหมือนกัน
-//   เข้าเป้า (คนยิงทอย) → เจาะเกราะ 4+ (คนยิงทอย) → เซฟ (ฝั่งที่โดนยิงทอยเอง)
-// เลขทุกลูกทอยที่เครื่องของคนทอยแล้วส่งขึ้นห้อง เครื่องอื่นเอาเลขนั้นไปใช้ ลูกเต๋าหมุนตกด้วย seed เดียวกัน
-// บอททอยเอง · คนไม่กดใน 10 วิ เครื่องทอยให้ · เปิด "ออโต้" ไว้ เครื่องนี้ทอยของเราให้ทันที
-var ROLL_WAIT = 10, OWNER_WAIT = 25, TRAY_RATE = 1.35, BOT_PAUSE = 0.7, HOLD = 0.9, LINGER = 3;
+// ทุกอย่างที่ต้องทอยหรือรอใครตัดสินใจอยู่ใน PEND ตามลำดับ แต่ละอันรู้ว่าจังหวะนี้ใครเป็นคนทอย
+//   atk   การโจมตี: เข้าเป้า (คนตี) → เจาะ (คนตี) → เซฟ (เจ้าของเป้า)
+//   shock ทดสอบขวัญ: 2 ลูกรวมกัน ≥ ขวัญ (เจ้าของหน่วย)
+//   adv   วิ่ง: 1 ลูก เดินได้เพิ่มเท่านั้น (คนเดิน)
+//   chg   บุก: ยิงสกัด? (เจ้าของเป้าเลือก) → 2 ลูกรวมกัน ≥ ระยะ (คนบุก) → พลาดแล้วทอยใหม่? (คนบุกเลือก)
+//   gren  ระเบิดมือ: 6 ลูก ได้ 4+ ลูกละแผลตรง ไม่มีเซฟ (คนปา)
+//   heal  รักษา: 1 ลูก 3+ (หมอ)
+// ทุกเครื่องเล่นลำดับเดียวกัน เลขมาจากเครื่องของคนที่ทอยแล้วส่งผ่านห้อง
+var ROLL_WAIT = 10, OWNER_WAIT = 25, TRAY_RATE = 1.35, BOT_PAUSE = 0.7, HOLD = 0.9, LINGER = 3, DECIDE_WAIT = 8;
 var AUTO = (function(){ try { return localStorage.getItem('bt.autoDice') === '1'; } catch (e) { return false; } })();
-var PEND = [];            // การโจมตีที่ทอยเข้าเป้าไปแล้ว ยังไม่จบ เรียงตามลำดับ
-var AIM = null;           // เครื่องนี้เล็งไว้แล้วแต่ยังไม่ได้ทอย { u, t, kind:'atk'|'heal' }
+var PEND = [];            // สิ่งที่ยังรอใครทอยหรือตัดสินใจอยู่
+var AIM = null;           // เครื่องนี้เล็งไว้แล้วแต่ยังไม่ได้ทอย { u, t, kind } (u, t = หน่วย)
 var FALLEN = [];          // ตัวที่เพิ่งล้ม ยังวาดไว้จนลูกเต๋าลูกสุดท้ายหยุด
 var WAIT_T = 0, WAIT_KEY = '', WIN_POP = '';
 function winPop(txt){ if (trayBusy()) WIN_POP = txt; else popDice(txt); }
+function pendOf(sid, kind){ for (var i=0;i<PEND.length;i++) if (PEND[i].u === sid && (!kind || PEND[i].kind === kind)) return PEND[i]; return null; }
+function pendAt(sid, tid, kind){ for (var i=0;i<PEND.length;i++){ var P = PEND[i]; if (P.u === sid && (tid == null || P.t === tid) && (!kind || P.kind === kind)) return P; } return null; }
+function unPend(P){ var ix = PEND.indexOf(P); if (ix >= 0) PEND.splice(ix, 1); }
+function sqLabel(s){ return TEAM(s.side).nm + ' ' + TY(s.k).nm; }
 
-function atkMath(u, tgt){
-  var A = TY(u.t), D = TY(tgt.t), d = dist2(u, tgt), melee = d <= MELEE;
-  return { melee:melee, d:d, shots: melee ? A.sh*2 : A.sh, need: melee ? Math.max(2, A.bs-1) : A.bs, sv: D.sv + A.ap };
+// ---- การโจมตี ----
+function mkAtk(s, t, how){
+  var M = atkMath(s, t, how); if (!M || !M.shots) return null;
+  var P = { kind:'atk', how:how, u:s.id, t:t.id, side:s.side, tside:t.side, att:s.pl, def:t.pl, anm:TY(s.k).nm, dnm:TY(t.k).nm,
+            melee:M.melee, ow:how === 'ow', d:M.d, shots:M.shots, who:M.who, need:M.need, wneed:M.wneed, sv:M.sv, dmg:M.dmg, su:M.su,
+            hitR:null, woundR:null, saveR:null, hits:0, wounds:0, saved:0, stage:'hit', since:now() };
+  PEND.push(P); return P;
 }
-function pendOf(uid){ for (var i=0;i<PEND.length;i++) if (PEND[i].u === uid) return PEND[i]; return null; }
-function count(arr, need){ var n = 0; for (var i=0;i<arr.length;i++) if (arr[i] >= need) n++; return n; }
-function rollN(n){ var out = []; for (var i=0;i<n;i++) out.push(d6()); return out; }
-// ยิงเป้านี้ได้ไหม: '' = ได้ · ไม่ได้ก็ได้ข้อความสั้น ๆ ไว้เด้งบอก
-function shotWhyNot(u, tgt){
-  var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
-  if (!canTarget(u, tgt)) return 'ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>';
-  if (d > reach + 0.001) return 'ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"');
-  return '';
-}
-function healWhyNot(u, tgt){
-  if (canHeal(u, tgt)) return '';
-  return tgt.hp >= TY(tgt.t).w ? 'ตัวนี้ไม่ได้เจ็บ' : 'ไกลเกินไป<br>รักษาได้ในระยะ ' + TY(u.t).heal + '"';
-}
-// แตะเป้าแล้วยังไม่ทอย: เล็งไว้ก่อน ลูกเต๋าออกเมื่อกดปุ่มในถาด (ครบเวลาหรือเปิดออโต้ไว้ เครื่องทอยให้)
-function aimAt(u, tgt, kind){
-  if (!u || !tgt) return false;
-  if (u.shot || pendOf(u.id)){ say(kind === 'heal' ? 'ตัวนี้ใช้การกระทำไปแล้วในเทิร์นนี้' : 'ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
-  var why = kind === 'heal' ? healWhyNot(u, tgt) : shotWhyNot(u, tgt);
-  if (why){ popDice(why); return false; }
-  AIM = { u:u.id, t:tgt.id, kind:kind }; WAIT_KEY = '';
-  paintPlay(); dirty = true; return true;
-}
-
-// ---- จังหวะของการโจมตี: ใช้เหมือนกันทุกเครื่อง ไม่ว่าเลขมาจากเครื่องนี้หรือจากห้อง ----
-function applyAtk(u, tgt, hitR){
-  if (!u || !tgt || u.shot || pendOf(u.id)) return null;
-  var M = atkMath(u, tgt), A = TY(u.t), D = TY(tgt.t);
-  u.shot = true;
-  if (AIM && AIM.u === u.id) AIM = null;
-  var P = { u:u.id, t:tgt.id, side:u.side, tside:tgt.side, att:u.pl, def:tgt.pl, anm:A.nm, dnm:D.nm, melee:M.melee, d:M.d,
-            shots:M.shots, need:M.need, sv:M.sv, hitR:(hitR || []).slice(0, M.shots), woundR:null, saveR:null,
-            hits:0, wounds:0, saved:0, stage:'wound', since:now() };
-  while (P.hitR.length < M.shots) P.hitR.push(d6());
-  P.hits = count(P.hitR, P.need);
-  PEND.push(P);
+function applyHit(P, hitR){
+  if (!P || P.stage !== 'hit') return;
+  var s = sqById(P.u);
+  if (s){ if (P.how === 'shoot') s.shot = true; if (P.how === 'fight') s.fought = true; }
+  P.hitR = (hitR || []).slice(0, P.shots); while (P.hitR.length < P.shots) P.hitR.push(d6());
+  P.hits = count(P.hitR, P.need) + P.su*count(P.hitR, 6);
   trayThrow(P, 'hit', P.hitR, P.need, '');
+  P.stage = 'wound'; P.since = now();
   if (!P.hits) finishAtk(P);
-  paintPlay(); dirty = true; return P;
+  paintPlay(); dirty = true;
+}
+// ทอยใหม่ (1 CP): ลูกเข้าเป้าที่ต่ำที่สุดที่ไม่ผ่าน ก่อนทอยเจาะ
+function applyReroll(P, v){
+  if (!P || P.stage !== 'wound' || P.rr) return;
+  var i, lo = -1; for (i=0;i<P.hitR.length;i++) if (P.hitR[i] < P.need && (lo < 0 || P.hitR[i] < P.hitR[lo])) lo = i;
+  if (lo < 0) return;
+  P.rr = true; P.hitR[lo] = v || d6();
+  P.hits = count(P.hitR, P.need) + P.su*count(P.hitR, 6);
+  trayThrow(P, 'hit', [P.hitR[lo]], P.need, 'ทอยใหม่');
+  P.since = now(); paintPlay(); dirty = true;
 }
 function applyWnd(P, woundR){
   if (!P || P.stage !== 'wound') return;
   P.woundR = (woundR || []).slice(0, P.hits); while (P.woundR.length < P.hits) P.woundR.push(d6());
-  P.wounds = count(P.woundR, 4);
-  trayThrow(P, 'wound', P.woundR, 4, 'เข้า ' + P.hits + '/' + P.shots);
+  P.wounds = count(P.woundR, P.wneed);
+  trayThrow(P, 'wound', P.woundR, P.wneed, 'เข้า ' + P.hits + '/' + P.shots);
   if (!P.wounds || P.sv > 6){ finishAtk(P); return; }        // เกราะเจาะทะลุจนเซฟไม่ได้เลย ก็ไม่ต้องทอยเซฟ
   P.stage = 'save'; P.since = now(); paintPlay();
 }
-function applySav(P, saveR){
+function applySav(P, saveR, gtg){
   if (!P || P.stage !== 'save') return;
+  if (gtg && !P.melee && P.sv > 3){ P.sv = P.sv - 1; P.gtg = true; }        // หมอบหลบ: เซฟดีขึ้น 1 (ไม่เกิน 3+)
   P.saveR = (saveR || []).slice(0, P.wounds); while (P.saveR.length < P.wounds) P.saveR.push(d6());
   P.saved = count(P.saveR, P.sv);
   trayThrow(P, 'save', P.saveR, P.sv, 'เข้า ' + P.hits + '/' + P.shots + ' › เจาะ ' + P.wounds + '/' + P.hits);
   finishAtk(P);
 }
-function finishAtk(P){
-  var ix = PEND.indexOf(P); if (ix >= 0) PEND.splice(ix, 1);
-  P.stage = 'done';
-  var u = unitById(P.u), tgt = unitById(P.t), dmg = tgt ? P.wounds - P.saved : 0, dead = false;
-  if (tgt){ tgt.hp -= dmg; dead = tgt.hp <= 0;
-    if (dead){ var k = units.indexOf(tgt); if (k >= 0) units.splice(k, 1); FALLEN.push(tgt); if (G.sel === tgt) selectUnit(null); } }
-  var head = (P.melee ? 'ตี' : 'ยิง') + ' ' + P.anm + ' → ' + P.dnm + ((G.teams > 2 || G.freeFire) ? ' (' + TEAM(P.tside).nm + ')' : '') + ' ที่ ' + P.d.toFixed(1) + '"';
-  say(TEAM(P.side).nm + ' ' + head + ' — เข้า ' + P.hits + '/' + P.shots + ' · เจาะ ' + P.wounds + ' · เซฟได้ ' + P.saved +
-      (!tgt ? ' · เป้าล้มไปก่อนแล้ว' : dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
-  P.result = !tgt ? 'เป้าล้มไปก่อนแล้ว' : dead ? 'ล้ม!' : dmg ? 'เสียแผล ' + dmg : !P.hits ? 'พลาดหมด' : !P.wounds ? 'ไม่เจาะเกราะ' : 'เซฟได้หมด';
-  var last = TRAY.q.length ? TRAY.q[TRAY.q.length-1] : TRAY.cur;        // ผลบอกตอนลูกเต๋าลูกสุดท้ายหยุด ไม่ใช่ก่อนหน้า
-  if (last && last.P === P) last.final = P.result;
-  if (u && units.indexOf(u) >= 0 && u.moved && u.shot && G.sel === u) selectUnit(null);
-  dirty = true; paintPlay();
-  checkOver();
+// ลงแผลทีละตัว: ตัวที่เจ็บอยู่ก่อน ไม่งั้นตัวที่ใกล้คนโจมตีที่สุด · ดาเมจเกินที่ตัวนั้นรับได้หายไป (แผลตรงไหลต่อตัวถัดไป)
+function nextVictim(t, from){
+  var ms = sqModels(t), i, best = null, bd = 1e9, c = from ? sqCenter(from) : null;
+  for (i=0;i<ms.length;i++) if (ms[i].hp < TY(ms[i].t).w) return ms[i];
+  for (i=0;i<ms.length;i++){ var d = c ? Math.hypot(gx(ms[i]) - c.x, gz(ms[i]) - c.z) : i; if (d < bd){ bd = d; best = ms[i]; } }
+  return best;
 }
-// การโจมตีทั้งครั้งที่ทอยมาครบแล้ว (Claude ทอยที่เซิร์ฟเวอร์ · เครื่องรุ่นเก่า · ตะขอเทสต์) — เล่นเป็นสามจังหวะเหมือนกัน
-function applyWhole(u, tgt, R){
-  var P = applyAtk(u, tgt, R.hit || []); if (!P || P.stage === 'done') return P;
-  applyWnd(P, R.wound || []); if (P.stage === 'done') return P;
-  applySav(P, R.save || []); return P;
+function dealDamage(t, from, n, dmg, spill, P){
+  var killed = [], hurt = [], k;
+  for (k=0;k<n;k++){ var left = dmg;
+    while (left > 0){ var m = nextVictim(t, from); if (!m) break;
+      var take = Math.min(left, m.hp); m.hp -= take; left -= spill ? take : left;
+      if (m.hp <= 0){ var ix = units.indexOf(m); if (ix >= 0) units.splice(ix, 1); FALLEN.push(m); killed.push(m.id);
+        if (G.sel === m) G.sel = null; var h = hurt.indexOf(m.id); if (h >= 0) hurt.splice(h, 1); }
+      else if (hurt.indexOf(m.id) < 0) hurt.push(m.id); } }
+  if (P){ P.killed = killed; P.hurt = hurt; }
+  return killed.length;
+}
+function finishAtk(P){
+  unPend(P); P.stage = 'done';
+  var s = sqById(P.u), t = sqById(P.t), alive0 = t ? sqAlive(t) : 0, dmgN = t ? P.wounds - P.saved : 0, dead = 0, gone = false;
+  if (t && dmgN > 0){ dead = dealDamage(t, s, dmgN, P.dmg, false, P); gone = !sqAlive(t); }
+  var head = (P.melee ? 'ตี' : P.ow ? 'ยิงสกัด' : 'ยิง') + ' ' + P.anm + ' → ' + P.dnm + ((G.teams > 2 || G.freeFire) ? ' (' + TEAM(P.tside).nm + ')' : '');
+  say(TEAM(P.side).nm + ' ' + head + ' — เข้า ' + P.hits + '/' + P.shots + ' · เจาะ ' + P.wounds + ' · เซฟได้ ' + P.saved +
+      (!t || !alive0 ? ' · เป้าล้มไปก่อนแล้ว' : gone ? ' · <b>หมดหน่วย!</b>' : dead ? ' · <b>ล้ม ' + dead + ' ตัว</b>' : dmgN ? ' · เสียแผล ' + dmgN*P.dmg : ''),
+      gone || dead ? 'kill' : (dmgN ? 'hit' : ''));
+  P.result = !t || !alive0 ? 'เป้าล้มไปก่อนแล้ว' : gone ? 'หมดหน่วย!' : dead ? 'ล้ม ' + dead + ' ตัว' : dmgN ? 'เสียแผล ' + dmgN*P.dmg :
+             !P.hits ? 'พลาดหมด' : !P.wounds ? 'ไม่เจาะเกราะ' : 'เซฟได้หมด';
+  markFinal(P);
+  dirty = true; paintPlay(); checkOver();
+}
+function markFinal(P){ var last = TRAY.q.length ? TRAY.q[TRAY.q.length-1] : TRAY.cur;   // ผลบอกตอนลูกเต๋าลูกสุดท้ายหยุด ไม่ใช่ก่อนหน้า
+  if (last && last.P === P) last.final = P.result; }
+
+// ---- ทดสอบขวัญ ----
+function applyShock(P, roll, brave){
+  if (!P || P.stage !== 'shock') return;
+  var s = sqById(P.u); unPend(P); P.stage = 'done';
+  if (!s || !sqAlive(s)) return;
+  if (brave){ P.result = 'ใจเหล็ก — ผ่าน'; say(sqLabel(s) + ' ใช้ใจเหล็ก ผ่านทดสอบขวัญ', 'hit'); dirty = true; paintPlay(); return; }
+  P.roll = (roll || []).slice(0, 2); while (P.roll.length < 2) P.roll.push(d6());
+  var ok = sum(P.roll) >= P.need;
+  s.shaken = !ok;
+  trayThrow(P, 'shock', P.roll, P.need, '', { pass:ok, total:sum(P.roll) });
+  P.result = ok ? 'ผ่าน ขวัญยังดี' : 'ไม่ผ่าน — ขวัญเสีย';
+  markFinal(P);
+  say(sqLabel(s) + ' ทดสอบขวัญ ' + P.roll.join('+') + ' = ' + sum(P.roll) + ' ต้องได้ ' + P.need + ' — ' + (ok ? 'ผ่าน' : '<b>ขวัญเสีย</b> (คุมจุดไม่ได้จนตาหน้า)'), ok ? '' : 'hit');
+  dirty = true; paintPlay();
+}
+// ---- วิ่ง ----
+function applyAdv(P, roll){
+  if (!P || P.stage !== 'adv') return;
+  var s = sqById(P.u); unPend(P); P.stage = 'done'; if (!s) return;
+  P.roll = [ roll || d6() ]; s.adv = true; s.advR = P.roll[0];
+  trayThrow(P, 'adv', P.roll, 1, '', { pass:true });
+  P.result = 'เดินได้ ' + (TY(s.k).mv + s.advR) + '"'; markFinal(P);
+  say(sqLabel(s) + ' วิ่ง ทอยได้ ' + s.advR + ' — เดินได้ ' + (TY(s.k).mv + s.advR) + '"');
+  if (G.sel === s) G.act = 'move';
+  dirty = true; paintPlay();
+}
+// ---- บุก ----
+function owOk(t, s){ var T = TY(t.k); return !!T.gun && !isEngaged(t) && canStrat('ow', t.pl) && !t.owUsed && sqEdge(t, s) <= T.gun.rng + 0.001; }
+function declareCharge(s, t){
+  s.chDone = true;
+  var P = { kind:'chg', u:s.id, t:t.id, side:s.side, tside:t.side, att:s.pl, def:t.pl, anm:TY(s.k).nm, dnm:TY(t.k).nm,
+            need:Math.max(2, Math.ceil(sqEdge(s, t) - ENGAGE)), stage:owOk(t, s) ? 'ow' : 'charge', since:now() };
+  PEND.push(P);
+  say(sqLabel(s) + ' ประกาศบุก ' + TEAM(t.side).nm + ' ' + TY(t.k).nm + ' — ต้องทอยได้ ' + P.need + '"');
+  paintPlay(); dirty = true; return P;
+}
+function applyOw(P, use){
+  if (!P || P.stage !== 'ow') return;
+  var s = sqById(P.u), t = sqById(P.t);
+  P.stage = 'owatk'; P.since = now();
+  if (use && s && t && useStrat('ow', t.pl)){ t.owUsed = true; var A = mkAtk(t, s, 'ow'); if (A){ unPend(A); PEND.splice(PEND.indexOf(P), 0, A); } }
+  paintPlay();
+}
+function applyCharge(P, roll, rerolled){
+  chgReady(P);
+  if (!P || (P.stage !== 'charge' && P.stage !== 'chrr')) return;
+  var s = sqById(P.u), t = sqById(P.t);
+  if (!s || !sqAlive(s) || !t || !sqAlive(t)){ unPend(P); P.stage = 'done'; return; }
+  P.roll = (roll || []).slice(0, 2); while (P.roll.length < 2) P.roll.push(d6());
+  var ok = sum(P.roll) >= P.need;
+  trayThrow(P, 'charge', P.roll, P.need, rerolled ? 'ทอยใหม่' : '', { pass:ok, total:sum(P.roll) });
+  if (!ok && !rerolled && canStrat('rr', P.att)){ P.stage = 'chrr'; P.since = now(); paintPlay(); return; }   // พลาด: ทอยใหม่ไหม
+  P.ok = ok; P.stage = 'move'; P.since = now();
+  if (!ok){ unPend(P); P.stage = 'done'; P.result = 'บุกไม่ถึง'; markFinal(P);
+    say(sqLabel(s) + ' บุกไม่ถึง (ได้ ' + sum(P.roll) + ' ต้องได้ ' + P.need + ')'); paintPlay(); return; }
+  P.result = 'บุกถึง!'; markFinal(P);
+  say(sqLabel(s) + ' <b>บุกถึง!</b> (ได้ ' + sum(P.roll) + ')', 'hit');
+  paintPlay();
+}
+// บุกถึงแล้ว: ตัวหมากวิ่งเข้าไปติดฐานศัตรู — คนบุกคำนวณจุดแล้วส่งให้ทุกเครื่อง
+function chargeSpots(s, t, dist){
+  var ms = sqModels(s), ts = sqModels(t), out = [], k;
+  var taken = [];
+  for (k=0;k<ms.length;k++){ var m = ms[k], best = null, bd = 1e9;
+    ts.forEach(function(q){ var d = dist2(m, q); if (d < bd){ bd = d; best = q; } });
+    if (!best){ out.push([gx(m), gz(m)]); continue; }
+    var rr = radOfType(TY(m.t)) + radOfType(TY(best.t)) + 0.3, ang = Math.atan2(gx(m) - gx(best), gz(m) - gz(best));
+    var spot = null, tries;
+    for (tries=0; tries<9 && !spot; tries++){ var a = ang + (tries % 2 ? 1 : -1)*Math.ceil(tries/2)*0.55;
+      var x = gx(best) + Math.sin(a)*rr, z = gz(best) + Math.cos(a)*rr;
+      if (Math.hypot(x - gx(m), z - gz(m)) > dist + 0.001 || blockAt(x, z)) continue;
+      if (taken.some(function(p){ return Math.hypot(p[0] - x, p[1] - z) < radOfType(TY(m.t))*2; })) continue;
+      if (crowdedBy(x, z, m, taken)) continue;
+      spot = [x, z]; }
+    if (!spot){                          // ติดฐานไม่ได้ก็เข้าไปใกล้ที่สุดเท่าที่ระยะให้
+      var dx = gx(best) - gx(m), dz = gz(best) - gz(m), L = Math.hypot(dx, dz) || 1, go = Math.max(0, Math.min(dist, L - rr));
+      var fs = freeSpot(gx(m) + dx/L*go, gz(m) + dz/L*go, m, [gx(m), gz(m)], dist, radOfType(TY(m.t)));
+      spot = fs || [gx(m), gz(m)]; }
+    taken.push(spot); out.push(spot); }
+  return out;
+}
+function crowdedBy(x, z, skip, taken){ return crowded(x, z, skip); }
+function applyCMove(P, to){
+  if (!P || P.stage !== 'move') return;
+  var s = sqById(P.u), t = sqById(P.t); unPend(P); P.stage = 'done';
+  if (!s || !t) return;
+  var ms = sqModels(s), i;
+  for (i=0;i<ms.length && i<to.length;i++) unitGoTo(ms[i], to[i][0], to[i][1], true);
+  s.charged = true; s.chTgt = t.id; s.moved = true; s.still = false;
+  dirty = true; paintPlay();
+}
+// ---- ระเบิดมือ ----
+function applyGren(P, roll){
+  if (!P || P.stage !== 'gren') return;
+  var s = sqById(P.u), t = sqById(P.t); unPend(P); P.stage = 'done';
+  if (s) s.shot = true;
+  P.roll = (roll || []).slice(0, 6); while (P.roll.length < 6) P.roll.push(d6());
+  var mw = count(P.roll, 4);
+  trayThrow(P, 'gren', P.roll, 4, '');
+  var dead = t && mw ? dealDamage(t, s, mw, 1, true, P) : 0, gone = t && !sqAlive(t);
+  P.result = !mw ? 'ไม่โดน' : gone ? 'หมดหน่วย!' : dead ? 'ล้ม ' + dead + ' ตัว' : 'แผลตรง ' + mw; markFinal(P);
+  say(sqLabel(s) + ' ปาระเบิดมือใส่ ' + P.dnm + ' — แผลตรง ' + mw + (dead ? ' · <b>ล้ม ' + dead + ' ตัว</b>' : ''), dead ? 'kill' : mw ? 'hit' : '');
+  dirty = true; paintPlay(); checkOver();
+}
+// ---- รักษา: คืนแผล 1 ให้ตัวที่เจ็บ หรือถ้าไม่มีตัวเจ็บ ชุบตัวที่ล้มไปกลับมาหนึ่งตัว ----
+var HEAL_ON = 3;
+function applyHeal(P, roll){
+  if (!P || P.stage !== 'heal') return;
+  var s = sqById(P.u), t = sqById(P.t); unPend(P); P.stage = 'done';
+  if (s) s.shot = true;
+  P.roll = [ roll || d6() ]; var ok = P.roll[0] >= HEAL_ON, what = '';
+  if (ok && t){ var hurt = sqModels(t).filter(function(m){ return m.hp < TY(m.t).w; })[0];
+    if (hurt){ hurt.hp += 1; what = 'แผลหาย 1'; P.tm = hurt.id; }
+    else { var back = reviveOne(t); if (back){ what = 'ชุบกลับมา 1 ตัว'; P.tm = back.id; } } }
+  trayThrow(P, 'heal', P.roll, HEAL_ON, '', { pass:ok });
+  P.result = ok ? (what || 'ไม่มีอะไรให้รักษา') : 'ไม่สำเร็จ'; markFinal(P);
+  say(sqLabel(s) + ' รักษา ' + (t ? TY(t.k).nm : '') + ' — ทอยได้ ' + P.roll[0] + (ok ? ' · ' + (what || 'ไม่มีใครให้รักษา') : ' · ไม่สำเร็จ'), ok ? 'hit' : '');
+  dirty = true; paintPlay();
+}
+function reviveOne(t){
+  var ms = sqModels(t), have = {}, i, T = TY(t.k); if (!ms.length) return null;
+  ms.forEach(function(m){ have[m.id] = 1; });
+  for (i=0;i<t.n0;i++){ var id = t.id + '.' + i; if (have[id]) continue;
+    var near = ms[0], sp = freeSpot(gx(near) + 1.8, gz(near), null, null, null, radOfType(T));
+    var m = { id:id, sq:t.id, k:T.k, t:T.k, side:t.side, pl:t.pl, hp:1, x:sp[0], z:sp[1], rot:near.rot || 0, sel:false, scale:T.k === 'mech' ? MINI.MECH_S : 1 };
+    units.push(m); var f = FALLEN.indexOf(fallenById(id)); if (f >= 0) FALLEN.splice(f, 1);
+    return m; }
+  return null;
 }
 
 // ---- ใครทอยจังหวะไหน ----
-// จังหวะเข้าเป้ากับเจาะเกราะเป็นของเจ้าของตัวที่ยิง จังหวะเซฟเป็นของเจ้าของตัวที่โดนยิง
-function rollerOf(P){ return P.stage === 'save' ? P.def : P.att; }
-// เครื่องนี้ทอยให้ผู้เล่นคนนี้ไหม: คนที่นั่งเครื่องนี้ · บอทกับ Claude (ในห้องเจ้าของห้องทอยให้ เล่นคนเดียวเครื่องนี้ทอย)
+// เข้าเป้ากับเจาะเป็นของเจ้าของหน่วยที่ตี เซฟกับยิงสกัดเป็นของเจ้าของเป้า ที่เหลือเป็นของเจ้าของหน่วย
+function rollerOf(P){ return (P.kind === 'atk' && P.stage === 'save') || (P.kind === 'chg' && P.stage === 'ow') ? P.def : P.att; }
+function waitingOn(P){ return !(P.kind === 'chg' && P.stage === 'owatk'); }
+// เครื่องนี้ทอยให้ผู้เล่นคนนี้ไหม: คนที่นั่งเครื่องนี้ · บอทกับ Claude (ในห้องเจ้าของห้องทอยให้) · เพื่อนที่เงียบไปนาน
 function iRollFor(pi, P){
   var Q = G.players[pi]; if (!Q || Q.bot || Q.ai) return !NET.on || NET.owner;
   if (!NET.on || Q.pid === NET.pid) return true;
   return NET.owner && !!P && now() - P.since > OWNER_WAIT*1000;     // เพื่อนเงียบไปนานเกิน เจ้าของห้องทอยแทน
 }
 function isHumanHere(pi){ var Q = G.players[pi]; return !!Q && !Q.bot && !Q.ai && (!NET.on || Q.pid === NET.pid); }
-// อะไรที่เครื่องนี้ต้องทอยตอนนี้ — การโจมตีที่ค้างอยู่ก่อน แล้วค่อยเป้าที่เล็งไว้
+// อะไรที่เครื่องนี้ต้องทอยตอนนี้ — ของที่ค้างอยู่ก่อน (ตามลำดับ) แล้วค่อยเป้าที่เล็งไว้
 function myRoll(){
   var i = 0;
   while (i < PEND.length){ var P = PEND[i];
-    if (!unitById(P.t)){ finishAtk(P); continue; }        // เป้าล้มไปแล้วจากการโจมตีก่อนหน้า ไม่ต้องทอยต่อ
+    if (P.kind === 'chg' && P.stage === 'owatk'){ chgReady(P); if (P.stage === 'owatk'){ i++; continue; } }   // รอการยิงสกัดจบก่อน
+    if (P.kind === 'atk' && !sqAlive(sqById(P.t))){ finishAtk(P); continue; }   // เป้าหมดหน่วยไปแล้ว ไม่ต้องทอยต่อ
+    if (P.kind === 'atk' && !sqAlive(sqById(P.u)) && P.stage === 'hit'){ unPend(P); continue; }
+    if (P.kind === 'chg' && (!sqAlive(sqById(P.u)) || !sqAlive(sqById(P.t)))){ unPend(P); continue; }
     var pi = rollerOf(P);
     if (iRollFor(pi, P)) return { P:P, human:isHumanHere(pi) };
-    i++; }
-  if (AIM){ var u = unitById(AIM.u), t = unitById(AIM.t);
-    if (!u || !t || u.shot || pendOf(u.id) || !humanTurn()) AIM = null;
+    return null;                         // ลำดับสำคัญ: ของอันแรกยังไม่มีใครทอย อันหลังต้องรอ
+  }
+  if (AIM){ var u = sqById(AIM.u), t = sqById(AIM.t);
+    if (!u || !t || !sqAlive(u) || !sqAlive(t) || pendOf(u.id) || !humanTurn()) AIM = null;
     else return { aim:AIM, u:u, t:t, human:true }; }
   return null;
 }
-function doRoll(r){
+// ลูกของจังหวะนี้: ทอยเองบนเครื่องนี้ แล้วส่งผ่านห้อง
+function doRoll(r, opt){
   if (!r) return;
+  opt = opt || {};
   WAIT_KEY = '';
-  if (r.aim){ var u = r.u, t = r.t, heal = r.aim.kind === 'heal', why = heal ? healWhyNot(u, t) : shotWhyNot(u, t);
+  if (r.aim){ var u = r.u, t = r.t, k = r.aim.kind, why = k === 'heal' ? healWhyNot(u, t) : k === 'gren' ? grenWhyNot(u, t) : k === 'chg' ? chargeWhyNot(u, t) : shotWhyNot(u, t);
     AIM = null;
     if (why){ popDice(why); paintPlay(); return; }
-    if (heal){ var hv = d6(); netSend({ a:'heal', u:u.id, t:t.id, roll:hv }); resolveHeal(u, t, hv); trayHeal(u, t, hv); }
-    else { var hit = rollN(atkMath(u, t).shots); netSend({ a:'atk', u:u.id, t:t.id, hit:hit }); applyAtk(u, t, hit); }
-    if (units.indexOf(u) >= 0 && u.moved && u.shot && G.sel === u) selectUnit(null); else paintPlay();
-    return; }
+    if (k === 'chg'){ doCharge(u, t); paintPlay(); return; }
+    if (k === 'heal'){ var hv = d6(); netSend({ a:'heal', u:u.id, t:t.id, roll:hv });
+      applyHeal(mkPend({ kind:'heal', u:u.id, t:t.id, side:u.side, att:u.pl, anm:TY(u.k).nm, dnm:TY(t.k).nm, stage:'heal' }), hv); }
+    else if (k === 'gren'){ if (!useStrat('gren', u.pl)){ popDice('แต้มคำสั่งไม่พอ'); paintPlay(); return; }
+      var gr = rollN(6); netSend({ a:'gren', u:u.id, t:t.id, roll:gr });
+      applyGren(mkPend({ kind:'gren', u:u.id, t:t.id, side:u.side, att:u.pl, anm:TY(u.k).nm, dnm:TY(t.k).nm, stage:'gren' }), gr); }
+    else { var P0 = mkAtk(u, t, 'shoot'); if (!P0){ popDice('ไม่มีใครในหน่วยยิงถึง'); return; }
+      var hit = rollN(P0.shots); netSend({ a:'atk', u:u.id, t:t.id, how:'shoot', hit:hit }); applyHit(P0, hit); }
+    if (G.sel === u && u.shot) G.act = null;
+    paintPlay(); return; }
   var P = r.P;
-  if (P.stage === 'wound'){ var w = rollN(P.hits); netSend({ a:'wnd', u:P.u, t:P.t, wound:w }); applyWnd(P, w); }
-  else if (P.stage === 'save'){ var s = rollN(P.wounds); netSend({ a:'sav', u:P.u, t:P.t, save:s }); applySav(P, s); }
+  if (P.kind === 'atk'){
+    if (P.stage === 'hit'){ var h = rollN(P.shots); netSend({ a:'atk', u:P.u, t:P.t, how:P.how, hit:h }); applyHit(P, h); }
+    else if (P.stage === 'wound'){ var w = rollN(P.hits); netSend({ a:'wnd', u:P.u, t:P.t, wound:w }); applyWnd(P, w); }
+    else if (P.stage === 'save'){ var g = !!opt.gtg && useStrat('gtg', P.def), sv = rollN(P.wounds); netSend({ a:'sav', u:P.u, t:P.t, save:sv, gtg:g ? 1 : 0 }); applySav(P, sv, g); }
+    return; }
+  if (P.kind === 'shock'){ var b = !!opt.brave && useStrat('brave', P.att), sr = b ? [] : rollN(2);
+    netSend({ a:'shock', u:P.u, roll:sr, brave:b ? 1 : 0 }); applyShock(P, sr, b); return; }
+  if (P.kind === 'adv'){ var av = d6(); netSend({ a:'adv', u:P.u, roll:av }); applyAdv(P, av); return; }
+  if (P.kind === 'chg'){
+    if (P.stage === 'ow'){ var use = !!opt.yes; netSend({ a:'ow', u:P.u, t:P.t, use:use ? 1 : 0 }); applyOw(P, use);
+      var OW = use && PEND.filter(function(A){ return A.kind === 'atk' && A.ow && A.t === P.u && A.stage === 'hit'; })[0];
+      if (OW){ var oh = rollN(OW.shots); netSend({ a:'atk', u:OW.u, t:OW.t, how:'ow', hit:oh }); applyHit(OW, oh); }   // ยิงเลย ไม่ต้องกดอีกรอบ
+      return; }
+    if (P.stage === 'move'){ sendCMove(P); return; }                 // เครื่องคนบุกล่มไประหว่างทอยกับเดิน: เจ้าของห้องเดินให้
+    if (P.stage === 'charge'){ var cr = rollN(2); netSend({ a:'chr', u:P.u, t:P.t, roll:cr }); applyCharge(P, cr); if (P.stage === 'move') sendCMove(P); return; }
+    if (P.stage === 'chrr'){ if (opt.yes && useStrat('rr', P.att)){ var c2 = rollN(2); netSend({ a:'chr', u:P.u, t:P.t, roll:c2, rr:1 }); applyCharge(P, c2, true); if (P.stage === 'move') sendCMove(P); }
+      else { netSend({ a:'chr', u:P.u, t:P.t, roll:P.roll, keep:1 }); keepCharge(P); } return; }
+  }
 }
-// จบตา: จังหวะที่ค้างและเครื่องนี้มีสิทธิ์ทอย ทอยให้จบก่อน (force = ทอยให้ทุกคน ใช้ตอนเล่นคนเดียวกับตะขอเทสต์)
+function mkPend(P){ P.since = now(); PEND.push(P); return P; }
+function keepCharge(P){ if (!P || P.stage !== 'chrr') return; var s = sqById(P.u); unPend(P); P.stage = 'done'; P.result = 'บุกไม่ถึง'; markFinal(P);
+  if (s) say(sqLabel(s) + ' บุกไม่ถึง (ได้ ' + sum(P.roll) + ' ต้องได้ ' + P.need + ')'); paintPlay(); }
+function sendCMove(P){ var s = sqById(P.u), t = sqById(P.t); if (!s || !t) return;
+  var to = chargeSpots(s, t, sum(P.roll)).map(function(p){ return [+p[0].toFixed(2), +p[1].toFixed(2)]; });
+  netSend({ a:'cmove', u:P.u, t:P.t, to:to }); applyCMove(P, to); }
+// ทอยใหม่ลูกเข้าเป้า (ปุ่มในถาด ตอนรอทอยเจาะของตัวเอง)
+function doReroll(P){ if (!P || P.stage !== 'wound' || P.rr || !useStrat('rr', P.att)) return false;
+  var v = d6(); netSend({ a:'rr', u:P.u, t:P.t, v:v }); applyReroll(P, v); return true; }
+// จบเฟส/จบตา: จังหวะที่ค้างและเครื่องนี้มีสิทธิ์ทอย ทอยให้จบก่อน (force = ทอยให้ทุกคน ใช้ตอนเล่นคนเดียวกับตะขอเทสต์)
 function flushPend(force){
   AIM = null;
   var guard = 0;
-  while (PEND.length && guard++ < 200){
-    var P = PEND[0];
-    if (!unitById(P.t)){ finishAtk(P); continue; }
-    if (!(force || iRollFor(rollerOf(P), P))) break;
-    doRoll({ P:P });
+  while (PEND.length && guard++ < 400){
+    var r = myRoll(); if (!r && force && PEND.length){ var P = PEND[0]; r = { P:P, human:false };
+      if (P.kind === 'chg' && P.stage === 'owatk'){ P.stage = 'charge'; } }
+    if (!r || r.aim) break;
+    if (!force && !iRollFor(rollerOf(r.P), r.P)) break;
+    doRoll(r, botChoice(r.P));
   }
+}
+// ทางเลือกของบอท (และออโต้): ยิงสกัดถ้ามีแต้มเหลือ · บุกพลาดทอยใหม่ · หมอบหลบเมื่อโดนหนัก · ใจเหล็กกับหน่วยแพง
+function botChoice(P){
+  var Q = G.players[rollerOf(P)], cp = Q ? Q.cp || 0 : 0, auto = Q && !Q.bot && !Q.ai;
+  if (P.kind === 'chg' && P.stage === 'ow') return { yes: !auto && cp >= 2 };
+  if (P.kind === 'chg' && P.stage === 'chrr') return { yes: !auto && cp >= 1 };
+  if (P.kind === 'atk' && P.stage === 'save') return { gtg: !auto && cp >= 2 && !P.melee && INF(sqById(P.t) ? sqById(P.t).k : '') && P.wounds >= 3 && P.sv > 3 && canStrat('gtg', P.def) };
+  if (P.kind === 'shock') return { brave: !auto && cp >= 2 && canStrat('brave', P.att) && TY(sqById(P.u) ? sqById(P.u).k : 'infantry').pts >= 90 };
+  return {};
 }
 
 // ---- ถาด: คิวของการทอยที่รอแสดง ลูกเต๋ากลิ้งตามจริงจากเลขที่ได้ ----
 var TRAY = { q:[], cur:null, t:0 };
-var STAGE_NM = { hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา' };
+var STAGE_NM = { hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา', shock:'ทดสอบขวัญ', adv:'วิ่ง', charge:'บุก', gren:'ระเบิดมือ' };
 function seedOf(str){ var h = 2166136261; for (var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
-function trayThrow(P, stage, dice, need, prev){
-  var base = P.u + '>' + P.t + '#' + G.round + ':' + stage, rolls = [], secs = 0, i;
+// ท่าทางการกลิ้งผูกกับเมล็ดสุ่มที่ทุกเครื่องคิดได้เหมือนกัน: ใคร→ใคร รอบ ตา จังหวะ และครั้งที่เท่าไรของสิ่งนี้
+function trayThrow(P, stage, dice, need, prev, o){
+  P.nthrow = (P.nthrow || 0) + 1;
+  var base = P.u + '>' + (P.t || '') + '#' + G.round + ':' + G.turn + ':' + stage + ':' + P.nthrow, rolls = [], secs = 0, i;
   for (i=0;i<dice.length;i++){ var R = DICE.roll(6, dice[i], seedOf(base + ':' + i)); rolls.push(R); secs = Math.max(secs, R.secs); }
-  TRAY.q.push({ P:P, stage:stage, dice:dice.slice(), need:need, rolls:rolls, secs:secs, prev:prev || '', final:'' });
+  TRAY.q.push({ P:P, stage:stage, dice:dice.slice(), need:need, rolls:rolls, secs:secs, prev:prev || '', final:'',
+                pass:o && o.pass != null ? o.pass : null, total:o && o.total != null ? o.total : null });
   dirty = true;
 }
-function trayHeal(u, t, v){
-  var P = { u:u.id, t:t.id, side:u.side, tside:t.side, anm:TY(u.t).nm, dnm:TY(t.t).nm, heal:true };
-  trayThrow(P, 'heal', [v], HEAL_ON, '');
-  TRAY.q[TRAY.q.length-1].final = v >= HEAL_ON ? 'แผลหาย 1' : 'ไม่สำเร็จ';
-}
+
 function attacksQueued(){ var seen = [], cur = TRAY.cur && TRAY.cur.P;
   TRAY.q.forEach(function(e){ if (e.P !== cur && seen.indexOf(e.P) < 0) seen.push(e.P); }); return seen.length; }
 function traySettled(){ return !TRAY.q.length && (!TRAY.cur || TRAY.t >= TRAY.cur.secs); }
@@ -3050,18 +3350,20 @@ function trayTick(dt){
   // ถาดนิ่งแล้ว: ถึงคิวใครทอย
   // ผู้ชมกดหยุด: ลูกที่ลอยอยู่ตกให้จบ แต่ไม่ทอยจังหวะใหม่ (กด "ทีละจังหวะ" ถึงจะไปต่อ)
   var r = (traySettled() && G.on && !G.over && !(watching() && SPEC.paused)) ? myRoll() : null, key = '';
-  if (r){ key = r.aim ? 'aim:' + r.u.id + '>' + r.t.id : r.P.u + ':' + r.P.stage;
+  if (r){ key = r.aim ? 'aim:' + r.u.id + '>' + r.t.id : r.P.kind + ':' + r.P.u + ':' + r.P.stage;
     if (key !== WAIT_KEY){ WAIT_KEY = key; WAIT_T = 0; }
-    var auto = !r.human || AUTO || watching();
+    var auto = !r.human || AUTO || watching(), decide = !r.aim && isDecision(r.P);
     WAIT_T += auto ? dt*sp : dt;
-    if (WAIT_T >= (auto ? BOT_PAUSE : ROLL_WAIT)){ doRoll(r); r = null; }
+    if (WAIT_T >= (auto ? BOT_PAUSE : decide ? DECIDE_WAIT : ROLL_WAIT)){ doRoll(r, r.aim ? {} : decide && r.human && !AUTO ? {} : botChoice(r.P)); advance(); r = null; }
   } else WAIT_KEY = '';
   if (r && r.aim && TRAY.cur && !anim){ TRAY.cur = null; drawTray(); }
   paintTray(r);
   if (anim || (TRAY.cur && TRAY.cur.drawn !== TRAY.t >= TRAY.cur.secs)) drawTray();
 }
+// จังหวะที่เป็นการเลือก ไม่ใช่การทอย: ยิงสกัดไหม · บุกพลาดแล้วทอยใหม่ไหม
+function isDecision(P){ return P.kind === 'chg' && (P.stage === 'ow' || P.stage === 'chrr'); }
 function setHTML(el, s){ if (el && el._h !== s){ el._h = s; el.innerHTML = s; } }
-// หัวถาด ข้อความ ปุ่มทอย
+// หัวถาด ข้อความ ปุ่มทอย และปุ่มกลยุทธ์ที่ใช้ได้ตรงจังหวะนี้
 function paintTray(r){
   var el = $('btTray'); if (!el) return;
   var v = TRAY.cur, fresh = !!v && TRAY.t < v.secs + LINGER;
@@ -3069,28 +3371,51 @@ function paintTray(r){
   el.classList.toggle('hide', !show);
   if (!show) return;
   var head = '', st = '', side = 0, P = null;
-  if (r && r.aim){ var heal = r.aim.kind === 'heal', M = heal ? null : atkMath(r.u, r.t);
-    side = r.u.side; head = TY(r.u.t).nm + (heal ? ' รักษา ' : M.melee ? ' ตี ' : ' ยิง ') + TY(r.t.t).nm;
-    st = heal ? 'ทอย 1 ลูก · ได้ ' + HEAL_ON + '+ แผลหาย 1' : 'เข้าเป้า ' + M.shots + ' ลูก · ต้องได้ ' + M.need + '+'; }
+  if (r && r.aim){ var k = r.aim.kind; side = r.u.side;
+    head = TY(r.u.k).nm + (k === 'heal' ? ' รักษา ' : k === 'gren' ? ' ปาระเบิดใส่ ' : k === 'chg' ? ' บุก ' : ' ยิง ') + TY(r.t.k).nm;
+    if (k === 'heal') st = 'ทอย 1 ลูก · ได้ ' + HEAL_ON + '+ คืนแผล 1 หรือชุบตัวที่ล้ม';
+    else if (k === 'gren') st = 'ทอย 6 ลูก · ได้ 4+ ลูกละแผลตรง ไม่มีเซฟ (1 CP)';
+    else if (k === 'chg') st = 'ต้องทอยสองลูกรวมได้ ' + Math.max(2, Math.ceil(sqEdge(r.u, r.t) - ENGAGE)) + ' ขึ้นไป';
+    else { var M = atkMath(r.u, r.t, 'shoot'); st = M ? 'เข้าเป้า ' + M.shots + ' ลูก · ต้องได้ ' + M.need + '+ · เจาะ ' + M.wneed + '+' : ''; } }
   else { P = v ? v.P : r ? r.P : PEND[0];
-    if (P){ side = P.side; head = P.anm + (P.heal ? ' รักษา ' : P.melee ? ' ตี ' : ' ยิง ') + P.dnm; }
+    if (P){ side = P.side;
+      head = P.kind === 'shock' ? TEAM(P.side).nm + ' ' + P.anm + ' ทดสอบขวัญ' : P.kind === 'adv' ? P.anm + ' วิ่ง'
+           : P.kind === 'chg' ? P.anm + ' บุก ' + P.dnm : P.kind === 'gren' ? P.anm + ' ปาระเบิดใส่ ' + P.dnm
+           : P.kind === 'heal' ? P.anm + ' รักษา ' + P.dnm : P.anm + (P.melee ? ' ตี ' : P.ow ? ' ยิงสกัด ' : ' ยิง ') + P.dnm; }
     if (v){ var settled = TRAY.t >= v.secs, n = count(v.dice, v.need);
-      st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ' + v.need + '+' +
+      if (v.total != null) st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ต้องได้ ' + v.need + (settled ? ' → <b>ได้ ' + v.total + '</b>' + (v.final ? ' · <b>' + v.final + '</b>' : '') : ' · 2 ลูก…');
+      else if (v.stage === 'adv') st = 'วิ่ง' + (settled ? ' → <b>+' + v.dice[0] + '"</b>' + (v.final ? ' · ' + v.final : '') : '…');
+      else st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ' + v.need + '+' +
            (settled ? ' → <b>ได้ ' + n + '</b>' + (v.dice.length > 1 ? ' จาก ' + v.dice.length : '') + (v.final ? ' · <b>' + v.final + '</b>' : '') : ' · ' + v.dice.length + ' ลูก…'); } }
   setHTML($('btTrayT'), head ? '<span class="dot" style="background:' + TEAM(side).ui + '"></span>' + head : 'ถาดลูกเต๋า');
   // ปุ่มทอยขึ้นเฉพาะเครื่องของคนที่ต้องทอย · คนอื่นเห็นว่ารอใครอยู่
-  var btn = $('btRoll'), mine = !!r && r.human && !AUTO && !watching(), wait = '';
+  var btn = $('btRoll'), mine = !!r && r.human && !AUTO && !watching(), wait = '', extra = '';
   if (!r && PEND.length && traySettled()){ var W = PEND[0], Q = G.players[rollerOf(W)];
-    wait = 'รอ ' + (Q ? esc(Q.nm) : TEAM(W.stage === 'save' ? W.tside : W.side).nm) + ' ทอย' + (W.stage === 'save' ? 'เซฟ' : 'เจาะเกราะ') + '…'; }
+    wait = 'รอ ' + (Q ? esc(Q.nm) : TEAM(W.side).nm) + ' ' + waitWhat(W) + '…'; }
+  var decide = mine && !r.aim && isDecision(r.P);
+  if (mine){ var left = Math.max(0, Math.ceil((decide ? DECIDE_WAIT : ROLL_WAIT) - WAIT_T));
+    if (decide){ var Pd = r.P;
+      setHTML(btn, (Pd.stage === 'ow' ? 'ยิงสกัด' : 'ทอยใหม่') + '<span class="cd">1 CP · ' + left + ' วิ</span>');
+      extra = '<button class="auto" data-x="no">' + (Pd.stage === 'ow' ? 'ไม่ยิง' : 'ยอมพลาด') + '</button>'; }
+    else { var what = r.aim ? ({ heal:'รักษา', gren:'ระเบิดมือ', chg:'บุก', atk:'เข้าเป้า' })[r.aim.kind] || 'เข้าเป้า' : stageWhat(r.P);
+      setHTML(btn, '🎲 ทอย<span class="cd">' + what + ' · ' + left + ' วิ</span>');
+      var Pr = r.P;
+      if (Pr && Pr.kind === 'atk' && Pr.stage === 'wound' && !Pr.rr && Pr.hitR && count(Pr.hitR, Pr.need) < Pr.hitR.length && canStrat('rr', Pr.att))
+        extra = '<button class="auto" data-x="rr">ทอยใหม่ 1 ลูก · 1CP</button>';
+      if (Pr && Pr.kind === 'atk' && Pr.stage === 'save' && !Pr.melee && Pr.sv > 3 && INF(sqById(Pr.t) ? sqById(Pr.t).k : '') && canStrat('gtg', Pr.def))
+        extra = '<button class="auto" data-x="gtg">หมอบหลบ +1 เซฟ · 1CP</button>';
+      if (Pr && Pr.kind === 'shock' && canStrat('brave', Pr.att)) extra = '<button class="auto" data-x="brave">ใจเหล็ก ผ่านเลย · 1CP</button>'; } }
   setHTML($('btTraySt'), st + (wait ? (st ? '<br>' : '') + wait : ''));
+  setHTML($('btTrayX'), extra);
   btn.classList.toggle('hide', !mine);
-  if (mine){ var left = Math.max(0, Math.ceil(ROLL_WAIT - WAIT_T));
-    var what = r.aim ? (r.aim.kind === 'heal' ? 'รักษา' : 'เข้าเป้า') : r.P.stage === 'save' ? 'เซฟ' : 'เจาะเกราะ';
-    setHTML(btn, '🎲 ทอย<span class="cd">' + what + ' · ' + left + ' วิ</span>'); }
   $('btAimX').classList.toggle('hide', !AIM);
   $('btAuto').classList.toggle('on', AUTO);
   $('btAuto').setAttribute('aria-pressed', AUTO ? 'true' : 'false');
 }
+function stageWhat(P){ return P.kind === 'shock' ? 'ทดสอบขวัญ' : P.kind === 'adv' ? 'วิ่ง' : P.kind === 'chg' ? 'บุก' : P.kind === 'gren' ? 'ระเบิดมือ'
+  : P.kind === 'heal' ? 'รักษา' : P.stage === 'save' ? 'เซฟ' : P.stage === 'hit' ? 'เข้าเป้า' : 'เจาะเกราะ'; }
+function waitWhat(P){ return P.kind === 'chg' && P.stage === 'ow' ? 'ตัดสินใจยิงสกัด' : P.kind === 'chg' && P.stage === 'chrr' ? 'ตัดสินใจทอยใหม่'
+  : 'ทอย' + stageWhat(P); }
 // ลูกเต๋าในถาด: ลูกบาศก์มีจุดแต้ม มองเฉียงลงจากด้านหน้า ลูกที่ผ่านเกณฑ์ขอบทอง ลูกที่ไม่ผ่านจางลง
 var PIPS = { 1:[[.5,.5]], 2:[[.27,.27],[.73,.73]], 3:[[.27,.27],[.5,.5],[.73,.73]], 4:[[.27,.27],[.73,.27],[.27,.73],[.73,.73]],
   5:[[.27,.27],[.73,.27],[.5,.5],[.27,.73],[.73,.73]], 6:[[.27,.24],[.27,.5],[.27,.76],[.73,.24],[.73,.5],[.73,.76]] };
@@ -3111,7 +3436,7 @@ function drawTray(){
   for (i=0;i<n;i++){ var R = v.rolls[i]; if (!R) continue;
     var fi = Math.min(R.frames.length - 1, Math.floor(TRAY.t*60)), fr = R.frames[fi], settled = fi >= R.frames.length - 1;
     var col = i % cols, row = Math.floor(i / cols), cx = (col + 0.5)*cw, cy = (row + 0.56)*ch;
-    var ok = v.dice[i] >= v.need, dim = settled && !ok;
+    var ok = v.pass != null ? v.pass : v.dice[i] >= v.need, dim = settled && !ok;
     var ox = fr.p[0]*0.28, oy = Math.max(0, fr.p[1] - R.r*S.inr)*0.55, oz = fr.p[2]*0.2;
     var proj2 = function(p){ return [cx + p[0]*s, cy - (p[1]*cp - p[2]*sn)*s, p[1]*sn + p[2]*cp]; };
     var sh = proj2([ox, 0, oz]); shadows.push([sh[0], sh[1], R.r*s*0.62, 0.35/(1 + oy*6)]);
@@ -3288,14 +3613,14 @@ function tiltXf(k, ang, push, alpha){
            push:push, alpha:alpha };
 }
 function awayAxis(u, from){      // model-space axis that tips the figure's head away from `from`
-  var away = toModelDir(u, vnorm([u.x - from.x, 0, u.z - from.z]));
+  var dx = u.x - from.x, dz = u.z - from.z, away = Math.hypot(dx, dz) > 1e-4 ? toModelDir(u, vnorm([dx, 0, dz])) : [0, 0, -1];
   if (!isFinite(away[0])) away = [0, 0, -1];
   return vnorm([away[2], 0, -away[0]]);            // up x away
 }
 function startAct(u, a){ a.t = 0; a.from = u.rot || 0; u.act = a; dirty = true; }
 // an attack on u is still being rolled or its dice are still rolling
 function underAttack(u){
-  var on = function(P){ return P.t === u.id && !P.heal; };
+  var on = function(P){ return P.t === u.sq && (P.kind === 'atk' || P.kind === 'gren' || (P.kind === 'chg' && P.stage !== 'done')); };
   return PEND.some(on) || TRAY.q.some(function(e){ return on(e.P); }) || (!!TRAY.cur && on(TRAY.cur.P) && TRAY.t < TRAY.cur.secs);
 }
 function knock(tgt){ var ta = tgt && tgt.act; if (ta && ta.kind === 'brace'){ ta.knock = ta.t; ta.hurt = false; } }   // a blow lands on a raised shield
@@ -3343,8 +3668,8 @@ function strikeAt(u, a, i, now){ var s = a.shots[i]; if (!s || s.done || !now) r
   if (s.hit){ sparks(hitPoint(a.tgt), '255,236,170', 6, 0.3); knock(a.tgt); if (!a.tgt.act) startAct(a.tgt, { kind:'flinch', dur:0.4, axis:awayAxis(a.tgt, u) }); } }
 
 // ---- the tray says when: a throw starting and a throw coming to rest ----
-function startAttack(u, tgt, P, v){
-  var hits = v.dice.map(function(dv){ return dv >= v.need; }), a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i;
+function startAttack(u, tgt, P, hits){
+  var a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i;
   if (P.melee){ a.kind = SPEARS[u.k] ? 'thrust' : 'bash'; n = Math.min(3, hits.length);
     for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.15 + n*0.55 + 0.25; }
   else if (u.k === 'archer'){ a.kind = 'bow'; a.rel = 0.75; a.dur = 1.3; a.shots.push({ hit:hits[0] }); }
@@ -3353,38 +3678,57 @@ function startAttack(u, tgt, P, v){
     // the sniper settles on the scope before the one shot; the walker's cannon takes a beat to swing onto the target
     var gap = a.gun === 'cannon' ? 0.3 : a.gun === 'sniper' ? 0.3 : n > 3 ? 0.11 : 0.16, t0 = a.gun === 'sniper' ? 0.7 : a.gun === 'cannon' ? 0.42 : 0.28;
     for (i=0;i<n;i++) a.shots.push({ t:t0 + i*gap, hit:hits[i] }); a.dur = t0 + (n - 1)*gap + 0.6; }
+  if (!a.shots.length) return;
   startAct(u, a);
 }
+// the target model a shooter aims at: the nearest one of the target squad
+function nearestOf(m, t){ var best = null, bd = 1e9; sqModels(t).forEach(function(q){ var d = dist2(m, q); if (d < bd){ bd = d; best = q; } }); return best; }
+function fallenOr(id){ return unitById(id) || fallenById(id); }
 function onThrowStart(v){
-  var P = v.P, att = unitById(P.u) || fallenById(P.u), tgt = unitById(P.t) || fallenById(P.t);
-  if (!att || !tgt || att === tgt) return;
-  if (v.stage === 'heal'){ startAct(att, { kind:'heal', tgt:tgt, face:aimPoint(tgt), dur:1.3 }); return; }
-  // a shield-bearer raises the shield as the attack starts and holds it until the attack's last dice stop; one already
+  var P = v.P, att = sqById(P.u), tgt = P.t != null ? sqById(P.t) : null;
+  if (P.kind === 'heal'){ var med = att && sqModels(att)[0], pat = tgt && (fallenOr(P.tm) || sqModels(tgt)[0]);
+    if (med && pat && med !== pat) startAct(med, { kind:'heal', tgt:pat, face:aimPoint(pat), dur:1.3 }); return; }
+  if (P.kind !== 'atk' || !att || !tgt || att === tgt) return;
+  if (v.stage === 'hit' && v.prev !== 'ทอยใหม่'){
+    // every model that fires takes its share of the dice, hits first so a volley reads as hits landing across the squad
+    var who = (P.who || []).map(fallenOr).filter(Boolean), dice = v.dice.map(function(dv){ return dv >= v.need; }), k;
+    if (who.length){ var per = Math.max(1, Math.ceil(dice.length / who.length));
+      for (k=0;k<who.length;k++){ var mine = dice.slice(k*per, (k + 1)*per), m = who[k], tm = nearestOf(m, tgt);
+        if (mine.length && tm && units.indexOf(m) >= 0) startAttack(m, tm, P, mine); } }
+  }
+  // shield-bearers raise the shield as the attack starts and hold it until the attack's last dice stop; one already
   // braced (the attack before was on it too) keeps it up and turns to face the new attacker
-  var b = tgt.act && tgt.act.kind === 'brace' ? tgt.act : null, guard = SHIELDED[tgt.k] && !(tgt.act && tgt.act.kind === 'die');
-  if (v.stage === 'hit') startAttack(att, tgt, P, v);
-  if (guard && (v.stage === 'hit' || v.stage === 'save')){
-    if (b){ b.face = [att.x, 0, att.z]; b.from = tgt.rot || 0; b.turnT = b.t; b.dur = 1e9; }
-    else startAct(tgt, { kind:'brace', face:[att.x, 0, att.z], dur:1e9 }); }
+  if (v.stage === 'hit' || v.stage === 'save'){ var from = sqCenter(att);
+    sqModels(tgt).forEach(function(q){ if (!SHIELDED[q.k] || (q.act && q.act.kind === 'die')) return;
+      var b = q.act && q.act.kind === 'brace' ? q.act : null;
+      if (b){ b.face = [from.x, 0, from.z]; b.from = q.rot || 0; b.turnT = b.t; b.dur = 1e9; }
+      else startAct(q, { kind:'brace', face:[from.x, 0, from.z], dur:1e9 }); }); }
 }
 function onThrowSettle(v){
-  var P = v.P, att = unitById(P.u) || fallenById(P.u), tgt = unitById(P.t) || fallenById(P.t), i, n;
-  if (!tgt) return;
-  var at = aimPoint(tgt), toward = att ? vnorm([att.x - tgt.x, 0, att.z - tgt.z]) : [0, 0, 0], front = vadd(at, vmul(toward, 0.28*(tgt.scale||1)));
-  if (v.stage === 'heal'){ if (v.dice[0] >= v.need) fxAdd({ kind:'glow', p:[tgt.x, heightAt(tgt.x, tgt.z), tgt.z], life:1.3, r:0.7*(tgt.scale||1) }); return; }
+  var P = v.P, att = sqById(P.u), tgt = P.t != null ? sqById(P.t) : null, i, n;
+  if (P.kind === 'heal'){ var pm = fallenOr(P.tm); if (v.dice[0] >= v.need && pm) fxAdd({ kind:'glow', p:[pm.x, heightAt(pm.x, pm.z), pm.z], life:1.3, r:0.7*(pm.scale||1) }); return; }
+  if (P.kind === 'gren' && v.final){ endBlows(P, att); return; }
+  if (P.kind !== 'atk') return;
+  var tm = tgt && sqModels(tgt)[0] || fallenOr((P.killed || [])[0]);
+  if (!tm) return;
+  var from = att ? sqCenter(att) : null, at = aimPoint(tm), toward = from ? vnorm([from.x - tm.x, 0, from.z - tm.z]) : [0, 0, 0],
+      front = vadd(at, vmul(toward, 0.28*(tm.scale||1)));
   if (v.stage === 'save'){ n = count(v.dice, v.need);
     for (i=0;i<n;i++) (function(k){ setTimeout(function(){ sparks(vadd(front, [(Math.random() - 0.5)*0.3, (Math.random() - 0.3)*0.4, 0]), '255,210,120', 7, 0.38); dirty = true; }, k*70); })(i);
-    for (i=0;i<v.dice.length - n;i++) (function(k){ setTimeout(function(){ sparks(hitPoint(tgt), '235,70,55', 9, 0.34, 1.6); dirty = true; }, 60 + k*80); })(i); }
+    for (i=0;i<v.dice.length - n;i++) (function(k){ setTimeout(function(){ sparks(hitPoint(tm), '235,70,55', 9, 0.34, 1.6); dirty = true; }, 60 + k*80); })(i); }
   else if (v.stage === 'wound' && v.final){
     if (!P.wounds) for (i=0;i<Math.min(3, P.hits);i++) sparks(vadd(front, [(Math.random() - 0.5)*0.3, (Math.random() - 0.3)*0.4, 0]), '215,215,210', 5, 0.3);
-    else for (i=0;i<Math.min(4, P.wounds);i++) sparks(hitPoint(tgt), '235,70,55', 9, 0.34, 1.6); }
-  if (v.final && att && att !== tgt){
-    var prev = tgt.act;
-    // falls as it stood: a shield still raised stays raised all the way down
-    if (P.result === 'ล้ม!'){ startAct(tgt, { kind:'die', dur:1.4, axis:awayAxis(tgt, att) }); if (prev && prev.W){ tgt.act.W = prev.W; tgt.act.gear = prev.gear; } }
-    else if (P.wounds - P.saved > 0){ if (prev && prev.kind === 'brace'){ prev.knock = prev.t; prev.hurt = true; }   // hurt behind the shield: a harder jolt
-      else startAct(tgt, { kind:'flinch', dur:0.4, axis:awayAxis(tgt, att) }); }
-  }
+    else for (i=0;i<Math.min(4, P.wounds);i++) sparks(hitPoint(tm), '235,70,55', 9, 0.34, 1.6); }
+  if (v.final) endBlows(P, att);
+}
+// the attack's last dice stopped: the killed models fall (a raised shield stays raised), the hurt ones flinch
+function endBlows(P, att){
+  var from = att ? sqCenter(att) : null;
+  (P.killed || []).forEach(function(id){ var q = fallenOr(id); if (!q) return; var prev = q.act;
+    startAct(q, { kind:'die', dur:1.4, axis:awayAxis(q, from || q) }); if (prev && prev.W){ q.act.W = prev.W; q.act.gear = prev.gear; } });
+  (P.hurt || []).forEach(function(id){ var q = unitById(id); if (!q) return; var prev = q.act;
+    if (prev && prev.kind === 'brace'){ prev.knock = prev.t; prev.hurt = true; }   // hurt behind the shield: a harder jolt
+    else startAct(q, { kind:'flinch', dur:0.4, axis:awayAxis(q, from || q) }); });
 }
 
 // ---- drawing the effects: over the finished scene, so a shot is never hidden behind the terrain it flies over ----
@@ -3441,21 +3785,114 @@ function drawFx(f){
     return; }
 }
 
-// ---------- ผลัดเทิร์น ----------
-// ทีมเดียวกันเล่นพร้อมกัน แต่ละคนกด "ฉันเสร็จแล้ว" ของตัวเอง ครบทีมแล้วจึงจบตา
-function playerDone(pi){
+
+// ═══════════════════ จุดยึดกับแต้มชัย ═══════════════════
+// ห้าจุด: กลางโต๊ะกับสี่ทิศเฉียง วางตาม SEED ทุกเครื่องได้ที่เดียวกัน · ใครมีค่าคุมจุด (OC) รวมในระยะ 3" มากที่สุดคุมจุดนั้น
+// เฟสคำสั่งตั้งแต่รอบ 2: ได้ 5 แต้มชัยต่อจุดที่คุมอยู่ (ไม่เกิน 15 ต่อตา) · ครบ 5 รอบ ทีมที่แต้มชัยมากที่สุดชนะ
+var OBJ = [], OBJ_R = 3, VP_PER = 5, VP_CAP = 15;
+function placeObjectives(){
+  OBJ = []; var rx = table.w*0.27, rz = table.d*0.27, spots = [[0, 0], [-rx, -rz], [rx, -rz], [-rx, rz], [rx, rz]];
+  spots.forEach(function(p, i){ var sp = freeSpot(p[0], p[1], null, null, null, 1.2); OBJ.push({ n:i + 1, x:sp[0], z:sp[1], owner:-1 }); });
+}
+function objOC(o, team){ var n = 0, i;
+  for (i=0;i<units.length;i++){ var m = units[i], s = sqOf(m); if (m.side !== team || !s || s.shaken) continue;
+    if (Math.hypot(gx(m) - o.x, gz(m) - o.z) <= OBJ_R + radOfType(TY(m.t)) + 0.001) n += TY(m.t).oc; }
+  return n; }
+function objCtl(o){ var best = -1, bn = 0, tie = false, t;
+  for (t=0;t<G.teams;t++){ var n = objOC(o, t); if (n > bn){ bn = n; best = t; tie = false; } else if (n && n === bn) tie = true; }
+  return tie ? -1 : best; }
+function refreshObj(){ OBJ.forEach(function(o){ o.owner = objCtl(o); }); }
+function scoreObjectives(team){
+  refreshObj();
+  var held = OBJ.filter(function(o){ return o.owner === team; }), got = Math.min(VP_CAP, held.length*VP_PER);
+  G.vp[team] = (G.vp[team] || 0) + got;
+  say(TEAM(team).nm + ' คุม ' + held.length + ' จุด' + (held.length ? ' (' + held.map(function(o){ return o.n; }).join(', ') + ')' : '') +
+      ' · <b>+' + got + ' แต้มชัย</b> รวม ' + G.vp[team], got ? 'hit' : '');
+}
+
+// ═══════════════════ ผลัดตาและเฟส ═══════════════════
+// เทิร์นของทีมหนึ่ง: คำสั่ง (ได้ CP · ทดสอบขวัญ · นับจุด) → เคลื่อนที่ → ยิง → บุก → ตะลุมบอน (เดินเองจนตีครบ) → ทีมถัดไป
+// ทุกอย่างที่เกิดเองตามกติกาอยู่ใน advance() ซึ่งถูกเรียกหลังทุกการกระทำ ทุกเครื่องจึงข้ามเฟสตรงจังหวะเดียวกัน
+function startTurn(){
+  var i;
+  sqList().forEach(function(s){ s.owUsed = false; if (s.side === G.turn){ resetSq(s); s.shaken = false; } });
+  for (i=0;i<G.players.length;i++) G.players[i].done = false;
+  G.phase = 'cmd'; G.sel = null; G.act = null; AIM = null; G.timeLeft = 0; G.fights = []; G.fightAt = 0;
+  say('— ' + TEAM(G.turn).nm + ' เริ่มตา (รอบ ' + G.round + '/' + MAX_ROUND + ') —');
+  teamPlayers(G.turn).forEach(function(P){ P.cp = (P.cp || 0) + 1; });          // ทุกคนในทีมได้ 1 แต้มคำสั่ง
+  sqList().forEach(function(s){ if (s.side !== G.turn || !sqHalf(s)) return;
+    if (TY(s.k).brave){ say(sqLabel(s) + ' เหลือไม่ถึงครึ่ง แต่ไม่เคยถอย — ผ่านทดสอบขวัญ'); return; }
+    mkPend({ kind:'shock', u:s.id, side:s.side, att:s.pl, anm:TY(s.k).nm, stage:'shock', need:TY(s.k).ld }); });
+  G.cmdWait = true;
+  paintPlay(); dirty = true;
+}
+function finishCommand(){
+  G.cmdWait = false;
+  if (G.round >= 2) scoreObjectives(G.turn); else refreshObj();
+  G.phase = 'move'; say('เฟสเคลื่อนที่ — เดิน วิ่ง หรือถอยออกจากการประชิด');
+  startClock(); paintPlay(); dirty = true; pushBoard();
+  if (teamIsBot(G.turn)) G.botTimer = Math.max(G.botTimer, 0.6);
+}
+function nextPhase(){
+  if (!G.on || G.over) return;
+  var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
+  G.sel = null; G.act = null; AIM = null; G.timeLeft = 0;
+  if (G.phase === 'move'){ G.phase = 'shoot'; say('เฟสยิง'); }
+  else if (G.phase === 'shoot'){ G.phase = 'charge'; say('เฟสบุก — ศัตรูในระยะ ' + CHARGE_R + '" บุกได้'); }
+  else if (G.phase === 'charge'){ G.phase = 'fight'; G.fights = null; }       // ลำดับตีคิดตอนบุกที่ค้างทอยจบหมดแล้ว (ใน advance)
+  else if (G.phase === 'fight' || G.phase === 'cmd'){ endTurn(); return; }
+  startClock(); refreshObj(); paintPlay(); dirty = true; pushBoard();
+  if (teamIsBot(G.turn)) G.botTimer = Math.max(G.botTimer, 0.4);
+}
+// ลำดับตะลุมบอน: หน่วยที่บุกเข้ามาตานี้ก่อน แล้วสลับกัน เริ่มจากฝั่งที่ไม่ได้เป็นตา
+function startFight(){
+  var act = G.turn, all = sqList().filter(isEngaged);
+  all.forEach(function(s){ s.fought = false; });
+  var first = all.filter(function(s){ return s.side === act && s.charged; });
+  var restA = all.filter(function(s){ return s.side === act && !s.charged; }), restB = all.filter(function(s){ return s.side !== act; });
+  var order = first.slice(), i = 0, j = 0;
+  while (i < restB.length || j < restA.length){ if (i < restB.length) order.push(restB[i++]); if (j < restA.length) order.push(restA[j++]); }
+  G.fights = order.map(function(s){ return s.id; }); G.fightAt = 0;
+}
+function fightTarget(s){
+  var eng = engagedWith(s); if (!eng.length) return null;
+  if (s.chTgt){ var c = eng.filter(function(q){ return q.id === s.chTgt; })[0]; if (c) return c; }
+  eng.sort(function(a, b){ return sqEdge(s, a) - sqEdge(s, b) || SQ_ORDER.indexOf(a.id) - SQ_ORDER.indexOf(b.id); });
+  return eng[0];
+}
+// หน่วยถัดไปในลำดับที่ยังตีได้: สร้างการโจมตีรอเจ้าของหน่วยทอย
+function scheduleFight(){
+  while (G.fightAt < G.fights.length){ var s = sqById(G.fights[G.fightAt++]);
+    if (!s || !sqAlive(s) || s.fought) continue;
+    var t = fightTarget(s); if (!t) continue;
+    if (mkAtk(s, t, 'fight')) return true; }
+  return false;
+}
+// ทำสิ่งที่ถึงเวลาเกิดเองตามกติกา: จบเฟสคำสั่งเมื่อทดสอบขวัญครบ · ตะลุมบอนทีละหน่วยจนครบแล้วจบตา
+function advance(){
+  var guard = 0;
+  while (guard++ < 60){
+    if (!G.on || G.over) return;
+    if (G.phase === 'cmd' && G.cmdWait && !PEND.some(function(P){ return P.kind === 'shock'; })){ finishCommand(); continue; }
+    if (G.phase === 'fight' && !PEND.length){
+      if (!G.fights){ startFight(); say('เฟสตะลุมบอน' + (G.fights.length ? ' — หน่วยที่บุกได้ตีก่อน' : ' — ไม่มีใครติดประชิด')); }
+      if (scheduleFight()) { paintPlay(); dirty = true; return; } endTurn(); continue; }
+    return;
+  }
+}
+function playerDone(pi, ph){
   var P = G.players[pi];
-  if (!P || P.team !== G.turn || G.over || P.done) return;
+  if (!P || P.team !== G.turn || G.over || P.done || (ph && ph !== G.phase)) return;
   if (isHumanHere(pi)) flushPend(!NET.on);
   P.done = true;
   if (G.sel && G.sel.pl === pi) selectUnit(null);
-  if (allDone(G.turn)){ endTurn(); return; }
-  say(esc(P.nm) + ' จบตาแล้ว · รอเพื่อนร่วมทีม');
+  if (allDone(G.turn)){ nextPhase(); advance(); return; }
+  say(esc(P.nm) + ' เสร็จเฟส' + PHASE_NM[G.phase] + 'แล้ว · รอเพื่อนร่วมทีม');
   startClock(); paintPlay(); dirty = true;
 }
-// นาฬิกากันคนไม่ยอมกด · ทีมมีคนเดียวเดินตั้งแต่เริ่มตา · ทีมหลายคนเริ่มเดินเมื่อมีคนกดคนแรก
+// นาฬิกากันคนไม่ยอมกด (วินาทีต่อเฟส) · ทีมมีคนเดียวเดินตั้งแต่เริ่มเฟส · ทีมหลายคนเริ่มเดินเมื่อมีคนกดเสร็จแล้ว
 function startClock(){
-  if (!G.clock || G.over || !G.on || teamIsBot(G.turn)){ G.timeLeft = 0; return; }
+  if (!G.clock || G.over || !G.on || teamIsBot(G.turn) || G.phase === 'cmd' || G.phase === 'fight'){ G.timeLeft = 0; return; }
   var ps = teamPlayers(G.turn), anyDone = false, i;
   for (i=0;i<ps.length;i++) if (ps[i].done) anyDone = true;
   if ((ps.length === 1 || anyDone) && !G.timeLeft) G.timeLeft = G.clock;
@@ -3465,122 +3902,281 @@ function clockTick(dt){
   var was = Math.ceil(G.timeLeft);
   G.timeLeft -= dt;
   if (G.timeLeft <= 0){ G.timeLeft = 0;
-    if (NET.on && !NET.owner) return;     // หมดเวลาแล้วรอเจ้าของห้องสั่งจบ จะได้ไม่จบกันคนละจังหวะ
-    say('หมดเวลา — จบตาของ ' + TEAM(G.turn).nm);
-    flushPend(!NET.on);
-    if (NET.on) netSend({ a:'endturn' });
-    endTurn(); return; }
+    if (NET.on && !NET.owner) return;     // หมดเวลาแล้วรอเจ้าของห้องสั่ง จะได้ไม่ข้ามกันคนละจังหวะ
+    if (PEND.length || AIM) { G.timeLeft = 3; return; }       // ลูกเต๋ายังค้างอยู่ ให้เวลาอีกนิด
+    say('หมดเวลา — จบเฟส' + PHASE_NM[G.phase] + 'ของ ' + TEAM(G.turn).nm);
+    netSend({ a:'endph', ph:G.phase });
+    nextPhase(); advance(); return; }
   if (Math.ceil(G.timeLeft) !== was) paintPlay();
 }
 function pushBoard(){
   if (!NET.on || !NET.owner) return;
-  netPost('/' + NET.code + '/board', { pid:NET.pid, board:{
-    turn:G.turn, round:G.round, over:G.over,
-    units:units.map(function(u){ return { id:u.id, pl:u.pl, team:u.side, k:u.t, hp:u.hp,
-      x:u.gx != null ? u.gx : u.x, z:u.gz != null ? u.gz : u.z, moved:!!u.moved, shot:!!u.shot }; })
-  } }).catch(function(){});
+  netPost('/' + NET.code + '/board', { pid:NET.pid, board:boardState() }).catch(function(){});
 }
+// ภาพกระดานย่อ ๆ ที่เจ้าของห้องส่งขึ้นห้องให้ Claude อ่าน
+function boardState(){
+  refreshObj();
+  return { v:RULES_V, turn:G.turn, round:G.round, phase:G.phase, over:G.over, vp:G.vp.slice(),
+    cp:G.players.map(function(P){ return P.cp || 0; }),
+    obj:OBJ.map(function(o){ return { n:o.n, x:+o.x.toFixed(1), z:+o.z.toFixed(1), owner:o.owner }; }),
+    squads:sqList().map(function(s){ var c = sqCenter(s); return { id:s.id, pl:s.pl, team:s.side, k:s.k, n:sqAlive(s), n0:s.n0,
+      x:+c.x.toFixed(1), z:+c.z.toFixed(1), moved:!!s.moved, adv:!!s.adv, fell:!!s.fell, shot:!!s.shot, chDone:!!s.chDone, charged:!!s.charged,
+      shaken:!!s.shaken, engaged:isEngaged(s) }; }),
+    units:units.map(function(u){ return { id:u.id, sq:u.sq, pl:u.pl, team:u.side, k:u.t, hp:u.hp, x:+gx(u).toFixed(1), z:+gz(u).toFixed(1) }; }) };
+}
+var RULES_V = 2;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 function endTurn(){
   if (!G.on || G.over) return;
-  var i; for (i=0;i<units.length;i++){ units[i].moved = false; units[i].shot = false; units[i].sel = false; }
-  for (i=0;i<G.players.length;i++) G.players[i].done = false;
+  var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
   G.sel = null; G.act = null; G.timeLeft = 0; AIM = null;
-  G.turn = (G.turn + 1) % G.teams;
-  if (G.turn === 0){ G.round++; endRoundCheck(); }
+  // ทีมที่หมดหน่วยแล้วข้ามไป
+  var t = G.turn, n = 0;
+  do { t = (t + 1) % G.teams; if (t === 0) G.round++; n++; } while (!liveOf(t) && n <= G.teams);
+  G.turn = t;
+  if (G.round > MAX_ROUND){ endRoundCheck(); return; }
+  startTurn(); pushBoard();
+  if (teamIsBot(G.turn)) G.botTimer = Math.max(G.botTimer, 0.7);
+}
+function finish(w, why){          // w = ทีมที่ชนะ หรือ -1 ถ้าเสมอ
+  G.over = true; G.sel = null; G.timeLeft = 0;
+  AIM = null; PEND.length = 0;     // สิ่งที่ยังทอยไม่จบ ไม่มีผลแล้ว ถาดเล่นลูกที่ทอยไปแล้วให้จบเท่านั้น
+  say(w < 0 ? '<b>' + why + 'เสมอ</b>' : '<b>' + why + TEAM(w).nm + ' ชนะ</b>', 'kill');
+  winPop(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
+  paintPlay(); dirty = true; pushBoard();
+}
+function checkOver(){             // เหลือทีมเดียวที่ยังมีตัวอยู่ = จบ
+  if (!G.on || G.over) return;
+  var alive = teamsAlive();
+  if (alive.length > 1) return;
+  finish(alive.length === 1 ? alive[0] : -1, 'จบการรบ — ');
+}
+function endRoundCheck(){         // ครบห้ารอบ: แต้มชัยมากที่สุดชนะ · เท่ากันดูแต้มกองทัพที่ยังเหลือ
   if (G.over) return;
-  say('— เริ่มเทิร์นของ ' + TEAM(G.turn).nm + ' (รอบ ' + G.round + ') —');
-  startClock(); paintPlay(); dirty = true; pushBoard();
-  if (teamIsBot(G.turn)) G.botTimer = 0.7;
+  var t, top = -1, best = [];
+  for (t=0;t<G.teams;t++){ if (!liveOf(t)) continue; var v = G.vp[t] || 0;
+    if (v > top){ top = v; best = [t]; } else if (v === top) best.push(t); }
+  if (best.length > 1){ var bp = -1, b2 = [];
+    best.forEach(function(q){ var p = 0; units.forEach(function(m){ if (m.side === q) p += TY(m.t).pts / TY(m.t).n; });
+      if (p > bp + 0.001){ bp = p; b2 = [q]; } else if (Math.abs(p - bp) <= 0.001) b2.push(q); });
+    best = b2; }
+  G.round = MAX_ROUND;
+  finish(best.length === 1 ? best[0] : -1, 'ครบ ' + MAX_ROUND + ' รอบ — แต้มชัย ' + G.vp.map(function(v, i){ return TEAM(i).nm + ' ' + (v || 0); }).join(' · ') + ' — ');
+}
+
+
+// ---------- เดินทั้งหน่วย ----------
+// แตะพื้นที่เดียว: ตัวหมากแต่ละตัวไปยืนตามรูปแถวรอบจุดนั้น ไม่เกินระยะเดินของตัวเอง ไม่ชนตึก ไม่ชนกัน
+// เดินปกติหรือวิ่งห้ามจบในระยะประชิดศัตรู (ต้องบุกในเฟสบุก) · ถอยต้องจบนอกระยะประชิด
+function moveRange(s){ return TY(s.k).mv + (s.adv ? s.advR : 0); }
+function nearFoe(s, x, z, r){ var i;
+  for (i=0;i<units.length;i++){ var q = units[i]; if (q.side === s.side) continue;
+    if (Math.hypot(gx(q) - x, gz(q) - z) - r - radOfType(TY(q.t)) <= ENGAGE + 0.05) return true; }
+  return false; }
+function spotFree(s, x, z, r, chosen){
+  if (blockAt(x, z) || nearFoe(s, x, z, r)) return false;
+  var i; for (i=0;i<units.length;i++){ var q = units[i]; if (q.sq === s.id) continue;
+    if (Math.hypot(gx(q) - x, gz(q) - z) < r + radOfType(TY(q.t))) return false; }
+  for (i=0;i<chosen.length;i++) if (Math.hypot(chosen[i][0] - x, chosen[i][1] - z) < r*2) return false;
+  return true; }
+function planMove(s, x, z){
+  var ms = sqModels(s), T = TY(s.k), r = radOfType(T), R = moveRange(s), c = sqCenter(s);
+  var face = Math.hypot(x - c.x, z - c.z) > 0.3 ? Math.atan2(x - c.x, z - c.z) : (ms[0] && ms[0].rot) || 0;
+  var slots = formation(ms.length, x, z, face, r), used = [], to = [], chosen = [], i, j;
+  for (i=0;i<ms.length;i++){ var m = ms[i], best = -1, bd = 1e9;
+    for (j=0;j<slots.length;j++) if (used.indexOf(j) < 0){ var d = Math.hypot(slots[j][0] - gx(m), slots[j][1] - gz(m)); if (d < bd){ bd = d; best = j; } }
+    used.push(best);
+    var sx = slots[best][0], sz = slots[best][1], spot = null, k, a;
+    // ช่องของตัวนี้ ถ้าไม่ว่างหรือไกลเกิน ลองรอบ ๆ แล้วค่อยถอยเข้าหาที่เดิม
+    for (k=0;k<=6 && !spot;k++) for (a=0;a<(k ? 10 : 1) && !spot;a++){
+      var an = a*TAU/10 + k*0.37, px = sx + Math.cos(an)*k*0.8, pz = sz + Math.sin(an)*k*0.8;
+      if (Math.hypot(px - gx(m), pz - gz(m)) > R + 0.001) continue;
+      if (Math.abs(px) > table.w/2 - 1.2 || Math.abs(pz) > table.d/2 - 1.2) continue;
+      if (spotFree(s, px, pz, r, chosen)) spot = [px, pz]; }
+    if (!spot){ var dx = sx - gx(m), dz = sz - gz(m), L = Math.hypot(dx, dz) || 1;
+      for (k=10;k>=0 && !spot;k--){ var f = Math.min(R, L)*k/10, qx = gx(m) + dx/L*f, qz = gz(m) + dz/L*f;
+        if (spotFree(s, qx, qz, r, chosen) || k === 0) spot = [qx, qz]; } }
+    chosen.push(spot); to.push([+spot[0].toFixed(2), +spot[1].toFixed(2)]); }
+  return to;
+}
+function applySMove(s, to, how){
+  if (!s || s.moved) return;
+  var ms = sqModels(s), i, far = 0;
+  for (i=0;i<ms.length && i<to.length;i++){ var d = Math.hypot(to[i][0] - gx(ms[i]), to[i][1] - gz(ms[i])); if (d > far) far = d;
+    if (d > 0.05) unitGoTo(ms[i], to[i][0], to[i][1]); }
+  s.moved = true; if (far > 0.05) s.still = false; if (how === 'fb') s.fell = true;
+  say(sqLabel(s) + (how === 'fb' ? ' ถอยออกจากการประชิด ' : s.adv ? ' วิ่ง ' : ' เดิน ') + far.toFixed(1) + '"');
+  if (AIM && AIM.u === s.id) AIM = null;
+  dirty = true; paintPlay();
+}
+function tryMoveSq(s, x, z){
+  if (s.moved){ popDice('หน่วยนี้เดินไปแล้วในเทิร์นนี้'); return false; }
+  var eng = isEngaged(s), how = eng ? 'fb' : s.adv ? 'adv' : 'move';
+  if (eng && G.act !== 'fb'){ popDice('ติดประชิดอยู่<br><span style="font-size:12px">กด "ถอย" ก่อน หรือ "อยู่นิ่ง"</span>'); return false; }
+  var c = sqCenter(s), d = Math.hypot(x - c.x, z - c.z), R = moveRange(s);
+  if (d > R + 2.5){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / เดินได้ ' + R + '"'); return false; }
+  if (blockAt(x, z)){ popDice('ตรงนั้นมีสิ่งกีดขวาง<br>ยืนไม่ได้'); return false; }
+  var to = planMove(s, x, z), ms = sqModels(s), i, moved = 0;
+  for (i=0;i<ms.length;i++) if (Math.hypot(to[i][0] - gx(ms[i]), to[i][1] - gz(ms[i])) > 0.3) moved++;
+  if (!moved){ popDice(eng ? 'ถอยออกไปทางนั้นไม่ได้' : nearFoe(s, x, z, radOfType(TY(s.k))) ? 'ไปตรงนั้นไม่ได้<br><span style="font-size:12px">ใกล้ศัตรูเกินไป — ต้องบุกในเฟสบุก</span>'
+      : 'ตรงนั้นไม่มีที่ว่างพอ<br><span style="font-size:12px">มีตัวอื่นหรือสิ่งกีดขวางอยู่ — แตะที่โล่งกว่านี้</span>'); return false; }
+  if (eng && to.some(function(p, k){ return nearFoe(s, p[0], p[1], radOfType(TY(ms[k].t))); })){ popDice('ต้องถอยให้พ้นระยะประชิดทั้งหน่วย'); return false; }
+  netSend({ a:'smove', u:s.id, to:to, how:how });
+  applySMove(s, to, how);
+  G.act = null; if (G.sel === s) selectUnit(null);
+  return true;
+}
+function stayPut(s){ if (!s || s.moved) return; s.moved = true; netSend({ a:'stay', u:s.id }); say(sqLabel(s) + ' อยู่นิ่ง'); selectUnit(null); }
+function startAdvance(s){
+  if (!s || s.moved || s.adv || isEngaged(s)) return;
+  var v = d6(); netSend({ a:'adv', u:s.id, roll:v });
+  applyAdv(mkPend({ kind:'adv', u:s.id, side:s.side, att:s.pl, anm:TY(s.k).nm, stage:'adv' }), v);
+}
+
+// ---------- เลือก / สั่ง ----------
+// หน่วยของใครสั่งได้ตอนนี้: ถึงตาทีมนั้น คนนั้นยังไม่กดเสร็จเฟส ในห้องสั่งได้แต่หน่วยของตัวเอง
+function canAct(s){
+  if (!s || s.side !== G.turn || G.over || !G.on) return false;
+  var P = G.players[s.pl];
+  if (!P || P.bot || P.ai || P.done) return false;
+  if (G.phase === 'move' && s.moved) return false;
+  if (G.phase === 'shoot' && (s.shot || !(TY(s.k).gun || TY(s.k).heal))) return false;
+  if (G.phase === 'charge' && (s.chDone || s.adv || s.fell || isEngaged(s))) return false;
+  if (G.phase === 'cmd' || G.phase === 'fight') return false;
+  return !NET.on || P.pid === NET.pid;
+}
+function selectUnit(s){
+  var i; for (i=0;i<units.length;i++) units[i].sel = false;
+  if (s && !SQ[s.id]) s = sqOf(s);                  // แตะตัวหมาก = เลือกทั้งหน่วย
+  if (AIM && (!s || AIM.u !== s.id)) AIM = null;   // เปลี่ยนหน่วยที่เลือก = เลิกเล็ง
+  G.sel = s || null; if (s) sqModels(s).forEach(function(m){ m.sel = true; });
+  G.act = !s || !canAct(s) ? null : G.phase === 'move' ? (isEngaged(s) ? null : 'move') : G.phase === 'shoot' ? (TY(s.k).gun ? 'shoot' : 'heal') : G.phase === 'charge' ? 'charge' : null;
+  paintPlay(); dirty = true;
+}
+function tapGame(p){
+  var hitM = unitHit(p[0], p[1]), hit = hitM ? sqOf(hitM) : null;
+  if (watching() || G.over || !humanTurn()){        // ดูข้อมูลได้เสมอ สั่งไม่ได้
+    if (hit || !watching()) { var k; for (k=0;k<units.length;k++) units[k].sel = false; G.sel = hit; G.act = null; if (hit) sqModels(hit).forEach(function(m){ m.sel = true; }); paintPlay(); dirty = true; }
+    return; }
+  var s = G.sel && sqAlive(G.sel) ? G.sel : null, mine = s && canAct(s);
+  if (hit && mine && hit !== s){
+    if (G.act === 'heal' && hit.side === s.side){ aimAt(s, hit, 'heal'); return; }
+    if (hit.side !== s.side || G.freeFire){
+      if (G.phase === 'shoot' && (G.act === 'shoot' || G.act === 'gren')){ aimAt(s, hit, G.act === 'gren' ? 'gren' : 'atk'); return; }
+      if (G.phase === 'charge'){ aimAt(s, hit, 'chg'); return; } } }
+  if (hit && hit.side === G.turn && canAct(hit)){ selectUnit(hit); return; }
+  if (hit){ selectUnit(hit); return; }              // หน่วยศัตรูหรือหน่วยที่ทำครบแล้ว: แค่ดูข้อมูล
+  if (!s || !mine) return;
+  var w = groundHit(p[0], p[1]); if (!w) return;
+  if (G.phase === 'move' && (G.act === 'move' || G.act === 'fb')) tryMoveSq(s, w[0], w[2]);
+  else if (G.phase === 'move') popDice('เลือก "เดิน" "วิ่ง" หรือ "ถอย" ก่อน');
+  else if (G.phase === 'shoot') popDice('แตะที่ศัตรูเพื่อยิง');
+  else if (G.phase === 'charge') popDice('แตะที่ศัตรูในระยะ ' + CHARGE_R + '" เพื่อบุก');
+}
+// แตะเป้าแล้วยังไม่ทอย: เล็งไว้ก่อน ลูกเต๋าออกเมื่อกดปุ่มในถาด (ครบเวลาหรือเปิดออโต้ไว้ ทอยให้เอง)
+function aimAt(s, t, kind){
+  if (!s || !t) return false;
+  var why = kind === 'heal' ? healWhyNot(s, t) : kind === 'gren' ? grenWhyNot(s, t) || (canStrat('gren', s.pl) ? '' : 'แต้มคำสั่งไม่พอ (ต้อง 1 CP)')
+          : kind === 'chg' ? chargeWhyNot(s, t) : shotWhyNot(s, t);
+  if (why){ popDice(why); return false; }
+  AIM = { u:s.id, t:t.id, kind:kind }; WAIT_KEY = '';
+  paintPlay(); dirty = true; return true;
+}
+// บุก: แตะแล้วกดทอย = ประกาศบุก (อีกฝั่งอาจยิงสกัดก่อน) แล้วทอยสองลูกทันทีถ้าไม่มีใครต้องตัดสินใจ
+function doCharge(s, t){
+  var why = chargeWhyNot(s, t); if (why){ popDice(why); return; }
+  netSend({ a:'chg', u:s.id, t:t.id });
+  var P = declareCharge(s, t);
+  if (P.stage === 'charge'){ var cr = rollN(2); netSend({ a:'chr', u:P.u, t:P.t, roll:cr }); applyCharge(P, cr); if (P.stage === 'move') sendCMove(P); }
+  if (G.sel === s) selectUnit(null);
 }
 
 // ---------- บอท ----------
+// หนึ่งก้าวต่อครั้ง ตามเฟส: เดินเข้าหาจุดยึดหรือศัตรู · ยิงเป้าที่คุ้มที่สุด · บุกถ้าเป็นหน่วยตีประชิด · หมอรักษา
+function botSquads(){ return sqList().filter(function(s){ return s.side === G.turn && isBotUnit({ pl:s.pl }); }); }
+function expDmg(s, t, how){ var M = atkMath(s, t, how); if (!M || !M.shots) return 0;
+  var ph = (7 - M.need)/6, pw = (7 - M.wneed)/6, ps = M.sv > 6 ? 1 : (M.sv - 1)/6;
+  return M.shots*ph*pw*ps*M.dmg*(1 + 0.3*(TY(t.k).pts/Math.max(1, TY(t.k).n))/30); }
+function melee(s){ var T = TY(s.k); return !T.gun || T.gun.rng <= 12; }
+// nothing for this squad to do in this phase: every device marks it the same way
+function botSkip(s){ if (G.phase === 'shoot') s.shot = true; else if (G.phase === 'charge') s.chDone = true; else s.moved = true; netSend({ a:'skip', u:s.id, ph:G.phase }); }
 function botStep(){
-  var mine = units.filter(function(u){ return u.side === G.turn && isBotUnit(u) && !(u.moved && u.shot); });
-  if (!mine.length) return false;
-  // ฟรีฟายแปลว่ายิงพวกเดียวกัน "ได้" ไม่ได้แปลว่าให้ยิง: เดิมบอทยิงตัวที่ใกล้สุด ซึ่งเกือบทุกครั้งคือเพื่อนที่ยืนข้าง ๆ
-  var u = mine[0], foes = units.filter(function(q){ return canTarget(u, q) && q.side !== u.side; });
-  if (!foes.length) foes = units.filter(function(q){ return canTarget(u, q); });   // เหลือแต่พวกเดียวกันแล้วจริง ๆ
-  if (!foes.length) return false;
-  var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
-  if (A.heal && !u.shot){
-    var hurt = units.filter(function(q){ return canHeal(u, q); }).sort(function(a, b){ return (a.hp - TY(a.t).w) - (b.hp - TY(b.t).w); })[0];
-    if (hurt){ var hr = d6(); if (NET.on) netSend({ a:'heal', u:u.id, t:hurt.id, roll:hr }); resolveHeal(u, hurt, hr); trayHeal(u, hurt, hr); u.moved = true; return 'shoot'; }
-  }
-  for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
-  var reach = A.rng > 0 ? A.rng : MELEE;
-  if (bd <= reach){ u.moved = true;                 // บอทยิงแล้วจบตา ไม่เดินต่อ
-    var hit = rollN(atkMath(u, best).shots);          // บอททอยเข้าเป้าเอง เจาะเกราะก็ทอยเอง เซฟเป็นของฝั่งที่โดนยิง
-    if (NET.on) netSend({ a:'atk', u:u.id, t:best.id, hit:hit });
-    applyAtk(u, best, hit); return 'shoot'; }
-  if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
-    var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
-    var nx = u.x + (gx(best) - u.x)*f, nz = u.z + (gz(best) - u.z)*f;
-    nx = clamp(nx, -table.w/2 + 1, table.w/2 - 1); nz = clamp(nz, -table.d/2 + 1, table.d/2 - 1);
-    var bp = freeSpot(nx, nz, u, [u.x, u.z], A.mv);   // บอทก็เดินเข้ากำแพงไม่ได้เหมือนกัน
-    if (!bp){ u.moved = true; u.shot = true; return 'move'; }     // ถูกขังจนไม่มีที่ไป ก็ข้ามตานี้ไป
-    nx = bp[0]; nz = bp[1]; step = Math.hypot(nx - u.x, nz - u.z);
-    u.moved = true; if (NET.on) netSend({ a:'move', u:u.id, x:nx, z:nz });
-    unitGoTo(u, nx, nz);
-    say(TEAM(u.side).nm + ' เดิน ' + A.nm + ' ' + step.toFixed(1) + '"');
-    if (dist2({x:nx,z:nz}, best) <= reach){ G.botTimer = 0.25; return 'move'; }
-    u.shot = true; return 'move';
-  }
-  u.shot = true; return 'move';
+  var mine = botSquads(), i, s;
+  if (G.phase === 'move'){
+    for (i=0;i<mine.length;i++){ s = mine[i]; if (s.moved) continue;
+      var foes = realFoes(s); if (!foes.length){ botSkip(s); continue; }
+      var eng = isEngaged(s);
+      if (eng){ if (!melee(s) && expDmg(engagedWith(s)[0], s, 'fight') > expDmg(s, engagedWith(s)[0], 'fight')){ G.act = 'fb';
+          var away = sqCenter(engagedWith(s)[0]), c0 = sqCenter(s), dx = c0.x - away.x, dz = c0.z - away.z, L0 = Math.hypot(dx, dz) || 1;
+          var to0 = planMove(s, c0.x + dx/L0*TY(s.k).mv, c0.z + dz/L0*TY(s.k).mv);
+          netSend({ a:'smove', u:s.id, to:to0, how:'fb' }); applySMove(s, to0, 'fb'); G.act = null; return 'move'; }
+        s.moved = true; netSend({ a:'stay', u:s.id }); continue; }
+      var c = sqCenter(s), T = TY(s.k), goal = null, gd = 1e9, onObj = null;
+      // objectives first: a squad standing on one holds it; one within two moves goes for it; then the fight
+      OBJ.forEach(function(o){ var d = Math.hypot(o.x - c.x, o.z - c.z); if (d <= OBJ_R && (!onObj || d < onObj.d)) onObj = { o:o, d:d };
+        if (objCtl(o) === s.side) return; if (d < gd){ gd = d; goal = [o.x, o.z]; } });
+      var nf = foes.slice().sort(function(a, b){ return sqDist(s, a) - sqDist(s, b); })[0], fd = sqDist(s, nf), fc = sqCenter(nf);
+      if (onObj && !(melee(s) && fd <= 14)){ s.moved = true; netSend({ a:'stay', u:s.id }); continue; }       // hold the ground
+      var forObj = goal && gd <= T.mv*2 + OBJ_R && !(melee(s) && fd < 9);
+      if (!forObj && (melee(s) || !goal || fd < gd*0.7)){ goal = [fc.x, fc.z]; gd = fd; }
+      if (!forObj && !melee(s) && T.gun && fd <= T.gun.rng*0.85 && T.gun.hv){ s.moved = true; netSend({ a:'stay', u:s.id }); continue; }   // ยิงแม่นกว่าถ้ายืนนิ่ง
+      if (!forObj && !melee(s) && T.gun && fd <= T.gun.rng*0.6){ s.moved = true; netSend({ a:'stay', u:s.id }); continue; }
+      if (forObj) gd = Math.max(0, gd - 1.2);                // stop on it, not past it
+      var stopAt = forObj ? 0 : melee(s) ? 7 : 1.5, want = Math.max(0, gd - stopAt);
+      if (want < 0.8){ s.moved = true; netSend({ a:'stay', u:s.id }); continue; }
+      var step = Math.min(T.mv, want), dxx = goal[0] - c.x, dzz = goal[1] - c.z, L = Math.hypot(dxx, dzz) || 1;
+      var to = planMove(s, c.x + dxx/L*step, c.z + dzz/L*step);
+      netSend({ a:'smove', u:s.id, to:to, how:'move' }); applySMove(s, to, 'move');
+      return 'move'; }
+    return false; }
+  if (G.phase === 'shoot'){
+    for (i=0;i<mine.length;i++){ s = mine[i]; if (s.shot) continue;
+      var A = TY(s.k);
+      if (A.heal){ var pat = sqList().filter(function(q){ return canHeal(s, q); })[0];
+        if (pat){ var hv = d6(); netSend({ a:'heal', u:s.id, t:pat.id, roll:hv });
+          applyHeal(mkPend({ kind:'heal', u:s.id, t:pat.id, side:s.side, att:s.pl, anm:A.nm, dnm:TY(pat.k).nm, stage:'heal' }), hv); return 'shoot'; } }
+      if (!A.gun){ botSkip(s); continue; }
+      var best = null, bv = 0;
+      // free fire means team-mates CAN be hit, not that a bot should aim at them: only real enemies
+      realFoes(s).forEach(function(t){ if (shotWhyNot(s, t)) return; var v = expDmg(s, t, 'shoot'); if (v > bv){ bv = v; best = t; } });
+      if (!best){
+        var gt = realFoes(s).filter(function(t){ return !grenWhyNot(s, t); })[0], P = G.players[s.pl];
+        if (gt && P && (P.cp || 0) >= 2 && canStrat('gren', s.pl)){ useStrat('gren', s.pl); var gr = rollN(6); netSend({ a:'gren', u:s.id, t:gt.id, roll:gr });
+          applyGren(mkPend({ kind:'gren', u:s.id, t:gt.id, side:s.side, att:s.pl, anm:A.nm, dnm:TY(gt.k).nm, stage:'gren' }), gr); return 'shoot'; }
+        botSkip(s); continue; }
+      var P0 = mkAtk(s, best, 'shoot'); if (!P0){ botSkip(s); continue; }
+      var hit = rollN(P0.shots); netSend({ a:'atk', u:s.id, t:best.id, how:'shoot', hit:hit }); applyHit(P0, hit);
+      return 'shoot'; }
+    return false; }
+  if (G.phase === 'charge'){
+    for (i=0;i<mine.length;i++){ s = mine[i]; if (s.chDone || s.adv || s.fell || isEngaged(s)) continue;
+      var tg = null, td = 1e9;
+      realFoes(s).forEach(function(t){ if (chargeWhyNot(s, t)) return; var d = sqEdge(s, t); if (d < td){ td = d; tg = t; } });
+      var worth = tg && (melee(s) || expDmg(s, tg, 'fight') > expDmg(s, tg, 'shoot')*1.2) && td <= (melee(s) ? 11 : 7);
+      if (!worth){ botSkip(s); continue; }
+      doCharge(s, tg); return 'shoot'; }
+    return false; }
+  return false;
 }
 function botTick(dt, step){
   if (!G.on || G.over) return;
   if (NET.on && !NET.owner) return;       // ในห้อง เจ้าของห้องเป็นคนเล่นบอท คนอื่นรับผลตามสาย
+  if (G.phase === 'cmd' || G.phase === 'fight') return;   // สองเฟสนี้เดินเอง
   var ps = teamPlayers(G.turn), hasBot = false, i;
   for (i=0;i<ps.length;i++) if (ps[i].bot) hasBot = true;
   if (!hasBot) return;                       // ทีมนี้เป็นคนจริงล้วน ไม่ต้องยุ่ง
-  if (!step && (PEND.length || trayBusy())) return;   // ลูกเต๋ายังกลิ้ง หรือยังรอใครทอยอยู่ — บอทรอให้จบก่อน เหมือนนั่งโต๊ะเดียวกัน
+  if (!step && (PEND.length || trayBusy())) return;   // ลูกเต๋ายังกลิ้ง หรือยังรอใครทอยอยู่ — บอทรอให้จบก่อน เหมือนนั่งโต๊ะจริง
   if (G.botTimer > 0){ G.botTimer -= dt; if (G.botTimer > 0) return; }
   var what = botStep();
-  if (!what){                                // บอทในทีมนี้ทำครบแล้ว
+  advance();
+  if (!what){                                // บอทในทีมนี้ทำครบเฟสนี้แล้ว
     for (i=0;i<ps.length;i++) if (ps[i].bot) ps[i].done = true;
-    if (allDone(G.turn)){ if (NET.on) netSend({ a:'endturn' }); endTurn(); }
+    if (allDone(G.turn)){ netSend({ a:'endph', ph:G.phase }); nextPhase(); advance(); }
     else { startClock(); paintPlay(); }
     return;
   }
   // หยุดให้อ่านลูกเต๋าตอนยิงเท่านั้น การเดินเฉย ๆ ไม่ต้องรอ
   G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.3 : 0.12);
   dirty = true;
-}
-
-// ---------- เลือก / สั่ง ----------
-function canAct(u){
-  if (!u || u.side !== G.turn || (u.moved && u.shot)) return false;
-  var P = G.players[u.pl];
-  if (!P || P.bot || P.done) return false;    // กดจบตาแล้ว กองของคนนั้นล็อก
-  return isMine(u);                           // ในห้อง สั่งได้แต่ตัวของตัวเอง · เครื่องเดียวสั่งได้ทั้งทีม
-}
-function selectUnit(u){
-  var i; for (i=0;i<units.length;i++) units[i].sel = false;
-  if (AIM && (!u || AIM.u !== u.id)) AIM = null;   // เปลี่ยนตัวที่เลือก = เลิกเล็ง
-  G.sel = u; if (u) u.sel = true;
-  G.act = u ? (u.moved ? 'shoot' : 'move') : null;
-  paintPlay(); dirty = true;
-}
-function tryMove(u, x, z){
-  var A = TY(u.t), d = Math.hypot(x-u.x, z-u.z);
-  if (u.moved){ say('ตัวนี้เดินไปแล้วในเทิร์นนี้'); return false; }
-  if (d > A.mv + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / เดินได้ ' + A.mv + '"'); return false; }
-  if (blockAt(x, z)){ popDice('ตรงนั้นมีสิ่งกีดขวาง<br>ยืนไม่ได้'); return false; }
-  if (crowded(x, z, u)){ popDice('ตรงนั้นมีตัวอื่นยืนอยู่แล้ว'); return false; }
-  u.moved = true; unitGoTo(u, x, z);
-  if (AIM && AIM.u === u.id) AIM = null;       // เดินแล้วระยะเปลี่ยน เล็งใหม่
-  say(TEAM(u.side).nm + ' เดิน ' + A.nm + ' ' + d.toFixed(1) + '"');
-  netSend({ a:'move', u:u.id, x:x, z:z });
-  G.act = 'shoot'; paintPlay(); dirty = true; return true;
-}
-function tryShoot(u, tgt, R){
-  if (u.shot || pendOf(u.id)){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
-  var why = shotWhyNot(u, tgt); if (why){ popDice(why); return false; }
-  R = R || rollFor(u, tgt);                     // ทอยมาให้แล้ว (เทสต์) ก็ส่งขึ้นห้องเหมือนกัน ไม่งั้นเครื่องอื่นไม่รู้ว่ายิง
-  netSend({ a:'shoot', u:u.id, t:tgt.id, hit:R.hit, wound:R.wound, save:R.save });
-  applyWhole(u, tgt, R);
-  if (units.indexOf(u) >= 0 && u.moved && u.shot) selectUnit(null); else paintPlay();
-  return true;
 }
 
 // ---------- หน้าจอ ----------
@@ -3602,10 +4198,12 @@ function paintRoster(){
   for (i=0;i<TYPES.length;i++){
     var T = TYPES[i], n = P.list[i] || 0, C = UNIT_COL[T.k];
     if (T.fac !== P.fac) continue;
+    var G1 = T.gun, M1 = T.mel;
     h += '<div class="unit"><span class="sw" style="background:rgb(' + C.plate.join(',') + ')"></span>' +
-      '<span><span class="nm">' + T.nm + ' <em class="pts">' + T.pts + ' แต้ม</em></span>' +
-      '<span class="st">เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิดเท่านั้น') + ' · ' + (T.rng ? 'ยิง ' : 'ตี ') + T.sh + (T.rng ? ' นัด' : ' ครั้ง') + (T.heal ? ' · รักษาเพื่อน' : '') + '</span>' +
-      (G.detail ? '<span class="st">เข้า ' + T.bs + '+ · ทะลุ ' + T.ap + ' · เกราะ ' + T.sv + '+ · แผล ' + T.w + ' — ' + T.d + '</span>' : '') +
+      '<span><span class="nm">' + T.nm + ' <em class="pts">×' + T.n + ' · ' + T.pts + ' แต้ม</em></span>' +
+      '<span class="st">เดิน ' + T.mv + '" · ' + (G1 ? G1.nm + ' ' + G1.rng + '" ' + G1.a + ' นัด' : 'ต้องบุกเข้าประชิด') + ' · ' + M1.nm + ' ' + M1.a + ' ครั้ง' + (T.heal ? ' · รักษาเพื่อน' : '') + '</span>' +
+      (G.detail ? '<span class="st">ทน ' + T.T + ' · เกราะ ' + T.sv + '+' + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc +
+        (G1 ? ' · ยิง เข้า ' + G1.bs + '+ แรง ' + G1.s + ' เจาะ ' + G1.ap + ' ดาเมจ ' + G1.d : '') + ' · ตี เข้า ' + M1.ws + '+ แรง ' + M1.s + ' เจาะ ' + M1.ap + ' ดาเมจ ' + M1.d + ' — ' + T.d + '</span>' : '') +
       '</span><span class="pm"><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
       '</span><button data-i="' + i + '" data-v="1">+</button></span></div>';
   }
@@ -3627,39 +4225,73 @@ function paintRoster(){
     : 'พร้อม · ' + used + ' แต้ม · ' + totalModels(s) + ' ตัว';
 }
 function totalModels(pi){ var P = G.players[pi], n = 0, i; if (!P) return 0;
-  for (i=0;i<TYPES.length;i++) n += P.list[i] || 0; return n; }
+  for (i=0;i<TYPES.length;i++) n += (P.list[i] || 0)*TYPES[i].n; return n; }
 function paintPlay(){
   var tb = $('btTurn'); if (!tb) return;
-  var t, score = [];
-  for (t=0;t<G.teams;t++) score.push('<span style="color:' + TEAM(t).ui + '">' + liveOf(t) + '</span>');
-  tb.innerHTML = G.over ? '<b>จบการรบแล้ว</b>'
+  var t, score = [], me = G.players[G.mePl >= 0 ? G.mePl : 0];
+  for (t=0;t<G.teams;t++) score.push('<span style="color:' + TEAM(t).ui + '">' + (G.vp[t] || 0) + '</span>');
+  var phs = PHASES.map(function(p){ return '<span class="ph' + (p === G.phase ? ' on' : '') + '">' + PHASE_NM[p] + '</span>'; }).join('');
+  tb.innerHTML = G.over ? '<b>จบการรบแล้ว</b> ·<span class="sc">แต้มชัย ' + score.join(' : ') + '</span>'
     : '<span class="dot" style="background:' + TEAM(G.turn).ui + '"></span><b>' + TEAM(G.turn).nm + '</b> · รอบ ' + G.round + '/' + MAX_ROUND +
-      (watching() ? (SPEC.paused ? ' · <b style="color:var(--on)">หยุดอยู่</b>' : '') : teamIsBot(G.turn) ? ' · บอทกำลังเล่น…' : '') +   // ผู้ชม: บอทเล่นอยู่แล้วทุกตา ไม่ต้องบอก
+      (watching() ? (SPEC.paused ? ' · <b style="color:var(--on)">หยุดอยู่</b>' : '') : teamIsBot(G.turn) ? ' · บอทกำลังเล่น…' : '') +
       (G.timeLeft ? ' · <b style="color:var(--on)">' + Math.ceil(G.timeLeft) + ' วิ</b>' : '') +
-      ' ·<span class="sc">เหลือ ' + score.join(' : ') + '</span>';
+      ' ·<span class="sc">แต้มชัย ' + score.join(' : ') + '</span>' +
+      (!watching() && me ? ' · <span class="cp">CP ' + (me.cp || 0) + '</span>' : '') +
+      '<div class="phs">' + phs + '</div>';
   paintDone();
-  var card = $('btCard'), u = G.sel;
-  if (units.indexOf(u) < 0) { u = G.sel = null; }
-  if (!u && watching()) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : 'บอทกำลังตีกัน') +
-      '</div><div class="st">' + (G.over ? 'กด "ดูอีกรอบ" เพื่อดูสนามใหม่' : 'แตะที่ตัวหมากเพื่อดูข้อมูล · หยุดแล้วกดทีละจังหวะได้') + '</div>';
-  else if (!u) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? 'แตะที่หน่วยของตัวเอง' : 'รอบอท…') +
-      '</div><div class="st">' + (G.over ? 'กด "ออกจากการรบ" เพื่อตั้งสนามใหม่' : 'เลือกแล้วค่อยสั่งเดินหรือยิง') + '</div>';
-  else { var T = TY(u.t);
-    card.innerHTML = '<div class="nm">' + T.nm + ' <span class="st">(' + (G.players[u.pl] ? esc(G.players[u.pl].nm) + ' · ' : '') + TEAM(u.side).nm + ')</span></div>' +
-      '<div class="st">แผล ' + u.hp + '/' + T.w + ' · เดิน ' + T.mv + '" · ' + (T.rng ? 'ยิง ' + T.rng + '"' : 'ประชิด ' + MELEE + '"') +
-      ' · เข้า ' + T.bs + '+ · เกราะ ' + T.sv + '+</div>' +
-      '<div class="st">' + (u.moved ? 'เดินแล้ว' : 'ยังไม่ได้เดิน') + ' · ' + (u.shot ? 'ยิงแล้ว' : 'ยังไม่ได้ยิง') + '</div>'; }
-  var act = $('btAct'); Array.prototype.forEach.call(act.querySelectorAll('button'), function(b){
-    var a = b.dataset.a;
-    b.disabled = !u || !humanTurn() || G.over || (a === 'move' && u.moved) || (a === 'shoot' && u.shot);
-    b.classList.toggle('on', !!u && G.act === a && !b.disabled);
-  });
-  $('btEnd').disabled = !humanTurn() || G.over;
-  $('btEnd').textContent = G.perTeam > 1 ? 'จบตาทั้งทีม' : 'จบเทิร์น';
+  var card = $('btCard'), s = G.sel && sqAlive(G.sel) ? G.sel : null;
+  if (!s) G.sel = null;
+  if (!s && watching()) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : 'บอทกำลังตีกัน') +
+      '</div><div class="st">' + (G.over ? 'กด "ดูอีกรอบ" เพื่อดูสนามใหม่' : 'แตะที่ตัวหมากเพื่อดูข้อมูลหน่วย · หยุดแล้วกดทีละจังหวะได้') + '</div>';
+  else if (!s) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? phaseHint() : 'รอ ' + TEAM(G.turn).nm + '…') +
+      '</div><div class="st">' + (G.over ? 'กด "ออกจากการรบ" เพื่อตั้งสนามใหม่' : 'แตะที่ตัวหมากเพื่อดูข้อมูลหน่วย') + '</div>';
+  else card.innerHTML = sqCard(s);
+  paintActs(s);
+  var endB = $('btEnd'), myTurn = humanTurn();
+  endB.disabled = !myTurn || G.over || G.phase === 'cmd' || G.phase === 'fight';
+  endB.textContent = G.phase === 'move' ? 'ไปเฟสยิง ›' : G.phase === 'shoot' ? 'ไปเฟสบุก ›' : G.phase === 'charge' ? 'ไปตะลุมบอน ›'
+    : G.phase === 'fight' ? 'กำลังตะลุมบอน…' : 'เฟสคำสั่ง…';
   var sp = watching();
   $('btHumanCtl').classList.toggle('hide', sp); $('btSpec').classList.toggle('hide', !sp);
   if (sp) paintSpec();
 }
+function phaseHint(){ return G.phase === 'move' ? 'เฟสเคลื่อนที่ — แตะหน่วยของเรา' : G.phase === 'shoot' ? 'เฟสยิง — แตะหน่วยของเราแล้วแตะศัตรู'
+  : G.phase === 'charge' ? 'เฟสบุก — หน่วยที่ศัตรูอยู่ในระยะ ' + CHARGE_R + '" บุกได้' : G.phase === 'fight' ? 'ตะลุมบอน — หน่วยที่ติดประชิดตีกันเอง' : 'เฟสคำสั่ง'; }
+function wpnLine(W, melee){ if (!W) return '';
+  var kw = []; if (W.as) kw.push('ยิงได้แม้วิ่ง'); if (W.hv) kw.push('ยืนนิ่ง +1'); if (W.rf) kw.push('ใกล้ครึ่งระยะ +' + W.rf); if (W.pi) kw.push('ยิงตอนประชิดได้');
+  if (W.su) kw.push('6 = เข้าเพิ่ม'); if (W.la) kw.push('บุกมา +1 เจาะ');
+  return '<div class="wp"><b>' + W.nm + '</b> ' + (melee ? 'ประชิด' : W.rng + '"') + ' · ' + W.a + ' ครั้ง · เข้า ' + (melee ? W.ws : W.bs) + '+ · แรง ' + W.s +
+    ' · เจาะ ' + (W.ap || 0) + ' · ดาเมจ ' + W.d + (kw.length ? ' <em>(' + kw.join(' · ') + ')</em>' : '') + '</div>'; }
+function sqCard(s){
+  var T = TY(s.k), ms = sqModels(s), hp = 0, P = G.players[s.pl]; ms.forEach(function(m){ hp += m.hp; });
+  var st = [];
+  if (s.side === G.turn){ if (s.fell) st.push('ถอยแล้ว'); else if (s.adv) st.push('วิ่งแล้ว (+' + s.advR + '")'); else if (s.moved) st.push(s.still ? 'อยู่นิ่ง' : 'เดินแล้ว');
+    if (s.shot) st.push('ยิงแล้ว'); if (s.charged) st.push('บุกเข้ามา'); }
+  if (isEngaged(s)) st.push('<b>ติดประชิด</b>'); if (s.shaken) st.push('<b style="color:var(--p2)">ขวัญเสีย</b>');
+  return '<div class="nm">' + T.nm + ' <span class="st">×' + ms.length + '/' + s.n0 + ' · ' + (P ? esc(P.nm) + ' · ' : '') + TEAM(s.side).nm + '</span></div>' +
+    '<div class="st dsh">เดิน ' + T.mv + '" · ทน ' + T.T + ' · เกราะ ' + T.sv + '+' + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w +
+    (T.w > 1 || ms.length > 1 ? ' (เหลือรวม ' + hp + ')' : '') + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc + '</div>' +
+    wpnLine(T.gun, false) + wpnLine(T.mel, true) + (st.length ? '<div class="st">' + st.join(' · ') + '</div>' : '');
+}
+// ปุ่มของหน่วยที่เลือก เปลี่ยนตามเฟส
+function paintActs(s){
+  var host = $('btAct'); if (!host) return;
+  var can = !!s && canAct(s), h = '', eng = can && isEngaged(s), T = s ? TY(s.k) : null;
+  var B = function(a, txt, on, dis){ return '<button data-a="' + a + '"' + (on ? ' class="on"' : '') + (dis ? ' disabled' : '') + '>' + txt + '</button>'; };
+  if (G.phase === 'move'){
+    if (eng) h = B('fb', 'ถอย', G.act === 'fb', !can) + B('stay', 'อยู่นิ่ง', false, !can);
+    else h = B('move', s && s.adv ? 'วิ่ง ' + moveRange(s) + '"' : 'เดิน ' + (T ? T.mv + '"' : ''), G.act === 'move', !can) + B('adv', 'วิ่ง +🎲', false, !can || (s && s.adv)) + B('stay', 'อยู่นิ่ง', false, !can || (s && s.adv)); }
+  else if (G.phase === 'shoot'){
+    h = (T && T.heal ? B('heal', 'รักษา', G.act === 'heal', !can) : '') + B('shoot', 'ยิง', G.act === 'shoot', !can || !(T && T.gun)) +
+        B('gren', 'ระเบิดมือ · 1CP', G.act === 'gren', !can || !(T && T.gun && INF(s.k)) || !canStrat('gren', s.pl)) + B('skip', 'ข้าม', false, !can); }
+  else if (G.phase === 'charge') h = B('charge', 'บุก (แตะศัตรู)', G.act === 'charge', !can) + B('skip', 'ไม่บุก', false, !can);
+  else if (G.phase === 'fight') h = '<span class="stx">' + fightStatus() + '</span>';
+  else h = '<span class="stx">เฟสคำสั่ง: ทดสอบขวัญหน่วยที่เหลือไม่ถึงครึ่ง · นับจุดยึด</span>';
+  setHTML(host, h);
+}
+function fightStatus(){ if (!G.fights) return 'รอการบุกที่ค้างอยู่…'; if (!G.fights.length) return 'ไม่มีใครติดประชิด';
+  var left = G.fights.slice(G.fightAt).map(sqById).filter(function(s){ return s && sqAlive(s) && isEngaged(s) && !s.fought; }).length;
+  return 'หน่วยที่ติดประชิดตีกันตามลำดับ · เหลืออีก ' + left + ' หน่วย'; }
 var ICON_PAUSE = '<svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:-2px;margin-right:5px" fill="currentColor"><rect x="3" y="2" width="3.6" height="12" rx="1"/><rect x="9.4" y="2" width="3.6" height="12" rx="1"/></svg>';
 var ICON_PLAY = '<svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:-2px;margin-right:5px" fill="currentColor"><path d="M4 2.2v11.6L13.6 8z"/></svg>';
 function paintSpec(){
@@ -3673,14 +4305,14 @@ function paintSpec(){
 // ทีมหลายคน: ปุ่ม "ฉันเสร็จแล้ว" ของแต่ละคน จะได้รู้ว่ารอใครอยู่
 function paintDone(){
   var host = $('btDone'), head = $('btDoneH'); if (!host || !head) return;
-  var many = G.perTeam > 1 && !G.over && humanTurn();
+  var many = G.perTeam > 1 && !G.over && humanTurn() && G.phase !== 'cmd' && G.phase !== 'fight';
   host.classList.toggle('hide', !many); head.classList.toggle('hide', !many);
   if (!many){ host.innerHTML = ''; return; }
   var ps = teamPlayers(G.turn), h = '', i;
   for (i=0;i<ps.length;i++){ var P = ps[i];
     h += P.bot ? '<span class="chipd on">' + esc(P.nm) + ' · บอท</span>'
        : P.done ? '<span class="chipd on">' + esc(P.nm) + ' เสร็จแล้ว ✓</span>'
-       : '<button class="chipd" data-p="' + P.id + '">' + esc(P.nm) + ' · ฉันเสร็จแล้ว</button>';
+       : '<button class="chipd" data-p="' + P.id + '">' + esc(P.nm) + ' · เสร็จเฟสนี้</button>';
   }
   host.innerHTML = h;
 }
@@ -3712,25 +4344,46 @@ function depOverlay(){
 function gameOverlay(){
   if (depMode){ depOverlay(); return; }
   if (!G.on) return;
-  var i, u = G.sel, sp = watching();
-  for (i=0;i<units.length;i++){ var q = units[i], ready = canAct(q);
-    pinAt(q, TEAM(q.side).ui, q === u || ready || sp);     // ผู้ชมไม่มีตัวให้สั่ง หมุดจางหมดก็หาใครไม่เจอ
-    if (ready && q !== u) ringAt(q.x, q.z, 0.8, TEAM(q.side).ui, [5,4]); }
-  // เส้นเล็ง: ใครยิงใคร ตอนเล็งรอทอย และตลอดที่ลูกเต๋าของการโจมตีนั้นยังอยู่ในถาด ทุกเครื่องเห็นเหมือนกัน
+  drawObjectives();
+  var i, s = G.sel && sqAlive(G.sel) ? G.sel : null, sp = watching();
+  for (i=0;i<units.length;i++){ var q = units[i], qs = sqOf(q), ready = !!qs && canAct(qs), mineSel = !!s && q.sq === s.id;
+    pinAt(q, TEAM(q.side).ui, mineSel || ready || sp);     // ผู้ชมไม่มีตัวให้สั่ง หมุดจางหมดก็หาใครไม่เจอ
+    if (ready && !mineSel) ringAt(q.x, q.z, radOfType(TY(q.t)) + 0.1, TEAM(q.side).ui, [5,4]);
+    if (qs && qs.shaken) ringAt(q.x, q.z, radOfType(TY(q.t)) + 0.25, 'rgba(216,116,106,0.8)', [2,4]); }
+  // เส้นเล็ง: ใครยิงใคร ตอนเล็งรอทอย และตลอดที่ลูกเต๋าของการโจมตีนั้นยังอยู่ในถาด
   var L = AIM || (TRAY.cur && trayBusy() ? TRAY.cur.P : null) || PEND[0] || null;
-  if (L){ var la = unitById(L.u) || fallenById(L.u), lb = unitById(L.t) || fallenById(L.t);
-    if (la && lb && la !== lb) fireLine(la, lb, L.kind === 'heal' || L.heal ? '#7BC47F' : TEAM(la.side).ui); }
-  if (!u || units.indexOf(u) < 0) return;
-  var T = TY(u.t);
-  ringAt(u.x, u.z, 0.95, TEAM(u.side).ui);
-  if (G.act === 'move' && !u.moved) ringAt(u.x, u.z, T.mv, '#E0B26A', [6,5]);
-  if (G.act === 'shoot' && !u.shot){
-    var reach = T.rng > 0 ? T.rng : MELEE;
-    ringAt(gx(u), gz(u), reach, 'rgba(224,178,106,0.75)', [3,6]);     // range counts from where it is walking to
-    for (i=0;i<units.length;i++){ var f = units[i];
-      if (canTarget(u, f) && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, TEAM(f.side).ui); }
-  }
+  if (L && L.t){ var la = sqById(L.u), lb = sqById(L.t);
+    if (la && lb && la !== lb && sqAlive(la) && sqAlive(lb)) sqLine(la, lb, L.kind === 'heal' ? '#7BC47F' : L.kind === 'chg' ? '#E0B26A' : TEAM(la.side).ui); }
+  if (!s) return;
+  sqModels(s).forEach(function(m){ ringAt(m.x, m.z, radOfType(TY(m.t)) + 0.3, TEAM(s.side).ui); });
+  if (!canAct(s)) return;
+  var T = TY(s.k), c = sqCenter(s);
+  if (G.phase === 'move' && (G.act === 'move' || G.act === 'fb')) ringAt(c.x, c.z, moveRange(s), '#E0B26A', [6,5]);
+  var reach = G.phase === 'shoot' ? (G.act === 'gren' ? GREN_R : G.act === 'heal' ? T.heal : T.gun ? T.gun.rng : 0) : G.phase === 'charge' ? CHARGE_R : 0;
+  if (!reach) return;
+  ringAt(c.x, c.z, reach, 'rgba(224,178,106,0.75)', [3,6]);
+  sqList().forEach(function(t){ if (t === s) return;
+    var ok = G.act === 'heal' ? canHeal(s, t) : G.phase === 'charge' ? !chargeWhyNot(s, t) : G.act === 'gren' ? !grenWhyNot(s, t) : !shotWhyNot(s, t);
+    if (ok) sqModels(t).forEach(function(m){ ringAt(m.x, m.z, radOfType(TY(m.t)) + 0.25, G.act === 'heal' ? '#7BC47F' : TEAM(t.side).ui); }); });
 }
+// เส้นจากตัวที่ใกล้กันที่สุดของสองหน่วย
+function sqLine(a, b, col){ var A = sqModels(a), B = sqModels(b), bd = 1e9, pa = null, pb = null, i, j;
+  for (i=0;i<A.length;i++) for (j=0;j<B.length;j++){ var d = dist2(A[i], B[j]); if (d < bd){ bd = d; pa = A[i]; pb = B[j]; } }
+  if (pa && pb) fireLine(pa, pb, col); }
+// จุดยึด: วงบนพื้นสีของทีมที่คุมอยู่ (เทาถ้ายังไม่มีใคร) กับป้ายเลข
+function drawObjectives(){
+  OBJ.forEach(function(o){ o.owner = objCtl(o);
+    var col = o.owner >= 0 ? TEAM(o.owner).ui : 'rgba(230,226,212,0.8)';
+    ringAt(o.x, o.z, OBJ_R, col, o.owner >= 0 ? null : [3,5]);
+    var p = proj([o.x, heightAt(o.x, o.z) + 0.15, o.z]); if (p[2] < 0.4) return;
+    OVER.push(function(){ var r = clamp(240/p[2], 7, 13);
+      ctx.fillStyle = 'rgba(11,11,14,0.82)'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = col; ctx.font = '700 ' + Math.round(r*1.15) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(o.n), p[0], p[1] + 0.5); ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic'; });
+  });
+}
+
 
 function fallenById(id){ for (var i=0;i<FALLEN.length;i++) if (FALLEN[i].id === id) return FALLEN[i]; return null; }
 function fireLine(a, b, col){
@@ -3887,27 +4540,6 @@ cv.addEventListener('pointercancel', function(ev){ delete ptrs[ev.pointerId]; pi
 cv.addEventListener('wheel', function(ev){ ev.preventDefault(); cam.dist = clamp(cam.dist * Math.pow(1.0015, ev.deltaY), 6, 300); dirty = true; }, { passive:false });
 
 // แตะตอนเล่น: ตัวเรา = เลือก · พื้น = เดินไปตรงนั้น · ตัวศัตรู = ยิง
-function tapGame(p){
-  if (watching()){                              // ผู้ชมแตะตัวหมากเพื่อดูข้อมูล สั่งอะไรไม่ได้
-    var seen = unitHit(p[0], p[1]), k;
-    for (k=0;k<units.length;k++) units[k].sel = false;
-    G.sel = seen; G.act = null; if (seen) seen.sel = true;
-    paintPlay(); dirty = true; return;
-  }
-  if (G.over || !humanTurn()) return;
-  var hit = unitHit(p[0], p[1]);
-  var sel = G.sel && units.indexOf(G.sel) >= 0 ? G.sel : null;
-  if (sel && hit && hit !== sel && TY(sel.t).heal && !sel.shot && hit.side === sel.side && hit.hp < TY(hit.t).w){ aimAt(sel, hit, 'heal'); return; }
-  if (hit && hit.side === G.turn && canAct(hit)){ selectUnit(hit); return; }
-  var u = G.sel; if (!u || units.indexOf(u) < 0) return;
-  if (hit && hit === u) return;
-  if (hit && hit.side === G.turn && !G.freeFire){ say('ตัวนี้ทำครบแล้วในเทิร์นนี้'); return; }
-  if (hit){ G.act = 'shoot'; aimAt(u, hit, 'atk'); return; }
-  var w = groundHit(p[0], p[1]); if (!w) return;
-  if (G.act === 'shoot' && !u.shot){ say('แตะที่ตัวศัตรูเพื่อยิง'); return; }
-  tryMove(u, w[0], w[2]);
-}
-
 // ปุ่มลูกศร / WASD บนคอม
 window.addEventListener('keydown', function(ev){
   var k = ev.key;
@@ -3966,7 +4598,7 @@ function myName(){ var v = ($('btName') && $('btName').value || '').trim(); retu
 function curSetup(){
   return { theme:theme, seed:SEED, w:table.w, terrain:terrain, buildings:buildings, density:density,
            mode:(G.mode === 'custom' || G.mode === 'spectator') ? 'team' : G.mode,
-           teams:G.teams, perTeam:G.perTeam, budget:G.budget, freeFire:G.freeFire, clock:G.clock };
+           teams:G.teams, perTeam:G.perTeam, budget:G.budget, freeFire:G.freeFire, clock:G.clock, v:RULES_V };
 }
 function netStop(){ if (NET.timer) clearInterval(NET.timer); NET.timer = 0; NET.on = false; NET.room = null; }
 function netStart(j){
@@ -3995,7 +4627,9 @@ function netPoll(){
 // ส่งทีละคำสั่งตามลำดับ: ทอยเข้าเป้าต้องถึงห้องก่อนทอยเจาะเกราะเสมอ ถ้ายิงพร้อมกันเน็ตช้าอาจสลับกัน
 // แล้วเครื่องอื่นจะได้จังหวะที่สองก่อนจังหวะแรก (ทิ้งไป) การโจมตีนั้นค้างบนทุกจอยกเว้นเครื่องเรา
 var SENDQ = Promise.resolve();
+var SENT = null;                 // tests: every act this device sends, even offline (BT.capture)
 function netSend(act){
+  if (SENT) SENT.push(JSON.parse(JSON.stringify(act)));
   if (!NET.on) return Promise.resolve();
   var path = '/' + NET.code + '/act', body = { pid:NET.pid, act:act };
   SENDQ = SENDQ.then(function(){ return netPost(path, body).catch(function(e){ netNote(e.message); }); });
@@ -4043,6 +4677,49 @@ function adoptRoom(R){
   NET.owner = R.ownerPid === NET.pid;
   if (R.state === 'lobby') { if (!$('scLobby').classList.contains('hide')) paintLobby(); }
 }
+// ---------- ห้อง: การกระทำที่มาจากเครื่องอื่น ----------
+// ทำตามลำดับที่ห้องให้ แล้วเรียก advance() ทุกครั้ง ทุกเครื่องจึงข้ามเฟสตรงจังหวะเดียวกัน
+function netAct(a){
+  var s = a.u != null ? sqById(a.u) : null, t = a.t != null ? sqById(a.t) : null, P;
+  switch (a.a){
+    case 'smove': if (s && !s.moved){ var to = a.to && a.to.length ? a.to : isFinite(a.x) && isFinite(a.z) ? planMove(s, +a.x, +a.z) : [];   // Claude บอกแค่จุด
+      if (to.length) applySMove(s, to, a.how); } return;
+    case 'stay': if (s) s.moved = true; return;
+    case 'skip': if (s){ var ph = a.ph || G.phase; if (ph === 'shoot') s.shot = true; else if (ph === 'charge') s.chDone = true; else s.moved = true; } return;
+    case 'adv': if (s && !s.adv) applyAdv(mkPend({ kind:'adv', u:s.id, side:s.side, att:s.pl, anm:TY(s.k).nm, stage:'adv' }), a.roll|0 || 1); return;
+    case 'atk': if (!s || !t) return; P = pendAt(s.id, t.id, 'atk');
+      if (!P || P.stage !== 'hit') P = mkAtk(s, t, a.how || 'shoot');
+      if (P) applyHit(P, a.hit || []); return;
+    case 'shoot': if (s && t) applyWhole(s, t, { hit:a.hit, wound:a.wound, save:a.save }, a.how || 'shoot'); return;   // ทอยครบในทีเดียว (Claude)
+    case 'rr': P = pendAt(a.u, a.t, 'atk'); if (P && P.stage === 'wound' && !P.rr && useStrat('rr', P.att)) applyReroll(P, a.v|0); return;
+    case 'wnd': P = pendAt(a.u, a.t, 'atk'); if (P) applyWnd(P, a.wound || []); return;
+    case 'sav': P = pendAt(a.u, a.t, 'atk'); if (P && P.stage === 'save') applySav(P, a.save || [], !!a.gtg && useStrat('gtg', P.def)); return;
+    case 'shock': P = pendAt(a.u, null, 'shock'); if (P) applyShock(P, a.roll || [], !!a.brave && useStrat('brave', P.att)); return;
+    case 'chg': if (s && t && !s.chDone) declareCharge(s, t); return;
+    case 'ow': P = pendAt(a.u, a.t, 'chg'); if (P) applyOw(P, !!a.use); return;
+    case 'chr': P = pendAt(a.u, a.t, 'chg'); if (!P) return; chgReady(P);
+      if (a.keep){ keepCharge(P); return; }
+      if (a.rr){ if (P.stage === 'chrr' && useStrat('rr', P.att)) applyCharge(P, a.roll || [], true); return; }
+      applyCharge(P, a.roll || []); return;
+    case 'cmove': P = pendAt(a.u, a.t, 'chg'); if (P) applyCMove(P, a.to || []); return;
+    case 'gren': if (s && t && useStrat('gren', s.pl)) applyGren(mkPend({ kind:'gren', u:s.id, t:t.id, side:s.side, att:s.pl, anm:TY(s.k).nm, dnm:TY(t.k).nm, stage:'gren' }), a.roll || []); return;
+    case 'heal': if (s && t) applyHeal(mkPend({ kind:'heal', u:s.id, t:t.id, side:s.side, att:s.pl, anm:TY(s.k).nm, dnm:TY(t.k).nm, stage:'heal' }), a.roll|0 || 1); return;
+    case 'done': var pi = pidIndex(a.pid); if (pi >= 0) playerDone(pi, a.ph); return;
+    case 'endph': if (!a.ph || a.ph === G.phase) nextPhase(); return;
+    case 'endturn': if (G.phase !== 'cmd' && G.phase !== 'fight') nextPhase(); return;      // เครื่องรุ่นเก่า
+  }
+}
+// ยิงสกัดจบแล้ว (หรือไม่มีใครยิง): การบุกไปทอยต่อได้
+function chgReady(P){ if (P && P.kind === 'chg' && P.stage === 'owatk' && !PEND.some(function(A){ return A.kind === 'atk' && A.ow && A.t === P.u; })){ P.stage = 'charge'; P.since = now(); } }
+// การโจมตีทั้งครั้งที่ทอยมาครบแล้ว (Claude ทอยที่เซิร์ฟเวอร์ · ตะขอเทสต์) — เล่นเป็นสามจังหวะเหมือนกัน
+function applyWhole(s, t, R, how){
+  var P = mkAtk(s, t, how || 'shoot'); if (!P) return null;
+  applyHit(P, R.hit || []); if (P.stage === 'done') return P;
+  applyWnd(P, R.wound || []); if (P.stage === 'done') return P;
+  applySav(P, R.save || []); return P;
+}
+function rollFor(s, t, how){ var M = atkMath(s, t, how || 'shoot'), n = M ? M.shots : 0; return { hit:rollN(n), wound:rollN(n*2), save:rollN(n*2) }; }
+
 function applyAct(a){
   if (!a) return;
   if (a.a === 'owner'){ NET.owner = (a.pid === NET.pid); if (G.on) say('เจ้าของห้องเดิมหลุดไป — ' + esc(a.nm) + ' คุมห้องต่อ'); return; }
@@ -4050,22 +4727,7 @@ function applyAct(a){
   if (!G.on) return;
   // สิ่งที่เครื่องนี้ส่งไปเอง ห้องส่งกลับมาให้ด้วย — ทำไปแล้วตอนกด ทำซ้ำไม่ได้ (จบตาซ้ำ = ข้ามตาของเพื่อน)
   if (a.pid && a.pid === NET.pid) return;
-  if (a.a === 'move'){ var u = unitById(a.u); if (u && !u.moved){ u.moved = true; unitGoTo(u, a.x, a.z); say(TEAM(u.side).nm + ' เดิน ' + TY(u.t).nm + ' ' + Math.hypot(a.x-u.x, a.z-u.z).toFixed(1) + '"'); dirty = true; } return; }
-  if (a.a === 'shoot'){ var s1 = unitById(a.u), t1 = unitById(a.t);      // ทอยครบในทีเดียว (Claude · เครื่องรุ่นเก่า)
-    if (s1 && t1 && !s1.shot && !pendOf(s1.id)) applyWhole(s1, t1, { hit:a.hit||[], wound:a.wound||[], save:a.save||[] });
-    paintPlay(); return; }
-  // ทีละจังหวะ: เข้าเป้า → เจาะเกราะ → เซฟ แต่ละจังหวะมาจากเครื่องของคนที่ทอย
-  if (a.a === 'atk'){ var s3 = unitById(a.u), t3 = unitById(a.t);
-    if (s3 && t3 && !s3.shot && !pendOf(s3.id)) applyAtk(s3, t3, a.hit || []);
-    return; }
-  if (a.a === 'wnd'){ var P1 = pendOf(a.u); if (P1 && P1.t === a.t) applyWnd(P1, a.wound || []); return; }
-  if (a.a === 'sav'){ var P2 = pendOf(a.u); if (P2 && P2.t === a.t) applySav(P2, a.save || []); return; }
-  if (a.a === 'heal'){ var h1 = unitById(a.u), h2 = unitById(a.t), hv = a.roll | 0 || 1;
-    if (h1 && h2 && !h1.shot){ resolveHeal(h1, h2, hv); trayHeal(h1, h2, hv); }
-    paintPlay(); return; }
-  if (a.a === 'skip'){ var s2 = unitById(a.u); if (s2){ s2.moved = true; s2.shot = true; paintPlay(); dirty = true; } return; }
-  if (a.a === 'done'){ var pi = pidIndex(a.pid); if (pi >= 0) playerDone(pi); return; }
-  if (a.a === 'endturn'){ endTurn(); return; }
+  netAct(a); advance(); paintPlay(); dirty = true;
 }
 function adoptRoster(rs, bots){
   var i, j;
@@ -4220,7 +4882,7 @@ function netJoin(raw){
   // กดซ้ำระหว่างรอคำตอบ: ขอครั้งเดียวพอ เซิร์ฟเวอร์เปิดที่นั่งใหม่ให้ทุกครั้งที่ขอ ที่นั่งแรกจะค้างเป็นผีกินที่เพื่อน
   if (NET.joining) return NET.joining;
   netNote('กำลังเข้าห้อง…');
-  NET.joining = netPost('/' + code + '/join', { nm:myName() })
+  NET.joining = netPost('/' + code + '/join', { nm:myName(), v:RULES_V })
     .then(function(j){ netNote(''); netStart({ code:code, pid:j.pid, room:j.room }); return true; })
     .catch(function(e){ netNote('เข้าห้องไม่ได้ — ' + e.message); return false; })
     .then(function(ok){ NET.joining = null; return ok; });
@@ -4354,40 +5016,62 @@ $('btDepGo').addEventListener('click', function(){
   startMatch(); });
 
 function startMatch(){
-  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null;
-  G.timeLeft = 0; LOG.length = 0; resetTray();
+  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null; G.phase = 'cmd';
+  G.timeLeft = 0; LOG.length = 0; resetTray(); G.used = {}; G.vp = []; G.fights = []; G.fightAt = 0;
   var i;
   for (i=0;i<G.players.length;i++){
-    G.players[i].done = false;
+    G.players[i].done = false; G.players[i].cp = 1;                 // เริ่มด้วย 1 แต้มคำสั่ง ได้เพิ่มทุกเฟสคำสั่งของตัวเอง
     if (!ptsOf(i)) autoList(i);              // ที่นั่งที่บอทนั่งแทนก็ต้องมีกองทัพ ไม่งั้นลงสนามมือเปล่า
   }
-  deploy(); show('scPlay');
+  for (i=0;i<G.teams;i++) G.vp.push(0);
+  deploy(); placeObjectives(); show('scPlay');
   G.botTimer = teamIsBot(0) ? 1.0 : 0;          // ทีมแรกเป็นบอท ให้เห็นโต๊ะสักวินาทีก่อนมันเริ่มเดิน
-  $('btTip').textContent = watching() ? '· นั่งดูบอทตีกัน' : '· แตะตัวเรา แล้วแตะพื้นหรือศัตรู';
+  $('btTip').textContent = watching() ? '· นั่งดูบอทตีกัน' : '· แตะหน่วยเรา แล้วแตะพื้นหรือศัตรู';
   var parts = [], t;
   for (t=0;t<G.teams;t++) parts.push(TEAM(t).nm + ' ' + teamPts(t) + ' แต้ม');
-  say('เริ่มรบ · ' + parts.join(' vs ') + ' บน' + TH().name + ' (' + TR().name + ')' + (G.freeFire ? ' · ฟรีฟาย' : ''));
-  say('— เริ่มเทิร์นของ ' + TEAM(0).nm + ' (รอบ 1) —');
+  say('เริ่มรบ · ' + parts.join(' vs ') + ' บน' + TH().name + ' (' + TR().name + ')' + (G.freeFire ? ' · ฟรีฟาย' : '') +
+      ' · ยึดจุด ' + OBJ.length + ' จุด ' + MAX_ROUND + ' รอบ');
   checkOver();                                 // กองว่างเปล่าก็จบตรงนี้เลย ไม่ต้องเดินห้ารอบ
-  startClock(); pushBoard(); fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true;
+  if (!G.over){ G.turn = 0; while (!liveOf(G.turn) && G.turn < G.teams - 1) G.turn++; startTurn(); advance(); }
+  pushBoard(); fitTable(); cam.pitch = 40*DEG; paintPlay(); dirty = true;
 }
 $('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b || b.disabled) return;
-  var a = b.dataset.a, u = G.sel;
-  if (a === 'done'){ if (u){ u.moved = true; u.shot = true; netSend({ a:'skip', u:u.id }); } selectUnit(null); return; }
+  var a = b.dataset.a, s = G.sel; if (!s || !canAct(s)) return;
+  if (a === 'stay'){ stayPut(s); return; }
+  if (a === 'adv'){ startAdvance(s); G.act = 'move'; paintPlay(); dirty = true; return; }
+  if (a === 'skip'){ if (G.phase === 'shoot') s.shot = true; else if (G.phase === 'charge') s.chDone = true;
+    netSend({ a:'skip', u:s.id, ph:G.phase }); selectUnit(null); return; }
   G.act = a; paintPlay(); dirty = true; });
-$('btEnd').addEventListener('click', function(){ flushPend(!NET.on); if (NET.on) netSend({ a:'endturn' }); endTurn(); });
-// ถาดลูกเต๋า: ปุ่มทอย · ออโต้ (จำไว้ในเครื่อง) · เลิกเล็ง
-$('btRoll').addEventListener('click', function(){ var r = myRoll(); if (r && r.human) doRoll(r); });
+// เสร็จเฟสนี้: ในห้องเป็นของเราคนเดียว (ทีมไปต่อเมื่อทุกคนกด) · เครื่องเดียวไปเฟสต่อไปทั้งทีม
+$('btEnd').addEventListener('click', function(){
+  if (!humanTurn() || G.phase === 'cmd' || G.phase === 'fight') return;
+  flushPend(!NET.on); advance();
+  if (PEND.length){ popDice('รอให้ลูกเต๋าที่ค้างอยู่จบก่อน<br><span style="font-size:12px">' + waitWhat(PEND[0]) + '</span>'); return; }   // บุกที่ยังไม่ทอยต้องจบก่อนไปตะลุมบอน
+  if (NET.on){ var me = G.mePl; if (me < 0) return; netSend({ a:'done', ph:G.phase }); playerDone(me, G.phase); return; }
+  nextPhase(); advance(); });
+// ถาดลูกเต๋า: ปุ่มทอย (หรือ "ใช่" ของการตัดสินใจ) · ปุ่มกลยุทธ์ข้าง ๆ · ออโต้ (จำไว้ในเครื่อง) · เลิกเล็ง
+$('btRoll').addEventListener('click', function(){ var r = myRoll(); if (!r || !r.human) return;
+  doRoll(r, !r.aim && isDecision(r.P) ? { yes:true } : {}); advance(); });
+$('btTrayX').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  var r = myRoll(); if (!r || !r.human || r.aim) return; var x = b.dataset.x;
+  if (x === 'no') doRoll(r, { yes:false });
+  else if (x === 'rr') doReroll(r.P);
+  else if (x === 'gtg') doRoll(r, { gtg:true });
+  else if (x === 'brave') doRoll(r, { brave:true });
+  advance(); paintPlay(); });
 $('btAuto').addEventListener('click', function(){ AUTO = !AUTO; WAIT_KEY = '';
   try { localStorage.setItem('bt.autoDice', AUTO ? '1' : '0'); } catch (e) {} });
 $('btAimX').addEventListener('click', function(){ AIM = null; WAIT_KEY = ''; paintPlay(); dirty = true; });
 $('btDone').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   var pi = +b.dataset.p;
-  if (NET.on){ if (pi !== G.mePl) return; netSend({ a:'done' }); }
-  playerDone(pi); });
+  flushPend(!NET.on); advance();
+  if (PEND.length){ popDice('รอให้ลูกเต๋าที่ค้างอยู่จบก่อน'); return; }
+  if (NET.on){ if (pi !== G.mePl) return; netSend({ a:'done', ph:G.phase }); }
+  playerDone(pi, G.phase); });
+
 function quitGame(){
   if (NET.on){ var c = NET.code, pd = NET.pid; netStop(); netPost('/' + c + '/leave', { pid:pd }).catch(function(){}); }
-  G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog(); resetTray();
+  G.on = false; G.over = false; units.length = 0; SQ = {}; SQ_ORDER = []; OBJ = []; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog(); resetTray();
   SPEC.paused = false;
   var i; for (i=0;i<G.players.length;i++){ G.players[i].dep = null; G.players[i].done = false; }
   show('scSetup'); syncRulesUI(); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
@@ -4433,6 +5117,7 @@ try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).obs
 buildTerrain(); genProps(); resize(); syncSetupUI(); show('scSetup');
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
 
+function sq_(x){ return !x ? null : SQ[x.id] === x ? x : typeof x === 'string' ? (SQ[x] || sqOf(unitById(x))) : sqOf(x); }   // เทสต์ส่งได้ทั้งหน่วย ตัวหมาก หรือรหัส
 window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   setTheme:applyTheme, add:function(k,x,z){ units.push({k:k,t:k,x:x,z:z,rot:0,scale:k === 'mech' ? MINI.MECH_S : 1}); dirty = true; },
   goTo:function(i,x,z){ var u = units[i]; if (u) unitGoTo(u, x, z); return !!u; },   // send piece i walking to (x,z)
@@ -4441,11 +5126,12 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   // ตะขอสำหรับเทสต์อัตโนมัติ
   pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
   props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt,
-  botStep:function(){ var r = botStep(); flushPend(true); return r; },       // เทสต์วนเรียกทีละก้าว: ลูกเต๋าที่ค้างทอยให้จบในก้าวนั้น
+  botStep:function(){ var r = botStep(); flushPend(true); advance(); return r; },       // เทสต์วนเรียกทีละก้าว: ลูกเต๋าที่ค้างทอยให้จบในก้าวนั้น
   tray:function(){ return { q:TRAY.q.length, cur:TRAY.cur ? { stage:TRAY.cur.stage, dice:TRAY.cur.dice.slice(), settled:TRAY.t >= TRAY.cur.secs, final:TRAY.cur.final } : null,
-    pend:PEND.map(function(P){ return { u:P.u, t:P.t, stage:P.stage, hits:P.hits, wounds:P.wounds }; }), aim:AIM, auto:AUTO, fallen:FALLEN.length }; },
-  aim:aimAt, myRoll:function(){ var r = myRoll(); return r ? (r.aim ? 'aim' : r.P.stage) + (r.human ? ':human' : ':auto') : null; },
-  roll:function(){ var r = myRoll(); if (r) doRoll(r); return !!r; }, flush:flushPend,
+    pend:PEND.map(function(P){ return { kind:P.kind, u:P.u, t:P.t, stage:P.stage, hits:P.hits, wounds:P.wounds }; }), aim:AIM, auto:AUTO, fallen:FALLEN.length }; },
+  aim:function(u, t, kind){ return aimAt(SQ[u.id] ? u : sqOf(u), SQ[t.id] ? t : sqOf(t), kind || 'atk'); },
+  myRoll:function(){ var r = myRoll(); return r ? (r.aim ? 'aim' : r.P.kind === 'atk' ? r.P.stage : r.P.kind + '.' + r.P.stage) + (r.human ? ':human' : ':auto') : null; },
+  roll:function(o){ var r = myRoll(); if (r){ doRoll(r, o || (r.aim ? {} : botChoice(r.P))); advance(); } return !!r; }, flush:function(f){ flushPend(f); advance(); },
   setAuto:function(v){ AUTO = !!v; WAIT_KEY = ''; },
   clock:function(on){ CLOCK_STOP = !on; },
   tick:function(dt, n){ for (var i=0;i<(n||1);i++) simStep(dt); drawScene(); },
@@ -4457,7 +5143,7 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   trayTop:function(){ var v = TRAY.cur; if (!v) return null;       // หน้าที่หงายขึ้นจริงของแต่ละลูก (ตามทิศของหน้าในโลก)
     return v.rolls.map(function(R){ var fr = R.frames[R.frames.length-1], best = -2, lab = null;
       DICE.shapes()[6].faces.forEach(function(f, k){ var y = DICE.qrot(fr.q, f.n)[1]; if (y > best){ best = y; lab = R.labels[k]; } }); return lab; }); },
-  NET:NET, netPoll:netPoll, applyAct:applyAct, adoptRoom:adoptRoom, unitById:unitById, rollFor:rollFor,
+  NET:NET, netPoll:netPoll, applyAct:applyAct, adoptRoom:adoptRoom, unitById:unitById, rollFor:function(u, t, how){ return rollFor(sq_(u), sq_(t), how); },
   deploy:deploy, seedOf:function(){ return SEED; }, themeOf:function(){ return theme; },
   depLog:function(){ return DEPLOG; },
   server:function(){ return SERVER; }, setServer:function(u){ SERVER = u; },
@@ -4466,9 +5152,32 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   players:function(){ return G.players; }, mkPlayers:mkPlayers, applyMode:function(){ applyMode(); },
   setDep:function(pi, x, z){ if (G.players[pi]) G.players[pi].dep = [x, z]; },
   autoDep:autoDep, depWhyNot:depWhyNot, depCapacity:depCapacity, teamPts:teamPts,
-  done:playerDone, canAct:canAct, canTarget:canTarget,
+  done:function(pi, ph){ playerDone(pi, ph || G.phase); advance(); }, canAct:function(u){ return canAct(sq_(u)); }, canTarget:canTarget,
   start:function(){ if (!G.players.length) mkPlayers(); startMatch(); },
-  pick:function(i){ selectUnit(units[i]); }, move:tryMove, shootAt:tryShoot, endTurn:endTurn,
+  pick:function(i){ selectUnit(units[i]); },
+  move:function(u, x, z){ var s = sq_(u); if (!s) return false; G.act = isEngaged(s) ? 'fb' : 'move'; var ok = tryMoveSq(s, x, z); advance(); return ok; },
+  // ทอยครบสามจังหวะด้วยเลขที่ให้มา (เทสต์ถ่ายท่า) — ไม่ดูเฟส ดูแค่ว่ายิงถึงไหม เว้นแต่ส่งเลขมาเอง
+  shootAt:function(u, t, R, how){ var s = sq_(u), q = sq_(t); if (!s || !q) return false;
+    how = how || (TY(s.k).gun && !isEngaged(s) ? 'shoot' : 'fight');
+    if (!R){ var why = how === 'shoot' ? shotWhyNot(s, q) : ''; if (why){ popDice(why); return false; } R = rollFor(s, q, how); }
+    netSend({ a:'shoot', u:s.id, t:q.id, how:how, hit:R.hit, wound:R.wound, save:R.save });
+    var P = applyWhole(s, q, R, how); advance(); paintPlay(); return !!P; },
+  endTurn:function(){ endTurn(); advance(); }, nextPhase:function(){ nextPhase(); advance(); }, advance:advance,
+  sq:function(id){ return SQ[id] || null; }, squads:sqList, sqOf:sqOf, sqModels:sqModels, phase:function(){ return G.phase; },
+  vp:function(){ return G.vp.slice(); }, obj:function(){ refreshObj(); return OBJ; }, fights:function(){ return (G.fights || []).slice(G.fightAt); },
+  cp:function(pi, v){ var P = G.players[pi]; if (!P) return 0; if (v != null) P.cp = v; return P.cp; },
+  charge:function(u, t){ var s = sq_(u), q = sq_(t); var why = chargeWhyNot(s, q); if (why) return why; doCharge(s, q); advance(); return ''; },
+  engaged:function(u){ return isEngaged(sq_(u)); }, board:boardState, atkMath:function(u, t, how){ return atkMath(sq_(u), sq_(t), how || 'shoot'); },
+  dice:function(arr){ DQ = (arr || []).slice(); }, diceLeft:function(){ return DQ.length; }, woundNeed:woundNeed,
+  capture:function(on){ var out = SENT || []; SENT = on ? [] : null; return out; },
+  // a squad set down in formation round (x, z), facing `face`, standing still
+  place:function(id, x, z, face){ var s = sq_(id); if (!s) return false; var ms = sqModels(s), sl = formation(ms.length, x, z, face || 0, radOfType(TY(s.k)));
+    ms.forEach(function(m, i){ m.x = sl[i][0]; m.z = sl[i][1]; m.gx = m.gz = null; m.tx = m.tz = null; m.mv = false; m.rest = null; if (face != null) m.rot = face; });
+    dirty = true; return true; },
+  setPhase:function(ph){ G.phase = ph; G.cmdWait = false; if (ph === 'fight') G.fights = null; advance(); paintPlay(); },
+  select:function(u){ selectUnit(sq_(u)); return G.sel ? G.sel.id : null; }, act:function(a){ G.act = a; paintPlay(); },
+  tap:function(x, z){ var s = G.sel; if (!s) return false; if (G.phase === 'move') return tryMoveSq(s, x, z); return false; },
+  stratOk:function(k, pi){ return canStrat(k, pi); },
   live:liveOf, log:function(){ return LOG.slice(); },
   // สนาม: ภูมิประเทศ สิ่งก่อสร้าง · ห้อง: เข้าด้วยรหัส (หน้าเลือกเกมของเว็บเรียกอันนี้) · โหมดผู้ชม
   setTerrain:setTerrain, terrainOf:function(){ return terrain; },
