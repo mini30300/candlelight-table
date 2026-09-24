@@ -9,7 +9,7 @@
 // different numbers.
 //
 // Originally ported from the stand-alone dice tray page, which has since been removed; this is now the only copy
-// of the physics (board.html carries it verbatim, checked by dice-check.js).
+// of the physics (board.html and battle-table.html carry it verbatim, checked by dice-check.js).
 var DICE = (function(){
 "use strict";
 var D = Math.PI/180;

@@ -129,6 +129,22 @@
   background:rgba(11,11,14,0.86);border:1px solid var(--on);border-radius:12px;padding:8px 14px;font-size:15px;
   color:var(--ink);opacity:0;transition:opacity .18s;font-variant-numeric:tabular-nums;text-align:center;max-width:80%}
 #bt .dicepop.on{opacity:1}
+/* ---- ถาดลูกเต๋า: ลอยอยู่ล่างกระดาน ---- */
+#bt .tray{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(460px,calc(100% - 20px));z-index:4;
+  background:rgba(11,11,14,0.9);border:1px solid var(--chipB);border-radius:14px;padding:8px 10px 10px;display:flex;flex-direction:column;gap:4px}
+#bt .tray .th{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-width:0}
+#bt .tray .th>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bt .tray .tb{display:flex;gap:8px;align-items:stretch;min-width:0}
+#bt .tray canvas{flex:1 1 auto;width:auto;min-width:0;height:92px;min-height:0;border:0;border-radius:9px;
+  background:radial-gradient(ellipse at 50% 40%,#23302A 0%,#16201B 70%,#111814 100%);touch-action:auto}
+@media (max-width:899px),(max-height:620px){#bt .tray canvas{height:70px}}
+@media (max-height:460px){#bt .tray{padding:5px 8px 6px;gap:3px}#bt .tray canvas{height:54px}#bt .tray .th{font-size:12px}
+  #bt .tray button.auto{min-height:26px}#bt .tray button.roll{font-size:15px}#bt .tray .ts{font-size:12px;min-height:16px}}
+#bt .tray .ts{font-size:13px;color:var(--sub);text-align:center;font-variant-numeric:tabular-nums;min-height:18px}
+#bt .tray .ts b{color:var(--on)}
+#bt .tray button.auto{flex:0 0 auto;min-height:30px;font-size:12px;padding:0 10px;border-radius:999px}
+#bt .tray button.roll{flex:0 0 116px;min-height:0;font-size:17px;line-height:1.2;padding:4px 6px}
+#bt .tray button.roll .cd{display:block;font-weight:500;opacity:.85;font-size:12px;margin-top:2px}
 #bt .dicepop b{color:var(--on)}
 </style>
 <div id="bt">
@@ -139,6 +155,13 @@
       <div class="hud" id="btHud"></div>
       <div class="turnbar hide" id="btTurn"></div>
       <div class="dicepop" id="btDice"></div>
+      <div class="tray hide" id="btTray">
+        <div class="th"><span id="btTrayT">ถาดลูกเต๋า</span>
+          <button class="auto hide" id="btAimX">ยกเลิก</button>
+          <button class="auto" id="btAuto" aria-pressed="false" title="เปิดไว้ เครื่องนี้ทอยลูกเต๋าของเราให้ทันที ไม่ต้องกด">ออโต้</button></div>
+        <div class="tb"><canvas id="btTrayCv"></canvas><button class="go roll hide" id="btRoll"></button></div>
+        <div class="ts" id="btTraySt" aria-live="polite"></div>
+      </div>
     </div>
   </div>
 
@@ -1584,6 +1607,192 @@ return { make:make, goTo:goTo, stop:stop, step:step, C:C };
 })();
 // ==MODULES-END==
 
+// ==DICE-BEGIN==
+// Shared dice: the same throw on every player's screen.
+//
+// The value is NOT decided here. The server rolls it and puts it in the room log, so every client already receives
+// the same number; this only has to SHOW it. Given (kind, value, seed) the throw is fully determined: the seed drives
+// a small PRNG instead of Math.random, the flight is simulated to rest offline, and the die's labels are then rotated
+// by a true symmetry of the solid so the face that ended up on top reads `value`. Same inputs on every phone means
+// the same tumble and the same landing face -- no syncing of the animation itself, and no way for two players to see
+// different numbers.
+//
+// Originally ported from the stand-alone dice tray page, which has since been removed; this is now the only copy
+// of the physics (board.html and battle-table.html carry it verbatim, checked by dice-check.js).
+var DICE = (function(){
+"use strict";
+var D = Math.PI/180;
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+function add(a,b){ return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]; }
+function sub(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
+function mul(a,s){ return [a[0]*s,a[1]*s,a[2]*s]; }
+function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function len(a){ return Math.sqrt(dot(a,a)); }
+function norm(a){ var l=len(a)||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+function qmul(a,b){ var ax=a[0],ay=a[1],az=a[2],aw=a[3],bx=b[0],by=b[1],bz=b[2],bw=b[3];
+  return [aw*bx+ax*bw+ay*bz-az*by, aw*by-ax*bz+ay*bw+az*bx, aw*bz+ax*by-ay*bx+az*bw, aw*bw-ax*bx-ay*by-az*bz]; }
+function qconj(q){ return [-q[0],-q[1],-q[2],q[3]]; }
+function qnorm(q){ var l=Math.sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3])||1; return [q[0]/l,q[1]/l,q[2]/l,q[3]/l]; }
+function qrot(q,v){ var x=q[0],y=q[1],z=q[2],w=q[3], ux=y*v[2]-z*v[1], uy=z*v[0]-x*v[2], uz=x*v[1]-y*v[0], vx=y*uz-z*uy, vy=z*ux-x*uz, vz=x*uy-y*ux;
+  return [v[0]+2*(w*ux+vx), v[1]+2*(w*uy+vy), v[2]+2*(w*uz+vz)]; }
+function qaxis(axis, ang){ var s = Math.sin(ang/2), a = norm(axis); return [a[0]*s, a[1]*s, a[2]*s, Math.cos(ang/2)]; }
+function qFromTo(a,b){ var c = cross(a,b), d = dot(a,b); if (d < -0.99999){ var ax = Math.abs(a[0]) < 0.9 ? [1,0,0] : [0,1,0]; return qaxis(cross(a,ax), Math.PI); } return qnorm([c[0],c[1],c[2],1+d]); }
+
+// mulberry32: small, fast, and identical on every engine, which is the whole point here
+function rngFrom(seed){ var a = (seed >>> 0) || 1; return function(){
+  a |= 0; a = a + 0x6D2B79F5 | 0;
+  var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ---------- polyhedra. values so that opposite faces sum to max+1 (or 9 for the d10), like real dice ----------
+function pairValues(verts, faces, max, sumTo){
+  var C = faces.map(function(f){ var c=[0,0,0]; f.forEach(function(vi){ c = add(c, verts[vi]); }); return norm(c); });
+  var vals = new Array(faces.length), used = {}, next = max === 9 ? 0 : 1, hi = sumTo;
+  for (var i=0;i<faces.length;i++){ if (vals[i] !== undefined) continue; var opp = -1, bd = 1; for (var j=0;j<faces.length;j++){ var d = dot(C[i],C[j]); if (d < bd){ bd = d; opp = j; } }
+    vals[i] = next; vals[opp] = hi - next; next++; while (used[next]) next++; used[vals[i]] = 1; used[vals[opp]] = 1; while (used[next]) next++; }
+  return vals;
+}
+function poly(verts, faces, values, opts){
+  var R = 0; verts.forEach(function(v){ R = Math.max(R, len(v)); }); verts = verts.map(function(v){ return mul(v, 1/R); });
+  var F = faces.map(function(f, i){ var c = [0,0,0]; f.forEach(function(vi){ c = add(c, verts[vi]); }); c = mul(c, 1/f.length);
+    var n = norm(cross(sub(verts[f[1]],verts[f[0]]), sub(verts[f[2]],verts[f[0]]))); if (dot(n,c) < 0){ n = mul(n,-1); f = f.slice().reverse(); }
+    return { v:f, n:n, c:c, val:values[i] }; });
+  var inr = 1e9; F.forEach(function(f){ inr = Math.min(inr, dot(f.n, f.c)); });
+  return { verts:verts, faces:F, inr:inr, opts:opts||{} };
+}
+var PHI = (1+Math.sqrt(5))/2;
+function facesFromHull(v, k, nF){
+  var n = v.length, faces = [], seen = {};
+  for (var a=0;a<n;a++) for (var b=a+1;b<n;b++) for (var c=b+1;c<n;c++){
+    var nn = cross(sub(v[b],v[a]), sub(v[c],v[a])); if (len(nn) < 1e-6) continue; nn = norm(nn); var d0 = dot(nn, v[a]);
+    var on = [], out = false, i, d;
+    for (i=0;i<n;i++){ d = dot(nn, v[i]) - d0; if (d > 1e-6){ out = true; break; } if (Math.abs(d) < 1e-6) on.push(i); }
+    if (out){ nn = mul(nn,-1); d0 = -d0; out = false; on = [];
+      for (i=0;i<n;i++){ d = dot(nn, v[i]) - d0; if (d > 1e-6){ out = true; break; } if (Math.abs(d) < 1e-6) on.push(i); } }
+    if (out || on.length !== k) continue;
+    var key = on.slice().sort(function(x,y){ return x-y; }).join(','); if (seen[key]) continue; seen[key] = 1;
+    var cen = [0,0,0]; on.forEach(function(i2){ cen = add(cen, v[i2]); }); cen = mul(cen, 1/k);
+    var ux = norm(sub(v[on[0]], cen)), uy = cross(nn, ux);
+    on.sort(function(p,q){ var dp = sub(v[p],cen), dq = sub(v[q],cen); return Math.atan2(dot(dp,uy),dot(dp,ux)) - Math.atan2(dot(dq,uy),dot(dq,ux)); });
+    faces.push(on); if (faces.length === nF) return faces;
+  }
+  return faces;
+}
+function tetra(){ var v=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]]; return poly(v, [[0,1,2],[0,3,1],[0,2,3],[1,3,2]], [1,2,3,4], { vertexRead:true }); }
+function cube(){ var v=[]; for (var i=0;i<8;i++) v.push([i&1?1:-1, i&2?1:-1, i&4?1:-1]);
+  var F = [[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]]; return poly(v, F, pairValues(v, F, 6, 7)); }
+function octa(){ var v=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  var F = [[0,2,4],[2,1,4],[1,3,4],[3,0,4],[2,0,5],[1,2,5],[3,1,5],[0,3,5]]; return poly(v, F, pairValues(v, F, 8, 9)); }
+function d10(){
+  var r = 0.72, A = 1, lo = 0, hi = 0.5, h;
+  for (var it=0; it<40; it++){ h = (lo+hi)/2; var T=[0,A,0], U1=[r,h,0], L=[r*Math.cos(36*D),-h,r*Math.sin(36*D)], U2=[r*Math.cos(72*D),h,r*Math.sin(72*D)];
+    var vol = dot(cross(sub(U1,T), sub(U2,T)), sub(L,T)); if (vol > 0) hi = h; else lo = h; }
+  var v=[[0,A,0],[0,-A,0]]; for (var i=0;i<10;i++){ var a=i*36*D; v.push([Math.cos(a)*r, (i%2?h:-h), Math.sin(a)*r]); }
+  var F=[]; for (var k=0;k<10;k++){ var a2=2+k, b=2+(k+1)%10, c=2+(k+2)%10; F.push(k%2 ? [0,a2,b,c] : [1,c,b,a2]); }
+  return poly(v, F, pairValues(v, F, 9, 9)); }
+function dodeca(){ var v=[], i, j, k; for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2) for (k=-1;k<=1;k+=2) v.push([i,j,k]);
+  for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2){ v.push([0, i/PHI, j*PHI]); v.push([i/PHI, j*PHI, 0]); v.push([i*PHI, 0, j/PHI]); }
+  var F = facesFromHull(v, 5, 12); return poly(v, F, pairValues(v, F, 12, 13)); }
+function icosa(){ var v=[], i, j; for (i=-1;i<=1;i+=2) for (j=-1;j<=1;j+=2){ v.push([0, i, j*PHI]); v.push([i, j*PHI, 0]); v.push([j*PHI, 0, i]); }
+  var F = facesFromHull(v, 3, 20); return poly(v, F, pairValues(v, F, 20, 21)); }
+var SHAPES = null;   // built on first use: a d12/d20 hull search is not worth paying for if nobody rolls
+function shapes(){ if (!SHAPES) SHAPES = { 4:tetra(), 6:cube(), 8:octa(), 10:d10(), 12:dodeca(), 20:icosa() }; return SHAPES; }
+
+// the rotation of the solid onto itself carrying face `from` onto face `to`
+function symmetry(S, from, to, j){
+  var fa = S.faces[from], fb = S.faces[to], q1 = qFromTo(fa.n, fb.n);
+  var va = sub(qrot(q1, S.verts[fa.v[j]]), mul(fb.n, dot(fb.n, qrot(q1, S.verts[fa.v[j]])))), vb = sub(S.verts[fb.v[0]], mul(fb.n, dot(fb.n, S.verts[fb.v[0]])));
+  var ang = Math.atan2(dot(cross(va,vb), fb.n), dot(va,vb));
+  return qmul(qaxis(fb.n, ang), q1);
+}
+// relabel so that face `up` shows `want`: the values move with a true symmetry, so it stays a real die
+function relabel(S, up, want){
+  var from = -1; S.faces.forEach(function(f,i){ if (f.val === want) from = i; }); if (from < 0 || from === up) return S.faces.map(function(f){ return f.val; });
+  var q = symmetry(S, from, up, 0), out = [];
+  S.faces.forEach(function(f, i){ var c = qrot(qconj(q), f.c), best = 0, bd = -2; S.faces.forEach(function(g, k){ var d = dot(c, g.c); if (d > bd){ bd = d; best = k; } }); out[i] = S.faces[best].val; });
+  return out;
+}
+
+// ---------- physics: rigid body with vertex contacts against a small tray ----------
+var TRAY = { x:0.62, z:0.62 }, G = -9.8, DT = 1/120;
+function stepDie(d, dt){
+  if (d.done) return;
+  var e = 0.32, mu = 0.45, hitAny = false;
+  d.v[1] += G*dt; d.p = add(d.p, mul(d.v, dt));
+  var wl = len(d.w); if (wl > 1e-6) d.q = qnorm(qmul(qaxis(d.w, wl*dt), d.q));
+  for (var it=0; it<2; it++){
+    var deepest = 0, dv = null, dn = null;
+    for (var i=0;i<d.S.verts.length;i++){ var r = qrot(d.q, mul(d.S.verts[i], d.r)), x = add(d.p, r);
+      var cands = [[x[1], [0,1,0]], [TRAY.x - x[0], [-1,0,0]], [x[0] + TRAY.x, [1,0,0]], [TRAY.z - x[2], [0,0,-1]], [x[2] + TRAY.z, [0,0,1]]];
+      for (var c=0;c<cands.length;c++){ var pen = -cands[c][0]; if (pen > deepest){ deepest = pen; dv = r; dn = cands[c][1]; } } }
+    if (!dv) break;
+    hitAny = true;
+    d.p = add(d.p, mul(dn, deepest));
+    var vp = add(d.v, cross(d.w, dv)), vn = dot(vp, dn);
+    if (vn < 0){
+      var rn = cross(dv, dn), k = 1/d.m + dot(cross(rn, dv), dn)/d.I, j = -(1+e)*vn/k;
+      d.v = add(d.v, mul(dn, j/d.m)); d.w = add(d.w, mul(cross(dv, mul(dn, j)), 1/d.I));
+      var vt = sub(vp, mul(dn, vn)), vtl = len(vt);
+      if (vtl > 1e-6){ var jt = Math.min(mu*j, vtl/k), imp = mul(vt, -jt/vtl); d.v = add(d.v, mul(imp, 1/d.m)); d.w = add(d.w, mul(cross(dv, imp), 1/d.I)); }
+    }
+  }
+  if (hitAny){ d.v = mul(d.v, 0.985); d.w = mul(d.w, 0.965); }
+  d.v = mul(d.v, 1 - 0.02*dt); d.w = mul(d.w, 1 - 0.05*dt);
+  var sp = len(d.v), wl2 = len(d.w);
+  if (sp < 0.12 && wl2 < 1.2 && d.p[1] < d.r*1.05){
+    var dnf = downFace(d), n = qrot(d.q, d.S.faces[dnf].n), tilt = Math.acos(clamp(-n[1],-1,1));
+    if (tilt < 14*D){ d.snapQ = qmul(qFromTo(n, [0,-1,0]), d.q); d.snapY = d.r*d.S.inr; d.done = true; }
+  }
+}
+function downFace(d){ var best = 0, bd = 2; d.S.faces.forEach(function(f, i){ var y = qrot(d.q, f.n)[1]; if (y < bd){ bd = y; best = i; } }); return best; }
+function upFace(d){ var best = 0, bd = -2; d.S.faces.forEach(function(f, i){ var y = qrot(d.q, f.n)[1]; if (y > bd){ bd = y; best = i; } }); return best; }
+function upVertex(d){ var best = 0, bd = -2; d.S.verts.forEach(function(v, i){ var y = qrot(d.q, v)[1]; if (y > bd){ bd = y; best = i; } }); return best; }
+
+// One throw of one die. `value` is the server's result; `seed` makes the flight identical on every device.
+// Returns the recorded flight plus the labelling that makes the resting face read `value`.
+function roll(kind, value, seed){
+  var S = shapes()[kind]; if (!S) return null;                       // d100 and anything else: no dice, just the number
+  var rnd = rngFrom(seed);
+  var size = kind === 4 ? 0.23 : kind === 6 ? 0.2 : kind === 20 ? 0.24 : 0.22;
+  var d = { kind:kind, S:S, r:size,
+    p: [(rnd()-0.5)*0.5, 0.62 + rnd()*0.2, TRAY.z - 0.2],
+    v: [(rnd()-0.5)*1.2, 0.2 + rnd()*0.5, -1.7 - rnd()*1.2],
+    q: qnorm([rnd()-0.5, rnd()-0.5, rnd()-0.5, rnd()-0.5]),
+    w: [(rnd()-0.5)*24, (rnd()-0.5)*14, (rnd()-0.5)*24],
+    m:1, I:0.4*size*size, done:false };
+  var frames = [], t = 0, maxT = 6;
+  while (t < maxT){
+    stepDie(d, DT); stepDie(d, DT); t += 2*DT;
+    frames.push({ p: d.p.slice(), q: d.q.slice() });
+    if (d.done) break;
+  }
+  if (!d.done){   // ran out of time still tumbling: drop it onto whichever face is down
+    var dn = downFace(d), nn = qrot(d.q, d.S.faces[dn].n);
+    d.snapQ = qmul(qFromTo(nn,[0,-1,0]), d.q); d.snapY = d.r*d.S.inr; d.done = true;
+  }
+  d.q = d.snapQ;
+  var labels;
+  if (S.opts.vertexRead){   // a d4 is read at the top vertex: that vertex's value sits on the face opposite it
+    var vi = upVertex(d), opp = -1;
+    S.faces.forEach(function(f,i){ if (f.v.indexOf(vi) < 0) opp = i; });
+    labels = relabel(S, opp, value);
+  } else labels = relabel(S, upFace(d), value);
+  var rest = { p: [d.p[0], d.snapY, d.p[2]], q: d.snapQ.slice() };
+  frames.push(rest);
+  return { kind:kind, value:value, r:size, S:S, labels:labels, frames:frames, rest:rest, secs: frames.length*2*DT };
+}
+// what the die actually reads at rest, from its own geometry -- used by the harness to prove the relabel is honest
+function faceUp(res){
+  var d = { S:res.S, q:res.rest.q, r:res.r };
+  if (res.S.opts.vertexRead){ var vi = upVertex(d), f = res.S.faces;
+    for (var i=0;i<f.length;i++) if (f[i].v.indexOf(vi) < 0) return res.labels[i]; return res.labels[0]; }
+  return res.labels[upFace(d)];
+}
+return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:rngFrom };
+})();
+// ==DICE-END==
+
 (function(){
 "use strict";
 var $ = function(id){ return document.getElementById(id); };
@@ -2220,6 +2429,7 @@ function drawScene(){
   for (i=0;i<PROPS.length;i++){ var o = PROPS[i], ps = propScale(o);
     if (ps < detail){ var tiny = ps < 10; if (!tiny) shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o, tiny); } else drawProp(o); }
   for (i=0;i<units.length;i++) drawUnit(units[i]);
+  for (i=0;i<FALLEN.length;i++) drawUnit(FALLEN[i]);   // ล้มแล้ว แต่ลูกเต๋ายังไม่หยุด
   for (i=0;i<units.length;i++){ var mu = units[i];      // where a piece still on its way is heading
     if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
   if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
@@ -2554,8 +2764,7 @@ function tickDice(){
 }
 
 // ---------- ยิง / ตี ----------
-// ทอยล่วงหน้าเป็นชุด เพื่อให้ส่งข้ามเครื่องได้ — คนที่ยิงทอย คนอื่นเอาเลขเดิมไปใช้
-// ไม่ใช่ต่างคนต่างทอยแล้วได้คนละผล
+// ทอยครบทั้งสามจังหวะในทีเดียว: ใช้กับตะขอเทสต์ (BT.shootAt) เท่านั้น เล่นจริงทอยทีละจังหวะในถาด (ถาดลูกเต๋า ข้างล่าง)
 function rollFor(u, tgt){
   var A = TY(u.t), d = dist2(u, tgt), melee = d <= MELEE;
   var shots = melee ? A.sh*2 : A.sh, out = { hit:[], wound:[], save:[] }, k;
@@ -2563,31 +2772,6 @@ function rollFor(u, tgt){
   for (k=0;k<shots;k++) out.wound.push(d6());
   for (k=0;k<shots;k++) out.save.push(d6());
   return out;
-}
-function resolveShot(u, tgt, R){
-  var A = TY(u.t), D = TY(tgt.t), d = dist2(u, tgt), melee = d <= MELEE;
-  var shots = melee ? A.sh*2 : A.sh, need = melee ? Math.max(2, A.bs-1) : A.bs;
-  R = R || rollFor(u, tgt);
-  var rolls = [], hits = 0, k;
-  for (k=0;k<shots;k++){ var r = R.hit[k] || d6(); rolls.push(r); if (r >= need) hits++; }
-  var wounds = 0; for (k=0;k<hits;k++) if ((R.wound[k] || d6()) >= 4) wounds++;
-  var sv = D.sv + A.ap, saved = 0;
-  for (k=0;k<wounds;k++) if (sv <= 6 && (R.save[k] || d6()) >= sv) saved++;
-  var dmg = wounds - saved;
-  tgt.hp -= dmg;
-  var dead = tgt.hp <= 0;
-  if (dead){ var ix = units.indexOf(tgt); if (ix >= 0) units.splice(ix, 1); }
-  u.shot = true;                   // ยิงแล้วยังเดินต่อได้ ตัวจะจบตาเมื่อทำครบทั้งเดินและยิง
-  var head = (melee ? 'ตี' : 'ยิง') + ' ' + A.nm + ' → ' + D.nm + ' ที่ ' + d.toFixed(1) + '"';
-  popDice('<b>' + rolls.join(' ') + '</b><br>' + head + '<br>เข้า ' + hits + ' · เจาะ ' + wounds + ' · เซฟ ' + saved +
-          '<br>' + (dead ? '<b>ล้ม!</b>' : 'เสียแผล ' + dmg));
-  // หลายทีมหรือฟรีฟาย บอกด้วยว่าโดนทีมไหน ไม่งั้นอ่านบันทึกแล้วไม่รู้ว่าใครยิงใคร
-  if (G.teams > 2 || G.freeFire) head = head.replace(' → ' + D.nm, ' → ' + D.nm + ' (' + TEAM(tgt.side).nm + ')');
-  say(TEAM(u.side).nm + ' ' + head + ' — เข้า ' + hits + '/' + shots + ' · เจาะ ' + wounds + ' · เซฟได้ ' + saved +
-      (dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
-  dirty = true;
-  checkOver();
-  return dmg;
 }
 // ---------- รักษา (หน่วยแพทย์) ----------
 // แทนการยิงหนึ่งครั้ง: แตะเพื่อนที่เจ็บ (แผลไม่เต็ม) ในระยะ 3 นิ้ว ทอย d6 ได้ 3 ขึ้นไปคืนแผลให้ 1
@@ -2597,22 +2781,14 @@ function resolveHeal(u, tgt, roll){
   var A = TY(u.t), D = TY(tgt.t), r = roll || d6(), ok = r >= HEAL_ON;
   u.shot = true;
   if (ok) tgt.hp = Math.min(D.w, tgt.hp + 1);
-  popDice('<b>' + r + '</b><br>' + A.nm + ' รักษา ' + D.nm + '<br>' + (ok ? 'แผลหาย 1 · เหลือ ' + tgt.hp + '/' + D.w : 'ไม่สำเร็จ (ต้อง ' + HEAL_ON + '+)'));
   say(TEAM(u.side).nm + ' ' + A.nm + ' รักษา ' + D.nm + ' — ทอยได้ ' + r + (ok ? ' · แผลหาย 1' : ' · ไม่สำเร็จ'), ok ? 'hit' : '');
   dirty = true; return ok;
 }
-function tryHeal(u, tgt, roll){
-  if (u.shot){ say('ตัวนี้ใช้การกระทำไปแล้วในเทิร์นนี้'); return false; }
-  if (!canHeal(u, tgt)){ popDice(tgt.hp >= TY(tgt.t).w ? 'ตัวนี้ไม่ได้เจ็บ' : 'ไกลเกินไป<br>รักษาได้ในระยะ ' + TY(u.t).heal + '"'); return false; }
-  if (roll == null){ roll = d6(); netSend({ a:'heal', u:u.id, t:tgt.id, roll:roll }); }
-  resolveHeal(u, tgt, roll);
-  if (units.indexOf(u) >= 0 && u.moved && u.shot) selectUnit(null); else paintPlay();
-  return true;
-}
 function finish(w, why){          // w = ทีมที่ชนะ หรือ -1 ถ้าเสมอ
   G.over = true; G.sel = null; G.timeLeft = 0;
+  AIM = null; PEND.length = 0;     // การโจมตีอื่นที่ยังทอยไม่จบ ไม่มีผลแล้ว ถาดเล่นลูกที่ทอยไปแล้วให้จบเท่านั้น
   say(w < 0 ? '<b>' + why + 'เสมอ</b>' : '<b>' + why + TEAM(w).nm + ' ชนะ</b>', 'kill');
-  popDice(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
+  winPop(w < 0 ? '<b>เสมอ</b>' : '<b>' + TEAM(w).nm + ' ชนะ!</b>');
   paintPlay(); dirty = true;
 }
 function checkOver(){             // เหลือทีมเดียวที่ยังมีตัวอยู่ = จบ
@@ -2629,11 +2805,286 @@ function endRoundCheck(){         // ครบรอบแล้วยังไ�
   finish(best.length === 1 ? best[0] : -1, 'ครบ ' + MAX_ROUND + ' รอบ — ');
 }
 
+// ═══════════════════ ถาดลูกเต๋า — ทอยกันจริงเหมือนบนโต๊ะ ═══════════════════
+// การโจมตีหนึ่งครั้งมีสามจังหวะ แต่ละจังหวะทอยกันจริง ลูกเต๋ากลิ้งในถาดให้ทุกเครื่องเห็นเหมือนกัน
+//   เข้าเป้า (คนยิงทอย) → เจาะเกราะ 4+ (คนยิงทอย) → เซฟ (ฝั่งที่โดนยิงทอยเอง)
+// เลขทุกลูกทอยที่เครื่องของคนทอยแล้วส่งขึ้นห้อง เครื่องอื่นเอาเลขนั้นไปใช้ ลูกเต๋าหมุนตกด้วย seed เดียวกัน
+// บอททอยเอง · คนไม่กดใน 10 วิ เครื่องทอยให้ · เปิด "ออโต้" ไว้ เครื่องนี้ทอยของเราให้ทันที
+var ROLL_WAIT = 10, OWNER_WAIT = 25, TRAY_RATE = 1.35, BOT_PAUSE = 0.7, HOLD = 0.9, LINGER = 3;
+var AUTO = (function(){ try { return localStorage.getItem('bt.autoDice') === '1'; } catch (e) { return false; } })();
+var PEND = [];            // การโจมตีที่ทอยเข้าเป้าไปแล้ว ยังไม่จบ เรียงตามลำดับ
+var AIM = null;           // เครื่องนี้เล็งไว้แล้วแต่ยังไม่ได้ทอย { u, t, kind:'atk'|'heal' }
+var FALLEN = [];          // ตัวที่เพิ่งล้ม ยังวาดไว้จนลูกเต๋าลูกสุดท้ายหยุด
+var WAIT_T = 0, WAIT_KEY = '', WIN_POP = '';
+function winPop(txt){ if (trayBusy()) WIN_POP = txt; else popDice(txt); }
+
+function atkMath(u, tgt){
+  var A = TY(u.t), D = TY(tgt.t), d = dist2(u, tgt), melee = d <= MELEE;
+  return { melee:melee, d:d, shots: melee ? A.sh*2 : A.sh, need: melee ? Math.max(2, A.bs-1) : A.bs, sv: D.sv + A.ap };
+}
+function pendOf(uid){ for (var i=0;i<PEND.length;i++) if (PEND[i].u === uid) return PEND[i]; return null; }
+function count(arr, need){ var n = 0; for (var i=0;i<arr.length;i++) if (arr[i] >= need) n++; return n; }
+function rollN(n){ var out = []; for (var i=0;i<n;i++) out.push(d6()); return out; }
+// ยิงเป้านี้ได้ไหม: '' = ได้ · ไม่ได้ก็ได้ข้อความสั้น ๆ ไว้เด้งบอก
+function shotWhyNot(u, tgt){
+  var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
+  if (!canTarget(u, tgt)) return 'ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>';
+  if (d > reach + 0.001) return 'ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"');
+  return '';
+}
+function healWhyNot(u, tgt){
+  if (canHeal(u, tgt)) return '';
+  return tgt.hp >= TY(tgt.t).w ? 'ตัวนี้ไม่ได้เจ็บ' : 'ไกลเกินไป<br>รักษาได้ในระยะ ' + TY(u.t).heal + '"';
+}
+// แตะเป้าแล้วยังไม่ทอย: เล็งไว้ก่อน ลูกเต๋าออกเมื่อกดปุ่มในถาด (ครบเวลาหรือเปิดออโต้ไว้ เครื่องทอยให้)
+function aimAt(u, tgt, kind){
+  if (!u || !tgt) return false;
+  if (u.shot || pendOf(u.id)){ say(kind === 'heal' ? 'ตัวนี้ใช้การกระทำไปแล้วในเทิร์นนี้' : 'ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
+  var why = kind === 'heal' ? healWhyNot(u, tgt) : shotWhyNot(u, tgt);
+  if (why){ popDice(why); return false; }
+  AIM = { u:u.id, t:tgt.id, kind:kind }; WAIT_KEY = '';
+  paintPlay(); dirty = true; return true;
+}
+
+// ---- จังหวะของการโจมตี: ใช้เหมือนกันทุกเครื่อง ไม่ว่าเลขมาจากเครื่องนี้หรือจากห้อง ----
+function applyAtk(u, tgt, hitR){
+  if (!u || !tgt || u.shot || pendOf(u.id)) return null;
+  var M = atkMath(u, tgt), A = TY(u.t), D = TY(tgt.t);
+  u.shot = true;
+  if (AIM && AIM.u === u.id) AIM = null;
+  var P = { u:u.id, t:tgt.id, side:u.side, tside:tgt.side, att:u.pl, def:tgt.pl, anm:A.nm, dnm:D.nm, melee:M.melee, d:M.d,
+            shots:M.shots, need:M.need, sv:M.sv, hitR:(hitR || []).slice(0, M.shots), woundR:null, saveR:null,
+            hits:0, wounds:0, saved:0, stage:'wound', since:now() };
+  while (P.hitR.length < M.shots) P.hitR.push(d6());
+  P.hits = count(P.hitR, P.need);
+  PEND.push(P);
+  trayThrow(P, 'hit', P.hitR, P.need, '');
+  if (!P.hits) finishAtk(P);
+  paintPlay(); dirty = true; return P;
+}
+function applyWnd(P, woundR){
+  if (!P || P.stage !== 'wound') return;
+  P.woundR = (woundR || []).slice(0, P.hits); while (P.woundR.length < P.hits) P.woundR.push(d6());
+  P.wounds = count(P.woundR, 4);
+  trayThrow(P, 'wound', P.woundR, 4, 'เข้า ' + P.hits + '/' + P.shots);
+  if (!P.wounds || P.sv > 6){ finishAtk(P); return; }        // เกราะเจาะทะลุจนเซฟไม่ได้เลย ก็ไม่ต้องทอยเซฟ
+  P.stage = 'save'; P.since = now(); paintPlay();
+}
+function applySav(P, saveR){
+  if (!P || P.stage !== 'save') return;
+  P.saveR = (saveR || []).slice(0, P.wounds); while (P.saveR.length < P.wounds) P.saveR.push(d6());
+  P.saved = count(P.saveR, P.sv);
+  trayThrow(P, 'save', P.saveR, P.sv, 'เข้า ' + P.hits + '/' + P.shots + ' › เจาะ ' + P.wounds + '/' + P.hits);
+  finishAtk(P);
+}
+function finishAtk(P){
+  var ix = PEND.indexOf(P); if (ix >= 0) PEND.splice(ix, 1);
+  P.stage = 'done';
+  var u = unitById(P.u), tgt = unitById(P.t), dmg = tgt ? P.wounds - P.saved : 0, dead = false;
+  if (tgt){ tgt.hp -= dmg; dead = tgt.hp <= 0;
+    if (dead){ var k = units.indexOf(tgt); if (k >= 0) units.splice(k, 1); FALLEN.push(tgt); if (G.sel === tgt) selectUnit(null); } }
+  var head = (P.melee ? 'ตี' : 'ยิง') + ' ' + P.anm + ' → ' + P.dnm + ((G.teams > 2 || G.freeFire) ? ' (' + TEAM(P.tside).nm + ')' : '') + ' ที่ ' + P.d.toFixed(1) + '"';
+  say(TEAM(P.side).nm + ' ' + head + ' — เข้า ' + P.hits + '/' + P.shots + ' · เจาะ ' + P.wounds + ' · เซฟได้ ' + P.saved +
+      (!tgt ? ' · เป้าล้มไปก่อนแล้ว' : dead ? ' · <b>ล้ม!</b>' : ' · เสียแผล ' + dmg), dead ? 'kill' : (dmg ? 'hit' : ''));
+  P.result = !tgt ? 'เป้าล้มไปก่อนแล้ว' : dead ? 'ล้ม!' : dmg ? 'เสียแผล ' + dmg : !P.hits ? 'พลาดหมด' : !P.wounds ? 'ไม่เจาะเกราะ' : 'เซฟได้หมด';
+  var last = TRAY.q.length ? TRAY.q[TRAY.q.length-1] : TRAY.cur;        // ผลบอกตอนลูกเต๋าลูกสุดท้ายหยุด ไม่ใช่ก่อนหน้า
+  if (last && last.P === P) last.final = P.result;
+  if (u && units.indexOf(u) >= 0 && u.moved && u.shot && G.sel === u) selectUnit(null);
+  dirty = true; paintPlay();
+  checkOver();
+}
+// การโจมตีทั้งครั้งที่ทอยมาครบแล้ว (Claude ทอยที่เซิร์ฟเวอร์ · เครื่องรุ่นเก่า · ตะขอเทสต์) — เล่นเป็นสามจังหวะเหมือนกัน
+function applyWhole(u, tgt, R){
+  var P = applyAtk(u, tgt, R.hit || []); if (!P || P.stage === 'done') return P;
+  applyWnd(P, R.wound || []); if (P.stage === 'done') return P;
+  applySav(P, R.save || []); return P;
+}
+
+// ---- ใครทอยจังหวะไหน ----
+// จังหวะเข้าเป้ากับเจาะเกราะเป็นของเจ้าของตัวที่ยิง จังหวะเซฟเป็นของเจ้าของตัวที่โดนยิง
+function rollerOf(P){ return P.stage === 'save' ? P.def : P.att; }
+// เครื่องนี้ทอยให้ผู้เล่นคนนี้ไหม: คนที่นั่งเครื่องนี้ · บอทกับ Claude (ในห้องเจ้าของห้องทอยให้ เล่นคนเดียวเครื่องนี้ทอย)
+function iRollFor(pi, P){
+  var Q = G.players[pi]; if (!Q || Q.bot || Q.ai) return !NET.on || NET.owner;
+  if (!NET.on || Q.pid === NET.pid) return true;
+  return NET.owner && !!P && now() - P.since > OWNER_WAIT*1000;     // เพื่อนเงียบไปนานเกิน เจ้าของห้องทอยแทน
+}
+function isHumanHere(pi){ var Q = G.players[pi]; return !!Q && !Q.bot && !Q.ai && (!NET.on || Q.pid === NET.pid); }
+// อะไรที่เครื่องนี้ต้องทอยตอนนี้ — การโจมตีที่ค้างอยู่ก่อน แล้วค่อยเป้าที่เล็งไว้
+function myRoll(){
+  var i = 0;
+  while (i < PEND.length){ var P = PEND[i];
+    if (!unitById(P.t)){ finishAtk(P); continue; }        // เป้าล้มไปแล้วจากการโจมตีก่อนหน้า ไม่ต้องทอยต่อ
+    var pi = rollerOf(P);
+    if (iRollFor(pi, P)) return { P:P, human:isHumanHere(pi) };
+    i++; }
+  if (AIM){ var u = unitById(AIM.u), t = unitById(AIM.t);
+    if (!u || !t || u.shot || pendOf(u.id) || !humanTurn()) AIM = null;
+    else return { aim:AIM, u:u, t:t, human:true }; }
+  return null;
+}
+function doRoll(r){
+  if (!r) return;
+  WAIT_KEY = '';
+  if (r.aim){ var u = r.u, t = r.t, heal = r.aim.kind === 'heal', why = heal ? healWhyNot(u, t) : shotWhyNot(u, t);
+    AIM = null;
+    if (why){ popDice(why); paintPlay(); return; }
+    if (heal){ var hv = d6(); netSend({ a:'heal', u:u.id, t:t.id, roll:hv }); resolveHeal(u, t, hv); trayHeal(u, t, hv); }
+    else { var hit = rollN(atkMath(u, t).shots); netSend({ a:'atk', u:u.id, t:t.id, hit:hit }); applyAtk(u, t, hit); }
+    if (units.indexOf(u) >= 0 && u.moved && u.shot && G.sel === u) selectUnit(null); else paintPlay();
+    return; }
+  var P = r.P;
+  if (P.stage === 'wound'){ var w = rollN(P.hits); netSend({ a:'wnd', u:P.u, t:P.t, wound:w }); applyWnd(P, w); }
+  else if (P.stage === 'save'){ var s = rollN(P.wounds); netSend({ a:'sav', u:P.u, t:P.t, save:s }); applySav(P, s); }
+}
+// จบตา: จังหวะที่ค้างและเครื่องนี้มีสิทธิ์ทอย ทอยให้จบก่อน (force = ทอยให้ทุกคน ใช้ตอนเล่นคนเดียวกับตะขอเทสต์)
+function flushPend(force){
+  AIM = null;
+  var guard = 0;
+  while (PEND.length && guard++ < 200){
+    var P = PEND[0];
+    if (!unitById(P.t)){ finishAtk(P); continue; }
+    if (!(force || iRollFor(rollerOf(P), P))) break;
+    doRoll({ P:P });
+  }
+}
+
+// ---- ถาด: คิวของการทอยที่รอแสดง ลูกเต๋ากลิ้งตามจริงจากเลขที่ได้ ----
+var TRAY = { q:[], cur:null, t:0 };
+var STAGE_NM = { hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา' };
+function seedOf(str){ var h = 2166136261; for (var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
+function trayThrow(P, stage, dice, need, prev){
+  var base = P.u + '>' + P.t + '#' + G.round + ':' + stage, rolls = [], secs = 0, i;
+  for (i=0;i<dice.length;i++){ var R = DICE.roll(6, dice[i], seedOf(base + ':' + i)); rolls.push(R); secs = Math.max(secs, R.secs); }
+  TRAY.q.push({ P:P, stage:stage, dice:dice.slice(), need:need, rolls:rolls, secs:secs, prev:prev || '', final:'' });
+  dirty = true;
+}
+function trayHeal(u, t, v){
+  var P = { u:u.id, t:t.id, side:u.side, tside:t.side, anm:TY(u.t).nm, dnm:TY(t.t).nm, heal:true };
+  trayThrow(P, 'heal', [v], HEAL_ON, '');
+  TRAY.q[TRAY.q.length-1].final = v >= HEAL_ON ? 'แผลหาย 1' : 'ไม่สำเร็จ';
+}
+function traySettled(){ return !TRAY.q.length && (!TRAY.cur || TRAY.t >= TRAY.cur.secs); }
+// ยังมีลูกเต๋ากลิ้งอยู่ หรือเพิ่งหยุดยังไม่ทันได้อ่าน — บอทรอจนพ้นช่วงนี้ก่อนทำอย่างต่อไป
+function trayBusy(){ return TRAY.q.length > 0 || (!!TRAY.cur && TRAY.t < TRAY.cur.secs + HOLD); }
+function resetTray(){ PEND.length = 0; AIM = null; FALLEN.length = 0; TRAY.q.length = 0; TRAY.cur = null; TRAY.t = 0; WAIT_KEY = ''; WIN_POP = ''; }
+function trayTick(dt){
+  var sp = watching() ? SPEC.speed : 1;
+  // ลูกที่หยุดแล้วโชว์ให้อ่านสักครู่ แล้วการทอยถัดไปในคิวค่อยมาแทน
+  if (TRAY.q.length && !TRAY.hold && (!TRAY.cur || TRAY.t >= TRAY.cur.secs + 0.45)){ TRAY.cur = TRAY.q.shift(); TRAY.t = 0; }
+  var anim = !!TRAY.cur && TRAY.t < TRAY.cur.secs;
+  // ตามไม่ทัน (แอพถูกพับไว้ แล้วการโจมตีหลายครั้งมาพร้อมกัน): เร่งลูกที่ค้างคิว ไม่ให้คนต้องนั่งดูของเก่าทีละลูก
+  var catchup = 1 + Math.max(0, TRAY.q.length - 1)*0.8;
+  if (TRAY.cur && !TRAY.hold) TRAY.t += dt*sp*TRAY_RATE*catchup;
+  var busy = trayBusy() || PEND.length > 0 || !!AIM; if (busy !== TRAY.busy){ TRAY.busy = busy; dirty = true; }
+  if (FALLEN.length && !trayBusy()){ FALLEN.length = 0; dirty = true; }
+  if (WIN_POP && !trayBusy()){ popDice(WIN_POP); WIN_POP = ''; }
+  // ถาดนิ่งแล้ว: ถึงคิวใครทอย
+  // ผู้ชมกดหยุด: ลูกที่ลอยอยู่ตกให้จบ แต่ไม่ทอยจังหวะใหม่ (กด "ทีละจังหวะ" ถึงจะไปต่อ)
+  var r = (traySettled() && G.on && !G.over && !(watching() && SPEC.paused)) ? myRoll() : null, key = '';
+  if (r){ key = r.aim ? 'aim:' + r.u.id + '>' + r.t.id : r.P.u + ':' + r.P.stage;
+    if (key !== WAIT_KEY){ WAIT_KEY = key; WAIT_T = 0; }
+    var auto = !r.human || AUTO || watching();
+    WAIT_T += auto ? dt*sp : dt;
+    if (WAIT_T >= (auto ? BOT_PAUSE : ROLL_WAIT)){ doRoll(r); r = null; }
+  } else WAIT_KEY = '';
+  if (r && r.aim && TRAY.cur && !anim){ TRAY.cur = null; drawTray(); }
+  paintTray(r);
+  if (anim || (TRAY.cur && TRAY.cur.drawn !== TRAY.t >= TRAY.cur.secs)) drawTray();
+}
+function setHTML(el, s){ if (el && el._h !== s){ el._h = s; el.innerHTML = s; } }
+// หัวถาด ข้อความ ปุ่มทอย
+function paintTray(r){
+  var el = $('btTray'); if (!el) return;
+  var v = TRAY.cur, fresh = !!v && TRAY.t < v.secs + LINGER;
+  var show = G.on && (fresh || !!r || PEND.length > 0);
+  el.classList.toggle('hide', !show);
+  if (!show) return;
+  var head = '', st = '', side = 0, P = null;
+  if (r && r.aim){ var heal = r.aim.kind === 'heal', M = heal ? null : atkMath(r.u, r.t);
+    side = r.u.side; head = TY(r.u.t).nm + (heal ? ' รักษา ' : M.melee ? ' ตี ' : ' ยิง ') + TY(r.t.t).nm;
+    st = heal ? 'ทอย 1 ลูก · ได้ ' + HEAL_ON + '+ แผลหาย 1' : 'เข้าเป้า ' + M.shots + ' ลูก · ต้องได้ ' + M.need + '+'; }
+  else { P = v ? v.P : r ? r.P : PEND[0];
+    if (P){ side = P.side; head = P.anm + (P.heal ? ' รักษา ' : P.melee ? ' ตี ' : ' ยิง ') + P.dnm; }
+    if (v){ var settled = TRAY.t >= v.secs, n = count(v.dice, v.need);
+      st = (v.prev ? v.prev + ' › ' : '') + STAGE_NM[v.stage] + ' ' + v.need + '+' +
+           (settled ? ' → <b>ได้ ' + n + '</b>' + (v.dice.length > 1 ? ' จาก ' + v.dice.length : '') + (v.final ? ' · <b>' + v.final + '</b>' : '') : ' · ' + v.dice.length + ' ลูก…'); } }
+  setHTML($('btTrayT'), head ? '<span class="dot" style="background:' + TEAM(side).ui + '"></span>' + head : 'ถาดลูกเต๋า');
+  // ปุ่มทอยขึ้นเฉพาะเครื่องของคนที่ต้องทอย · คนอื่นเห็นว่ารอใครอยู่
+  var btn = $('btRoll'), mine = !!r && r.human && !AUTO && !watching(), wait = '';
+  if (!r && PEND.length && traySettled()){ var W = PEND[0], Q = G.players[rollerOf(W)];
+    wait = 'รอ ' + (Q ? esc(Q.nm) : TEAM(W.stage === 'save' ? W.tside : W.side).nm) + ' ทอย' + (W.stage === 'save' ? 'เซฟ' : 'เจาะเกราะ') + '…'; }
+  setHTML($('btTraySt'), st + (wait ? (st ? '<br>' : '') + wait : ''));
+  btn.classList.toggle('hide', !mine);
+  if (mine){ var left = Math.max(0, Math.ceil(ROLL_WAIT - WAIT_T));
+    var what = r.aim ? (r.aim.kind === 'heal' ? 'รักษา' : 'เข้าเป้า') : r.P.stage === 'save' ? 'เซฟ' : 'เจาะเกราะ';
+    setHTML(btn, '🎲 ทอย<span class="cd">' + what + ' · ' + left + ' วิ</span>'); }
+  $('btAimX').classList.toggle('hide', !AIM);
+  $('btAuto').classList.toggle('on', AUTO);
+  $('btAuto').setAttribute('aria-pressed', AUTO ? 'true' : 'false');
+}
+// ลูกเต๋าในถาด: ลูกบาศก์มีจุดแต้ม มองเฉียงลงจากด้านหน้า ลูกที่ผ่านเกณฑ์ขอบทอง ลูกที่ไม่ผ่านจางลง
+var PIPS = { 1:[[.5,.5]], 2:[[.27,.27],[.73,.73]], 3:[[.27,.27],[.5,.5],[.73,.73]], 4:[[.27,.27],[.73,.27],[.27,.73],[.73,.73]],
+  5:[[.27,.27],[.73,.27],[.5,.5],[.27,.73],[.73,.73]], 6:[[.27,.24],[.27,.5],[.27,.76],[.73,.24],[.73,.5],[.73,.76]] };
+var TRAY_TILT = 1.08, TRAY_LIGHT = [-0.35, 0.8, 0.5];    // มองชันพอให้หน้าบน (หน้าที่นับแต้ม) เด่นกว่าด้านข้าง
+function drawTray(){
+  var cv = $('btTrayCv'), v = TRAY.cur; if (!cv) return;
+  var W2 = cv.clientWidth, H2 = cv.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (!W2 || !H2) return;
+  if (cv.width !== Math.round(W2*dpr) || cv.height !== Math.round(H2*dpr)){ cv.width = Math.round(W2*dpr); cv.height = Math.round(H2*dpr); }
+  var g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W2, H2);
+  if (!v || !v.dice.length) return;
+  v.drawn = TRAY.t >= v.secs;
+  var n = v.dice.length, cols = Math.min(n, Math.max(1, Math.floor(W2 / 30))), rows = Math.ceil(n / cols);
+  var cw = W2 / cols, ch = H2 / rows;
+  // ขนาดลูก: ลูกเดียวไม่ใหญ่เกินถาด หลายลูกได้ช่องละลูก · ลูกเต๋าเก็บการไถลของจริงไว้นิดหน่อย จะได้ไม่ดูตอกติดที่
+  var s = Math.min(cw*1.75, ch*1.45, 150), cp = Math.cos(TRAY_TILT), sn = Math.sin(TRAY_TILT);
+  var S = DICE.shapes()[6], faces = [], shadows = [], i;
+  for (i=0;i<n;i++){ var R = v.rolls[i]; if (!R) continue;
+    var fi = Math.min(R.frames.length - 1, Math.floor(TRAY.t*60)), fr = R.frames[fi], settled = fi >= R.frames.length - 1;
+    var col = i % cols, row = Math.floor(i / cols), cx = (col + 0.5)*cw, cy = (row + 0.56)*ch;
+    var ok = v.dice[i] >= v.need, dim = settled && !ok;
+    var ox = fr.p[0]*0.28, oy = Math.max(0, fr.p[1] - R.r*S.inr)*0.55, oz = fr.p[2]*0.2;
+    var proj2 = function(p){ return [cx + p[0]*s, cy - (p[1]*cp - p[2]*sn)*s, p[1]*sn + p[2]*cp]; };
+    var sh = proj2([ox, 0, oz]); shadows.push([sh[0], sh[1], R.r*s*0.62, 0.35/(1 + oy*6)]);
+    S.faces.forEach(function(f, fk){
+      var nn = DICE.qrot(fr.q, f.n);
+      if (nn[1]*sn + nn[2]*cp <= 0.02) return;                    // หันหลังให้กล้อง
+      var pts = f.v.map(function(vi){ var q = DICE.qrot(fr.q, S.verts[vi]);
+        return proj2([ox + q[0]*R.r, R.r*S.inr + oy + q[1]*R.r, oz + q[2]*R.r]); });
+      var z = 0; pts.forEach(function(p){ z += p[2]; });
+      var li = Math.max(0, nn[0]*TRAY_LIGHT[0] + nn[1]*TRAY_LIGHT[1] + nn[2]*TRAY_LIGHT[2]);
+      faces.push({ pts:pts, z:z/pts.length, li:li, val:R.labels[fk], ok:ok, dim:dim, settled:settled });
+    });
+  }
+  shadows.forEach(function(q){ g.fillStyle = 'rgba(0,0,0,' + q[3].toFixed(3) + ')';
+    g.beginPath(); g.ellipse(q[0], q[1], q[2]*1.15, q[2]*0.5, 0, 0, TAU); g.fill(); });
+  faces.sort(function(a, b){ return a.z - b.z; });
+  faces.forEach(function(f){
+    var k = 0.62 + 0.38*f.li, base = f.dim ? [196,191,182] : [238,233,221], p = f.pts;
+    g.globalAlpha = f.dim ? 0.6 : 1;
+    g.beginPath(); g.moveTo(p[0][0], p[0][1]); for (var q=1;q<p.length;q++) g.lineTo(p[q][0], p[q][1]); g.closePath();
+    g.fillStyle = 'rgb(' + (base[0]*k|0) + ',' + (base[1]*k|0) + ',' + (base[2]*k|0) + ')'; g.fill();
+    var gold = f.settled && f.ok;
+    g.strokeStyle = gold ? '#E0B26A' : 'rgba(20,20,24,0.75)'; g.lineWidth = gold ? 2 : 1; g.lineJoin = 'round'; g.stroke();
+    // จุดแต้ม: วางบนหน้าลูกเต๋าด้วยการสอดแทรกจากสี่มุม
+    var pp = PIPS[f.val] || [], A = p[0], B = p[1], C = p[2], D = p[3];
+    var side = Math.min(Math.hypot(B[0]-A[0], B[1]-A[1]), Math.hypot(D[0]-A[0], D[1]-A[1])), rr = Math.max(0.9, side*0.09);
+    if (side < 3) { g.globalAlpha = 1; return; }
+    g.fillStyle = f.val === 1 ? '#B8322C' : '#1C1C20';
+    pp.forEach(function(uv){ var a = uv[0], b = uv[1];
+      var x = A[0]*(1-a)*(1-b) + B[0]*a*(1-b) + C[0]*a*b + D[0]*(1-a)*b, y = A[1]*(1-a)*(1-b) + B[1]*a*(1-b) + C[1]*a*b + D[1]*(1-a)*b;
+      g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill(); });
+    g.globalAlpha = 1;
+  });
+}
+
 // ---------- ผลัดเทิร์น ----------
 // ทีมเดียวกันเล่นพร้อมกัน แต่ละคนกด "ฉันเสร็จแล้ว" ของตัวเอง ครบทีมแล้วจึงจบตา
 function playerDone(pi){
   var P = G.players[pi];
   if (!P || P.team !== G.turn || G.over || P.done) return;
+  if (isHumanHere(pi)) flushPend(!NET.on);
   P.done = true;
   if (G.sel && G.sel.pl === pi) selectUnit(null);
   if (allDone(G.turn)){ endTurn(); return; }
@@ -2654,6 +3105,7 @@ function clockTick(dt){
   if (G.timeLeft <= 0){ G.timeLeft = 0;
     if (NET.on && !NET.owner) return;     // หมดเวลาแล้วรอเจ้าของห้องสั่งจบ จะได้ไม่จบกันคนละจังหวะ
     say('หมดเวลา — จบตาของ ' + TEAM(G.turn).nm);
+    flushPend(!NET.on);
     if (NET.on) netSend({ a:'endturn' });
     endTurn(); return; }
   if (Math.ceil(G.timeLeft) !== was) paintPlay();
@@ -2670,7 +3122,7 @@ function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<units.length;i++){ units[i].moved = false; units[i].shot = false; units[i].sel = false; }
   for (i=0;i<G.players.length;i++) G.players[i].done = false;
-  G.sel = null; G.act = null; G.timeLeft = 0;
+  G.sel = null; G.act = null; G.timeLeft = 0; AIM = null;
   G.turn = (G.turn + 1) % G.teams;
   if (G.turn === 0){ G.round++; endRoundCheck(); }
   if (G.over) return;
@@ -2690,14 +3142,14 @@ function botStep(){
   var A = TY(u.t), best = foes[0], bd = dist2(u, foes[0]), i;
   if (A.heal && !u.shot){
     var hurt = units.filter(function(q){ return canHeal(u, q); }).sort(function(a, b){ return (a.hp - TY(a.t).w) - (b.hp - TY(b.t).w); })[0];
-    if (hurt){ var hr = d6(); if (NET.on) netSend({ a:'heal', u:u.id, t:hurt.id, roll:hr }); resolveHeal(u, hurt, hr); u.moved = true; return 'shoot'; }
+    if (hurt){ var hr = d6(); if (NET.on) netSend({ a:'heal', u:u.id, t:hurt.id, roll:hr }); resolveHeal(u, hurt, hr); trayHeal(u, hurt, hr); u.moved = true; return 'shoot'; }
   }
   for (i=1;i<foes.length;i++){ var d = dist2(u, foes[i]); if (d < bd){ bd = d; best = foes[i]; } }
   var reach = A.rng > 0 ? A.rng : MELEE;
-  if (bd <= reach){ u.moved = true;
-    var BR = rollFor(u, best);
-    if (NET.on) netSend({ a:'shoot', u:u.id, t:best.id, hit:BR.hit, wound:BR.wound, save:BR.save });
-    resolveShot(u, best, BR); return 'shoot'; }   // บอทยิงแล้วจบตา ไม่เดินต่อ
+  if (bd <= reach){ u.moved = true;                 // บอทยิงแล้วจบตา ไม่เดินต่อ
+    var hit = rollN(atkMath(u, best).shots);          // บอททอยเข้าเป้าเอง เจาะเกราะก็ทอยเอง เซฟเป็นของฝั่งที่โดนยิง
+    if (NET.on) netSend({ a:'atk', u:u.id, t:best.id, hit:hit });
+    applyAtk(u, best, hit); return 'shoot'; }
   if (!u.moved){                                    // เดินเข้าหาเป้าที่ใกล้สุดเท่าที่ระยะเดินให้
     var step = Math.min(A.mv, bd - reach*0.6), f = step / (bd || 1);
     var nx = u.x + (gx(best) - u.x)*f, nz = u.z + (gz(best) - u.z)*f;
@@ -2713,12 +3165,13 @@ function botStep(){
   }
   u.shot = true; return 'move';
 }
-function botTick(dt){
+function botTick(dt, step){
   if (!G.on || G.over) return;
   if (NET.on && !NET.owner) return;       // ในห้อง เจ้าของห้องเป็นคนเล่นบอท คนอื่นรับผลตามสาย
   var ps = teamPlayers(G.turn), hasBot = false, i;
   for (i=0;i<ps.length;i++) if (ps[i].bot) hasBot = true;
   if (!hasBot) return;                       // ทีมนี้เป็นคนจริงล้วน ไม่ต้องยุ่ง
+  if (!step && (PEND.length || trayBusy())) return;   // ลูกเต๋ายังกลิ้ง หรือยังรอใครทอยอยู่ — บอทรอให้จบก่อน เหมือนนั่งโต๊ะเดียวกัน
   if (G.botTimer > 0){ G.botTimer -= dt; if (G.botTimer > 0) return; }
   var what = botStep();
   if (!what){                                // บอทในทีมนี้ทำครบแล้ว
@@ -2728,7 +3181,7 @@ function botTick(dt){
     return;
   }
   // หยุดให้อ่านลูกเต๋าตอนยิงเท่านั้น การเดินเฉย ๆ ไม่ต้องรอ
-  G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.85 : 0.12);
+  G.botTimer = Math.max(G.botTimer, what === 'shoot' ? 0.3 : 0.12);
   dirty = true;
 }
 
@@ -2741,6 +3194,7 @@ function canAct(u){
 }
 function selectUnit(u){
   var i; for (i=0;i<units.length;i++) units[i].sel = false;
+  if (AIM && (!u || AIM.u !== u.id)) AIM = null;   // เปลี่ยนตัวที่เลือก = เลิกเล็ง
   G.sel = u; if (u) u.sel = true;
   G.act = u ? (u.moved ? 'shoot' : 'move') : null;
   paintPlay(); dirty = true;
@@ -2752,17 +3206,17 @@ function tryMove(u, x, z){
   if (blockAt(x, z)){ popDice('ตรงนั้นมีสิ่งกีดขวาง<br>ยืนไม่ได้'); return false; }
   if (crowded(x, z, u)){ popDice('ตรงนั้นมีตัวอื่นยืนอยู่แล้ว'); return false; }
   u.moved = true; unitGoTo(u, x, z);
+  if (AIM && AIM.u === u.id) AIM = null;       // เดินแล้วระยะเปลี่ยน เล็งใหม่
   say(TEAM(u.side).nm + ' เดิน ' + A.nm + ' ' + d.toFixed(1) + '"');
   netSend({ a:'move', u:u.id, x:x, z:z });
   G.act = 'shoot'; paintPlay(); dirty = true; return true;
 }
 function tryShoot(u, tgt, R){
-  var A = TY(u.t), d = dist2(u, tgt), reach = A.rng > 0 ? A.rng : MELEE;
-  if (u.shot){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
-  if (!canTarget(u, tgt)){ popDice('ยิงพวกเดียวกันไม่ได้<br><span style="font-size:12px">เปิดโหมดฟรีฟายได้ที่หน้าตั้งสนาม</span>'); return false; }
-  if (d > reach + 0.001){ popDice('ไกลเกินไป<br><b>' + d.toFixed(1) + '"</b> / ' + (A.rng > 0 ? 'ยิงได้ ' + A.rng + '"' : 'ต้องประชิด ' + MELEE + '"')); return false; }
-  if (!R){ R = rollFor(u, tgt); netSend({ a:'shoot', u:u.id, t:tgt.id, hit:R.hit, wound:R.wound, save:R.save }); }
-  resolveShot(u, tgt, R);
+  if (u.shot || pendOf(u.id)){ say('ตัวนี้ยิงไปแล้วในเทิร์นนี้'); return false; }
+  var why = shotWhyNot(u, tgt); if (why){ popDice(why); return false; }
+  R = R || rollFor(u, tgt);                     // ทอยมาให้แล้ว (เทสต์) ก็ส่งขึ้นห้องเหมือนกัน ไม่งั้นเครื่องอื่นไม่รู้ว่ายิง
+  netSend({ a:'shoot', u:u.id, t:tgt.id, hit:R.hit, wound:R.wound, save:R.save });
+  applyWhole(u, tgt, R);
   if (units.indexOf(u) >= 0 && u.moved && u.shot) selectUnit(null); else paintPlay();
   return true;
 }
@@ -2900,6 +3354,10 @@ function gameOverlay(){
   for (i=0;i<units.length;i++){ var q = units[i], ready = canAct(q);
     pinAt(q, TEAM(q.side).ui, q === u || ready || sp);     // ผู้ชมไม่มีตัวให้สั่ง หมุดจางหมดก็หาใครไม่เจอ
     if (ready && q !== u) ringAt(q.x, q.z, 0.8, TEAM(q.side).ui, [5,4]); }
+  // เส้นเล็ง: ใครยิงใคร ตอนเล็งรอทอย และตลอดที่ลูกเต๋าของการโจมตีนั้นยังอยู่ในถาด ทุกเครื่องเห็นเหมือนกัน
+  var L = AIM || (TRAY.cur && trayBusy() ? TRAY.cur.P : null) || PEND[0] || null;
+  if (L){ var la = unitById(L.u) || fallenById(L.u), lb = unitById(L.t) || fallenById(L.t);
+    if (la && lb && la !== lb) fireLine(la, lb, L.kind === 'heal' || L.heal ? '#7BC47F' : TEAM(la.side).ui); }
   if (!u || units.indexOf(u) < 0) return;
   var T = TY(u.t);
   ringAt(u.x, u.z, 0.95, TEAM(u.side).ui);
@@ -2910,6 +3368,25 @@ function gameOverlay(){
     for (i=0;i<units.length;i++){ var f = units[i];
       if (canTarget(u, f) && dist2(u, f) <= reach) ringAt(f.x, f.z, 1.05, TEAM(f.side).ui); }
   }
+}
+
+function fallenById(id){ for (var i=0;i<FALLEN.length;i++) if (FALLEN[i].id === id) return FALLEN[i]; return null; }
+function fireLine(a, b, col){
+  var ka = a.scale || 1, kb = b.scale || 1;
+  var pa = proj([a.x, heightAt(a.x, a.z) + 1.0*ka, a.z]), pb = proj([b.x, heightAt(b.x, b.z) + 1.0*kb, b.z]);
+  ringAt(b.x, b.z, (b.k === 'mech' ? 1.5 : b.k === 'cavalry' ? 1.2 : 1.05), col);
+  if (pa[2] < 0.4 || pb[2] < 0.4) return;
+  OVER.push(function(){
+    var dx = pb[0] - pa[0], dy = pb[1] - pa[1], len = Math.hypot(dx, dy); if (len < 8) return;
+    var ux = dx/len, uy = dy/len, ex = pb[0] - ux*6, ey = pb[1] - uy*6, H2 = 12;
+    ctx.strokeStyle = 'rgba(11,11,14,0.55)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash([9,6]);
+    ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'butt';
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(ex + ux*6, ey + uy*6);
+    ctx.lineTo(ex - ux*H2 - uy*H2*0.55, ey - uy*H2 + ux*H2*0.55); ctx.lineTo(ex - ux*H2 + uy*H2*0.55, ey - uy*H2 - ux*H2*0.55);
+    ctx.closePath(); ctx.fill();
+  });
 }
 
 // ---------- ภาพตัวอย่างแมพในหน้าตั้งสนาม ----------
@@ -2962,6 +3439,7 @@ function frame(ts){
     for (r=0;r<k;r++) if (stepUnits(dt)) dirty = true;
     if (!(sp && SPEC.paused)) botTick(dt*k);
     clockTick(dt);
+    trayTick(dt);
   }
   tickDice();
   if (!dirty) return; dirty = false; drawScene();
@@ -3053,12 +3531,12 @@ function tapGame(p){
   if (G.over || !humanTurn()) return;
   var hit = unitHit(p[0], p[1]);
   var sel = G.sel && units.indexOf(G.sel) >= 0 ? G.sel : null;
-  if (sel && hit && hit !== sel && TY(sel.t).heal && !sel.shot && hit.side === sel.side && hit.hp < TY(hit.t).w){ tryHeal(sel, hit); return; }
+  if (sel && hit && hit !== sel && TY(sel.t).heal && !sel.shot && hit.side === sel.side && hit.hp < TY(hit.t).w){ aimAt(sel, hit, 'heal'); return; }
   if (hit && hit.side === G.turn && canAct(hit)){ selectUnit(hit); return; }
   var u = G.sel; if (!u || units.indexOf(u) < 0) return;
   if (hit && hit === u) return;
   if (hit && hit.side === G.turn && !G.freeFire){ say('ตัวนี้ทำครบแล้วในเทิร์นนี้'); return; }
-  if (hit){ G.act = 'shoot'; tryShoot(u, hit); return; }
+  if (hit){ G.act = 'shoot'; aimAt(u, hit, 'atk'); return; }
   var w = groundHit(p[0], p[1]); if (!w) return;
   if (G.act === 'shoot' && !u.shot){ say('แตะที่ตัวศัตรูเพื่อยิง'); return; }
   tryMove(u, w[0], w[2]);
@@ -3148,9 +3626,14 @@ function netPoll(){
     })
     .catch(function(e){ NET.busy = false; netNote('เน็ตมีปัญหา — ' + e.message); });
 }
+// ส่งทีละคำสั่งตามลำดับ: ทอยเข้าเป้าต้องถึงห้องก่อนทอยเจาะเกราะเสมอ ถ้ายิงพร้อมกันเน็ตช้าอาจสลับกัน
+// แล้วเครื่องอื่นจะได้จังหวะที่สองก่อนจังหวะแรก (ทิ้งไป) การโจมตีนั้นค้างบนทุกจอยกเว้นเครื่องเรา
+var SENDQ = Promise.resolve();
 function netSend(act){
   if (!NET.on) return Promise.resolve();
-  return netPost('/' + NET.code + '/act', { pid:NET.pid, act:act }).catch(function(e){ netNote(e.message); });
+  var path = '/' + NET.code + '/act', body = { pid:NET.pid, act:act };
+  SENDQ = SENDQ.then(function(){ return netPost(path, body).catch(function(e){ netNote(e.message); }); });
+  return SENDQ;
 }
 // สถานะห้องล่าสุดคือความจริง — เอามาทับของในเครื่องทุกครั้งที่ถาม
 function adoptRoom(R){
@@ -3169,7 +3652,7 @@ function adoptRoom(R){
   // ที่นั่งว่างให้บอทนั่งแทน จะได้ครบทีมและเล่นจบได้แม้คนไม่ครบ
   var ps = [], k = 0;
   for (i=0;i<R.players.length;i++){ var q = R.players[i];
-    ps.push({ id:k, pid:q.pid, team:q.team, nm:q.nm, bot:!!q.bot || !!q.gone, list:fitList(q.list), fac:facOf(q.list),
+    ps.push({ id:k, pid:q.pid, team:q.team, nm:q.nm, bot:!!q.bot || !!q.gone, ai:!!q.ai, list:fitList(q.list), fac:facOf(q.list),
               dep:q.dep ? q.dep.slice() : null, done:false }); k++; }
   var t, n;
   for (t=0;t<G.teams;t++){
@@ -3199,12 +3682,20 @@ function applyAct(a){
   if (a.a === 'owner'){ NET.owner = (a.pid === NET.pid); if (G.on) say('เจ้าของห้องเดิมหลุดไป — ' + esc(a.nm) + ' คุมห้องต่อ'); return; }
   if (a.a === 'state'){ if (a.roster) adoptRoster(a.roster, a.bots); netPhase(a.state); return; }
   if (!G.on) return;
+  // สิ่งที่เครื่องนี้ส่งไปเอง ห้องส่งกลับมาให้ด้วย — ทำไปแล้วตอนกด ทำซ้ำไม่ได้ (จบตาซ้ำ = ข้ามตาของเพื่อน)
+  if (a.pid && a.pid === NET.pid) return;
   if (a.a === 'move'){ var u = unitById(a.u); if (u && !u.moved){ u.moved = true; unitGoTo(u, a.x, a.z); say(TEAM(u.side).nm + ' เดิน ' + TY(u.t).nm + ' ' + Math.hypot(a.x-u.x, a.z-u.z).toFixed(1) + '"'); dirty = true; } return; }
-  if (a.a === 'shoot'){ var s1 = unitById(a.u), t1 = unitById(a.t);
-    if (s1 && t1 && !s1.shot) resolveShot(s1, t1, { hit:a.hit||[], wound:a.wound||[], save:a.save||[] });
+  if (a.a === 'shoot'){ var s1 = unitById(a.u), t1 = unitById(a.t);      // ทอยครบในทีเดียว (Claude · เครื่องรุ่นเก่า)
+    if (s1 && t1 && !s1.shot && !pendOf(s1.id)) applyWhole(s1, t1, { hit:a.hit||[], wound:a.wound||[], save:a.save||[] });
     paintPlay(); return; }
-  if (a.a === 'heal'){ var h1 = unitById(a.u), h2 = unitById(a.t);
-    if (h1 && h2 && !h1.shot) resolveHeal(h1, h2, a.roll | 0 || 1);
+  // ทีละจังหวะ: เข้าเป้า → เจาะเกราะ → เซฟ แต่ละจังหวะมาจากเครื่องของคนที่ทอย
+  if (a.a === 'atk'){ var s3 = unitById(a.u), t3 = unitById(a.t);
+    if (s3 && t3 && !s3.shot && !pendOf(s3.id)) applyAtk(s3, t3, a.hit || []);
+    return; }
+  if (a.a === 'wnd'){ var P1 = pendOf(a.u); if (P1 && P1.t === a.t) applyWnd(P1, a.wound || []); return; }
+  if (a.a === 'sav'){ var P2 = pendOf(a.u); if (P2 && P2.t === a.t) applySav(P2, a.save || []); return; }
+  if (a.a === 'heal'){ var h1 = unitById(a.u), h2 = unitById(a.t), hv = a.roll | 0 || 1;
+    if (h1 && h2 && !h1.shot){ resolveHeal(h1, h2, hv); trayHeal(h1, h2, hv); }
     paintPlay(); return; }
   if (a.a === 'skip'){ var s2 = unitById(a.u); if (s2){ s2.moved = true; s2.shot = true; paintPlay(); dirty = true; } return; }
   if (a.a === 'done'){ var pi = pidIndex(a.pid); if (pi >= 0) playerDone(pi); return; }
@@ -3498,7 +3989,7 @@ $('btDepGo').addEventListener('click', function(){
 
 function startMatch(){
   G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null;
-  G.timeLeft = 0; LOG.length = 0;
+  G.timeLeft = 0; LOG.length = 0; resetTray();
   var i;
   for (i=0;i<G.players.length;i++){
     G.players[i].done = false;
@@ -3518,14 +4009,19 @@ $('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('bu
   var a = b.dataset.a, u = G.sel;
   if (a === 'done'){ if (u){ u.moved = true; u.shot = true; netSend({ a:'skip', u:u.id }); } selectUnit(null); return; }
   G.act = a; paintPlay(); dirty = true; });
-$('btEnd').addEventListener('click', function(){ if (NET.on) netSend({ a:'endturn' }); endTurn(); });
+$('btEnd').addEventListener('click', function(){ flushPend(!NET.on); if (NET.on) netSend({ a:'endturn' }); endTurn(); });
+// ถาดลูกเต๋า: ปุ่มทอย · ออโต้ (จำไว้ในเครื่อง) · เลิกเล็ง
+$('btRoll').addEventListener('click', function(){ var r = myRoll(); if (r && r.human) doRoll(r); });
+$('btAuto').addEventListener('click', function(){ AUTO = !AUTO; WAIT_KEY = '';
+  try { localStorage.setItem('bt.autoDice', AUTO ? '1' : '0'); } catch (e) {} });
+$('btAimX').addEventListener('click', function(){ AIM = null; WAIT_KEY = ''; paintPlay(); dirty = true; });
 $('btDone').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   var pi = +b.dataset.p;
   if (NET.on){ if (pi !== G.mePl) return; netSend({ a:'done' }); }
   playerDone(pi); });
 function quitGame(){
   if (NET.on){ var c = NET.code, pd = NET.pid; netStop(); netPost('/' + c + '/leave', { pid:pd }).catch(function(){}); }
-  G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog();
+  G.on = false; G.over = false; units.length = 0; G.sel = null; G.timeLeft = 0; LOG.length = 0; paintLog(); resetTray();
   SPEC.paused = false;
   var i; for (i=0;i<G.players.length;i++){ G.players[i].dep = null; G.players[i].done = false; }
   show('scSetup'); syncRulesUI(); $('btTip').textContent = '· ลากหมุน · สองนิ้วเลื่อน'; fitTable(); dirty = true; }
@@ -3544,8 +4040,11 @@ $('btPause').addEventListener('click', function(){ SPEC.paused = !SPEC.paused; p
 $('btSpd').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; SPEC.speed = +b.dataset.s; paintPlay(); });
 // ทีละจังหวะ: หยุดไว้ แล้วให้บอทเล่นหนึ่งอย่าง — เวลาที่ใหญ่มากผ่านตัวจับเวลาได้ครั้งเดียว แล้วมันตั้งเวลาใหม่เอง
 // จึงได้การเดินหรือการยิงหนึ่งครั้ง หรือการจบตาหนึ่งครั้ง พอดี ๆ
+// ลูกเต๋า: การโจมตีหนึ่งครั้งคือหนึ่งจังหวะ ทอยครบทุกขั้นในการกดครั้งเดียว แล้วถาดค่อยเล่นให้ดูตามลำดับ
 $('btStep').addEventListener('click', function(){ if (!watching() || G.over) return;
-  SPEC.paused = true; botTick(1e9); paintPlay(); dirty = true; });
+  SPEC.paused = true;
+  if (PEND.length) flushPend(true); else { botTick(1e9, true); flushPend(true); }
+  paintPlay(); dirty = true; });
 $('btAgain').addEventListener('click', function(){ G.on = false; units.length = 0; newField(); spectate(); });
 
 $('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
@@ -3575,7 +4074,17 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
   // ตะขอสำหรับเทสต์อัตโนมัติ
   pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
-  props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt, botStep:botStep,
+  props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt,
+  botStep:function(){ var r = botStep(); flushPend(true); return r; },       // เทสต์วนเรียกทีละก้าว: ลูกเต๋าที่ค้างทอยให้จบในก้าวนั้น
+  tray:function(){ return { q:TRAY.q.length, cur:TRAY.cur ? { stage:TRAY.cur.stage, dice:TRAY.cur.dice.slice(), settled:TRAY.t >= TRAY.cur.secs, final:TRAY.cur.final } : null,
+    pend:PEND.map(function(P){ return { u:P.u, t:P.t, stage:P.stage, hits:P.hits, wounds:P.wounds }; }), aim:AIM, auto:AUTO, fallen:FALLEN.length }; },
+  aim:aimAt, myRoll:function(){ var r = myRoll(); return r ? (r.aim ? 'aim' : r.P.stage) + (r.human ? ':human' : ':auto') : null; },
+  roll:function(){ var r = myRoll(); if (r) doRoll(r); return !!r; }, flush:flushPend,
+  setAuto:function(v){ AUTO = !!v; WAIT_KEY = ''; },
+  trayHold:function(on){ TRAY.hold = !!on; },            // เทสต์ถ่ายรูป: หยุดนาฬิกาของถาดไว้
+  trayTop:function(){ var v = TRAY.cur; if (!v) return null;       // หน้าที่หงายขึ้นจริงของแต่ละลูก (ตามทิศของหน้าในโลก)
+    return v.rolls.map(function(R){ var fr = R.frames[R.frames.length-1], best = -2, lab = null;
+      DICE.shapes()[6].faces.forEach(function(f, k){ var y = DICE.qrot(fr.q, f.n)[1]; if (y > best){ best = y; lab = R.labels[k]; } }); return lab; }); },
   NET:NET, netPoll:netPoll, applyAct:applyAct, adoptRoom:adoptRoom, unitById:unitById, rollFor:rollFor,
   deploy:deploy, seedOf:function(){ return SEED; }, themeOf:function(){ return theme; },
   depLog:function(){ return DEPLOG; },
