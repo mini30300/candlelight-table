@@ -919,6 +919,12 @@ var ARM_LIGHT = R.norm([-0.5, 0.8, 0.45]);
 var ARM_KEYS = ['helm','chest','pauld','arms','legs','skirt','pack'];
 var ARM_TH = { helm:'หมวก', chest:'เกราะอก', pauld:'บ่า', arms:'แขน', legs:'ขา', skirt:'กระโปรง', pack:'เป้หลัง' };
 var FACES = [], FACE_POOL = [];
+// Level of detail. 1 = every facet; smaller = the same figure with fewer facets round each tube and dome, for a piece
+// that is small on screen or while the camera is moving. It is never replaced by a stand-in block: the silhouette, the
+// kit and the pose stay the model's own at every level. `lo` is the fewest facets a round part may drop to, so a limb
+// never turns into a three-sided stick.
+var LODK = 1;
+function segs(n, lo){ if (LODK >= 1) return n; if (LODK < 0.4) lo = Math.min(lo, 4); return Math.max(Math.min(n, lo), Math.round(n*LODK)); }
 function armFace(pts, n, kind, rim){ var f = FACE_POOL[FACES.length] || (FACE_POOL[FACES.length] = { p:[], n:null, k:0, z:0 }); f.p = pts; f.n = n; f.k = kind; f.rim = rim || RIM_ALL; FACES.push(f); }
 var RIM_ALL = [1,1,1,1], RIM_RING = [1,0,1,0], RIM_NONE = [0,0,0,0], RIM_BOT = [1,0,0,0], RIM_TOP = [0,0,1,0];
 // local -> world for a joint frame
@@ -934,7 +940,7 @@ function lp(p){ if (!LROT) return p; var q = R.qrot(LROT, p); return LCEN ? R.ad
 function withRot(rot, cen, fn){ var pr = LROT, pc = LCEN; LROT = rot; LCEN = cen || null; fn(); LROT = pr; LCEN = pc; }
 function armTube(Wj, y0, r0x, r0z, y1, r1x, r1z, seg, a0, a1, kind, xoff){
   a0 = a0==null ? 0 : a0; a1 = a1==null ? Math.PI*2 : a1; xoff = xoff||0;
-  var full = Math.abs(a1-a0-Math.PI*2) < 1e-6, n = seg, step = (a1-a0)/n;
+  var full = Math.abs(a1-a0-Math.PI*2) < 1e-6, n = segs(seg, 5), step = (a1-a0)/n;
   for (var i=0;i<n;i++){ var t0 = a0+i*step, t1 = a0+(i+1)*step, c0=Math.cos(t0), s0=Math.sin(t0), c1=Math.cos(t1), s1=Math.sin(t1);
     var p00=lp([xoff+r0x*s0, y0, r0z*c0]), p01=lp([xoff+r0x*s1, y0, r0z*c1]), p10=lp([xoff+r1x*s0, y1, r1z*c0]), p11=lp([xoff+r1x*s1, y1, r1z*c1]);
     if (y1 > y0) armQuad(Wj, p00, p01, p11, p10, kind, RIM_RING); else armQuad(Wj, p01, p00, p10, p11, kind, RIM_RING); }
@@ -943,6 +949,7 @@ function armTube(Wj, y0, r0x, r0z, y1, r1x, r1z, seg, a0, a1, kind, xoff){
 // lonA..lonB (deg, optional) limits the longitudes; thick (optional) adds a visible rim band of that thickness along the lower edge
 function armDome(Wj, c, r, lat0, lat1, nLon, nLat, skipLon, kind, sy, lonA, lonB, thick){
   sy = sy||1; var LA = lonA==null ? -180 : lonA, LB = lonB==null ? 180 : lonB;
+  nLon = segs(nLon, 6); nLat = segs(nLat, LODK < 0.4 ? 1 : 2);
   var f = function(la, lo, rr){ lo *= D; rr = rr||r; return lp([c[0]+rr*Math.cos(la)*Math.sin(lo), c[1]+sy*rr*Math.sin(la), c[2]+rr*Math.cos(la)*Math.cos(lo)]); };
   for (var j=0;j<nLat;j++){ var la0 = (lat0 + (lat1-lat0)*j/nLat)*D, la1 = (lat0 + (lat1-lat0)*(j+1)/nLat)*D;
     for (var i=0;i<nLon;i++){ var lo0 = LA + (LB-LA)*i/nLon, lo1 = LA + (LB-LA)*(i+1)/nLon;
@@ -953,6 +960,7 @@ function armDome(Wj, c, r, lat0, lat1, nLon, nLat, skipLon, kind, sy, lonA, lonB
       if (thick && LB-LA < 359 && i===nLon-1) armQuad(Wj, f(la0,lo1,r-thick), f(la1,lo1,r-thick), f(la1,lo1), f(la0,lo1), kind, RIM_ALL); } }
 }
 function armBox(Wj, c, hx, hy, hz, kind){
+  if (LODK < 0.6 && Math.max(hx, hy, hz) < (LODK < 0.4 ? 0.035 : 0.02)) return;   // far away a buckle or a strap end is below a pixel
   var x0=c[0]-hx, x1=c[0]+hx, y0=c[1]-hy, y1=c[1]+hy, z0=c[2]-hz, z1=c[2]+hz, P = function(x,y,z){ return lp([x,y,z]); };
   armQuad(Wj,P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1),kind); armQuad(Wj,P(x1,y0,z0),P(x0,y0,z0),P(x0,y1,z0),P(x1,y1,z0),kind);
   armQuad(Wj,P(x1,y0,z1),P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),kind); armQuad(Wj,P(x0,y0,z0),P(x0,y0,z1),P(x0,y1,z1),P(x0,y1,z0),kind);
@@ -1126,13 +1134,15 @@ function kitHoplite(Wd){
     armTube(Wd.wristR, 1.25, 0.03, 0.02, 1.47, 0.002, 0.002, 6, 0, Math.PI*2, 'helm'); armTube(Wd.wristR, -0.95, 0.02, 0.02, -1.0, 0.006, 0.006, 6, 0, Math.PI*2, 'helm'); });
 }
 function armRollX(Wj, c, hx, r, seg, kind){
+  seg = segs(seg, 5);
   for (var i=0;i<seg;i++){ var t0 = i/seg*Math.PI*2, t1 = (i+1)/seg*Math.PI*2;
     var y0 = c[1]+r*Math.cos(t0), z0 = c[2]+r*Math.sin(t0), y1 = c[1]+r*Math.cos(t1), z1 = c[2]+r*Math.sin(t1);
     armQuad(Wj, [c[0]-hx,y0,z0],[c[0]-hx,y1,z1],[c[0]+hx,y1,z1],[c[0]+hx,y0,z0], kind, RIM_RING); }
 }
 
-function build(kit, Wd){ KIT = kit; FACES.length = 0;
+function build(kit, Wd, lod){ KIT = kit; FACES.length = 0; LODK = lod || 1;
   if (kit === 'heavy' || kit === 'enemy') kitHeavy(Wd); else if (kit === 'infantry') kitInfantry(Wd); else if (kit === 'hoplite') kitHoplite(Wd);
+  LODK = 1;
   return FACES; }
 function pose(kit, P){ var k = KIT; KIT = kit; kitPose(P); KIT = k; }
 return { build:build, pose:pose, SOLID:SOLID, keys:ARM_KEYS };
@@ -1420,6 +1430,7 @@ var FACES = [], LIGHT = (function(){ var v=[-0.45,0.78,0.44], l=Math.hypot(v[0],
 function shade(col, n, amb){
   var nl = n ? (n[0]*LIGHT[0] + n[1]*LIGHT[1] + n[2]*LIGHT[2]) : 1;
   var a0 = (amb == null ? 0.6 : amb), k = a0 + (1-a0)*Math.max(0, nl)*1.08;
+  k = Math.round(k*40)/40;          // 40 light steps: invisible banding, and far more neighbouring faces share one fill
   return 'rgb(' + (col[0]*k|0) + ',' + (col[1]*k|0) + ',' + (col[2]*k|0) + ')';
 }
 function normal(a, b, c){ var u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
@@ -1430,6 +1441,10 @@ function face(pts, col, opt){    // pts: world points (3 or 4), col: [r,g,b]
   if (n && opt && opt.cull !== false){    // back-face cull: skip faces pointing away from the eye
     var m = pts.length, ex = cx/m-EYE[0], ey = cy/m-EYE[1], ez = cz/m-EYE[2];
     if (n[0]*ex + n[1]*ey + n[2]*ez > 0) return;
+  }
+  if (opt && opt.minA){                   // a facet smaller than this many square pixels adds nothing you can see
+    var ar = 0; for (i=0;i<sp.length;i++){ var s0 = sp[i], s1 = sp[(i+1)%sp.length]; ar += s0[0]*s1[1] - s1[0]*s0[1]; }
+    if (Math.abs(ar) < opt.minA*2) return;
   }
   FACES.push({ d: d/pts.length + ((opt && opt.bias) || 0), sp: sp, fill: (opt && opt.flat) ? 'rgb('+col[0]+','+col[1]+','+col[2]+')' : shade(col, n, opt && opt.amb),
     line: opt && opt.line, lw: (opt && opt.lw) || 1, alpha: (opt && opt.alpha) ? opt.a : null });
@@ -1753,7 +1768,7 @@ function drawProp(o){
   }
 }
 
-// ---------- miniatures: a compact armoured figure on a base, ~28 faces ----------
+// ---------- miniatures: each piece is the rig in its armour kit, standing on a base ----------
 // ย้อมทุกทีม — เอาความสว่างของชุดเดิมมาทาบบนสีประจำทีม แสงเงาจึงยังอยู่ แต่สีเป็นของทีม
 // สี trim ปล่อยไว้ตามชนิดหน่วย จะได้ยังแยกออกว่าเกราะหนักหรือกรีก
 function teamTint(c, T){
@@ -1775,31 +1790,33 @@ var UNIT_COL = {
 };
 var units = [];
 var RIGQ = SKRIG, POSE_CACHE = {};
-// Three ways a piece gets its geometry, cheapest first:
-//   never moved      -> one shared idle build per kit, cached for the whole table (what this page already did)
-//   moved, now still -> the build it stopped in, frozen on the piece, so a stance costs nothing to hold
-//   moving           -> rebuilt from the live pose every frame. 0.2 ms each (bt_walk.js), and MINI hands back its own
-//                       face pool, so the caller has to draw what it gets before asking for another piece.
+// Every piece is drawn as its real model -- the rig in its armour kit -- never as a stand-in block. What changes with
+// distance is only how many facets it gets: LODS[0] every facet, [1] about 60 %, [2] about half (small on screen, or
+// while the camera is being dragged), [3] a quarter for a piece only a dozen pixels tall. Geometry comes three ways, cheapest first:
+//   never moved      -> one shared idle stance per kit, built once per level and cached for the whole table
+//   moved, now still -> the stance it stopped in (its joint frames), built once per level and kept on the piece
+//   moving           -> rebuilt from the live pose every frame, at its level. MINI hands back its own face pool,
+//                       so the caller has to draw what it gets before asking for another piece.
+var LODS = [1, 0.65, 0.45, 0.3];
 function kitOf(u){ return u.k === 'enemy' ? 'heavy' : u.k; }
-function liveFaces(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return MINI.build(kit, RIGQ.fk(P)); }
-function freeze(u){ return liveFaces(u).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; }); }
-function rigFaces(u){                    // the kit's geometry, already moved onto the table
-  if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u);
-  if (u.rest) return u.rest;
-  var kit = kitOf(u), key = kit + '|' + (u.pv||0);
-  var cached = POSE_CACHE[key];
+function copyFaces(fs){ return fs.map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; }); }
+function copyFrames(Wd){ var out = {}, n; for (n in Wd) out[n] = { p: Wd[n].p.slice(), q: Wd[n].q.slice() }; return out; }
+function liveFaces(u, L){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return MINI.build(kit, RIGQ.fk(P), LODS[L||0]); }
+function freeze(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return { Wd: copyFrames(RIGQ.fk(P)), f: [] }; }
+function rigFaces(u, L){                    // the kit's geometry, in the model's own frame
+  L = L || 0;
+  var kit = kitOf(u);
+  if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u, L);
+  if (u.rest) return u.rest.f[L] || (u.rest.f[L] = copyFaces(MINI.build(kit, u.rest.Wd, LODS[L])));
+  var key = kit + '|' + (u.pv||0), cached = POSE_CACHE[key];
   if (!cached){
     var P = RIGQ.idlePose((u.pv||0)*1.7);           // a standing pose, each model at a slightly different breath phase
     MINI.pose(kit, P);
-    var Wd = RIGQ.fk(P), n, out = {};
-    for (n in Wd) out[n] = { p: Wd[n].p, q: Wd[n].q };
-    cached = POSE_CACHE[key] = { Wd: out, faces: null };
-    cached.faces = MINI.build(kit, out).map(function(f){ return { p: f.p.map(function(q){ return q.slice(); }), k: f.k }; });
+    cached = POSE_CACHE[key] = { Wd: copyFrames(RIGQ.fk(P)), f: [] };
   }
-  return cached.faces;
+  return cached.f[L] || (cached.f[L] = copyFaces(MINI.build(kit, cached.Wd, LODS[L])));
 }
 // ---------- moving pieces ----------
-var LIVE_RIG = 6;   // live rigs built per frame; a walker past the budget still moves, it is just drawn as a pawn
 function unitGoTo(u, x, z){
   var cx = clamp(x, -table.w/2, table.w/2), cz = clamp(z, -table.d/2, table.d/2);
   u.gx = cx; u.gz = cz;                        // ปลายทางที่กติกาอนุมัติแล้ว เก็บไว้วางให้ตรงเป๊ะตอนถึง
@@ -1817,57 +1834,45 @@ function stepUnits(dt){
   }
   return any;
 }
-function drawRig(u, S){
-  var faces = rigFaces(u), pal = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy;
-  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m, TC = (u.side != null && G.on) ? TEAM(u.side).rgb : null;
-  for (i=0;i<faces.length;i++){
-    var f = faces[i], pts = [], col = pal[f.k] || pal.plate;
+// the kit's colours for this piece, already dyed in its team's colour -- worked out once, not once per facet per frame
+function rigPal(u){
+  var TC = (u.side != null && G.on) ? TEAM(u.side).rgb : null, key = (TC ? u.side : 'x') + '|' + u.k;
+  if (u._pk === key) return u._pal;
+  var src = MINI.SOLID[u.k === 'enemy' ? 'heavy' : u.k] || MINI.SOLID.heavy, out = {}, n;
+  for (n in src){ var col = src[n];
     if (TC) col = teamTint(col, TC);
     else if (u.k === 'enemy') col = [col[0]*0.55 + 120, col[1]*0.45, col[2]*0.45];
-    for (m=0;m<f.p.length;m++){ var q = f.p[m];
-      pts.push([ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]); }
-    face(pts, col, { bias:-0.15 });
+    out[n] = col; }
+  u._pk = key; u._pal = out; return out;
+}
+var RIG_OPT = { bias:-0.15 }, RIG_OPT_FAR = { bias:-0.15, minA:0.35 };
+function drawRig(u, S){
+  var faces = rigFaces(u, u.lod), pal = rigPal(u), opt = u.lod >= 2 ? RIG_OPT_FAR : RIG_OPT;
+  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m;
+  for (i=0;i<faces.length;i++){
+    var f = faces[i], fp = f.p, pts = new Array(fp.length), col = pal[f.k] || pal.plate;
+    for (m=0;m<fp.length;m++){ var q = fp[m];
+      pts[m] = [ u.x + (q[0]*c + q[2]*sn)*S, y + q[1]*S, u.z + (-q[0]*sn + q[2]*c)*S ]; }
+    face(pts, col, opt);
   }
 }
-// Which pieces are worth the real model this frame: biggest on screen first, and a walking piece ahead of a standing one
-// of the same size, because a piece drawn as a pawn cannot show its gait. Allocation only -- the faces are depth-sorted
-// afterwards, so this never changes what ends up in front of what.
-function planRigs(){
-  var i, u, list = [];
-  for (i=0;i<units.length;i++){ u = units[i]; u.rig = false;
+// How much detail each piece gets this frame, from how tall it stands on screen. Pieces off screen are skipped whole.
+function planLod(){
+  var i, u;
+  for (i=0;i<units.length;i++){ u = units[i];
     var y = heightAt(u.x, u.z), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
     u.px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
-    if (u.px > 32) list.push(u); }
-  if (dragging) return;                                    // spinning the camera: pawns only, as before
-  list.sort(function(a,b){ return (b.px + (b.mv?400:0)) - (a.px + (a.mv?400:0)); });
-  var grant = 0, live = 0;
-  for (i=0;i<list.length && grant<rigBudget;i++){ u = list[i];
-    if (u.mv){ if (live >= LIVE_RIG) continue; live++; }    // live poses cost geometry every frame; cap them
-    u.rig = true; grant++; }
+    u.onScr = pa[2] > 0.4 && pa[0] > -120 && pa[0] < W + 120 && pa[1] > -40 && pa[1] < H + 200;
+    u.lod = u.px > 70 ? (dragging ? 2 : 0) : u.px > 36 ? (dragging ? 2 : 1) : u.px > 24 ? 2 : 3;
+  }
 }
 function drawUnit(u){
-  var C = unitCol(u), y = heightAt(u.x, u.z), s = 1.0, rot = u.rot || 0;
+  if (!u.onScr) return;
+  var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0;
   shadowAt(u.x, u.z, 0.8, 0.34);
-  if (u.rig){                                       // close enough, and in budget, to be worth the real model
-    prism(u.x, y, u.z, 0.62, 0.1, 12, C.base, rot, 1); drawRig(u, 1.0);
-    if (u.sel) ringAt(u.x, u.z, 0.95, '#E0B26A');
-    return;
-  }
-  prism(u.x, y, u.z, 0.62, 0.16, 12, C.base, rot, 1);              // base disc
-  var b = y + 0.16;
-  box(u.x, b + 0.38, u.z, 0.30, 0.38, 0.22, C.plate, rot);         // legs block
-  box(u.x, b + 0.95, u.z, 0.40, 0.30, 0.26, C.plate, rot);         // torso
-  box(u.x, b + 1.2, u.z, 0.16, 0.12, 0.30, C.trim, rot);           // chest trim
-  var sx = Math.cos(rot), sz = -Math.sin(rot);                      // shoulder axis
-  box(u.x + sx*0.46, b + 1.16, u.z + sz*0.46, 0.18, 0.20, 0.24, C.plate, rot);   // pauldrons
-  box(u.x - sx*0.46, b + 1.16, u.z - sz*0.46, 0.18, 0.20, 0.24, C.plate, rot);
-  box(u.x, b + 1.46, u.z, 0.19, 0.18, 0.21, C.plate, rot);          // helmet
-  var fx = Math.sin(rot), fz = Math.cos(rot);                       // facing
-  box(u.x + fx*0.19, b + 1.44, u.z + fz*0.19, 0.13, 0.07, 0.04, C.visor, rot);   // visor slit
-  if (u.k === 'hoplite'){ box(u.x, b + 1.72, u.z, 0.05, 0.16, 0.22, C.trim, rot);          // crest
-    box(u.x - sx*0.52, b + 1.0, u.z - sz*0.52, 0.06, 0.34, 0.34, C.trim, rot); }           // shield
-  else { box(u.x + sx*0.52 + fx*0.18, b + 0.92, u.z + sz*0.52 + fz*0.18, 0.09, 0.09, 0.42, C.visor, rot); }   // weapon
-  if (u.sel){ ringAt(u.x, u.z, 0.95, '#E0B26A'); }
+  prism(u.x, y, u.z, 0.62, 0.1, u.lod ? 8 : 12, C.base, rot, 1);  // base disc
+  drawRig(u, 1.0);
+  if (u.sel) ringAt(u.x, u.z, 0.95, '#E0B26A');
 }
 function ringAt(x, z, r, col, dash){
   var pts = [], n = 20, i; for (i=0;i<=n;i++){ var a = i*TAU/n, px = x+Math.cos(a)*r, pz = z+Math.sin(a)*r, p = proj([px, heightAt(px,pz)+0.05, pz]); if (p[2] < 0.4) return; pts.push(p); }
@@ -1882,13 +1887,13 @@ function shadowAt(x, z, r, k){    // a soft dark patch on the ground so pieces s
 }
 
 // ---------- frame ----------
-var dirty = true, dragging = false, rigBudget = 10, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
+var dirty = true, dragging = false, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
 function drawScene(){
   setupCam(); FACES = []; OVER = [];
   var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-  var step = dragging ? 2 : 1; rigBudget = dragging ? 0 : 7;
-  planRigs();
+  var step = dragging ? 2 : 1;
+  planLod();
   drawGround(step); drawRails();
   var i, detail = dragging ? 46 : 26;
   // a dense forest on a big table is hundreds of pieces: one only a few pixels tall skips its shadow and trunk
@@ -1901,9 +1906,18 @@ function drawScene(){
   if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
   gameOverlay();
   FACES.sort(function(a,b){ return b.d - a.d; });
-  for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp;
-    ctx.beginPath(); ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
-    if (f.alpha != null){ ctx.globalAlpha = f.alpha; ctx.fillStyle = f.fill; ctx.fill(); ctx.globalAlpha = 1; } else { ctx.fillStyle = f.fill; ctx.fill(); } if (f.line){ ctx.strokeStyle = f.line; ctx.lineWidth = f.lw; ctx.stroke(); } }
+  // Neighbours in depth order that share a colour go into one path and one fill: the fill is most of a frame's cost,
+  // and a figure's facets or a patch of ground mostly repeat the same few shades. Same colour, so their order among
+  // themselves cannot show. Faces with a line or their own alpha still go one at a time.
+  var run = null;
+  for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp, solo = f.alpha != null || !!f.line;
+    if (run !== null && (solo || f.fill !== run)){ ctx.fillStyle = run; ctx.fill(); run = null; }
+    if (run === null) ctx.beginPath();
+    ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
+    if (!solo){ run = f.fill; continue; }
+    if (f.alpha != null){ ctx.globalAlpha = f.alpha; ctx.fillStyle = f.fill; ctx.fill(); ctx.globalAlpha = 1; } else { ctx.fillStyle = f.fill; ctx.fill(); }
+    if (f.line){ ctx.strokeStyle = f.line; ctx.lineWidth = f.lw; ctx.stroke(); } }
+  if (run !== null){ ctx.fillStyle = run; ctx.fill(); }
   for (i=0;i<OVER.length;i++) OVER[i]();
   hud();
 }
