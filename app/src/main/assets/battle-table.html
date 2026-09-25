@@ -381,13 +381,37 @@
           </svg>
           <span><span class="t">ตำนานสยาม</span><span class="d">ช้างศึก ยักษ์ หนุมาน พญานาค ดาบสองมือ</span></span>
         </button>
-        <button class="mode" data-f="lg">
+        <button class="mode" data-f="jp">
           <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 20c6-8 14-12 24-12l-6 6 8 2-10 4 6 6c-10 2-18 0-22-6z"/><circle cx="20" cy="15" r="1.4"/>
-            <path d="M40 30c0-8 4-14 10-14s10 6 10 14z"/><path d="M42 16c2-6 6-9 8-9s6 3 8 9"/><path d="M50 7V3"/>
-            <path d="M76 34V16"/><path d="M68 8h16v8H68z"/><path d="M88 4l-3 6h3l-4 7"/>
+            <path d="M6 27c0-9 6-14 14-14s14 5 14 14z"/><path d="M11 9c4 5 14 5 18 0"/><path d="M20 13V9"/><path d="M4 27h32M8 31h24"/>
+            <path d="M42 8c7 2 21 2 28 0"/><path d="M45 14h22"/><path d="M49 9v25M63 9v25"/>
+            <path d="M76 34c4-10 9-19 16-28"/><path d="M76 28l5 3"/>
           </svg>
-          <span><span class="t">ตำนานโลก</span><span class="d">ซามูไร นินจา ไวกิ้ง มัมมี่ เทพสายฟ้า มังกร</span></span>
+          <span><span class="t">ญี่ปุ่น</span><span class="d">ซามูไร นินจา ธนู ม้า ดาบยาว ง้าว และมุซาชิ</span></span>
+        </button>
+        <button class="mode" data-f="nr">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 25c0-8 6-12 14-12s14 4 14 12z"/><path d="M9 17c-4-2-5-7-3-12M31 17c4-2 5-7 3-12"/><path d="M20 19v8"/>
+            <path d="M44 9h22v10H44z"/><path d="M55 19v15"/>
+            <path d="M74 34c0-10 2-18 10-24 4-3 9-2 8 2-1 3-4 4-6 3"/>
+          </svg>
+          <span><span class="t">ตำนานนอร์ส</span><span class="d">ไวกิ้ง วาลคีรี ยักษ์น้ำแข็ง โลกิ ทอร์ และโอดิน</span></span>
+        </button>
+        <button class="mode" data-f="eg">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 34L20 7l16 27z"/><path d="M12 21h16M9 27h22"/>
+            <ellipse cx="55" cy="11" rx="5" ry="6"/><path d="M55 17v17M47 20h16"/>
+            <path d="M76 34V21l-3-14 7 8h6l7-8-3 14v13"/><path d="M80 22h2M86 22h2"/>
+          </svg>
+          <span><span class="t">อียิปต์</span><span class="d">มัมมี่ หัวหมาใน สฟิงซ์ และทวยเทพอียิปต์</span></span>
+        </button>
+        <button class="mode" data-f="md">
+          <svg viewBox="0 0 96 38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 34V14h24v20"/><path d="M6 14V9h4v5M14 14V9h4v5M22 14V9h4v5M30 14V9"/><path d="M15 34v-6a3 3 0 0 1 6 0v6"/>
+            <path d="M44 6h22v12c0 8-6 13-11 16-5-3-11-8-11-16z"/><path d="M55 10v18M47 16h16"/>
+            <path d="M84 4v24"/><path d="M78 26h12"/><path d="M84 28v4"/><circle cx="84" cy="34" r="1.6"/>
+          </svg>
+          <span><span class="t">อัศวินยุคกลาง</span><span class="d">ดาบ หอก ธนู หน้าไม้ อัศวินขี่ม้า เครื่องยิง เทมพลาร์ และมังกร</span></span>
         </button>
       </div>
 
@@ -1329,7 +1353,14 @@ var GUN = {
   musket:  { len:1.05, back:0.36, w:0.020, h:0.034, br:0.014, mag:0 },
   flamer:  { len:0.55, back:0.18, w:0.035, h:0.050, br:0.030, mag:0 },
   mortar:  { len:0.70, back:0.05, w:0.050, h:0.050, br:0.045, mag:0 },
-  tankgun: { len:2.40, back:0.00, w:0.100, h:0.100, br:0.090, mag:0, big:1 }
+  tankgun: { len:2.40, back:0.00, w:0.100, h:0.100, br:0.090, mag:0, big:1 },
+  // Round 4: staffs that cast, a sand staff, the crossbow; bolt = what flies out instead of a flash and a tracer
+  loki:    { len:0.95, back:0.55, w:0.020, h:0.020, br:0.018, mag:0 },
+  curse:   { len:0.95, back:0.60, w:0.020, h:0.020, br:0.018, mag:0 },
+  sand:    { len:0.95, back:0.60, w:0.020, h:0.020, br:0.018, mag:0 },
+  xbow:    { len:0.50, back:0.30, w:0.030, h:0.040, br:0.014, mag:0, bolt:'bolt' },
+  ballista:{ len:1.20, back:0.00, w:0.060, h:0.060, br:0.030, mag:0, bolt:'bigbolt' },
+  catapult:{ len:1.60, back:0.00, w:0.060, h:0.060, br:0.030, mag:0, bolt:'boulder', lob:1 }
 };
 function gunIn(Wd, type){
   var o = GUN[type], g = Wd.handR.p, s = Wd.handL.p, d = ACT && ACT.gunDir ? aimed(R.sub(s, g), ACT.gunDir, ACT.gunW) : R.sub(s, g);   // gunDir: held one-handed, pointing that way
@@ -5371,7 +5402,7 @@ kit('yak', { scale:2.3, pose:th_yakPose, build:function(Wd, mo){ th_yak(Wd, mo);
 // White fur, a monkey face with a pale muzzle and a fanged grin, a small gold pointed crown, gold jewellery, a team
 // loincloth and sash, a long tail curling up behind; crouched and springy, the tri-phet (diamond trident) in his right hand.
 SOLID.hanu = { fur:[238,236,228], muzzle:[236,196,184], eye:[30,24,24], gold:[230,184,80], cloth:[196,64,52], cloth2:[132,42,36],
-  tusk:[250,246,236], wood:[128,44,36], steel:[210,214,220], mouth:[150,40,40] };
+  tusk:[250,246,236], wood:[128,44,36], steel:[220,224,230], mouth:[150,40,40], leather:[34,30,30] };
 // the crouch: pelvis lowered and pitched forward, the legs re-solved onto the same feet, back bent, head up.
 // pose() can run more than once on one pose object (the page redraws between steps), so the root carries a marker.
 var th_HN = { drop:0.15, hR:[-0.27, -0.16, 0.16], hL:[0.3, 0.02, 0.3] };
@@ -5389,21 +5420,27 @@ function th_hanuPose(P){
   armIK(P, 'R', fw(C, th_HN.hR), [-0.9, -0.7, -0.2]);
   armIK(P, 'L', fw(C, th_HN.hL), [0.7, -1, -0.2]);
 }
-// the tri-phet: red-lacquered shaft with gold ferrules; a gold head, the centre blade long and leaf-shaped,
-// the two side prongs curving out and up
-function th_trident(hp, d){
-  var hi = LODK >= 0.6, a = R.sub(hp, R.mul(d, 0.85)), b = R.add(hp, R.mul(d, 0.95));
-  rod(a, b, 0.016, 0.015, 6, 'wood');
-  rod(R.sub(a, R.mul(d, 0.05)), a, 0.02, 0.018, 6, 'gold');
-  var F = frameOn(b, d, [0, 0, 1]), X = R.qrot(F.q, [1,0,0]), U = R.qrot(F.q, [0,-1,0]);
-  rod(R.sub(b, R.mul(d, 0.03)), R.add(b, R.mul(d, 0.08)), 0.024, 0.02, 6, 'gold');                        // socket
-  var cb = R.add(b, R.mul(d, 0.08));
-  th_slab(cb, U, X, [[0,-0.02],[0.2,-0.028],[0.34,0],[0.2,0.028],[0,0.02]], 0.006, 'gold');                // centre blade
-  rod(R.add(cb, R.mul(X, -0.1)), R.add(cb, R.mul(X, 0.1)), 0.012, 0.012, 5, 'gold');                        // crossbar
-  [-1, 1].forEach(function(s){ var p0 = R.add(cb, R.mul(X, s*0.1)), p1 = R.add(p0, R.add(R.mul(X, s*0.035), R.mul(U, 0.08))),
-      p2 = R.add(p0, R.add(R.mul(X, s*0.01), R.mul(U, 0.2)));
-    if (hi) th_sweep([p0, p1, p2], [0.012, 0.01, 0.002], 5, 'gold'); else rod(p0, p2, 0.012, 0.002, 4, 'gold'); });
-  if (hi) armBox(IDF, R.add(cb, R.mul(U, 0.02)), 0.016, 0.016, 0.016, 'gold');
+// the tri-phet as the Thai one is: short, held in one hand. A gold knob pommel under the fist, a black lacquered grip
+// between gold rings, a gold collar, then three silver blades like flames: a tall wavy centre blade and two side
+// blades that sweep out and curl up. g = the grip (in the fist), d = the way the blades point.
+function th_trident(g, d){
+  var hi = LODK >= 0.6, at = function(k){ return R.add(g, R.mul(d, k)); };
+  rod(at(-0.14), at(-0.1), 0.004, 0.022, hi ? 6 : 4, 'gold');                                        // the pommel's point
+  rod(at(-0.1), at(-0.065), 0.024, 0.02, hi ? 6 : 4, 'gold');                                        // and its knob
+  rod(at(-0.065), at(0.11), 0.017, 0.017, hi ? 6 : 4, 'leather');                                    // black grip
+  if (hi){ rod(at(-0.03), at(-0.012), 0.02, 0.02, 6, 'gold'); rod(at(0.075), at(0.093), 0.02, 0.02, 6, 'gold'); }
+  rod(at(0.11), at(0.14), 0.022, 0.03, hi ? 6 : 4, 'gold');                                          // collar
+  var b = at(0.14), F = frameOn(b, d, [0, 0, 1]), X = R.qrot(F.q, [1,0,0]), U = d;
+  th_slab(b, U, X, [[0,-0.045],[0.012,-0.05],[0.02,0],[0.012,0.05],[0,0.045]], 0.008, 'gold');       // gold base plate
+  var cb = at(0.15);
+  th_slab(cb, U, X, hi ? [[0,-0.02],[0.05,-0.028],[0.085,-0.012],[0.13,-0.024],[0.17,-0.008],[0.235,0],[0.17,0.012],[0.13,0.024],
+                          [0.085,0.012],[0.05,0.028],[0,0.02]]
+                       : [[0,-0.022],[0.12,-0.02],[0.235,0],[0.12,0.02],[0,0.022]], 0.006, 'steel');  // the flame blade
+  [-1, 1].forEach(function(sd){ var q = function(x, u){ return R.add(cb, R.add(R.mul(X, sd*x), R.mul(U, u))); };
+    var pts = hi ? [q(0.03, 0), q(0.075, 0.025), q(0.1, 0.07), q(0.098, 0.115), q(0.08, 0.15), q(0.068, 0.165)]
+                 : [q(0.03, 0), q(0.1, 0.07), q(0.07, 0.165)];
+    th_sweep(pts, hi ? [0.013, 0.012, 0.01, 0.008, 0.005, 0.002] : [0.013, 0.009, 0.002], 4, 'steel');
+    if (hi) rod(q(0.1, 0.07), q(0.125, 0.085), 0.006, 0.001, 4, 'steel'); });                         // a flame's flick outward
 }
 function th_hanuCrown(H){
   var hi = LODK >= 0.6;
@@ -5470,9 +5507,9 @@ function th_hanu(Wd, mo){
   TL.forEach(function(q, k){ if (!hi && k % 2 && k < TL.length - 1) return; var t = k/(TL.length - 1);
     tp.push(fw(Pv, [q[0] + sw*t*t, q[1], q[2]])); tr.push(0.036 - 0.02*t); });
   th_sweep(tp, tr, 6, 'fur', [0, 1, 0], null, 'fur');
-  // the trident: upright in his right hand at rest, driven along the thrust
-  var d = ACT && ACT.spear ? ACT.spear : R.norm([0, 1, 0.06]);
-  th_trident(lerp3(Wd.wristR.p, Wd.handR.p, 0.5), d);
+  // the short tri-phet: held up in his right fist at rest, swung down on the blow
+  var d = aimed(R.norm([0.08, 1, 0.32]), ACT && ACT.blade, ACT && ACT.bladeW);
+  th_trident(lerp3(Wd.wristR.p, Wd.handR.p, 0.65), d);
 }
 kit('hanu', { pose:th_hanuPose, build:function(Wd, mo){ th_hanu(Wd, mo); } });
 
@@ -5606,7 +5643,7 @@ function lg_row(W, y0, rx0, rz0, y1, rx1, rz1, seg, a0, a1, xoff, lace){
   armTube(W, y0, rx0 + 0.002, rz0 + 0.002, yl, rx0 + 0.001, rz0 + 0.001, seg, a0, a1, 'rope', xoff);
   armTube(W, yl, rx0, rz0, y1, rx1, rz1, seg, a0, a1, 'plate', xoff);
 }
-function lg_samurai(Wd){
+function lg_samuraiBody(Wd, noFlag){          // armour, helmet and (unless noFlag) the back banner; no weapon
   var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis, HI = LODK > 0.5, LO = LODK < 0.4, i;
   // ---- dō: rows of lacquered plates, each row's lower edge flared over the next and laced (rope) ----
   var T = HI ? [[0.0, 0.158, 0.118], [0.075, 0.168, 0.124], [0.15, 0.178, 0.13], [0.225, 0.19, 0.134], [0.30, 0.195, 0.134]]
@@ -5671,19 +5708,23 @@ function lg_samurai(Wd){
       if (prev) lg_plate(H, prev.o, cur.o, cur.i, prev.i, 'gold');
       prev = cur; }
   });
-  // ---- sashimono: a small banner on a pole over the back ----
-  var pa = fw(C, [0, -0.22, -0.17]), pb = fw(C, [0, 0.88, -0.2]);
-  rod(pa, pb, 0.011, 0.009, 4, 'wood');
-  J(C, function(){ var x0 = 0.012, x1 = 0.2, yt = 0.86, yb = 0.4, ym = (yt + yb)/2, zz = -0.2;
-    if (HI) armBox(C, [0.1, 0.87, -0.2], 0.1, 0.007, 0.007, 'wood');
-    lg_plate(C, [x1, yt, zz], [x0, yt, zz], [x0, ym, zz], [x1, ym, zz], 'flag');
-    lg_plate(C, [x1, ym, zz], [x0, ym, zz], [x0, yb, zz], [x1, yb, zz], 'flag');
-    if (HI) armBox(C, [0.106, 0.63, -0.2], 0.04, 0.04, 0.007, 'gold');
-  });
-  lg_katana(Wd);
+  // ---- sashimono: a small banner on a pole over the back (not every samurai in the squad carries one) ----
+  if (!noFlag){
+    var pa = fw(C, [0, -0.22, -0.17]), pb = fw(C, [0, 0.88, -0.2]);
+    rod(pa, pb, 0.011, 0.009, 4, 'wood');
+    J(C, function(){ var x0 = 0.012, x1 = 0.2, yt = 0.86, yb = 0.4, ym = (yt + yb)/2, zz = -0.2;
+      if (HI) armBox(C, [0.1, 0.87, -0.2], 0.1, 0.007, 0.007, 'wood');
+      lg_plate(C, [x1, yt, zz], [x0, yt, zz], [x0, ym, zz], [x1, ym, zz], 'flag');
+      lg_plate(C, [x1, ym, zz], [x0, ym, zz], [x0, yb, zz], [x1, yb, zz], 'flag');
+      if (HI) armBox(C, [0.106, 0.63, -0.2], 0.04, 0.04, 0.007, 'gold');
+    });
+  }
 }
+function lg_samurai(Wd, noFlag){ lg_samuraiBody(Wd, noFlag); lg_katana(Wd); }
 
 kit('samurai', { pose:lg_samuraiPose, build:function(Wd){ lg_samurai(Wd); } });
+SOLID.samurai_nb = SOLID.samurai;
+kit('samurai_nb', { pose:lg_samuraiPose, build:function(Wd){ lg_samurai(Wd, true); } });
 
 // ---------------- ninja ----------------
 SOLID.ninja = { cloth:[46,46,54], hood:[40,40,48], wrap:[62,60,68], sash:[120,96,100], plate:[46,46,54], trim:[62,60,68],
@@ -6180,6 +6221,16 @@ function lg_dragon(Wd, mo){
   lg_dragonWing(1, spread, flap); lg_dragonWing(-1, spread, flap);
 }
 kit('dragon', { creature:true, h:3.0, mouth:LG_DR_MOUTH, build:function(Wd, mo){ lg_dragon(Wd, mo); } });
+// stand-ins for the Round 4 armies until their own figures are spliced in below (the kit files re-register each key)
+(function(){ var S = { yumi:['archer'], kiba:['centaur'], nodachi:['samurai'], naginata:['samurai'], musashi:['samurai'],
+  berserk:['dabsong'], vsword:['viking'], daneaxe:['mino', 1], valkyrie:['hoplite'], frostg:['herc', 1.9], loki:['rlord'], odin:['cavalry', 1.25],
+  jackal:['kblade'], sphinx:['dragon', 0.7], anubis:['rlord'], ra:['medusa'], horus:['hoplite'], seth:['flamer'], sobek:['mino', 1.3], bastet:['mummy'],
+  levy:['viking'], lbow:['archer'], xbow:['infantry'], pike:['hoplite'], maa:['spartan'], mknight:['cavalry'],
+  ballista:['tank', 0.45], catapult:['tank', 0.55], templar:['kblade'] }, k, f;
+  for (k in S){ var B = KITS[S[k][0]], d = {}; for (f in B) d[f] = B[f];
+    d.scale = S[k][1] || B.scale; d.stand = S[k][0];
+    d.build = (function(b0, k0){ return function(Wd, mo){ var kk = KIT; KIT = k0; b0(Wd, mo); KIT = kk; }; })(B.build, S[k][0]);
+    kit(k, d); } })();
 // ==KITS-EXTRA==   (harnesses splice test kits in here, after the built-in ones, so theirs win)
 function kitInfo(k){ return KITS[k] || KITS.heavy; }
 // mo (optional) = { travel, v, act, rider }: how far the piece has walked and how fast, the action it is in
@@ -7045,7 +7096,11 @@ var RIGQ = SKRIG, POSE_CACHE = {};
 //   moving           -> rebuilt from the live pose every frame, at its level. MINI hands back its own face pool,
 //                       so the caller has to draw what it gets before asking for another piece.
 var LODS = [1, 0.65, 0.45, 0.3];
-function kitOf(u){ return u.k; }
+// หน่วยที่แต่ละตัวหน้าตาไม่เหมือนกัน: ตัวที่ j ในหน่วยใช้ชุดที่ j (วนซ้ำ) · ชุดไหนยังไม่มีโมเดลก็ใช้ชุดหลัก
+var VARIANTS = { samurai:['samurai', 'samurai_nb'], levy:['levy', 'levy_axe', 'levy_club'], pike:['pike', 'pike_halb', 'pike_bill'],
+  maa:['maa', 'maa_mace', 'maa_hammer', 'maa_axe', 'maa_flail'] };
+function kitOf(u){ var V = VARIANTS[u.k]; if (!V || !u.id) return u.k;
+  var j = +u.id.slice(u.id.lastIndexOf('.') + 1) || 0, v = V[j % V.length]; return MINI.KITS[v] ? v : u.k; }
 // what the kit says about its size and shape: drawn bigger or smaller, ridden, or a creature with no rig to draw
 function kitScale(k){ return MINI.kitInfo(k).scale || 1; }
 function isMount(k){ return !!MINI.kitInfo(k).mount; }
@@ -7140,7 +7195,14 @@ function drawUnit(u){
   prism(u.x, y, u.z, br, 0.1, u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
   drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
+  else if (BLESSED && u.sq && BLESSED[u.sq] && al > 0.5) ringAt(u.x, u.z, br + 0.1, 'rgba(255,214,110,0.75)');   // ได้พรจากพระเจ้า
 }
+// หน่วยที่อยู่ในพรของอัศวินเทมพลาร์ตอนนี้ (วาดวงทองรอบฐาน) · คิดเฟรมละครั้ง เฉพาะตอนที่มีเทมพลาร์บนโต๊ะ
+var BLESSED = null;
+function blessedNow(){
+  if (!G.on) return null; var all = sqList(), src = all.filter(function(q){ return TY(q.k).aura === 'bless'; }); if (!src.length) return null;
+  var out = {}; all.forEach(function(s){ if (src.some(function(q){ return q.side === s.side && sqDist(s, q) <= AURA_R + 0.001; })) out[s.id] = 1; });
+  return out; }
 function ringAt(x, z, r, col, dash){
   var pts = [], n = 20, i; for (i=0;i<=n;i++){ var a = i*TAU/n, px = x+Math.cos(a)*r, pz = z+Math.sin(a)*r, p = proj([px, heightAt(px,pz)+0.05, pz]); if (p[2] < 0.4) return; pts.push(p); }
   OVER.push(function(){ ctx.strokeStyle = col; ctx.lineWidth = 2; if (dash) ctx.setLineDash(dash); ctx.beginPath();
@@ -7156,7 +7218,7 @@ function shadowAt(x, z, r, k){    // a soft dark patch on the ground so pieces s
 // ---------- frame ----------
 var dirty = true, dragging = false, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
 function drawScene(){
-  setupCam(); FACES = []; OVER = [];
+  setupCam(); FACES = []; OVER = []; BLESSED = blessedNow();
   var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   var step = dragging ? 2 : 1;
@@ -7336,24 +7398,90 @@ var TYPES = [
     gun:null, mel:{ nm:'ตรีเพชร', a:6, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก ลิงเผือกเหาะได้ พวกรอบตัวเข้าเป้า +1' },
   { k:'naga',     fac:'th',  nm:'พญานาค',           n:1, pts:170, mv:8,  T:9,  sv:3, w:12, ld:6, oc:3, r:1.5,
     gun:{ nm:'พ่นพิษ', rng:12, a:6, bs:0, s:6, ap:1, d:1, tr:1 }, mel:{ nm:'รัดและฉก', a:4, ws:3, s:8, ap:2, d:2 }, d:'งูยักษ์ พ่นพิษโดนอัตโนมัติ รัดแน่น' },
-  { k:'samurai',  fac:'lg',  nm:'ซามูไร',           n:5, pts:90,  mv:6,  T:4,  sv:3, w:1,  ld:6, oc:2,
+  { k:'samurai',  fac:'jp',  nm:'ซามูไร',           n:5, pts:90,  mv:6,  T:4,  sv:3, w:1,  ld:6, oc:2,
     gun:null, mel:{ nm:'ดาบคาตานะ', a:3, ws:2, s:5, ap:2, d:1, lh:1 }, d:'ดาบคม เข้าได้ 6 เจาะเลย' },
-  { k:'ninja',    fac:'lg',  nm:'นินจา',            n:5, pts:80,  mv:8,  T:3,  sv:5, w:1,  ld:7, oc:1, st:1,
+  { k:'ninja',    fac:'jp',  nm:'นินจา',            n:5, pts:80,  mv:8,  T:3,  sv:5, w:1,  ld:7, oc:1, st:1,
     gun:{ nm:'ดาวกระจาย', rng:12, a:2, bs:3, s:3, ap:1, d:1, as:1 }, mel:{ nm:'ดาบนินจา', a:2, ws:3, s:4, ap:1, d:1 }, d:'พรางตัว โดนยิงยากขึ้น 1' },
-  { k:'viking',   fac:'lg',  nm:'ไวกิ้งคลั่ง',       n:5, pts:75,  mv:6,  T:4,  sv:6, w:2,  ld:7, oc:2, ca:1,
-    gun:{ nm:'ขวานขว้าง', rng:8, a:1, bs:4, s:5, ap:0, d:1, as:1 }, mel:{ nm:'ขวานศึก', a:3, ws:3, s:5, ap:1, d:1 }, d:'คลั่ง บุกเข้าไปตีเพิ่ม' },
-  { k:'mummy',    fac:'lg',  nm:'มัมมี่',           n:5, pts:70,  mv:5,  T:5,  sv:6, w:2,  ld:8, oc:2, rez:5,
+  { k:'viking',   fac:'nr',  nm:'ไวกิ้ง',           n:5, pts:70,  mv:6,  T:4,  sv:5, w:1,  ld:7, oc:2, ca:1,
+    gun:{ nm:'ขวานขว้าง', rng:8, a:1, bs:4, s:5, ap:0, d:1, as:1 }, mel:{ nm:'ขวานศึก', a:2, ws:3, s:5, ap:1, d:1 }, d:'ไวกิ้งทั่วไป ขวานกับโล่กลม ขว้างขวานแล้วบุกเข้าไปตีเพิ่ม' },
+  { k:'mummy',    fac:'eg',  nm:'มัมมี่',           n:5, pts:70,  mv:5,  T:5,  sv:6, w:2,  ld:8, oc:2, rez:5,
     gun:null, mel:{ nm:'มือเน่า', a:2, ws:4, s:4, ap:0, d:1 }, d:'ช้า ทน ล้มแล้วลุกขึ้นมาใหม่' },
-  { k:'thunder',  fac:'lg',  nm:'เทพสายฟ้า',        n:1, pts:120, mv:6,  T:6,  sv:3, inv:4, w:6, ld:6, oc:1, hero:1, aura:'ld',
-    gun:{ nm:'สายฟ้าฟาด', rng:18, a:2, bs:2, s:8, ap:2, d:2 }, mel:{ nm:'ค้อนสายฟ้า', a:5, ws:2, s:9, ap:2, d:3 }, d:'ตัวเอก เรียกสายฟ้า พวกรอบตัวไม่เสียขวัญ' },
-  { k:'dragon',   fac:'lg',  nm:'มังกร',            n:1, pts:220, mv:12, T:10, sv:3, w:14, ld:6, oc:4, r:1.8, fly:1,
-    gun:{ nm:'ลมหายใจไฟ', rng:12, a:6, bs:0, s:6, ap:1, d:2, tr:1 }, mel:{ nm:'กรงเล็บและเขี้ยว', a:5, ws:3, s:8, ap:2, d:3 }, d:'บินได้ พ่นไฟโดนอัตโนมัติ' }
+  { k:'thunder',  fac:'nr',  nm:'ทอร์',             n:1, pts:210, mv:7,  T:7,  sv:2, inv:4, w:9, ld:5, oc:2, hero:1, aura:'ld', brave:1,
+    gun:{ nm:'สายฟ้าฟาด', rng:24, a:3, bs:2, s:9, ap:3, d:3 }, mel:{ nm:'ค้อนสายฟ้า', a:5, ws:2, s:12, ap:3, d:3 }, d:'ตัวเอก เทพเจ้าสายฟ้า ค้อนหนักที่สุด พวกรอบตัวไม่เสียขวัญ' },
+  { k:'dragon',   fac:'md',  nm:'มังกร',            n:1, pts:220, mv:12, T:10, sv:3, w:14, ld:6, oc:4, r:1.8, fly:1,
+    gun:{ nm:'ลมหายใจไฟ', rng:12, a:6, bs:0, s:6, ap:1, d:2, tr:1 }, mel:{ nm:'กรงเล็บและเขี้ยว', a:5, ws:3, s:8, ap:2, d:3 }, d:'บินได้ พ่นไฟโดนอัตโนมัติ' },
+  // ── รอบ 4: แยกตำนานโลกเป็นสี่กองทัพ (ต่อท้ายเสมอ ลำดับนี้ส่งข้ามเครื่อง) ──
+  // aura:'bless' พรจากพระเจ้า: พวกเดียวกันในระยะ 6" ได้เซฟพิเศษ 5++ · aura:'rez' หน่วยที่ซ่อมตัวเองได้ในระยะ 6" ลุกขึ้นตั้งแต่ 4+
+  // ญี่ปุ่น
+  { k:'yumi',     fac:'jp',  nm:'พลธนูญี่ปุ่น',      n:5, pts:60,  mv:6,  T:3,  sv:5, w:1,  ld:7, oc:2,
+    gun:{ nm:'ธนูยูมิ', rng:30, a:1, bs:4, s:3, ap:0, d:1, hv:1 }, mel:{ nm:'ดาบสั้น', a:1, ws:4, s:3, ap:0, d:1 }, d:'ธนูยาวญี่ปุ่น ยิงไกล ยืนนิ่งแม่นขึ้น' },
+  { k:'kiba',     fac:'jp',  nm:'ซามูไรขี่ม้า',      n:3, pts:130, mv:12, T:5,  sv:3, w:3,  ld:6, oc:2, r:1.1,
+    gun:{ nm:'ธนูบนหลังม้า', rng:18, a:1, bs:3, s:4, ap:1, d:1, as:1 }, mel:{ nm:'ดาบคาตานะ', a:3, ws:3, s:5, ap:2, d:1, lh:1 }, d:'ยิงธนูได้แม้ควบม้า แล้วบุกฟันด้วยดาบคาตานะ' },
+  { k:'nodachi',  fac:'jp',  nm:'ซามูไรดาบยาว',     n:3, pts:100, mv:6,  T:4,  sv:3, w:2,  ld:6, oc:1,
+    gun:null, mel:{ nm:'ดาบโนดาจิ', a:3, ws:2, s:7, ap:2, d:2, lh:1 }, d:'ดาบยาวสองมือ ฟันหนัก เข้าได้ 6 เจาะเลย' },
+  { k:'naginata', fac:'jp',  nm:'ซามูไรถือง้าว',     n:5, pts:95,  mv:6,  T:4,  sv:3, w:1,  ld:6, oc:2,
+    gun:null, mel:{ nm:'ง้าวนางินาตะ', a:2, ws:3, s:5, ap:2, d:1, la:1 }, d:'ง้าวด้ามยาว บุกเข้ามาตานั้นเจาะง่ายขึ้น' },
+  { k:'musashi',  fac:'jp',  nm:'มิยาโมโตะ มุซาชิ',  n:1, pts:120, mv:7,  T:4,  sv:4, inv:4, w:6, ld:5, oc:1, hero:1, brave:1,
+    gun:null, mel:{ nm:'ดาบสองเล่ม', a:7, ws:2, s:5, ap:3, d:2, dw:1 }, d:'ตัวเอก นักดาบในตำนาน ใช้ดาบสองเล่ม เจาะได้ 6 เป็นแผลตรง' },
+  // ตำนานนอร์ส
+  { k:'berserk',  fac:'nr',  nm:'ไวกิ้งสองขวาน',     n:5, pts:85,  mv:7,  T:4,  sv:6, w:2,  ld:7, oc:1, ca:1, brave:1,
+    gun:null, mel:{ nm:'ขวานคู่', a:4, ws:3, s:5, ap:1, d:1 }, d:'นักรบคลั่ง ขวานสองมือ ไม่เคยถอย บุกเข้าไปฟันเพิ่ม' },
+  { k:'vsword',   fac:'nr',  nm:'ไวกิ้งถือดาบ',      n:5, pts:75,  mv:6,  T:4,  sv:4, w:1,  ld:6, oc:2,
+    gun:null, mel:{ nm:'ดาบไวกิ้ง', a:3, ws:3, s:4, ap:1, d:1 }, d:'ดาบกับโล่กลม เสื้อเกราะโซ่ ตั้งกำแพงโล่' },
+  { k:'daneaxe',  fac:'nr',  nm:'ไวกิ้งขวานด้ามยาว', n:3, pts:90,  mv:6,  T:4,  sv:5, w:2,  ld:7, oc:1, ca:1,
+    gun:null, mel:{ nm:'ขวานด้ามยาว', a:2, ws:3, s:7, ap:2, d:2 }, d:'ขวานด้ามยาวสองมือ ฟันเกราะแตก' },
+  { k:'valkyrie', fac:'nr',  nm:'วาลคีรี',          n:3, pts:125, mv:12, T:4,  sv:3, inv:5, w:3, ld:6, oc:1, fly:1,
+    gun:null, mel:{ nm:'หอกวาลคีรี', a:3, ws:2, s:5, ap:2, d:2, la:1 }, d:'นางฟ้าสงครามมีปีก บินได้ บุกแล้วแทงแรง' },
+  { k:'frostg',   fac:'nr',  nm:'ยักษ์น้ำแข็ง',       n:2, pts:210, mv:7,  T:8,  sv:4, w:8,  ld:7, oc:3, r:1.4,
+    gun:{ nm:'ขว้างก้อนน้ำแข็ง', rng:18, a:1, bs:4, s:8, ap:1, d:2 }, mel:{ nm:'กระบองน้ำแข็ง', a:4, ws:3, s:9, ap:2, d:2 }, d:'ยักษ์จากดินแดนน้ำแข็งสองตน ขว้างก้อนน้ำแข็ง ตีหนัก' },
+  { k:'loki',     fac:'nr',  nm:'โลกิ',             n:1, pts:130, mv:8,  T:4,  sv:5, inv:4, w:5, ld:6, oc:1, hero:1, st:1,
+    gun:{ nm:'ไฟมายา', rng:18, a:3, bs:3, s:6, ap:2, d:1 }, mel:{ nm:'คทาใบมีด', a:5, ws:2, s:5, ap:2, d:1 }, d:'ตัวเอก เทพเจ้าเล่ห์ พรางตัว โดนยิงยากขึ้น ร่ายไฟมายา' },
+  { k:'odin',     fac:'nr',  nm:'โอดิน',            n:1, pts:300, mv:14, T:8,  sv:2, inv:3, w:12, ld:5, oc:3, r:1.3, hero:1, brave:1, aura:'hit',
+    gun:{ nm:'หอกกุงนีร์', rng:24, a:2, bs:0, s:10, ap:3, d:3, tr:1 }, mel:{ nm:'หอกกุงนีร์', a:6, ws:2, s:10, ap:3, d:3 }, d:'ตัวเอก ราชาแห่งทวยเทพ ขี่ม้าแปดขา หอกขว้างไม่เคยพลาด พวกรอบตัวเข้าเป้า +1' },
+  // อียิปต์
+  { k:'jackal',   fac:'eg',  nm:'นักรบหัวหมาใน',     n:5, pts:85,  mv:7,  T:4,  sv:4, w:1,  ld:7, oc:2, brave:1,
+    gun:null, mel:{ nm:'ดาบโคเปช', a:2, ws:3, s:5, ap:1, d:1 }, d:'องครักษ์ของอานูบิส ดาบโคเปชกับโล่ ไม่เคยถอย' },
+  { k:'sphinx',   fac:'eg',  nm:'สฟิงซ์',           n:1, pts:180, mv:8,  T:10, sv:3, w:13, ld:6, oc:4, r:1.6,
+    gun:null, mel:{ nm:'กรงเล็บสิงห์', a:5, ws:3, s:9, ap:2, d:3 }, d:'สิงโตหัวคนเฝ้าพีระมิด ตัวใหญ่ ทนมาก' },
+  { k:'anubis',   fac:'eg',  nm:'อานูบิส',          n:1, pts:120, mv:7,  T:5,  sv:3, inv:4, w:6, ld:6, oc:1, hero:1, aura:'rez',
+    gun:{ nm:'คำสาปมรณะ', rng:18, a:2, bs:3, s:5, ap:2, d:2 }, mel:{ nm:'คทาวาส', a:5, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก เทพแห่งความตาย หน่วยที่ลุกขึ้นใหม่ได้ในระยะ 6" ลุกได้ตั้งแต่ 4+' },
+  { k:'ra',       fac:'eg',  nm:'รา',               n:1, pts:150, mv:6,  T:5,  sv:3, inv:4, w:7, ld:6, oc:1, hero:1, aura:'hit',
+    gun:{ nm:'แสงสุริยะ', rng:24, a:3, bs:2, s:8, ap:3, d:2 }, mel:{ nm:'คทาสุริยะ', a:4, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก เทพแห่งดวงอาทิตย์ ยิงแสงสุริยะจากจานบนหัว พวกรอบตัวเข้าเป้า +1' },
+  { k:'horus',    fac:'eg',  nm:'ฮอรัส',            n:1, pts:130, mv:12, T:5,  sv:3, inv:4, w:6, ld:6, oc:1, hero:1, fly:1,
+    gun:null, mel:{ nm:'หอกเหยี่ยว', a:5, ws:2, s:6, ap:2, d:2, la:1 }, d:'ตัวเอก เทพเหยี่ยวมีปีก บินเร็ว บุกแล้วแทงแรง' },
+  { k:'seth',     fac:'eg',  nm:'เซท',              n:1, pts:130, mv:7,  T:6,  sv:3, inv:5, w:7, ld:6, oc:1, hero:1,
+    gun:{ nm:'พายุทราย', rng:12, a:6, bs:0, s:5, ap:1, d:1, tr:1 }, mel:{ nm:'คทาเซท', a:5, ws:3, s:6, ap:2, d:2 }, d:'ตัวเอก เทพแห่งทะเลทราย ปล่อยพายุทราย โดนอัตโนมัติ' },
+  { k:'sobek',    fac:'eg',  nm:'โซเบค',            n:1, pts:140, mv:7,  T:7,  sv:3, w:9,  ld:6, oc:2, r:1.0, hero:1, ca:1,
+    gun:null, mel:{ nm:'กระบองฟันจระเข้', a:5, ws:3, s:8, ap:2, d:2 }, d:'ตัวเอก เทพจระเข้ ตัวใหญ่ บุกเข้าไปตีเพิ่ม' },
+  { k:'bastet',   fac:'eg',  nm:'บาสเทต',           n:1, pts:100, mv:10, T:4,  sv:4, inv:4, w:5, ld:6, oc:1, hero:1, st:1, ac:1,
+    gun:null, mel:{ nm:'กรงเล็บแมว', a:6, ws:2, s:5, ap:2, d:1 }, d:'ตัวเอก เทพีแมว ว่องไว พรางตัว วิ่งแล้วบุกได้' },
+  // อัศวินยุคกลาง
+  { k:'levy',     fac:'md',  nm:'ทหารถือดาบ',        n:10, pts:55, mv:6,  T:3,  sv:7, w:1,  ld:8, oc:2,
+    gun:null, mel:{ nm:'ดาบ ขวาน และกระบอง', a:1, ws:4, s:3, ap:0, d:1 }, d:'ทหารชาวบ้าน ไม่มีเกราะ ถูก คนเยอะ เอาไว้ยึดจุด' },
+  { k:'lbow',     fac:'md',  nm:'พลธนูยาว',          n:5, pts:60,  mv:6,  T:3,  sv:6, w:1,  ld:7, oc:1,
+    gun:{ nm:'ธนูยาว', rng:30, a:1, bs:4, s:4, ap:1, d:1, hv:1 }, mel:{ nm:'มีดสั้น', a:1, ws:4, s:3, ap:0, d:1 }, d:'ธนูยาวยิงไกล ทะลุเกราะ ยืนนิ่งแม่นขึ้น' },
+  { k:'xbow',     fac:'md',  nm:'พลหน้าไม้',         n:5, pts:65,  mv:5,  T:3,  sv:5, w:1,  ld:7, oc:1,
+    gun:{ nm:'หน้าไม้', rng:24, a:1, bs:4, s:5, ap:2, d:1, hv:1 }, mel:{ nm:'มีดสั้น', a:1, ws:4, s:3, ap:0, d:1 }, d:'หน้าไม้แรง เจาะเกราะดี ยืนนิ่งแม่นขึ้น' },
+  { k:'pike',     fac:'md',  nm:'ทหารหอก',           n:5, pts:50,  mv:6,  T:3,  sv:5, w:1,  ld:7, oc:2,
+    gun:null, mel:{ nm:'หอก ง้าว และขวานยาว', a:2, ws:4, s:4, ap:1, d:1 }, d:'ถือหอก ง้าวฮัลเบิร์ด และขวานด้ามยาว ตามแบบในบันทึก คุมจุดเก่ง' },
+  { k:'maa',      fac:'md',  nm:'อัศวินเกราะ',       n:5, pts:110, mv:5,  T:4,  sv:2, w:2,  ld:6, oc:2,
+    gun:null, mel:{ nm:'อาวุธอัศวิน', a:3, ws:3, s:5, ap:1, d:1 }, d:'เกราะเหล็กทั้งตัว แต่ละคนถืออาวุธต่างกัน: ดาบยาว กระบอง ค้อนศึก ขวาน ลูกตุ้มหนาม' },
+  { k:'mknight',  fac:'md',  nm:'อัศวินขี่ม้า',       n:3, pts:135, mv:12, T:5,  sv:2, w:3,  ld:6, oc:2, r:1.1,
+    gun:null, mel:{ nm:'หอกทวน', a:3, ws:3, s:6, ap:2, d:2, la:1 }, d:'ม้าศึกหุ้มเกราะ หอกทวนยาว บุกเข้ามาแทงแรงมาก' },
+  { k:'ballista', fac:'md',  nm:'บาลิสต้า',          n:1, pts:90,  mv:4,  T:6,  sv:4, w:6,  ld:7, oc:0, r:1.1,
+    gun:{ nm:'ลูกศรยักษ์', rng:36, a:1, bs:3, s:9, ap:3, d:3, hv:1 }, mel:{ nm:'คนยิงสู้ประชิด', a:2, ws:5, s:3, ap:0, d:1 }, d:'หน้าไม้ยักษ์บนแท่น ยิงทะลุตัวใหญ่ ยืนนิ่งแม่นขึ้น' },
+  { k:'catapult', fac:'md',  nm:'เครื่องยิงหิน',      n:1, pts:110, mv:3,  T:7,  sv:5, w:7,  ld:7, oc:0, r:1.4,
+    gun:{ nm:'ก้อนหินยักษ์', rng:48, a:2, bs:4, s:8, ap:1, d:2, hv:1 }, mel:{ nm:'คนยิงสู้ประชิด', a:2, ws:5, s:3, ap:0, d:1 }, d:'เหวี่ยงหินโค้งไกลสุดโต๊ะ ยืนนิ่งแม่นขึ้น' },
+  { k:'templar',  fac:'md',  nm:'อัศวินเทมพลาร์',    n:3, pts:170, mv:6,  T:5,  sv:2, inv:4, w:3, ld:5, oc:2, brave:1, aura:'bless',
+    gun:null, mel:{ nm:'ดาบศักดิ์สิทธิ์', a:4, ws:2, s:6, ap:2, d:2, lh:1 }, d:'อัศวินศักดิ์สิทธิ์ได้พรจากพระเจ้า: เซฟพิเศษ 4++ ไม่เคยเสียขวัญ พวกเดียวกันในระยะ 6" ได้เซฟพิเศษ 5++' }
 ];
 // สองกองทัพ แต่ละคนเลือกของตัวเอง สู้ข้ามกองได้
 var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า วีรบุรุษ อสูร — ต้องบุกเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ รถถัง — ยิงจากระยะไกล' },
   { k:'kn', nm:'อัศวินเกราะพลัง', d:'เกราะหนา ยิงแม่น ตีแรง — น้อยตัวแต่แกร่ง' }, { k:'sw', nm:'ฝูงสัตว์ต่างดาว', d:'ฝูงใหญ่ วิ่งเร็ว เล็บคม — มาเป็นร้อย' },
   { k:'rb', nm:'หุ่นยนต์โลหะโบราณ', d:'โครงเหล็กอมตะ — ล้มแล้วลุกขึ้นมาใหม่' }, { k:'or', nm:'ออร์คเขียว', d:'ตัวใหญ่ บ้าบิ่น ยิงห่วยแต่ตีโหด' },
-  { k:'th', nm:'ตำนานสยาม', d:'ช้างศึก ยักษ์ หนุมาน พญานาค ดาบสองมือ' }, { k:'lg', nm:'ตำนานโลก', d:'ซามูไร นินจา ไวกิ้ง มัมมี่ เทพสายฟ้า มังกร' } ];
+  { k:'th', nm:'ตำนานสยาม', d:'ช้างศึก ยักษ์ หนุมาน พญานาค ดาบสองมือ' }, { k:'jp', nm:'ญี่ปุ่น', d:'ซามูไร นินจา ธนู ม้า ดาบยาว ง้าว และมุซาชิ' },
+  { k:'nr', nm:'ตำนานนอร์ส', d:'ไวกิ้ง วาลคีรี ยักษ์น้ำแข็ง โลกิ ทอร์ และโอดิน' }, { k:'eg', nm:'อียิปต์', d:'มัมมี่ หัวหมาใน สฟิงซ์ และทวยเทพอียิปต์' },
+  { k:'md', nm:'อัศวินยุคกลาง', d:'ดาบ หอก ธนู หน้าไม้ อัศวินขี่ม้า เครื่องยิง เทมพลาร์ และมังกร' } ];
 function emptyList(){ var out = [], i; for (i=0;i<TYPES.length;i++) out.push(0); return out; }
 function fitList(L){ var out = emptyList(), i; if (L) for (i=0;i<out.length;i++) out[i] = L[i] | 0; return out; }
 // กองทัพของรายชื่อนี้ ดูจากหน่วยที่มี · ยังว่างอยู่ก็ใช้ที่เลือกไว้ (ค่าตั้งต้น กองทหาร)
@@ -7470,7 +7598,10 @@ var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry','centaur','tro
   mod:['infantry','heavy','enemy','hmg','sniper','medic','mech','flamer','cmdr','mortar','tank'],
   kn:['knight','kblade','kcapt','kterm','kheavy','kdread'], sw:['gaunt','hound','warrior','spitter','gargoyle','brute'],
   rb:['rwar','rimm','rlord','rguard','rscarab','rspider'], or:['boy','grot','boss','nob','loota','odread'],
-  th:['dabsong','musket','hanu','eleph','yak','naga'], lg:['samurai','ninja','viking','mummy','thunder','dragon'] };
+  th:['dabsong','musket','hanu','eleph','yak','naga'], jp:['samurai','yumi','ninja','naginata','kiba','nodachi','musashi'],
+  nr:['viking','vsword','berserk','daneaxe','valkyrie','thunder','frostg','loki','odin'],
+  eg:['mummy','jackal','anubis','ra','sphinx','sobek','seth','horus','bastet'],
+  md:['levy','pike','lbow','xbow','maa','mknight','templar','ballista','catapult','dragon'] };
 // ตัวหมากต่อคนไม่เกินเท่านี้ (ฝูงละสิบตัวซื้อได้เยอะ โต๊ะจะหนักเกิน): รวมทั้งโต๊ะราว 200 ตัว
 function armyCap(){ return Math.min(80, Math.floor(200 / Math.max(1, G.players.length || 2))); }
 function autoList(s){
@@ -7694,6 +7825,7 @@ function shootersOf(s, t, W){ var ms = sqModels(s), ts = sqModels(t), out = [];
 // how: 'shoot' ยิง · 'fight' ตะลุมบอน · 'ow' ยิงสกัดตอนโดนบุก (เข้าได้แค่ 6)
 // ออร่าของตัวเอก: หน่วยพวกเดียวกัน (รวมตัวเอง) ที่อยู่ในระยะ 6" ของหน่วยที่มีออร่านั้น
 var AURA_R = 6;
+var BLESS_INV = 5, REZ_AURA = 4;
 function inAura(s, kind){ return sqList().some(function(q){ return TY(q.k).aura === kind && q.side === s.side && sqDist(s, q) <= AURA_R + 0.001; }); }
 function atkMath(s, t, how){
   var A = TY(s.k), D = TY(t.k), melee = how === 'fight', W = melee ? A.mel : A.gun;
@@ -7707,8 +7839,9 @@ function atkMath(s, t, how){
   var need = W.tr ? 0 : how === 'ow' ? 6 : clampNeed((melee ? W.ws : W.bs) - mod);        // พ่น: โดนอัตโนมัติ ไม่ต้องทอยเข้า
   var wneed = clampNeed(woundNeed(W.s, D.T) - (melee && W.la && s.charged ? 1 : 0));
   var ap = Math.max(0, (W.ap || 0) - (D.aoc ? 1 : 0));                                       // เกราะศรัทธา: ค่าเจาะที่โดน −1
+  var inv = Math.min(D.inv || 7, inAura(t, 'bless') ? BLESS_INV : 7);                          // พรจากพระเจ้า: พวกในระยะ 6" ได้ 5++
   return { melee:melee, d:sqDist(s, t), shots:shots, who:who, need:need, wneed:wneed, mod:mod,
-           sv:Math.min(D.sv + ap, D.inv || 7), dmg:W.d || 1, su:W.su || 0, W:W, tr:!!W.tr, lh:!!W.lh, dw:!!W.dw, heel:!!D.heel };
+           sv:Math.min(D.sv + ap, inv), dmg:W.d || 1, su:W.su || 0, W:W, tr:!!W.tr, lh:!!W.lh, dw:!!W.dw, heel:!!D.heel };
 }
 function count(arr, need){ var n = 0; for (var i=0;i<arr.length;i++) if (arr[i] >= need) n++; return n; }
 function sum(arr){ var n = 0; for (var i=0;i<arr.length;i++) n += arr[i]; return n; }
@@ -8351,10 +8484,20 @@ var ANIM = {
   flamer:{ r:'flame', g:'flamer', m:'bash' }, mortar:{ r:'lob', g:'mortar', m:'bash' }, tank:{ r:'turret', g:'tankgun', m:'lunge' },
   cmdr:{ r:'fire', g:'pistol', hand:'L', m:'swing' },
   dabsong:{ m:'twin' }, musket:{ r:'fire', g:'musket', m:'bash' }, eleph:{ m:'thrust' }, yak:{ m:'swing2' },
-  hanu:{ m:'thrust' }, naga:{ r:'spray', g:'venom', m:'lunge' },
+  hanu:{ m:'swing' }, naga:{ r:'spray', g:'venom', m:'lunge' },
   samurai:{ m:'swing2' }, ninja:{ r:'throw', g:'star', m:'swing' }, viking:{ r:'throw', g:'axe', m:'swing', sh:1 },
-  mummy:{ m:'claw' }, thunder:{ r:'zap', g:'hammer', m:'swing' }, dragon:{ r:'breath', g:'fire', m:'lunge' }
+  mummy:{ m:'claw' }, thunder:{ r:'zap', g:'hammer', m:'swing' }, dragon:{ r:'breath', g:'fire', m:'lunge' },
+  // รอบ 4
+  yumi:{ r:'bow', m:'bash' }, kiba:{ r:'bow', m:'swing' }, nodachi:{ m:'swing2' }, naginata:{ m:'swing2' }, musashi:{ m:'twin' },
+  berserk:{ m:'twin' }, vsword:{ m:'swing', sh:1 }, daneaxe:{ m:'swing2' }, valkyrie:{ m:'thrust', sh:1 },
+  frostg:{ r:'hurl', g:'ice', m:'swing' }, loki:{ r:'cast', g:'loki', m:'swing' }, odin:{ r:'throw', g:'gungnir', m:'thrust' },
+  jackal:{ m:'swing', sh:1 }, sphinx:{ m:'lunge' }, anubis:{ r:'cast', g:'curse', m:'swing' }, ra:{ r:'gaze', g:'sun', m:'swing' },
+  horus:{ m:'thrust' }, seth:{ r:'flame', g:'sand', m:'swing' }, sobek:{ m:'swing2' }, bastet:{ m:'claw' },
+  levy:{ m:'swing' }, lbow:{ r:'bow', m:'bash' }, xbow:{ r:'fire', g:'xbow', m:'bash' }, pike:{ m:'thrust' }, maa:{ m:'swing' },
+  mknight:{ m:'thrust', sh:1 }, ballista:{ r:'turret', g:'ballista', m:'bash' }, catapult:{ r:'turret', g:'catapult', m:'bash' },
+  templar:{ m:'swing', sh:1 }
 };
+(function(){ for (var k in VARIANTS) VARIANTS[k].forEach(function(v){ if (!ANIM[v]) ANIM[v] = ANIM[k]; }); })();   // แต่ละชุดของหน่วยใช้ท่าเดียวกัน
 function animOf(k){ return ANIM[k] || ANIM.infantry; }
 var SHIELDED = {}; (function(){ for (var k in ANIM) if (ANIM[k].sh) SHIELDED[k] = 1; })();
 // สีกระสุนตามปืน: [แกนกลาง, แสงรอบ, ความหนาเป็นพิกเซลที่ระยะใกล้]
@@ -8368,10 +8511,12 @@ var TRACER = { carbine:['#FFE2A0', 'rgba(255,170,70,0.45)', 2.2], rifle:['#FFF1C
   staff:['#FFF6C8', 'rgba(255,220,90,0.65)', 3.4], slugga:['#FFE9B0', 'rgba(255,170,80,0.4)', 1.8],
   deffgun:['#FFD27A', 'rgba(255,130,50,0.55)', 3.6], dakka:['#FFE08A', 'rgba(255,160,60,0.5)', 2.4],
   grotgun:['#FFF1C8', 'rgba(255,200,110,0.35)', 1.4], musket:['#FFF1C8', 'rgba(255,200,110,0.4)', 2.0],
-  tankgun:['#FFD27A', 'rgba(255,120,40,0.6)', 5.2], stone:['#F2F0E6', 'rgba(210,220,200,0.6)', 3.6] };
+  tankgun:['#FFD27A', 'rgba(255,120,40,0.6)', 5.2], stone:['#F2F0E6', 'rgba(210,220,200,0.6)', 3.6],
+  loki:['#E4FFD8', 'rgba(90,230,120,0.65)', 3.4], curse:['#EEDCFF', 'rgba(150,90,255,0.65)', 3.4], sun:['#FFF6C8', 'rgba(255,196,60,0.75)', 5.0] };
 // ไฟที่พ่นออกไป: [แกน, ขอบ, สีประกายตอนโดน]
 var FLAME = { flamer:['255,236,160', '255,120,30', '255,190,90'], fire:['255,240,170', '255,110,20', '255,190,90'],
-  acid:['226,255,150', '120,200,40', '200,250,120'], venom:['210,255,230', '40,190,140', '160,250,210'] };
+  acid:['226,255,150', '120,200,40', '200,250,120'], venom:['210,255,230', '40,190,140', '160,250,210'],
+  sand:['250,236,196', '206,160,90', '236,204,140'] };
 function vadd(a, b){ return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
 function vsub(a, b){ return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
 function vmul(a, k){ return [a[0]*k, a[1]*k, a[2]*k]; }
@@ -8638,7 +8783,9 @@ ACT_FN.turret = function(u, a){
   a.shots.forEach(function(s){ if (t >= s.t) kick = Math.max(kick, Math.exp(-(t - s.t)/0.12)); });
   a.W = RIGQ.fk(P); a.gear = { turret:vnorm(vmix([0, 0, 1], d, w)), recoil:kick };
   a.shots.forEach(function(s){ if (!s.done && t >= s.t){ s.done = true;
-    var mz = toWorld(u, vadd(piv, vmul(d, T.len))), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, mz));
+    var mz = toWorld(u, vadd(piv, vmul(d, T.len))), gb = (MINI.GUN[a.gun] || {}).bolt;
+    if (gb){ boltShot(u, a, s, gb === 'boulder' ? toWorld(u, vadd(piv, [d[0]*0.3, T.len, d[2]*0.3])) : mz, gb); return; }
+    var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, mz));
     fxAdd({ kind:'flash', p:mz, life:0.12, size:0.55, rot:Math.random()*3 });
     fxAdd({ kind:'smoke', p:mz, life:1.1, size:0.8, col:'175,170,160' });
     fxAdd({ kind:'tracer', a:mz, b:end, dur:clamp(dist/34, 0.08, 0.6), life:clamp(dist/34, 0.08, 0.6) + 0.08, style:TRACER.tankgun, hit:s.hit,
@@ -8705,16 +8852,26 @@ function sparks(p, col, n, spread, grav){ fxAdd({ kind:'spark', p:p, col:col, li
 function fireShot(u, a, s){
   var g = MINI.GUN[a.gun] || MINI.GUN.rifle, one = a.hand, hr = one === 'L' ? a.W.handL.p : a.W.handR.p;
   var ax = one ? (one === 'L' ? a.gear.gunDirL : a.gear.gunDir) : vnorm(vsub(a.W.handL.p, a.W.handR.p));
-  var mz = toWorld(u, vadd(hr, vmul(ax, g.len + 0.03))), end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt);
-  var big = !!g.big, dist = vlen(vsub(end, mz));
+  var mz = toWorld(u, vadd(hr, vmul(ax, g.len + 0.03)));
+  if (g.bolt){ boltShot(u, a, s, mz, g.bolt); return; }
+  var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), big = !!g.big, dist = vlen(vsub(end, mz));
   fxAdd({ kind:'flash', p:mz, life:big ? 0.1 : 0.065, size:(big ? 0.3 : a.gun === 'hmg' ? 0.2 : 0.15)*(u.scale||1), rot:Math.random()*3 });
   fxAdd({ kind:'smoke', p:mz, life:big ? 0.9 : 0.5, size:big ? 0.5 : 0.22, col:'175,170,160' });
   fxAdd({ kind:'tracer', a:mz, b:end, dur:clamp(dist/(big ? 30 : 48), 0.08, 0.6), life:clamp(dist/(big ? 30 : 48), 0.08, 0.6) + 0.08,
     style:TRACER[a.gun] || TRACER.rifle, hit:s.hit, arrive:function(f){ if (f.hit){ sparks(f.b, big ? '255,170,80' : '255,236,170', big ? 9 : 5, big ? 0.6 : 0.28); knock(a.tgt); } } });
 }
+// หน้าไม้ บาลิสต้า เครื่องยิงหิน: ลูกศรพุ่งเกือบตรง · ก้อนหินโค้งสูงแล้วตกระเบิดฝุ่น
+function boltShot(u, a, s, from, kind){
+  var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, from)), lob = kind === 'boulder';
+  var dur = lob ? 0.9 + dist*0.022 : 0.12 + dist*(kind === 'bigbolt' ? 0.016 : 0.012);
+  fxAdd({ kind:kind, a:from, b:end, h:lob ? 2 + dist*0.3 : 0.1 + dist*0.02, dur:dur, life:dur + (lob ? 1.2 : 1.4), hit:s.hit,
+    arrive:function(f){ if (lob){ fxAdd({ kind:'boom', p:f.b, life:0.5, size:0.9 }); fxAdd({ kind:'smoke', p:f.b, life:1.1, size:0.8, col:'140,128,110' }); }
+      if (f.hit){ sparks(f.b, lob ? '220,200,160' : '255,236,170', lob ? 9 : 5, lob ? 0.5 : 0.24); knock(a.tgt); } } });
+}
 function throwArc(u, a, s, from, kind){
   var end = s.hit ? hitPoint(a.tgt) : missPoint(u, a.tgt), dist = vlen(vsub(end, from)), dur = 0.35 + dist*0.022;
-  fxAdd({ kind:kind, a:from, b:end, h:0.5 + dist*(kind === 'jav' ? 0.1 : 0.08), dur:dur, life:dur + 1.4, hit:s.hit,
+  if (kind === 'gungnir') dur = 0.25 + dist*0.014;                 // หอกของโอดินพุ่งตรงไม่เคยพลาด
+  fxAdd({ kind:kind, a:from, b:end, h:kind === 'gungnir' ? 0.2 + dist*0.02 : 0.5 + dist*(kind === 'jav' ? 0.1 : 0.08), dur:dur, life:dur + 1.4, hit:s.hit,
     arrive:function(f){ if (f.hit){ sparks(f.b, '255,236,170', 4, 0.22); knock(a.tgt); } } });
 }
 function strikeAt(u, a, i, now){ var s = a.shots[i]; if (!s || s.done || !now) return; s.done = true;
@@ -8723,7 +8880,7 @@ function strikeAt(u, a, i, now){ var s = a.shots[i]; if (!s || s.done || !now) r
 // ---- the tray says when: a throw starting and a throw coming to rest ----
 // [เริ่มยิงนัดแรก, เว้นระหว่างนัด] ของปืนที่ไม่ได้ยิงเร็วแบบปืนทั่วไป
 var GUN_T = { sniper:[0.7, 0.3], cannon:[0.42, 0.3], plasma:[0.4, 0.26], deffgun:[0.42, 0.3], musket:[0.55, 0.3], rotary:[0.4, 0.08],
-  dakka:[0.3, 0.09], gaussh:[0.32, 0.2], gauss:[0.32, 0.2] };
+  dakka:[0.3, 0.09], gaussh:[0.32, 0.2], gauss:[0.32, 0.2], xbow:[0.45, 0.3] };
 function startAttack(u, tgt, P, hits){
   var A = animOf(u.k), a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i, k = P.melee ? (A.m || 'bash') : (A.r || 'fire');
   a.kind = k;
@@ -8827,18 +8984,21 @@ function drawFx(f){
     ctx.stroke(); ctx.lineCap = 'butt';
     if (t < 0.08){ ctx.globalAlpha = 1 - t/0.08; ctx.fillStyle = 'rgb(' + f.col + ')'; ctx.beginPath(); ctx.arc(q[0], q[1], ppm(q)*0.08, 0, TAU); ctx.fill(); }
     return; }
-  if (f.kind === 'arrow' || f.kind === 'jav'){
+  if (f.kind === 'arrow' || f.kind === 'jav' || f.kind === 'bolt' || f.kind === 'bigbolt' || f.kind === 'gungnir'){
     var s = clamp(t/f.dur, 0, 1), pos = arcPos(f, s), nx = arcPos(f, Math.min(1, s + 0.02)), pv = arcPos(f, Math.max(0, s - 0.02));
-    var dir = vnorm(vsub(nx, pv)), len = f.kind === 'jav' ? 1.1 : 0.75, stuck = s >= 1;
+    var dir = vnorm(vsub(nx, pv)), len = { jav:1.1, bolt:0.45, bigbolt:1.5, gungnir:1.7 }[f.kind] || 0.75, stuck = s >= 1;
     if (stuck && !f.hit && t > f.dur + 0.5) return;               // a miss skids away out of sight
     var tail = vsub(pos, vmul(dir, len*(stuck ? 0.75 : 0.85))), tip = vadd(pos, vmul(dir, stuck ? 0.05 : len*0.15));
     var qt = proj(tail), qh = proj(tip); if (qt[2] < 0.4 || qh[2] < 0.4) return;
     ctx.globalAlpha = stuck ? clamp((f.life - t)/0.4, 0, 1) : 1; var px = ppm(qh);
-    ctx.lineCap = 'round'; ctx.strokeStyle = f.kind === 'jav' ? '#9A7446' : '#8A6A42'; ctx.lineWidth = clamp(px*(f.kind === 'jav' ? 0.03 : 0.018), 1, 3.2);
+    var thick = { jav:0.03, bolt:0.026, bigbolt:0.07, gungnir:0.04 }[f.kind] || 0.018;
+    ctx.lineCap = 'round'; ctx.strokeStyle = f.kind === 'gungnir' ? '#7A5A30' : f.kind === 'jav' ? '#9A7446' : '#8A6A42'; ctx.lineWidth = clamp(px*thick, 1, f.kind === 'bigbolt' ? 7 : 3.2);
     ctx.beginPath(); ctx.moveTo(qt[0], qt[1]); ctx.lineTo(qh[0], qh[1]); ctx.stroke();
-    ctx.strokeStyle = f.kind === 'jav' ? '#C8A060' : '#C9C4B8'; ctx.lineWidth = clamp(px*0.035, 1.4, 4);   // bronze head / flight
+    ctx.strokeStyle = f.kind === 'gungnir' ? '#FFD76A' : f.kind === 'jav' ? '#C8A060' : '#C9C4B8'; ctx.lineWidth = clamp(px*thick*1.6, 1.4, f.kind === 'bigbolt' ? 9 : 4);   // bronze head / flight
     var hd = proj(vsub(tip, vmul(dir, 0.08))); ctx.beginPath(); ctx.moveTo(hd[0], hd[1]); ctx.lineTo(qh[0], qh[1]); ctx.stroke();
-    if (f.kind === 'arrow'){ var fl = proj(vadd(tail, vmul(dir, 0.1))); ctx.strokeStyle = '#E4DCC8'; ctx.lineWidth = clamp(px*0.03, 1.2, 3);
+    if (f.kind === 'gungnir' && !stuck){ ctx.globalAlpha = 0.35; ctx.strokeStyle = '#FFE08A'; ctx.lineWidth = clamp(px*0.12, 3, 12);   // แสงทองตามหอก
+      ctx.beginPath(); ctx.moveTo(qt[0], qt[1]); ctx.lineTo(qh[0], qh[1]); ctx.stroke(); ctx.globalAlpha = 1; }
+    if (f.kind === 'arrow' || f.kind === 'bolt' || f.kind === 'bigbolt'){ var fl = proj(vadd(tail, vmul(dir, f.kind === 'bigbolt' ? 0.25 : 0.1))); ctx.strokeStyle = '#E4DCC8'; ctx.lineWidth = clamp(px*(f.kind === 'bigbolt' ? 0.08 : 0.03), 1.2, f.kind === 'bigbolt' ? 7 : 3);
       ctx.beginPath(); ctx.moveTo(qt[0], qt[1]); ctx.lineTo(fl[0], fl[1]); ctx.stroke(); }
     ctx.lineCap = 'butt'; return; }
   if (f.kind === 'glow'){ ctx.lineWidth = 2;
@@ -8876,13 +9036,13 @@ function drawFx(f){
     ctx.globalAlpha = 0.8*(1 - kb); ctx.fillStyle = 'rgba(255,150,60,0.8)'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1 - kb; ctx.fillStyle = '#FFF0C0'; ctx.beginPath(); ctx.arc(q[0], q[1], r*0.45*(1 - kb), 0, TAU); ctx.fill(); return; }
   // ของที่ลอยโค้งไป: ลูกปืนครก หิน ดาวกระจาย ขวาน
-  if (f.kind === 'shell' || f.kind === 'rock' || f.kind === 'boulder' || f.kind === 'star' || f.kind === 'axe'){
-    var s2 = clamp(t/f.dur, 0, 1); if (s2 >= 1 && f.kind !== 'rock' && f.kind !== 'boulder') return;
+  if (f.kind === 'shell' || f.kind === 'rock' || f.kind === 'boulder' || f.kind === 'ice' || f.kind === 'star' || f.kind === 'axe'){
+    var s2 = clamp(t/f.dur, 0, 1); if (s2 >= 1 && f.kind !== 'rock' && f.kind !== 'boulder' && f.kind !== 'ice') return;
     var pos2 = arcPos(f, s2); q = proj(pos2); if (q[2] < 0.4) return; var px3 = ppm(q);
     ctx.globalAlpha = s2 >= 1 ? clamp((f.life - t)/0.4, 0, 1) : 1;
     if (f.kind === 'shell'){ ctx.fillStyle = '#3A3C40'; ctx.beginPath(); ctx.arc(q[0], q[1], clamp(px3*0.06, 1.5, 5), 0, TAU); ctx.fill(); return; }
-    if (f.kind === 'rock' || f.kind === 'boulder'){ r = clamp(px3*(f.kind === 'boulder' ? 0.42 : 0.14), 2, 60);
-      ctx.fillStyle = '#7A7266'; ctx.beginPath();
+    if (f.kind === 'rock' || f.kind === 'boulder' || f.kind === 'ice'){ r = clamp(px3*(f.kind === 'boulder' ? 0.42 : f.kind === 'ice' ? 0.3 : 0.14), 2, 60);
+      ctx.fillStyle = f.kind === 'ice' ? '#CFE8F4' : '#7A7266'; ctx.beginPath();
       for (i=0;i<7;i++){ var an2 = i*TAU/7 + t*6, rr2 = r*(0.8 + 0.2*Math.sin(i*2.3)); i ? ctx.lineTo(q[0] + Math.cos(an2)*rr2, q[1] + Math.sin(an2)*rr2) : ctx.moveTo(q[0] + Math.cos(an2)*rr2, q[1] + Math.sin(an2)*rr2); }
       ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(40,36,30,0.7)'; ctx.lineWidth = 1; ctx.stroke(); return; }
     if (f.kind === 'star'){ r = clamp(px3*0.07, 2, 8); ctx.fillStyle = '#C8CCD4'; ctx.beginPath();
@@ -8934,7 +9094,8 @@ function startTurn(){
     mkPend({ kind:'shock', u:s.id, side:s.side, att:s.pl, anm:TY(s.k).nm, stage:'shock', need:TY(s.k).ld }); });
   // ซ่อมตัวเอง: หลังทดสอบขวัญ ตัวที่ล้มในหน่วยที่ยังเหลืออยู่ทอยคนละลูก
   sqList().forEach(function(s){ var T = TY(s.k), lost = s.n0 - sqAlive(s); if (s.side !== G.turn || !T.rez || lost <= 0) return;
-    mkPend({ kind:'rez', u:s.id, side:s.side, att:s.pl, anm:T.nm, stage:'rez', need:T.rez, n:Math.min(10, lost) }); });
+    var need = inAura(s, 'rez') ? Math.min(T.rez, REZ_AURA) : T.rez;                          // อานูบิสอยู่ใกล้: ลุกได้ง่ายขึ้น
+    mkPend({ kind:'rez', u:s.id, side:s.side, att:s.pl, anm:T.nm, stage:'rez', need:need, n:Math.min(10, lost) }); });
   // ม้าไม้เมืองทรอย: ตั้งแต่รอบ 2 เปิดท้องม้าในเฟสคำสั่งของทีม
   if (G.round >= 2) sqList().forEach(function(s){ if (s.side === G.turn && TY(s.k).spawn && !s.opened) spawnFrom(s); });
   G.cmdWait = true;
@@ -9038,7 +9199,7 @@ function boardState(){
       shaken:!!s.shaken, engaged:isEngaged(s) }; }),
     units:units.map(function(u){ return { id:u.id, sq:u.sq, pl:u.pl, team:u.side, k:u.t, hp:u.hp, x:+gx(u).toFixed(1), z:+gz(u).toFixed(1) }; }) };
 }
-var RULES_V = 3;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
+var RULES_V = 4;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -9385,6 +9546,8 @@ function wpnLine(W, melee){ if (!W) return '';
 function abilityText(T){ var a = [];
   if (T.hero) a.push('★ ตัวเอก'); if (T.brave) a.push('ไม่เคยถอย'); if (T.aoc) a.push('เกราะศรัทธา (โดนเจาะ −1)');
   if (T.aura === 'hit') a.push('ผู้นำ: พวกในระยะ ' + AURA_R + '" เข้าเป้า +1'); if (T.aura === 'ld') a.push('ผู้นำ: พวกในระยะ ' + AURA_R + '" ไม่เสียขวัญ');
+  if (T.aura === 'bless') a.push('พรจากพระเจ้า: พวกในระยะ ' + AURA_R + '" ได้เซฟพิเศษ ' + BLESS_INV + '++');
+  if (T.aura === 'rez') a.push('เทพแห่งความตาย: หน่วยที่ลุกได้ในระยะ ' + AURA_R + '" ลุกตั้งแต่ ' + REZ_AURA + '+');
   if (T.ca) a.push('บุกมา ตีเพิ่ม 1'); if (T.ac) a.push('วิ่งแล้วบุกได้'); if (T.fly) a.push('บิน (ถอยแล้วยิง/บุกได้)'); if (T.st) a.push('พรางตัว (โดนยิง −1)');
   if (T.rez) a.push('ซ่อมตัวเอง ' + T.rez + '+'); if (T.heel) a.push('ส้นเท้า: โดนเจาะได้ 6 ตายทันที');
   if (T.spawn) a.push('ซ่อน' + TY(T.spawn.k).nm + ' ' + T.spawn.n + ' ตัวในท้อง'); if (T.heal) a.push('รักษาเพื่อนในระยะ ' + T.heal + '"');
@@ -10315,7 +10478,8 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   tap:function(x, z){ var s = G.sel; if (!s) return false; if (G.phase === 'move') return tryMoveSq(s, x, z); return false; },
   stratOk:function(k, pi){ return canStrat(k, pi); },
   why:function(kind, u, t){ var a = sq_(u), b = sq_(t); return kind === 'chg' ? chargeWhyNot(a, b) : kind === 'heal' ? healWhyNot(a, b) : shotWhyNot(a, b); },
-  seed:function(n){ SEED = n; buildTerrain(); genProps(); dirty = true; }, armyCap:armyCap, inAura:function(u, k){ return inAura(sq_(u), k); }, pend:function(){ return PEND.map(function(P){ return { kind:P.kind, u:P.u, stage:P.stage, n:P.n }; }); },
+  kitOf:kitOf, blessed:function(){ return blessedNow(); },
+  seed:function(n){ SEED = n; buildTerrain(); genProps(); dirty = true; }, armyCap:armyCap, inAura:function(u, k){ return inAura(sq_(u), k); }, pend:function(){ return PEND.map(function(P){ return { kind:P.kind, u:P.u, stage:P.stage, n:P.n, need:P.need }; }); },
   fell:function(u, v){ var s = sq_(u); if (s){ s.fell = !!v; if (v) s.moved = true; } }, advd:function(u, v){ var s = sq_(u); if (s){ s.adv = !!v; s.advR = 3; } },
   charged:function(u, v){ var s = sq_(u); if (s) s.charged = !!v; },
   live:liveOf, log:function(){ return LOG.slice(); },
