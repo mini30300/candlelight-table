@@ -1128,12 +1128,15 @@ var SHIELD = { hoplite:1, spartan:1, peltast:1, cavalry:1 }, GUNNER = { heavy:1,
 // both hands on a gun, carried at the low ready: right hand at the grip by the hip, left hand forward on the barrel.
 // Solved from the rig so the hands land on (-0.13, 1.0, 0.24) and (0.02, 1.1, 0.52) with the elbows clear of the body.
 var HOLD = { sR:[16.3, 7.4, 5.5], eR:-106.3, sL:[-35.8, -57.6, 42.7], eL:-47.1 };
+// a shield carried across the body: the upper arm turned in, the forearm across the belly. Bent further (it was -100) the
+// forearm rose to the chest and the rim covered the face; the hinge axis (the shield's facing) is the same either way
+var SHIELD_EL = -70;
 function kitPose(P){
   var K = KITS[KIT], hd = K && K.hold;
   if (K && K.pose){ K.pose(P); return; }
   if (SHIELD[KIT] || hd === 'shield'){
     P.q.shoulderL = R.qslerp(P.q.shoulderL||R.QI, R.eul(-30, -90, 15), 0.92);   // upper arm turned in: the forearm crosses the chest
-    P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.eul(0, 0, 0);
+    P.q.elbowL = R.eul(SHIELD_EL, 0, 0); P.q.wristL = R.eul(0, 0, 0);
     P.q.shoulderR = R.qslerp(P.q.shoulderR||R.QI, R.eul(-12, 0, -8), 0.7); P.q.elbowR = R.qslerp(P.q.elbowR||R.QI, R.eul(-20,0,0), 0.7);
     return;
   }
@@ -1420,11 +1423,31 @@ function javelinsIn(Wd){
     var up = R.norm([0.06 + o[0], 1, 0.25 + o[1]]), a = R.sub(h, R.mul(up, 0.55)), b = R.add(h, R.mul(up, 0.95));
     rod(a, b, 0.009, 0.008, 5, 'wood'); rod(b, R.add(b, R.mul(up, 0.13)), 0.018, 0.001, 5, 'helm'); });
 }
-function crescentShield(Wd){            // the pelte: a light crescent of wicker and hide on the left forearm
-  J(shieldJ(Wd), function(){ var rot = Q.qz(-90*DEG), cen = [0.07,-0.14,0];
-    withRot(rot, cen, function(){
-      armDome(null, [0,-1.26,0], 1.3, 76, 90, 14, 2, [-40,40,79], 'shield', 1, -150, 150);
-      armTube(null, 0.0, 0.3, 0.3, 0.025, 0.29, 0.29, 14, (-150+90)*DEG, (150+90)*DEG, 'trim'); }); });
+// the pelte: a light crescent of wicker and hide on the left forearm, horns up. A flat board: a disc with a round bite out
+// of its top, laid out in its own plane (u right, v up, kept upright whatever the arm does, as the tall shields are) just
+// off the forearm. It was a bowl with a wedge cut to the middle, and turned with the arm the wedge sat at the side: a 6.
+// Front and back are one face each; the outline starts on the outer arc, so the corner that sets its facing is convex.
+function crescentShield(Wd){
+  var sJ = shieldJ(Wd, 0), up = R.qrot(R.qconj(sJ.q), [0,1,0]), v = [0, up[1], up[2]], near = LODK > 0.5, i;
+  if (R.len(v) < 0.25) v = [0, 0, 1];
+  v = R.norm(v); var u = R.cross(v, [1,0,0]), cy = -0.14, xb = 0.052, xf = 0.068, RO = 0.3, CB = 0.33, RB = 0.2, RIM = 0.024;
+  var no = segs(7, 3), nb = segs(6, 3);
+  var P = function(p, x){ return R.add([x, cy, 0], R.add(R.mul(u, p[0]), R.mul(v, p[1]))); };
+  var outline = function(ro, rb){          // CCW from the front: round the bottom to the right horn, along the bite, back down
+    var hb = (ro*ro - rb*rb + CB*CB)/(2*CB), ha = Math.sqrt(Math.max(0, ro*ro - hb*hb)), aO = Math.atan2(hb, ha), aB = Math.atan2(hb - CB, ha), O = [], k, t;
+    for (k=0;k<=no;k++){ t = -Math.PI/2 + (aO + Math.PI/2)*k/no; O.push([ro*Math.cos(t), ro*Math.sin(t)]); }
+    for (k=1;k<nb;k++){ t = aB - (Math.PI + 2*aB)*k/nb; O.push([rb*Math.cos(t), CB + rb*Math.sin(t)]); }
+    for (k=0;k<no;k++){ t = Math.PI - aO + (aO + Math.PI/2)*k/no; O.push([ro*Math.cos(t), ro*Math.sin(t)]); }
+    return O; };
+  var O = outline(RO, RB), n = O.length;
+  J(sJ, function(){
+    kn_polyOut(null, O.map(function(p){ return P(p, xb); }), 'wood', [-1, 0, 0]);                     // the wicker back
+    if (!near){ kn_polyOut(null, O.map(function(p){ return P(p, xf); }), 'shield', [1, 0, 0]); return; }
+    for (i=0;i<n;i++){ var a = O[i], b = O[(i+1) % n];                                              // the edge, all round
+      kn_q(null, P(a, xb), P(b, xb), P(b, xf), P(a, xf), 'trim', R.add(R.mul(u, b[1] - a[1]), R.mul(v, a[0] - b[0]))); }
+    var I = outline(RO - RIM, RB + RIM);                                                            // a bound rim round the hide
+    kn_polyOut(null, I.map(function(p){ return P(p, xf); }), 'shield', [1, 0, 0]);
+    for (i=0;i<n;i++){ var j = (i+1) % n; kn_q(null, P(O[i], xf), P(O[j], xf), P(I[j], xf), P(I[i], xf), 'trim', [1, 0, 0]); } });
 }
 
 // ---------- the kits ----------
@@ -1432,7 +1455,7 @@ function kitArcher(Wd){
   var hr = Bm.headR, H = Wd.head, C = Wd.chest, Sp = Wd.spine, Pv = Wd.pelvis;
   armDome(H, [0,0.02,0], hr*1.12, 5, 90, 12, 4, null, 'helm', 1.25);        // tall leather cap
   armTube(H, 0.0, hr*1.13, hr*1.13, -0.02, hr*1.15, hr*1.15, 12, 0, TAU, 'trim');
-  armTube(Sp, 0.02, 0.145, 0.105, 0.17, 0.155, 0.112, 10, 0, TAU, 'cloth');   // linen chiton
+  armTube(Sp, -0.15, 0.14, 0.1, 0.17, 0.155, 0.112, 10, 0, TAU, 'cloth');   // linen chiton, down to the skirt (it stopped short: the waist showed daylight)
   armTube(Sp, 0.17, 0.155, 0.112, 0.28, 0.165, 0.115, 10, 0, TAU, 'cloth');
   armTube(Pv, 0.04, 0.14, 0.1, -0.24, 0.17, 0.125, 12, 0, TAU, 'cloth');
   armBox(Pv, [0,0.03,0], 0.15, 0.016, 0.108, 'pouch');
@@ -1451,7 +1474,7 @@ function kitPeltast(Wd){
   armDome(H, [0,0.012,0], hr*1.18, -30, 90, 12, 4, [-40,40,10], 'helm');    // Thracian helmet with a forward peak
   armQuad(H, [-0.09,0.03,0.1],[0.09,0.03,0.1],[0.1,0.04,0.17],[-0.1,0.04,0.17], 'helm');
   armDome(H, [0,hr*1.05,0.03], 0.045, 0, 90, 8, 2, null, 'helm', 1.4);     // the forward-leaning apex
-  armTube(Sp, 0.02, 0.145, 0.105, 0.17, 0.155, 0.112, 10, 0, TAU, 'cloth');
+  armTube(Sp, -0.15, 0.14, 0.1, 0.17, 0.155, 0.112, 10, 0, TAU, 'cloth');   // down to the skirt, as the archer's
   armTube(Sp, 0.17, 0.155, 0.112, 0.28, 0.165, 0.115, 10, 0, TAU, 'cloth');
   armTube(Pv, 0.04, 0.14, 0.1, -0.2, 0.16, 0.12, 12, 0, TAU, 'cloth');
   armTube(C, 0.24, 0.17, 0.12, 0.02, 0.2, 0.15, 10, Math.PI*0.55, Math.PI*1.45, 'red');   // short cloak over the back
@@ -1467,11 +1490,12 @@ function kitPeltast(Wd){
 }
 function kitSpartan(Wd){
   kitHoplite(Wd, true);
-  J(shieldJ(Wd), function(){ withRot(Q.qz(-90*DEG), [0.075,-0.14,0], function(){   // the lambda on the shield face
+  var sJ = shieldJ(Wd), up = shieldUp(sJ);
+  J(sJ, function(){ withRot(Q.qz(-90*DEG), [0.075,-0.14,0], function(){   // the lambda on the shield face
     // raised a little off the bowl and cut into short pieces, so the painter's sort keeps each piece in front of the bowl
     var sy = function(x, z){ return -1.56 + Math.sqrt(2.56 - x*x - z*z) + 0.012; };
-    // the shield hangs tilted on the forearm: in its own plane, world-up is (0.62, 0.78) in local (X, Z)
-    var P = function(u, v){ var x = -0.78*u + 0.62*v, z = 0.62*u + 0.78*v; return [x, sy(x, z), z]; };
+    // the shield hangs tilted on the forearm and the brace turns it; laid out along up (world-up in its plane) it stays upright
+    var P = function(u, v){ var x = -up[1]*u + up[0]*v, z = up[0]*u + up[1]*v; return [x, sy(x, z), z]; };
     [-1, 1].forEach(function(s){ var n = 5, w = 0.028, u0 = s*0.2, v0 = -0.22, u1 = 0, v1 = 0.24;
       for (var i=0;i<n;i++){ var a = i/n, b = (i+1)/n, ua = u0 + (u1-u0)*a, va = v0 + (v1-v0)*a, ub = u0 + (u1-u0)*b, vb = v0 + (v1-v0)*b;
         var q0 = P(ua - w, va), q1 = P(ua + w, va), q2 = P(ub + w, vb), q3 = P(ub - w, vb);
@@ -1592,13 +1616,24 @@ var ACT = null;
 // The shield rides on the left forearm. The elbow is a hinge, so the forearm's roll follows whatever plane the arm bends in,
 // and a shield raised high would lie flat like a hat. A bearer bracing (ACT.shield = the way to face) rolls the forearm
 // instead: the shield keeps the forearm as its axis and turns its face that way, eased in by ACT.shieldW.
-function shieldJ(Wd){
-  var E = Wd.elbowL; if (!ACT || !ACT.shield) return E;
+// The frame sits SHIELD_OUT in front of the forearm (along the shield's facing): held right against the body, the far edge
+// of a big bowl sorted behind the shoulder and the fur or mail on it, and those showed through the shield. A flat board
+// laid at its own distance from the arm, or a frame of its own built on this one, asks for off = 0.
+var SHIELD_OUT = 0.09;
+function shieldJ(Wd, off){
+  var E = Wd.elbowL, o = off == null ? SHIELD_OUT : off, out = function(q){ return { p:R.add(E.p, R.mul(R.qrot(q, [1,0,0]), o)), q:q }; };
+  if (!ACT || !ACT.shield) return out(E.q);
   var Y = R.qrot(E.q, [0,1,0]), X0 = R.qrot(E.q, [1,0,0]), n = ACT.shield, X = R.sub(n, R.mul(Y, R.dot(n, Y)));
-  if (R.len(X) < 0.3) return E;
+  if (R.len(X) < 0.3) return out(E.q);
   var w = ACT.shieldW == null ? 1 : ACT.shieldW; X = R.norm(R.add(R.mul(X0, 1 - w), R.mul(R.norm(X), w)));
   X = R.norm(R.sub(X, R.mul(Y, R.dot(X, Y))));
-  return { p:E.p, q:m2q(X, Y, R.cross(X, Y)) };
+  return out(m2q(X, Y, R.cross(X, Y)));
+}
+// World-up on the face of a bowl built in a shield frame turned by withRot(Q.qz(-90*DEG)) (the bowl's axis is the facing),
+// as [X, Z] in the bowl's own coordinates: an emblem or a notch laid out with it stands upright whatever the arm does.
+function shieldUp(sJ){
+  var f = R.qrot(R.qconj(sJ.q), [0,1,0]), x = -f[1], z = f[2], l = Math.sqrt(x*x + z*z);
+  return l < 0.25 ? [0, 1] : [x/l, z/l];
 }
 // Put a hand on a point: two-bone arm IK in model space. pole = the way the elbow should point. The wrist is left straight
 // (forearm and hand as one bone), which is how a gun, a bow grip or a spear is held.
@@ -1884,7 +1919,7 @@ function kn_shieldFrame(Wd){
   var E = Wd.elbowL, Y = R.qrot(E.q, [0,1,0]), tgt = R.qrot(Wd.chest.q, R.norm([0, 0.05, 1]));
   if (ACT && ACT.shield){ var w = ACT.shieldW == null ? 1 : ACT.shieldW; tgt = R.add(R.mul(tgt, 1 - w), R.mul(R.norm(ACT.shield), w)); }
   var X = R.sub(tgt, R.mul(Y, R.dot(tgt, Y)));
-  if (R.len(X) < 0.2) return shieldJ(Wd);
+  if (R.len(X) < 0.2) return shieldJ(Wd, 0);
   X = R.norm(X);
   return { p: E.p, q: m2q(X, Y, R.cross(X, Y)) };
 }
@@ -5819,8 +5854,10 @@ SOLID.viking = { cloth:[176,72,52], pants:[92,76,70], plate:[176,72,52], shield:
   flesh:[212,160,120], fur:[150,138,118], coat:[98,76,58], hair:[196,122,58], steel:[160,166,176], gold:[214,168,74], leather:[92,64,42], wood:[132,96,60],
   horn:[228,216,184], rope:[196,182,150], eye:[26,20,18] };
 // an axe from the grip h along d: haft, then the head with its edge leading the cut (a bearded head for the big one)
+// the edge faces the way the blow travels (over the top, forward and down), square to the haft; it faced the other way, so
+// the axe at rest turned its edge on the viking himself and the chop landed with the back of the head
 function lg_axe(h, d, len, big){
-  d = R.norm(d); var sw = [0, d[2], -d[1]]; if (R.len(sw) < 0.2) sw = [0, 1, 0];
+  d = R.norm(d); var sw = [0, -d[2], d[1]]; if (R.len(sw) < 0.2) sw = [0, 1, 0];
   var top = R.add(h, R.mul(d, len)), F = frameOn(top, d, sw);
   rod(R.sub(h, R.mul(d, big ? 0.1 : 0.06)), R.add(top, R.mul(d, 0.03)), big ? 0.017 : 0.014, big ? 0.015 : 0.012, 5, 'wood');
   J(F, function(){ var k = big ? 1 : 0.62, a = [0, -0.035*k, 0.015], b = [0, -0.05*k, 0.2*k], m = [0, 0.03*k, 0.19*k],
@@ -6738,7 +6775,7 @@ function na_lean(P, sp, ch){                                  // lean the upper 
   P.q.neck = R.qmul(R.eul(-(sp + ch)*0.85, 0, 0), P.q.neck || na_QI);
 }
 function na_shieldArm(P){                                     // the left forearm across the chest, as hold:'shield' does
-  P.q.shoulderL = R.qslerp(P.q.shoulderL || R.QI, R.eul(-30, -90, 15), 0.92); P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.QI;
+  P.q.shoulderL = R.qslerp(P.q.shoulderL || R.QI, R.eul(-30, -90, 15), 0.92); P.q.elbowL = R.eul(SHIELD_EL, 0, 0); P.q.wristL = R.QI;
 }
 // the edge of a chopping weapon faces the way the blow travels (over the top, forward and down): square to the haft.
 // At rest (w = 0) it may face `rest` instead (outward, so the blade's flat shows from the front), eased to the cut by w.
@@ -7848,7 +7885,7 @@ function ea_khopesh(g, d){
 // a gold rim round a team field with a gold ankh on it; the field is cut round the ankh (nothing lies over anything, so
 // the painter's sort cannot bury the ankh), the back in the team's darker shade (so the side shows from behind too)
 function ea_shield(Wd){
-  var sJ = shieldJ(Wd), upL = R.qrot(R.qconj(sJ.q), [0, 1, 0]), v = [0, upL[1], upL[2]], hi = ea_hi();
+  var sJ = shieldJ(Wd, 0), upL = R.qrot(R.qconj(sJ.q), [0, 1, 0]), v = [0, upL[1], upL[2]], hi = ea_hi();   // a flat board: its own clearance
   if (R.len(v) < 0.25) v = [0, 0, 1];
   v = R.norm(v); var u = R.cross(v, [1, 0, 0]), cy = -0.13, xb = 0.066, xf = 0.09, W = 0.2, B0 = -0.46, B1 = 0.15, i;
   var P = function(p, x){ return R.add([x, cy, 0], R.add(R.mul(u, p[0]), R.mul(v, p[1]))); };
@@ -7991,7 +8028,7 @@ function ea_wings(Wd, mo){
 // black jackal head, gold collar, kilt; the khopesh ready in the right fist, the tall shield across the body
 SOLID.jackal = ea_pal({});
 function ea_jackalPose(P){
-  P.q.shoulderL = R.qslerp(P.q.shoulderL || R.QI, R.eul(-30, -90, 15), 0.92); P.q.elbowL = R.eul(-100, 0, 0); P.q.wristL = R.QI;
+  P.q.shoulderL = R.qslerp(P.q.shoulderL || R.QI, R.eul(-30, -90, 15), 0.92); P.q.elbowL = R.eul(SHIELD_EL, 0, 0); P.q.wristL = R.QI;
   P.q.shoulderR = R.qslerp(P.q.shoulderR || R.QI, R.eul(-22, 0, -12), 0.75); P.q.elbowR = R.qslerp(P.q.elbowR || R.QI, R.eul(-62, 0, 0), 0.8);
   P.q.wristR = R.QI;
 }
@@ -9224,7 +9261,7 @@ function mb_shieldFrame(Wd){
   var E = Wd.elbowL, Y = R.qrot(E.q, [0,1,0]), tgt = R.qrot(Wd.chest.q, R.norm([0, 0.04, 1]));
   if (ACT && ACT.shield){ var w = ACT.shieldW == null ? 1 : ACT.shieldW; tgt = R.add(R.mul(tgt, 1 - w), R.mul(R.norm(ACT.shield), w)); }
   var X = R.sub(tgt, R.mul(Y, R.dot(tgt, Y)));
-  if (R.len(X) < 0.2) return shieldJ(Wd);
+  if (R.len(X) < 0.2) return shieldJ(Wd, 0);
   X = R.norm(X);
   return { p: E.p, q: m2q(X, Y, R.cross(X, Y)) };
 }
