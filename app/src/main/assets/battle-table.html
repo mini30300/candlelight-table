@@ -305,6 +305,9 @@
       <div id="btSpecOpt" class="hide">
         <h3>บอทกี่ฝ่าย · งบฝ่ายละเท่าไร</h3>
         <div class="row"><label class="sl">ฝ่าย <input type="range" id="btSpecN" min="2" max="8" step="1" value="2"><em id="btSpecNV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">2 ฝ่าย</em></label></div>
+        <div class="hrow" style="margin-top:6px"><h3>กองทัพของบอท</h3><div class="grp" id="btSpecOwn">
+          <button data-o="0" class="on">สุ่มให้</button><button data-o="1">จัดเอง</button>
+        </div></div>
         <div class="row" style="margin-top:4px"><label class="sl">แต้ม <input type="range" id="btSpecPts" min="200" max="2000" step="50" value="500"><em id="btSpecPtsV" style="font-style:normal;color:var(--ink);min-width:52px;text-align:right">500</em></label></div>
       </div>
       <div id="btRules">
@@ -1612,6 +1615,8 @@ function kitHorse(mo){
     var s = L[0], front = i < 2, p = ph + L[2], swing = 0.5*sp*Math.sin(p), lift = Math.max(0, Math.sin(p + Math.PI/2))*sp;
     var hip = [s*0.17, bodyY - 0.06, L[1]];
     var up = 0.5, lo = 0.52, a1 = swing, a2 = front ? -0.9*lift : 0.9*lift;
+    if (mo && mo.fly){ var fb = mo.fph == null ? 0 : 0.12*Math.sin(mo.fph*TAU + (front ? 0 : 1.2));   // in the air: forelegs folded
+      a1 = front ? 0.62 + fb : -0.72 + fb; a2 = front ? -1.45 : 0.5; }                                 // up, hind legs trailing
     var kn = [hip[0], hip[1] - up*Math.cos(a1), hip[2] + up*Math.sin(a1)];
     var ft = [kn[0], kn[1] - lo*Math.cos(a1 + a2), kn[2] + lo*Math.sin(a1 + a2)];
     if (ft[1] < 0.06){ var dy = 0.06 - ft[1]; ft[1] += dy; kn[1] += dy*0.5; }
@@ -2686,6 +2691,7 @@ var sw_WING = { root:[0.075, 0.03, -0.12], body:[0.05, -0.4, -0.04],
 function sw_wings(Wd, mo){
   var C = Wd.chest, v = mo ? mo.v || 0 : 0, sp = Math.min(1, v/1.2), tr = mo ? mo.travel || 0 : 0, W = sw_WING;
   var flap = sp*(0.1 + 0.5*Math.sin(tr/1.4*TAU));
+  if (mo && mo.fly){ sp = 1; flap = mo.fph == null ? 0.06 : 0.1 + 0.55*Math.sin(mo.fph*TAU); }   // in the air: open, beating or gliding
   [-1, 1].forEach(function(sd){
     var r0 = fw(C, [sd*W.root[0], W.root[1], W.root[2]]), M = function(l){ return [sd*l[0], l[1], l[2]]; };
     var P = function(a, b){ return R.add(r0, sw_rot(M(lerp3(a, b, sp)), [0, 0, 1], sd*flap)); };
@@ -4677,6 +4683,7 @@ function gx_pegasus(Wd, mo){
   kitHorse(mo);
   var tr = mo ? mo.travel || 0 : 0, sp = mo ? Math.min(1, (mo.v || 0)/1.2) : 0;
   var bob = 0.035*sp*Math.sin(2*tr/2.3*TAU), spread = gx_clamp(sp*1.6, 0, 1), flap = spread*(0.35 + 0.4*Math.sin(tr/3.2*TAU));
+  if (mo && mo.fly){ spread = 1; flap = mo.fph == null ? 0.28 : 0.35 + 0.45*Math.sin(mo.fph*TAU); }   // in the air
   gx_wing(1, spread, flap, 1.13 + bob); gx_wing(-1, spread, flap, 1.13 + bob);
   kitHoplite(riderOf('pegasus', mo));
 }
@@ -6274,6 +6281,7 @@ function lg_dragon(Wd, mo){
     off *= sp; lift *= sp;
     var hip = hind ? [s*0.34, 0.98 + bob, -0.6] : [s*0.36, 0.98 + bob, 0.34], z0 = hind ? -0.46 : 0.5;
     var foot = [s*(hind ? 0.5 : 0.48), lift, z0 + off];
+    if (mo && mo.fly) foot = hind ? [s*0.44, 0.42, -1.02] : [s*0.4, 0.52, 0.44];                       // in the air: drawn up under it
     if (!hind && s < 0 && ln > 0 && !breath) foot = R.add(foot, [0, 0.6*ln, 0.5*ln]);                  // a forefoot raised to rake
     lg_dragonLeg(hip, foot, hind ? 0.54 : 0.5, hind ? 0.5 : 0.5, hind ? [0, -0.1, 1] : [0, 0.1, -1], hind ? 0.28 : 0.22, hind, [s*0.12, 0, 1]);
     if (hind && HI) armDome(frameOn(R.add(hip, [s*0.04, 0.02, 0]), [0, -1, 0.35]), [0, 0.06, 0], 0.3, -50, 60, 8, 2, null, 'scales', 1);   // the haunch
@@ -6281,6 +6289,7 @@ function lg_dragon(Wd, mo){
   });
   // ---- wings: folded high at rest, spread and beating while it moves; flared as it strikes ----
   var spread = Math.max(sp*0.92, ln > 0 && !breath ? 0.6*ln : 0, breath ? 0.5*jaw : 0), flap = sp*0.42*Math.sin(TAU*tr/2.6) + (ln > 0 && !breath ? 0.3*ln : 0) + (breath ? 0.25*jaw : 0);
+  if (mo && mo.fly){ spread = Math.max(spread, 0.97); if (!(ln > 0) && !breath) flap = mo.fph == null ? 0.1 : 0.5*Math.sin(mo.fph*TAU); }   // in the air
   lg_dragonWing(1, spread, flap); lg_dragonWing(-1, spread, flap);
 }
 kit('dragon', { creature:true, h:3.0, mouth:LG_DR_MOUTH, build:function(Wd, mo){ lg_dragon(Wd, mo); } });
@@ -7129,6 +7138,7 @@ function na_valkyrie(Wd, mo){
   na_cloak(C, { rr:0.21, rb:0.32, bot:-0.98, clasp:0.0 });
   var v = mo && mo.v || 0, tr = mo && mo.travel || 0, fl = Math.min(1, v/1.2);
   var spread = Math.max(0.22*fl, ACT && ACT.spear ? 0.3 : 0), flap = fl*0.28*Math.sin(tr/1.7*TAU);
+  if (mo && mo.fly){ spread = 1; flap = mo.fph == null ? 0.12 : 0.1 + 0.42*Math.sin(mo.fph*TAU); }   // in the air
   na_wing(C, 1, spread, flap); na_wing(C, -1, spread, flap);
   // ---- shield and spear ----
   na_shield(Wd, 'ring');
@@ -8027,6 +8037,7 @@ function ea_spear(p, d, back, fore){
 function ea_wings(Wd, mo){
   var C = Wd.chest, hi = ea_hi(), v = mo ? mo.v || 0 : 0, sp = Math.min(1, v/1.2), tr = mo ? mo.travel || 0 : 0;
   var spread = Math.max(sp*0.8, ACT && ACT.spear ? 0.5 : 0), flap = sp*0.2*Math.sin(tr/1.6*TAU), ax = R.qrot(C.q, [0, 0, 1]);
+  if (mo && mo.fly){ spread = 1; flap = mo.fph == null ? 0.05 : 0.36*Math.sin(mo.fph*TAU); }   // in the air
   [-1, 1].forEach(function(s){
     var M = function(l){ return R.qrot(C.q, [s*l[0], l[1], l[2]]); }, fl = function(x){ return sw_rot(x, ax, s*flap); };
     var s1 = fl(R.norm(M(lerp3([0.6, 0.72, -0.34], [0.92, 0.32, -0.2], spread))));        // shoulder to wrist
@@ -10283,9 +10294,11 @@ function setupCam(){
   var gy = heightAt(EYE[0], EYE[2]) + 1.2; if (EYE[1] < gy) EYE[1] = gy;      // never sink into the ground
   var tg = [cam.tx, cam.ty || 0, cam.tz], f = [tg[0]-EYE[0], tg[1]-EYE[1], tg[2]-EYE[2]], fl = Math.hypot(f[0],f[1],f[2]);
   FW = [f[0]/fl, f[1]/fl, f[2]/fl];
-  var r = [ FW[2], 0, -FW[0] ], rl = Math.hypot(r[0],r[2]) || 1; RT = [r[0]/rl, 0, r[2]/rl];
-  // up = cross(forward, right)
-  UP = [ FW[1]*RT[2] - FW[2]*RT[1], FW[2]*RT[0] - FW[0]*RT[2], FW[0]*RT[1] - FW[1]*RT[0] ];
+  // right = forward x world up, and up = right x forward: a right-handed view. Until Round 5b the right vector pointed
+  // the other way, which drew the whole table mirrored, so every figure (built right-handed: its gun in handR, at
+  // model -x) looked left-handed.
+  var r = [ -FW[2], 0, FW[0] ], rl = Math.hypot(r[0],r[2]) || 1; RT = [r[0]/rl, 0, r[2]/rl];
+  UP = [ RT[1]*FW[2] - RT[2]*FW[1], RT[2]*FW[0] - RT[0]*FW[2], RT[0]*FW[1] - RT[1]*FW[0] ];
 }
 function proj(p){    // world -> [sx, sy, depth]; depth <= 0 means behind the camera
   var vx = p[0]-EYE[0], vy = p[1]-EYE[1], vz = p[2]-EYE[2];
@@ -10731,9 +10744,10 @@ function liveFaces(u, L){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P);
 function freeze(u){ var kit = kitOf(u), P = u.ctl.pose; MINI.pose(kit, P); return { Wd: copyFrames(RIGQ.fk(P)), f: [], P: clonePose(P) }; }
 function rigFaces(u, L){                    // the kit's geometry, in the model's own frame
   L = L || 0;
-  var kit = kitOf(u);
+  var kit = kitOf(u), air = airborne(u);
   if (u.act && u.act.W) return MINI.build(kit, u.act.W, LODS[L], { act: u.act.gear || null, rider: isMount(u.k) ? u.act.W : null,
-    travel: u.ctl ? u.ctl.travel*(u.scale||1) : 0, v: u.ctl && u.mv ? u.ctl.v : 0 });
+    travel: u.ctl ? u.ctl.travel*(u.scale||1) : 0, v: u.ctl && u.mv ? u.ctl.v : 0, fly: air ? 1 : 0, fph: air ? u.fph : null });
+  if (air || u.fm) return flyFaces(u, kit, L);
   if (u.mv && u.ctl && u.ctl.pose) return liveFaces(u, L);
   if (u.rest) return u.rest.f[L] || (u.rest.f[L] = copyFaces(MINI.build(kit, u.rest.Wd, LODS[L])));
   var key = kit + '|' + (u.pv||0), cached = POSE_CACHE[key];
@@ -10748,19 +10762,83 @@ function rigFaces(u, L){                    // the kit's geometry, in the model'
 function unitGoTo(u, x, z){
   var cx = clamp(x, -table.w/2, table.w/2), cz = clamp(z, -table.d/2, table.d/2);
   u.gx = cx; u.gz = cz;                        // ปลายทางที่กติกาอนุมัติแล้ว เก็บไว้วางให้ตรงเป๊ะตอนถึง
-  WALKER.goTo(u, cx, cz);
+  if (flyK(u)) u.fm = { v: u.fm ? u.fm.v : 0 };   // a flier glides there, no steps
+  else WALKER.goTo(u, cx, cz);
   u.mv = true; u.rest = null; dirty = true; }
-function unitStop(u){ WALKER.stop(u); }
+function unitStop(u){ if (u.fm){ u.fm = null; u.mv = false; u.gx = u.gz = null; dirty = true; } else WALKER.stop(u); }
 // Step every piece that has somewhere to be. Returns true if anything moved, so the frame loop knows to redraw.
 function stepUnits(dt){
   var i, any = false;
   for (i=0;i<units.length;i++){ var u = units[i]; if (!u.mv) continue;
-    if (WALKER.step(u, dt, table)) any = true;
+    if (u.fm ? flyStep(u, dt) : WALKER.step(u, dt, table)) any = true;
     else {                                     // มาถึงแล้ว: วางลงที่ปลายทางเป๊ะ ๆ ทุกเครื่องจะได้ตรงกัน
       if (u.gx != null){ u.x = u.gx; u.z = u.gz; u.gx = null; u.gz = null; }
-      u.mv = false; u.rest = freeze(u); any = true; }   // come to rest: keep the stance it stopped in
+      if (u.chDust){ u.chDust = 0; dustAt(u, 0.95, 0.9); }                   // a charge crashes home in a cloud of dust
+      u.mv = false; any = true;
+      if (u.fm){ u.fm = null; u.flapT = 1.2; }  // a flier hovers on the spot, its wings beating a moment longer
+      else u.rest = freeze(u); }               // come to rest: keep the stance it stopped in
   }
   return any;
+}
+// ---------- fliers ----------
+// A unit with fly hovers over the table: the figure is drawn this high over its base (the base and the shadow stay on
+// the ground), glides from place to place instead of walking, comes down to fight while it is locked in combat, and
+// drops when it falls. It is all looks: the rules only ever see where the base stands.
+//   alt: how high it hovers (m) · hz: wing beats a second (0: no wings to beat) · legs: a rigged body, legs drawn up
+var FLY_K = { gargoyle:{ alt:1.5, hz:2.2, legs:1 }, rscarab:{ alt:0.75, hz:0 }, pegasus:{ alt:1.8, hz:1.0 },
+  hanu:{ alt:1.3, hz:0, legs:1 }, dragon:{ alt:2.4, hz:0.55 }, valkyrie:{ alt:1.45, hz:1.2, legs:1 }, horus:{ alt:1.45, hz:1.35, legs:1 } };
+var FLY_V = 3.0, FLY_A = 3.5;                  // a glide's top speed (m/s) and how fast it gets there or stops
+function flyK(u){
+  if (u._fk === undefined){ var T = TY(u.k); u._fk = T && T.k === u.k && T.fly ? (FLY_K[u.k] || FLY_K.valkyrie) : null; }
+  return u._fk;
+}
+function airborne(u){ return (u.alt || 0) > 0.05; }
+function unitY(u){ return heightAt(u.x, u.z) + (u.alt || 0) + (u.fph != null ? 0.05*Math.sin(u.fph*TAU) : 0); }   // where its feet are drawn
+function grounded(u){                          // down on the table: dead, lying or getting up, or locked in combat
+  if (u.hp != null && u.hp <= 0) return true;
+  if (u.act && (u.act.kind === 'down' || u.act.kind === 'rise')) return true;
+  var s = G.on && u.sq ? SQ[u.sq] : null;
+  return !!(s && sqAlive(s) && isEngaged(s));
+}
+function flyStep(u, dt){
+  var F = u.fm, dx = u.gx - u.x, dz = u.gz - u.z, d = Math.hypot(dx, dz);
+  if (d < 0.01) return false;
+  F.v = Math.min(FLY_V, F.v + FLY_A*dt, Math.sqrt(2*FLY_A*d) + 0.05);
+  var st = Math.min(d, F.v*dt); u.x += dx/d*st; u.z += dz/d*st;
+  u.rot = angLerp(u.rot || 0, Math.atan2(dx, dz), Math.min(1, dt*5));
+  return true;
+}
+// height and wing beat, every frame. Standing still it holds its wings out in a glide (nothing to redraw); they beat while
+// it moves, acts, takes off or lands, and for a moment after.
+function stepFlight(dt){
+  var any = false, all = FALLEN.length ? units.concat(FALLEN) : units, i;
+  for (i=0;i<all.length;i++){ var u = all[i], K = flyK(u); if (!K) continue;
+    var dead = u.hp != null && u.hp <= 0, goal = grounded(u) ? 0 : K.alt;
+    if (u.alt == null){ u.alt = goal; u._goal = goal; any = true; }
+    if (goal !== u._goal){ u._goal = goal; if (!dead) dustAt(u, 1.1*Math.max(1, K.alt/1.5), 1.0); }   // takes off or comes down
+    if (dead && u.alt > 0){ u.fallV = (u.fallV || 0) + 9.8*dt; u.alt = Math.max(0, u.alt - u.fallV*dt); any = true; }   // it drops
+    else if (Math.abs(goal - u.alt) > 0.003){ u.alt += (goal - u.alt)*Math.min(1, dt*2.4); u.flapT = Math.max(u.flapT || 0, 0.6); any = true; }
+    else if (u.alt !== goal){ u.alt = goal; any = true; }
+    if (K.hz && !dead && airborne(u) && (u.mv || u.act || (u.flapT || 0) > 0)){
+      u.fph = ((u.fph || 0) + dt*K.hz*(u.mv ? 1.35 : 1)) % 1; u.flapT = Math.max(0, (u.flapT || 0) - dt); any = true; }
+    else if (u.fph != null){ u.fph = null; any = true; }
+  }
+  return any;
+}
+// the flying figure: the kit's own pose with the legs drawn up (a rigged body), built with its wings out, beating
+// (12 steps a beat) or held in a glide. Shared by every figure of the kit, so a flock costs one build per step.
+var FLY_CACHE = {};
+function flyLegs(P){                           // the left knee drawn up, the right leg trailing, toes pointed
+  P.q.hipL = RIGQ.eul(-42, 0, 6); P.q.kneeL = RIGQ.eul(72, 0, 0); P.q.ankleL = RIGQ.eul(28, 0, 0);
+  P.q.hipR = RIGQ.eul(12, 0, -6); P.q.kneeR = RIGQ.eul(40, 0, 0); P.q.ankleR = RIGQ.eul(32, 0, 0);
+}
+function flyPose(u, kit){ var P = RIGQ.idlePose(0); MINI.pose(kit, P); if ((flyK(u) || {}).legs) flyLegs(P); return P; }
+function flyMo(k, ph){ var t = ph < 0 ? null : (ph + 0.5)/12;
+  return { fly:1, fph:t, v: k === 'pegasus' ? (t == null ? 0.7 : 1.2) : 0, travel: k === 'pegasus' ? (t == null ? 0.9 : t*2.3) : 0 }; }
+function flyFaces(u, kit, L){
+  var ph = u.fph == null ? -1 : Math.floor(u.fph*12) % 12, key = kit + '|' + ph, c = FLY_CACHE[key];
+  if (!c) c = FLY_CACHE[key] = { Wd: copyFrames(RIGQ.fk(flyPose(u, kit))), f: [] };
+  return c.f[L] || (c.f[L] = copyFaces(MINI.build(kit, c.Wd, LODS[L], flyMo(u.k, ph))));
 }
 // the kit's colours for this piece, already dyed in its team's colour -- worked out once, not once per facet per frame.
 // Skin, horse and wood keep their own colour, the way a painted miniature is: the team shows on armour, cloth and shields.
@@ -10781,7 +10859,7 @@ function rigPal(u){
 var RIG_OPT = { bias:-0.15 }, RIG_OPT_FAR = { bias:-0.15, minA:0.35 };
 function drawRig(u, S){
   var faces = rigFaces(u, u.lod), pal = rigPal(u), opt = u.lod >= 2 ? RIG_OPT_FAR : RIG_OPT;
-  var y = heightAt(u.x, u.z), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m;
+  var y = unitY(u), c = Math.cos(u.rot||0), sn = Math.sin(u.rot||0), i, m;
   var X = u.act && u.act.xf, M = X && X.m, pu = X && X.push, al = X && X.alpha != null ? X.alpha : 1, ms = u.scale || 1;
   if (al < 0.999) opt = { bias:opt.bias, minA:opt.minA, alpha:true, a:Math.max(0, al) };
   for (i=0;i<faces.length;i++){
@@ -10797,7 +10875,7 @@ function drawRig(u, S){
 function planLod(){
   var i, u, all = FALLEN.length ? units.concat(FALLEN) : units;
   for (i=0;i<all.length;i++){ u = all[i];
-    var y = heightAt(u.x, u.z), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
+    var y = unitY(u), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
     u.px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
     u.onScr = pa[2] > 0.4 && pa[0] > -120 && pa[0] < W + 120 && pa[1] > -40 && pa[1] < H + 200;
     u.lod = u.px > 70*LOD_K ? (dragging ? 2 : 0) : u.px > 36*LOD_K ? (dragging ? 2 : 1) : u.px > 24*LOD_K ? 2 : 3;
@@ -10811,11 +10889,11 @@ function drawUnit(u){
   if (!u.onScr) return;
   var X = u.act && u.act.xf, al = X && X.alpha != null ? X.alpha : 1;
   if (al <= 0.01) return;                                          // faded out after falling
-  var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0;
-  shadowAt(u.x, u.z, 0.8, 0.34*al);
+  var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0, alt = u.alt || 0;
+  shadowAt(u.x, u.z, 0.8*(1 + 0.2*alt), 0.34*al/(1 + 0.5*alt));      // a flier's shadow spreads and pales with height
   var br = baseR(u.k);
   prism(u.x, y, u.z, br, 0.1, u.lod === 3 ? 6 : u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
-  if (!(u.lod === 3 && !u.act && (!u.mv || u.px < 18) && spriteUnit(u, y))) drawRig(u, 1.0);
+  if (!(u.lod === 3 && !u.act && (!u.mv || u.px < 18) && spriteUnit(u, alt ? unitY(u) : y))) drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
   else if (BLESSED && u.sq && BLESSED[u.sq] && al > 0.5) ringAt(u.x, u.z, br + 0.1, 'rgba(255,214,110,0.75)');   // ได้พรจากพระเจ้า
 }
@@ -10829,7 +10907,7 @@ var SPR = {}, SPR_N = 0, SPR_MAX = 700, SPR_NEW = 0, SPR_ON = true, SPR_PPU = 22
 function spriteUnit(u, y){
   if (!SPR_ON) return false;
   var pal = rigPal(u), rb = Math.round((((u.rot || 0) % TAU) + TAU) % TAU/(TAU/16)) % 16;
-  var key = kitOf(u) + '|' + u._pk + '|' + rb + '|' + Math.round(cam.yaw/(TAU/64)) + '|' + Math.round(cam.pitch/(1.5*DEG)) + '|' + DPR0, s = SPR[key];
+  var key = kitOf(u) + '|' + u._pk + '|' + rb + '|' + Math.round(cam.yaw/(TAU/64)) + '|' + Math.round(cam.pitch/(1.5*DEG)) + '|' + DPR0 + (airborne(u) ? '|f' : ''), s = SPR[key];   // a flier's picture: in the air or down
   if (!s){
     if (SPR_NEW >= 24) return false;                 // the rest keep their facets this frame and get a picture in the next
     if (SPR_N >= SPR_MAX){ SPR = {}; SPR_N = 0; }
@@ -10895,10 +10973,79 @@ function shadowAt(x, z, r, k){    // a soft dark patch on the ground so pieces s
 
 // ---------- frame ----------
 var dirty = true, dragging = false, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
+// ---------- the world round the table (Round 5b) ----------
+// A sky, a far skyline and a plain running out to the horizon, drawn in screen space before the table from the camera
+// alone: two gradients, a glow and two paths a frame, no facets. Each map has its own: a ruined city's broken towers at
+// dusk, a forest's treeline in mist, dunes and mesas in warm haze, jagged peaks under a pale sky. The skyline is made
+// once per map and seed, as rings of heights (radians over the horizon) all the way round, so turning the camera
+// shows the rest of it.
+var SKY = {
+  ruin:   { top:'#191827', hor:'#6A4A55', sun:[2.3, 0.1], glow:'255,150,96',  far:'#3A3140', near:'#262130', fog:'#4E3C40', plain:'#1C1918', kind:'city' },
+  forest: { top:'#142019', hor:'#5E7462', sun:[4.1, 0.2], glow:'232,240,196', far:'#2E4234', near:'#1B2A1F', fog:'#44584A', plain:'#141C12', kind:'trees' },
+  desert: { top:'#281E33', hor:'#D09A62', sun:[0.9, 0.08], glow:'255,196,120', far:'#8C6446', near:'#654532', fog:'#A67A52', plain:'#3C2D20', kind:'dunes' },
+  ice:    { top:'#1A2536', hor:'#A4BACE', sun:[5.4, 0.16], glow:'236,244,255', far:'#72849C', near:'#4A5A70', fog:'#8A9CB0', plain:'#2A323C', kind:'peaks' }
+};
+var PANO = {}, PANO_N = 720;
+function panoOf(th){
+  var key = th + '|' + SEED; if (PANO[key]) return PANO[key];
+  var S = SKY[th] || SKY.ruin, far = new Float32Array(PANO_N), near = new Float32Array(PANO_N), i, seg = 0, segH = 0, segEnd = 0;
+  for (i=0;i<PANO_N;i++){
+    var a = i/PANO_N*TAU, x = Math.cos(a)*5, z = Math.sin(a)*5;         // round a circle, so the ring joins up
+    var n1 = fbm(x + 37, z + 11, 4)*0.5 + 0.5, n2 = fbm(x*2.2 + 91, z*2.2 + 53, 3)*0.5 + 0.5, r = hash3(i, 17, 5);
+    if (S.kind === 'city'){                                             // blocks of broken buildings, a tower now and then
+      if (i >= segEnd){ seg++; segEnd = i + 5 + Math.floor(hash3(seg, 3, 9)*12); var q = hash3(seg, 7, 2);
+        segH = q < 0.18 ? 0.006 : q > 0.9 ? 0.07 + 0.03*hash3(seg, 5, 1) : 0.018 + 0.04*q*n1; }
+      far[i] = segH + (hash3(seg, 11, 4) < 0.35 ? 0.012*((i - segEnd + 12)/12) : 0);   // some tops slant: broken floors
+      near[i] = 0.008 + 0.012*n2; }
+    else if (S.kind === 'trees'){                                       // a treeline of firs over rolling hills
+      far[i] = 0.02 + 0.03*n1 + 0.012*Math.abs(Math.sin(i*1.7 + r)) ;
+      near[i] = 0.012 + 0.03*n2 + 0.01*Math.abs(Math.sin(i*2.9)); }
+    else if (S.kind === 'dunes'){                                       // long dunes, a flat-topped mesa here and there
+      var mesa = fbm(x*0.7 + 5, z*0.7 + 5, 2);
+      far[i] = 0.012 + 0.026*n1 + (mesa > 0.25 ? 0.035 : mesa > 0.18 ? 0.035*(mesa - 0.18)/0.07 : 0);
+      near[i] = 0.006 + 0.02*n2*n2; }
+    else {                                                              // jagged peaks
+      var rid = 1 - Math.abs(fbm(x*1.3 + 7, z*1.3 + 3, 4));
+      far[i] = 0.02 + 0.13*rid*rid*n1;
+      near[i] = 0.012 + 0.05*n2*n2; }
+  }
+  return (PANO[key] = { far: far, near: near });
+}
+function mixHex(a, b, k){ var x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16), o = [16, 8, 0].map(function(s){
+  return Math.round(((x >> s) & 255)*(1 - k) + ((y >> s) & 255)*k); }); return 'rgb(' + o.join(',') + ')'; }
+// the dust a map kicks up: pale stone in the ruins, earth in the forest, sand, snow
+var DUST = { ruin:'150,142,128', forest:'122,112,84', desert:'212,182,134', ice:'232,238,246' };
+function dustCol(){ return DUST[theme] || DUST.ruin; }
+function dustAt(u, size, life){ fxAdd({ kind:'smoke', p:[u.x, heightAt(u.x, u.z) + 0.08, u.z], life:life || 0.8, size:size*(u.scale || 1), col:dustCol() }); }
+function skyDir(a, e){ var c = Math.cos(e); return [Math.sin(a)*c, Math.sin(e), Math.cos(a)*c]; }   // azimuth as the camera's yaw
+function projDir(d){ var cz = d[0]*FW[0] + d[1]*FW[1] + d[2]*FW[2]; if (cz < 0.02) return null;
+  return [W/2 + (d[0]*RT[0] + d[1]*RT[1] + d[2]*RT[2])*FL/cz, H/2 - (d[0]*UP[0] + d[1]*UP[1] + d[2]*UP[2])*FL/cz]; }
+function drawBackdrop(){
+  var S = SKY[theme] || SKY.ruin, P = panoOf(theme), hz = Math.hypot(FW[0], FW[2]) || 1;
+  var yaw = Math.atan2(FW[0], FW[2]), pitch = Math.atan2(-FW[1], hz), yh = H/2 - FL*Math.tan(pitch);   // the horizon's row
+  if (yh <= 0){ var g0 = ctx.createLinearGradient(0, 0, 0, H);         // looking down past the horizon: only the plain shows,
+    g0.addColorStop(0, mixHex(S.fog, S.plain, Math.min(0.55, -yh/H*0.8))); g0.addColorStop(1, S.plain);   // one fill, as before
+    ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H); return; }
+  var g = ctx.createLinearGradient(0, yh - H*1.2, 0, yh);
+  g.addColorStop(0, S.top); g.addColorStop(1, S.hor); ctx.fillStyle = g; ctx.fillRect(0, 0, W, clamp(yh + 2, 0, H));
+  var sp = projDir(skyDir(S.sun[0], S.sun[1]));                        // the sun's glow in the haze
+  if (sp){ var gr = ctx.createRadialGradient(sp[0], sp[1], 0, sp[0], sp[1], Math.max(W, H)*0.45);
+    gr.addColorStop(0, 'rgba(' + S.glow + ',0.55)'); gr.addColorStop(0.25, 'rgba(' + S.glow + ',0.18)'); gr.addColorStop(1, 'rgba(' + S.glow + ',0)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, clamp(yh + 2, 0, H)); }
+  if (yh < H){ var gp = ctx.createLinearGradient(0, Math.max(0, yh), 0, H);   // the plain: haze at the horizon, darker near
+    gp.addColorStop(0, S.fog); gp.addColorStop(0.3, mixHex(S.fog, S.plain, 0.55)); gp.addColorStop(1, S.plain); ctx.fillStyle = gp; ctx.fillRect(0, Math.max(0, yh - 1), W, H - Math.max(0, yh - 1)); }
+  var span = Math.atan2(W*0.5, FL)/Math.max(0.3, Math.cos(pitch)) + 0.08, n = Math.ceil(span*2/(TAU/PANO_N)) + 2;
+  [[P.far, S.far], [P.near, S.near]].forEach(function(R){
+    var pts = [], k, i0 = Math.floor((yaw - span)/(TAU/PANO_N));
+    for (k=0;k<=n;k++){ var i = i0 + k, a = i*TAU/PANO_N, h = R[0][((i % PANO_N) + PANO_N) % PANO_N], q = projDir(skyDir(a, h)); if (q) pts.push(q); }
+    if (pts.length < 2) return;
+    ctx.fillStyle = R[1]; ctx.beginPath(); ctx.moveTo(pts[0][0], yh + 3);
+    for (k=0;k<pts.length;k++) ctx.lineTo(pts[k][0], pts[k][1]);
+    ctx.lineTo(pts[pts.length - 1][0], yh + 3); ctx.closePath(); ctx.fill(); });
+}
 function drawScene(){
   setupCam(); FACES = []; OVER = []; BLESSED = blessedNow(); SPR_NEW = 0;
-  var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
-  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  drawBackdrop();
   var step = dragging ? 2 : 1;
   planLod();
   drawGround(step); drawRails();
@@ -11005,6 +11152,8 @@ var TYPES = [
   //   fly บิน (ถอยจากประชิดแล้วยังยิงและบุกได้) · st พรางตัว (โดนยิง −1 เข้า) · aura:'hit' พวกเดียวกันในระยะ 6" เข้าเป้า +1
   //   aura:'ld' พวกเดียวกันในระยะ 6" ผ่านทดสอบขวัญเสมอ · rez:5 ซ่อมตัวเอง (เฟสคำสั่ง ตัวที่ล้มทอยได้ 5+ ลุกขึ้น)
   //   heel ส้นเท้าอคิลลีส (ทอยเจาะได้ 6 ใส่เขา ตายทันที) · spawn ม้าไม้ (เปิดท้องม้า หน่วยที่ซ่อนอยู่ออกมา)
+  //   wind:4 ลูกพระพาย (รอบ 5b): ตายแล้วร่างนอนรอ ต้นเฟสคำสั่งถัดไปของทีมลมพัดมาชุบชีวิต ลุกที่เดิม แผลเต็ม
+  //          ครั้งแรกลุกแน่นอน ครั้งต่อไปทอยลูกเดียว ได้ค่านี้ขึ้นไปจึงลุก
   // ค่าพิเศษของอาวุธเพิ่ม: tr พ่น (โดนอัตโนมัติ ไม่ต้องทอยเข้า) · lh เข้าเป้าได้ 6 เจาะอัตโนมัติ · dw เจาะได้ 6 เป็นแผลตรง ไม่มีเซฟ
   { k:'knight',   fac:'kn',  nm:'อัศวินเหล็ก',     n:5, pts:100, mv:6,  T:4,  sv:3, w:2,  ld:6, oc:2, aoc:1,
     gun:{ nm:'ปืนไรเฟิลระเบิด', rng:24, a:2, bs:3, s:4, ap:1, d:1 }, mel:{ nm:'ดาบสั้น', a:3, ws:3, s:4, ap:0, d:1 }, d:'แกนกองทัพ เกราะหนา ยิงแม่น' },
@@ -11086,8 +11235,8 @@ var TYPES = [
     gun:null, mel:{ nm:'งาช้างและง้าว', a:5, ws:3, s:9, ap:2, d:2, la:1 }, d:'ยุทธหัตถี ช้างใหญ่ บุกเข้าไปแทงแรงมาก' },
   { k:'yak',      fac:'th',  nm:'ยักษ์',            n:1, pts:170, mv:7,  T:9,  sv:3, w:12, ld:6, oc:3, r:1.4,
     gun:null, mel:{ nm:'กระบองยักษ์', a:5, ws:3, s:10, ap:2, d:3 }, d:'ยักษ์เฝ้าวัด ตัวใหญ่ กระบองฟาดหนัก' },
-  { k:'hanu',     fac:'th',  nm:'หนุมาน',           n:1, pts:100, mv:10, T:5,  sv:4, inv:4, w:6, ld:6, oc:1, hero:1, fly:1, aura:'hit',
-    gun:null, mel:{ nm:'ตรีเพชร', a:6, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก ลิงเผือกเหาะได้ พวกรอบตัวเข้าเป้า +1' },
+  { k:'hanu',     fac:'th',  nm:'หนุมาน',           n:1, pts:150, mv:10, T:5,  sv:4, inv:4, w:6, ld:6, oc:1, hero:1, fly:1, aura:'hit', wind:4,
+    gun:null, mel:{ nm:'ตรีเพชร', a:6, ws:2, s:6, ap:2, d:2 }, d:'ตัวเอก ลิงเผือกเหาะได้ พวกรอบตัวเข้าเป้า +1 ลูกพระพาย ตายแล้วลมพัดมาชุบชีวิต' },
   { k:'naga',     fac:'th',  nm:'พญานาค',           n:1, pts:170, mv:8,  T:9,  sv:3, w:12, ld:6, oc:3, r:1.5,
     gun:{ nm:'พ่นพิษ', rng:12, a:6, bs:0, s:6, ap:1, d:1, tr:1 }, mel:{ nm:'รัดและฉก', a:4, ws:3, s:8, ap:2, d:2 }, d:'งูยักษ์ พ่นพิษโดนอัตโนมัติ รัดแน่น' },
   { k:'samurai',  fac:'jp',  nm:'ซามูไร',           n:5, pts:90,  mv:6,  T:4,  sv:3, w:1,  ld:6, oc:2,
@@ -11243,7 +11392,9 @@ function dist2(a, b){ return Math.hypot(gx(a)-gx(b), gz(a)-gz(b)); }
 function ptsOf(pi){ var P = G.players[pi]; if (!P) return 0;
   var t = 0, i; for (i=0;i<TYPES.length;i++) t += (P.list[i]||0) * TYPES[i].pts; return t; }
 function teamPts(t){ var ps = teamPlayers(t), n = 0, i; for (i=0;i<ps.length;i++) n += ptsOf(ps[i].id); return n; }
-function liveOf(t){ var n = 0, i; for (i=0;i<units.length;i++) if (units[i].side === t) n++; return n; }
+function liveOf(t){ var n = 0, i; for (i=0;i<units.length;i++) if (units[i].side === t) n++;
+  for (i=0;i<FALLEN.length;i++) if (FALLEN[i].side === t && FALLEN[i].windWait) n++;      // ลูกพระพายที่นอนรอลม ทีมยังไม่แพ้
+  return n; }
 function teamsAlive(){ var out = [], t; for (t=0;t<G.teams;t++) if (liveOf(t) > 0) out.push(t); return out; }
 function humanTurn(){ return G.on && !G.over && !teamIsBot(G.turn); }
 // ทีมไปเฟสต่อไปเมื่อคนจริงในทีมกดครบ — บอทไม่ต้องรอ
@@ -11296,12 +11447,12 @@ var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry','centaur','tro
   md:['levy','pike','lbow','xbow','maa','mknight','templar','ballista','catapult','dragon'] };
 // ตัวหมากต่อคนไม่เกินเท่านี้ (ฝูงละสิบตัวซื้อได้เยอะ โต๊ะจะหนักเกิน): รวมทั้งโต๊ะราว 200 ตัว
 function armyCap(){ return Math.min(80, Math.floor(200 / Math.max(1, G.players.length || 2))); }
-function autoList(s){
+function autoList(s, free){                     // free: a person pressed "random" (a bot's list included), so any dice will do
   var out = emptyList(), share = shareOf(), left = share, k, pass;
   var P = G.players[s], tick = 0;
   // บอทต้องสุ่มเหมือนกันทุกเครื่อง คนจริงสุ่มยังไงก็ได้ เพราะกองของเขาถูกส่งขึ้นห้องอยู่แล้ว
   // Claude (ai) ก็ไม่มีใครเลือกให้ — สุ่มแบบผูกกับ SEED เหมือนบอท ทุกเครื่องจะได้กองเดียวกัน
-  var seeded = P && (P.bot || P.ai), rnd = seeded ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
+  var seeded = !free && P && (P.bot || P.ai), rnd = seeded ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
   var fac = seeded ? FACS[Math.min(FACS.length - 1, Math.floor(rnd()*FACS.length))].k : (P && P.fac) || 'mod';
   var MAX_MODELS = Math.min(armyCap(), Math.max(6, Math.ceil(40 / Math.max(1, G.perTeam))));   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
   var order = CORE[fac].map(function(key){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === key) return i; return 0; });
@@ -11694,7 +11845,7 @@ function dealDamage(t, from, n, dmg, spill, P){
   for (k=0;k<n;k++){ var left = dmg;
     while (left > 0){ var m = nextVictim(t, from); if (!m) break;
       var take = Math.min(left, m.hp); m.hp -= take; left -= spill ? take : left;
-      if (m.hp <= 0){ var ix = units.indexOf(m); if (ix >= 0) units.splice(ix, 1); FALLEN.push(m); killed.push(m.id);
+      if (m.hp <= 0){ var ix = units.indexOf(m); if (ix >= 0) units.splice(ix, 1); FALLEN.push(m); killed.push(m.id); if (TY(m.t).wind) windFall(m);
         if (G.sel === m) G.sel = null; var h = hurt.indexOf(m.id); if (h >= 0) hurt.splice(h, 1); }
       else if (hurt.indexOf(m.id) < 0) hurt.push(m.id); } }
   if (P){ P.killed = killed; P.hurt = hurt; }
@@ -11814,7 +11965,7 @@ function applyCMove(P, to){
   var s = sqById(P.u), t = sqById(P.t); unPend(P); P.stage = 'done';
   if (!s || !t) return;
   var ms = sqModels(s), i;
-  for (i=0;i<ms.length && i<to.length;i++) unitGoTo(ms[i], to[i][0], to[i][1], true);
+  for (i=0;i<ms.length && i<to.length;i++){ dustAt(ms[i], 0.45, 0.6); ms[i].chDust = 1; unitGoTo(ms[i], to[i][0], to[i][1], true); }
   s.charged = true; s.chTgt = t.id; s.moved = true; s.still = false;
   dirty = true; paintPlay();
 }
@@ -11857,10 +12008,43 @@ function reviveOne(t){
   return null;
 }
 
+// ---- ลูกพระพาย (หนุมาน): ตายแล้วร่างยังนอนอยู่ ต้นเฟสคำสั่งถัดไปของทีม ลมพัดมาชุบชีวิต ลุกขึ้นที่เดิม แผลเต็ม ----
+//   ครั้งแรกลุกแน่นอน · ครั้งต่อไปทอยลูกเดียว (ผ่านถาดลูกเต๋าแบบซ่อมตัวเอง ทุกเครื่องได้ผลเดียวกัน) ไม่ผ่านก็หายไปจริง ๆ
+function windFall(m){ var s = SQ[m.sq]; if (!s) return; s.windN = (s.windN || 0) + 1; m.windWait = true; }
+function windBody(s){ for (var i=0;i<FALLEN.length;i++) if (FALLEN[i].sq === s.id && FALLEN[i].windWait) return FALLEN[i]; return null; }
+function windUp(s, lying){
+  var m = windBody(s); if (!m) return null;
+  FALLEN.splice(FALLEN.indexOf(m), 1); m.windWait = false; m.hp = TY(m.t).w; m.fallV = 0;
+  // where the rules had him when he fell: the figure may have died mid-glide, and how far it got differs by device
+  var bx = gx(m), bz = gz(m); m.gx = m.gz = null; m.fm = null; m.mv = false;
+  var sp = freeSpot(bx, bz, null, null, null, radOfType(TY(m.t))); m.x = sp[0]; m.z = sp[1];
+  units.push(m); startAct(m, lying ? { kind:'down', dur:1e9 } : { kind:'rise', dur:1.0 });
+  if (!lying) windFx(m);
+  dirty = true; return m;
+}
+function windGone(s){ var m = windBody(s); if (!m) return; m.windWait = false;
+  if (m.act && m.act.kind === 'die'){ m.act.gone = m.act.t; m.act.dur = m.act.t + 0.6; } else { var k = FALLEN.indexOf(m); if (k >= 0) FALLEN.splice(k, 1); }
+  dirty = true; }
+function windFx(m){ var y = heightAt(m.x, m.z); fxAdd({ kind:'wind', p:[m.x, y, m.z], life:1.8, r:0.9*(m.scale||1), h:2.2*(m.scale||1), n:7 });
+  fxAdd({ kind:'smoke', p:[m.x, y + 0.1, m.z], life:0.9, size:0.8, col:'222,230,236' }); }
+function windTurn(){                            // ต้นเฟสคำสั่งของทีม: หลังซ่อมตัวเอง
+  SQ_ORDER.forEach(function(id){ var s = SQ[id], T = s && TY(s.k); if (!s || s.side !== G.turn || !T.wind || !windBody(s)) return;
+    if ((s.windN || 0) <= 1){ var m = windUp(s, false); if (m) say(sqLabel(s) + ' — <b>ลมพัดมาชุบชีวิต</b> ลุกขึ้นอีกครั้ง แผลเต็ม'); }
+    else mkPend({ kind:'rez', u:s.id, side:s.side, att:s.pl, anm:T.nm, stage:'rez', need:T.wind, n:1, wind:true }); });
+}
 // ---- ซ่อมตัวเอง (หุ่นโลหะ มัมมี่): ต้นเฟสคำสั่งของทีม ตัวที่ล้มในหน่วยที่ยังเหลืออยู่ทอยคนละลูก ได้ถึงเกณฑ์ลุกขึ้นแผลเต็ม ----
 function applyRez(P, roll){
   if (!P || P.stage !== 'rez') return;
-  var s = sqById(P.u); unPend(P); P.stage = 'done'; if (!s || !sqAlive(s)) return;
+  var s = sqById(P.u); unPend(P); P.stage = 'done';
+  if (P.wind){                                  // ลูกพระพาย ครั้งที่สองขึ้นไป: ลมจะมาไหม
+    P.roll = (roll || []).slice(0, 1); while (P.roll.length < 1) P.roll.push(d6());
+    var up = !!s && P.roll[0] >= P.need, m = up ? windUp(s, true) : null; if (!up && s) windGone(s);
+    P.back = m ? [m.id] : [];
+    trayThrow(P, 'wind', P.roll, P.need, '', { pass: !!m });
+    P.result = m ? 'ลมพัดมาชุบชีวิต' : 'ลมไม่มา'; markFinal(P);
+    say((s ? sqLabel(s) : P.anm) + ' ลูกพระพาย — ทอย ' + P.roll[0] + ' ต้องได้ ' + P.need + '+' + (m ? ' · <b>ลมพัดมาชุบชีวิต ลุกขึ้นอีกครั้ง</b>' : ' · ลมไม่มา'));
+    dirty = true; paintPlay(); if (!m) checkOver(); return; }
+  if (!s || !sqAlive(s)) return;
   P.roll = (roll || []).slice(0, P.n); while (P.roll.length < P.n) P.roll.push(d6());
   var ok = count(P.roll, P.need), back = [], k;
   for (k=0;k<ok;k++){ var m = reviveOne(s); if (!m) break; m.hp = TY(s.k).w; back.push(m.id); startAct(m, { kind:'down', dur:1e9 }); }
@@ -11991,7 +12175,7 @@ function botChoice(P){
 
 // ---- ถาด: คิวของการทอยที่รอแสดง ลูกเต๋ากลิ้งตามจริงจากเลขที่ได้ ----
 var TRAY = { q:[], cur:null, t:0 };
-var STAGE_NM = { rez:'ซ่อมตัวเอง', hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา', shock:'ทดสอบขวัญ', adv:'วิ่ง', charge:'บุก', gren:'ระเบิดมือ' };
+var STAGE_NM = { rez:'ซ่อมตัวเอง', wind:'ลมพระพาย', hit:'เข้าเป้า', wound:'เจาะเกราะ', save:'เซฟ', heal:'รักษา', shock:'ทดสอบขวัญ', adv:'วิ่ง', charge:'บุก', gren:'ระเบิดมือ' };
 function seedOf(str){ var h = 2166136261; for (var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) || 1; }
 // ท่าทางการกลิ้งผูกกับเมล็ดสุ่มที่ทุกเครื่องคิดได้เหมือนกัน: ใคร→ใคร รอบ ตา จังหวะ และครั้งที่เท่าไรของสิ่งนี้
 function trayThrow(P, stage, dice, need, prev, o){
@@ -12057,7 +12241,7 @@ function paintTray(r){
     else { var M = atkMath(r.u, r.t, 'shoot'); st = M ? 'เข้าเป้า ' + M.shots + ' ลูก · ต้องได้ ' + M.need + '+ · เจาะ ' + M.wneed + '+' : ''; } }
   else { P = v ? v.P : r ? r.P : PEND[0];
     if (P){ side = P.side;
-      head = P.kind === 'shock' ? TEAM(P.side).nm + ' ' + P.anm + ' ทดสอบขวัญ' : P.kind === 'rez' ? TEAM(P.side).nm + ' ' + P.anm + ' ซ่อมตัวเอง' : P.kind === 'adv' ? P.anm + ' วิ่ง'
+      head = P.kind === 'shock' ? TEAM(P.side).nm + ' ' + P.anm + ' ทดสอบขวัญ' : P.kind === 'rez' ? TEAM(P.side).nm + ' ' + P.anm + (P.wind ? ' ลูกพระพาย' : ' ซ่อมตัวเอง') : P.kind === 'adv' ? P.anm + ' วิ่ง'
            : P.kind === 'chg' ? P.anm + ' บุก ' + P.dnm : P.kind === 'gren' ? P.anm + ' ปาระเบิดใส่ ' + P.dnm
            : P.kind === 'heal' ? P.anm + ' รักษา ' + P.dnm : P.anm + (P.melee ? ' ตี ' : P.ow ? ' ยิงสกัด ' : ' ยิง ') + P.dnm; }
     if (v){ var settled = TRAY.t >= v.secs, n = count(v.dice, v.need);
@@ -12091,7 +12275,7 @@ function paintTray(r){
   $('btAuto').classList.toggle('on', AUTO);
   $('btAuto').setAttribute('aria-pressed', AUTO ? 'true' : 'false');
 }
-function stageWhat(P){ return P.kind === 'shock' ? 'ทดสอบขวัญ' : P.kind === 'rez' ? 'ซ่อมตัวเอง' : P.kind === 'adv' ? 'วิ่ง' : P.kind === 'chg' ? 'บุก' : P.kind === 'gren' ? 'ระเบิดมือ'
+function stageWhat(P){ return P.kind === 'shock' ? 'ทดสอบขวัญ' : P.kind === 'rez' ? (P.wind ? 'ลมพระพาย' : 'ซ่อมตัวเอง') : P.kind === 'adv' ? 'วิ่ง' : P.kind === 'chg' ? 'บุก' : P.kind === 'gren' ? 'ระเบิดมือ'
   : P.kind === 'heal' ? 'รักษา' : P.stage === 'save' ? 'เซฟ' : P.stage === 'hit' ? 'เข้าเป้า' : 'เจาะเกราะ'; }
 function waitWhat(P){ return P.kind === 'chg' && P.stage === 'ow' ? 'ตัดสินใจยิงสกัด' : P.kind === 'chg' && P.stage === 'chrr' ? 'ตัดสินใจทอยใหม่'
   : 'ทอย' + stageWhat(P); }
@@ -12227,12 +12411,12 @@ function vmix(a, b, t){ return [a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t, a[2]
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
 function angLerp(a, b, t){ var d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return a + d*t; }
 function unitH(u){ return (MINI.kitInfo(u.k).h || 1.75)*(u.scale||1); }
-function aimPoint(u){ return [u.x, heightAt(u.x, u.z) + unitH(u)*0.6, u.z]; }
+function aimPoint(u){ return [u.x, unitY(u) + unitH(u)*0.6, u.z]; }
 function yawTo(u, p){ return Math.atan2(p[0] - u.x, p[2] - u.z); }
 // model space: +z = the way the piece faces, +x = its left, y up, 1 = one metre of an unscaled figure (drawRig's transform)
 function toModelDir(u, w){ var c = Math.cos(u.rot||0), s = Math.sin(u.rot||0); return [w[0]*c - w[2]*s, w[1], w[0]*s + w[2]*c]; }
 function toWorld(u, m){ var c = Math.cos(u.rot||0), s = Math.sin(u.rot||0), S = u.scale||1;
-  return [u.x + (m[0]*c + m[2]*s)*S, heightAt(u.x, u.z) + m[1]*S, u.z + (-m[0]*s + m[2]*c)*S]; }
+  return [u.x + (m[0]*c + m[2]*s)*S, unitY(u) + m[1]*S, u.z + (-m[0]*s + m[2]*c)*S]; }
 function aimDir(u, a, fromModel){ return vnorm(toModelDir(u, vsub(aimPoint(a.tgt), toWorld(u, fromModel)))); }
 
 // ---- the pose an action starts from: the stance the piece is standing (or walking, or riding) in ----
@@ -12240,6 +12424,7 @@ function clonePose(P){ var q = {}, n; for (n in P.q) q[n] = P.q[n]; return { roo
 function basePose(u){
   if (isMount(u.k)) return MINI.riderPose(u.k);
   var kit = kitOf(u), P;
+  if (airborne(u) || u.fm) return flyPose(u, kit);  // it acts from the air
   if (u.mv && u.ctl && u.ctl.pose){ P = clonePose(u.ctl.pose); MINI.pose(kit, P); return P; }
   if (u.rest && u.rest.P) return clonePose(u.rest.P);
   P = RIGQ.idlePose((u.pv||0)*1.7); MINI.pose(kit, P); return P;
@@ -12342,8 +12527,13 @@ var ACT_FN = {
   // ล้ม: เอนหงายไปทางตรงข้ามกับที่โดน เร็วขึ้นเรื่อย ๆ กระแทกพื้นเด้งนิดหนึ่ง แล้วจางหาย
   die: function(u, a){
     var t = a.t, ang = t < 0.55 ? 1.5*Math.pow(t/0.55, 2) : t < 0.72 ? 1.5 - 0.1*Math.sin(Math.PI*(t - 0.55)/0.17) : 1.5;
-    if (!a.thud && t >= 0.55){ a.thud = true; fxAdd({ kind:'smoke', p: vadd([u.x, heightAt(u.x, u.z), u.z], [0, 0.1, 0]), life:0.7, size:0.55, col:'140,132,118' }); }
-    a.xf = tiltXf(a.axis, ang, [0, 0, -0.12*ease(t/0.55)], 1 - ease((t - 0.8)/0.6));
+    if (!a.thud && t >= 0.55){ a.thud = true; var big = radOfType(TY(u.k)) > 1 ? 2 : 1;
+      fxAdd({ kind:'smoke', p: vadd([u.x, heightAt(u.x, u.z), u.z], [0, 0.1, 0]), life:0.7 + 0.3*(big - 1), size:0.55*big*(u.scale || 1), col:dustCol() }); }
+    var al = 1 - ease((t - 0.8)/0.6);
+    if (u.windWait) al = Math.max(0.35, al);                                          // ลูกพระพาย: ร่างนอนรอลม จาง ๆ
+    else if (a.gone != null) al = Math.min(al, 0.35*(1 - ease((t - a.gone)/0.6)));     // ลมไม่มา: ร่างค่อย ๆ หายไป
+    a.xf = tiltXf(a.axis, ang, [0, 0, -0.12*ease(t/0.55)], al);
+    if (u.windWait && t > 1.45) return 'still';
   }
 };
 // ---- ท่าของกองทัพใหม่ (รอบ 3) ----
@@ -12630,7 +12820,7 @@ function onThrowSettle(v){
   if (P.kind === 'heal'){ var pm = fallenOr(P.tm); if (v.dice[0] >= v.need && pm) fxAdd({ kind:'glow', p:[pm.x, heightAt(pm.x, pm.z), pm.z], life:1.3, r:0.7*(pm.scale||1) }); return; }
   if (P.kind === 'gren' && v.final){ endBlows(P, att); return; }
   if (P.kind === 'rez'){ (P.back || []).forEach(function(id){ var m = unitById(id); if (!m) return;
-      startAct(m, { kind:'rise', dur:1.0 }); fxAdd({ kind:'glow', p:[m.x, heightAt(m.x, m.z), m.z], life:1.3, r:0.7*(m.scale||1) }); }); return; }
+      startAct(m, { kind:'rise', dur:1.0 }); if (P.wind) windFx(m); else fxAdd({ kind:'glow', p:[m.x, heightAt(m.x, m.z), m.z], life:1.3, r:0.7*(m.scale||1) }); }); return; }
   if (P.kind !== 'atk') return;
   var tm = tgt && sqModels(tgt)[0] || fallenOr((P.killed || [])[0]);
   if (!tm) return;
@@ -12647,8 +12837,8 @@ function onThrowSettle(v){
 // the attack's last dice stopped: the killed models fall (a raised shield stays raised), the hurt ones flinch
 function endBlows(P, att){
   var from = att ? sqCenter(att) : null;
-  (P.killed || []).forEach(function(id){ var q = fallenOr(id); if (!q) return; var prev = q.act;
-    startAct(q, { kind:'die', dur:1.4, axis:awayAxis(q, from || q) }); if (prev && prev.W){ q.act.W = prev.W; q.act.gear = prev.gear; } });
+  (P.killed || []).forEach(function(id){ var q = fallenOr(id); if (!q || FALLEN.indexOf(q) < 0) return; var prev = q.act;   // not if it is up again
+    startAct(q, { kind:'die', dur: q.windWait ? 1e9 : 1.4, axis:awayAxis(q, from || q) }); if (prev && prev.W){ q.act.W = prev.W; q.act.gear = prev.gear; } });
   (P.hurt || []).forEach(function(id){ var q = unitById(id); if (!q) return; var prev = q.act;
     if (prev && prev.kind === 'brace'){ prev.knock = prev.t; prev.hurt = true; }   // hurt behind the shield: a harder jolt
     else startAct(q, { kind:'flinch', dur:0.4, axis:awayAxis(q, from || q) }); });
@@ -12702,6 +12892,16 @@ function drawFx(f){
     if (f.kind === 'arrow' || f.kind === 'bolt' || f.kind === 'bigbolt'){ var fl = proj(vadd(tail, vmul(dir, f.kind === 'bigbolt' ? 0.25 : 0.1))); ctx.strokeStyle = '#E4DCC8'; ctx.lineWidth = clamp(px*(f.kind === 'bigbolt' ? 0.08 : 0.03), 1.2, f.kind === 'bigbolt' ? 7 : 3);
       ctx.beginPath(); ctx.moveTo(qt[0], qt[1]); ctx.lineTo(fl[0], fl[1]); ctx.stroke(); }
     ctx.lineCap = 'butt'; return; }
+  if (f.kind === 'wind'){                        // ลมพระพาย: เส้นลมขาวอมฟ้าหมุนวนขึ้นรอบตัว
+    var lf = t/f.life, fd = (1 - lf)*Math.min(1, lf*5), q0 = proj(f.p); if (q0[2] < 0.4) return;
+    ctx.lineCap = 'round'; ctx.lineWidth = clamp(ppm(q0)*0.035, 1, 3);
+    for (k=0;k<f.n;k++){ var a0 = k/f.n*TAU + t*4.2, rise = f.h*ease(clamp(lf*1.3 - k*0.04, 0, 1)), on = false;
+      ctx.beginPath();
+      for (i=0;i<=8;i++){ var aa = a0 + i*0.24, rr = f.r*(1 - 0.35*i/8), yy = rise*(0.2 + 0.8*i/8);
+        var qq = proj([f.p[0] + Math.cos(aa)*rr, f.p[1] + yy, f.p[2] + Math.sin(aa)*rr]);
+        if (qq[2] < 0.4){ on = false; continue; } if (!on){ ctx.moveTo(qq[0], qq[1]); on = true; } else ctx.lineTo(qq[0], qq[1]); }
+      ctx.globalAlpha = 0.7*fd; ctx.strokeStyle = k % 2 ? 'rgb(206,232,255)' : 'rgb(248,251,255)'; ctx.stroke(); }
+    ctx.lineCap = 'butt'; return; }
   if (f.kind === 'glow'){ ctx.lineWidth = 2;
     for (k=0;k<3;k++){ var tk = t/f.life - k*0.18; if (tk < 0 || tk > 1) continue;
       var y = f.p[1] + 0.1 + tk*1.6, pts = [];
@@ -12735,7 +12935,12 @@ function drawFx(f){
   // ระเบิด: วงไฟขยายออกแล้วจาง
   if (f.kind === 'boom'){ q = proj(vadd(f.p, [0, 0.2, 0])); if (q[2] < 0.4) return; var kb = t/f.life; r = ppm(q)*f.size*(0.3 + 0.9*ease(kb));
     ctx.globalAlpha = 0.8*(1 - kb); ctx.fillStyle = 'rgba(255,150,60,0.8)'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, TAU); ctx.fill();
-    ctx.globalAlpha = 1 - kb; ctx.fillStyle = '#FFF0C0'; ctx.beginPath(); ctx.arc(q[0], q[1], r*0.45*(1 - kb), 0, TAU); ctx.fill(); return; }
+    ctx.globalAlpha = 1 - kb; ctx.fillStyle = '#FFF0C0'; ctx.beginPath(); ctx.arc(q[0], q[1], r*0.45*(1 - kb), 0, TAU); ctx.fill();
+    var rr = f.size*(0.5 + 1.7*ease(kb)), on = false;                 // a ring of blast running out over the ground
+    ctx.globalAlpha = 0.55*(1 - kb); ctx.strokeStyle = '#FFE2B0'; ctx.lineWidth = clamp(ppm(q)*0.05*(1 - kb), 1, 3.5); ctx.beginPath();
+    for (i=0;i<=24;i++){ var ga = i/24*TAU, gx2 = f.p[0] + Math.cos(ga)*rr, gz2 = f.p[2] + Math.sin(ga)*rr, gq = proj([gx2, heightAt(gx2, gz2) + 0.06, gz2]);
+      if (gq[2] < 0.4){ on = false; continue; } if (!on){ ctx.moveTo(gq[0], gq[1]); on = true; } else ctx.lineTo(gq[0], gq[1]); }
+    ctx.stroke(); return; }
   // ของที่ลอยโค้งไป: ลูกปืนครก หิน ดาวกระจาย ขวาน
   if (f.kind === 'shell' || f.kind === 'rock' || f.kind === 'boulder' || f.kind === 'ice' || f.kind === 'star' || f.kind === 'axe'){
     var s2 = clamp(t/f.dur, 0, 1); if (s2 >= 1 && f.kind !== 'rock' && f.kind !== 'boulder' && f.kind !== 'ice') return;
@@ -12797,6 +13002,7 @@ function startTurn(){
   sqList().forEach(function(s){ var T = TY(s.k), lost = s.n0 - sqAlive(s); if (s.side !== G.turn || !T.rez || lost <= 0) return;
     var need = inAura(s, 'rez') ? Math.min(T.rez, REZ_AURA) : T.rez;                          // อานูบิสอยู่ใกล้: ลุกได้ง่ายขึ้น
     mkPend({ kind:'rez', u:s.id, side:s.side, att:s.pl, anm:T.nm, stage:'rez', need:need, n:Math.min(10, lost) }); });
+  windTurn();
   // ม้าไม้เมืองทรอย: ตั้งแต่รอบ 2 เปิดท้องม้าในเฟสคำสั่งของทีม
   if (G.round >= 2) sqList().forEach(function(s){ if (s.side === G.turn && TY(s.k).spawn && !s.opened) spawnFrom(s); });
   G.cmdWait = true;
@@ -12912,9 +13118,9 @@ function boardState(){
       shaken:!!s.shaken, engaged:isEngaged(s) }; }),
     units:units.map(function(u){ return { id:u.id, sq:u.sq, pl:u.pl, team:u.side, k:u.t, hp:u.hp, x:+gx(u).toFixed(1), z:+gz(u).toFixed(1) }; }) };
 }
-var RULES_V = 5;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
+var RULES_V = 6;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 // the version people see (the home page reads it from this page): the rules version, then the fixes made within it
-var APP_VER = '5.0';
+var APP_VER = '6.0';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -13246,7 +13452,7 @@ function paintRoster(){
     $('btBack1').textContent = '‹ ล็อบบี้';
   } else {
     var last = G.cur >= G.players.length - 1;
-    $('btStart').textContent = last ? 'ถัดไป · เลือกจุดลงสนาม ›' : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
+    $('btStart').textContent = last ? (G.mode === 'spectator' ? 'เริ่มดูบอทตีกัน ›' : 'ถัดไป · เลือกจุดลงสนาม ›') : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
     $('btBack1').textContent = G.cur > 0 ? '‹ ' + G.players[G.cur-1].nm : '‹ กลับ';
   }
   $('btArmyNote').innerHTML = over ? '<b style="color:var(--p2)">เกินงบ</b> ลดหน่วยลงก่อน'
@@ -13307,6 +13513,7 @@ function abilityText(T){ var a = [];
   if (T.aura === 'rez') a.push('เทพแห่งความตาย: หน่วยที่ลุกได้ในระยะ ' + AURA_R + '" ลุกตั้งแต่ ' + REZ_AURA + '+');
   if (T.ca) a.push('บุกมา ตีเพิ่ม 1'); if (T.ac) a.push('วิ่งแล้วบุกได้'); if (T.fly) a.push('บิน (ถอยแล้วยิง/บุกได้)'); if (T.st) a.push('พรางตัว (โดนยิง −1)');
   if (T.rez) a.push('ซ่อมตัวเอง ' + T.rez + '+'); if (T.heel) a.push('ส้นเท้า: โดนเจาะได้ 6 ตายทันที');
+  if (T.wind) a.push('ลูกพระพาย: ตายแล้วลุกขึ้นใหม่ต้นเฟสคำสั่งถัดไป แผลเต็ม (ครั้งแรกแน่นอน ครั้งต่อไปทอย ' + T.wind + '+)');
   if (T.spawn) a.push('ซ่อน' + TY(T.spawn.k).nm + ' ' + T.spawn.n + ' ตัวในท้อง'); if (T.heal) a.push('รักษาเพื่อนในระยะ ' + T.heal + '"');
   return a.join(' · '); }
 function sqCard(s){
@@ -13369,7 +13576,7 @@ function paintDone(){
 // โต๊ะเมืองพังบังตัวหมากจนหาไม่เจอ หมุดลอยเหนือหัวจึงไม่ใช่ของประดับ มันคือสิ่งเดียวที่ทำให้
 // รู้ว่าตัวของใครอยู่ตรงไหนตอนซูมออก หมุดจางลงเมื่อตัวนั้นทำครบตาแล้ว
 function pinAt(u, col, bright){
-  var top = proj([u.x, heightAt(u.x, u.z) + unitH(u)*1.1 + 0.6, u.z]); if (top[2] < 0.4) return;
+  var top = proj([u.x, unitY(u) + unitH(u)*1.1 + 0.6, u.z]); if (top[2] < 0.4) return;
   var s = clamp(300/top[2], 5.5, 14);
   OVER.push(function(){
     ctx.globalAlpha = bright ? 1 : 0.45;
@@ -13436,7 +13643,7 @@ function drawObjectives(){
 function fallenById(id){ for (var i=0;i<FALLEN.length;i++) if (FALLEN[i].id === id) return FALLEN[i]; return null; }
 function fireLine(a, b, col){
   var ka = a.scale || 1, kb = b.scale || 1;
-  var pa = proj([a.x, heightAt(a.x, a.z) + 1.0*ka, a.z]), pb = proj([b.x, heightAt(b.x, b.z) + 1.0*kb, b.z]);
+  var pa = proj([a.x, unitY(a) + 1.0*ka, a.z]), pb = proj([b.x, unitY(b) + 1.0*kb, b.z]);
   ringAt(b.x, b.z, radOfType(TY(b.k)) + 0.25, col);
   if (pa[2] < 0.4 || pb[2] < 0.4) return;
   OVER.push(function(){
@@ -13458,7 +13665,7 @@ function paintMapCards(){
   var cards = document.querySelectorAll('#btMaps .map'); if (!cards.length) return;
   Array.prototype.forEach.call(cards, function(b){
     var t = THEMES[b.dataset.t], c = b.querySelector('canvas'), g = c.getContext('2d'), w = c.width, h = c.height;
-    var sky = g.createLinearGradient(0,0,0,h); sky.addColorStop(0, t.sky[0]); sky.addColorStop(1, t.sky[1]);
+    var SK = SKY[b.dataset.t] || SKY.ruin, sky = g.createLinearGradient(0,0,0,h*0.62); sky.addColorStop(0, SK.top); sky.addColorStop(1, SK.hor);
     g.fillStyle = sky; g.fillRect(0,0,w,h);
     var k, x, y, amp = terrain === 'flat' ? 0.25 : terrain === 'mountain' ? 3.2 : 1;
     g.fillStyle = 'rgb(' + t.ground2.join(',') + ')';                       // สันเขาไกล
@@ -13496,7 +13703,7 @@ var CLOCK_STOP = false;        // tests: hold the game still and step it by hand
 // no new action but a piece already on its way finishes its walk -- that is what lets "one step at a time" show it.
 function simStep(dt){
   var sp = watching(), k = sp ? SPEC.speed : 1, r;
-  for (r=0;r<k;r++) if (stepUnits(dt)) dirty = true;
+  for (r=0;r<k;r++){ if (stepUnits(dt)) dirty = true; if (stepFlight(dt)) dirty = true; }
   if (!(sp && SPEC.paused)) botTick(dt*k);
   clockTick(dt);
   trayTick(dt);
@@ -13547,8 +13754,10 @@ function fitTable(){ cam.tx = 0; cam.tz = 0; cam.dist = table.w*1.15; clampPan()
 var mode = 'look', kit = 'heavy', ptrs = {}, pinch = null, moved = false, downAt = null, drag = null, dragFrom = null, measure = null;
 var rightPan = false;
 function unitHit(sx, sy){
-  var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], sc = u.scale || 1, p = proj([u.x, heightAt(u.x,u.z)+0.9*sc, u.z]); if (p[2] < 0.4) continue;
-    var d = Math.hypot(p[0]-sx, p[1]-sy) / (radOfType(TY(u.k)) > 1 ? 1.6 : 1); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
+  var best = null, bd = 1e9; for (var i=0;i<units.length;i++){ var u = units[i], sc = u.scale || 1, p = proj([u.x, unitY(u)+0.9*sc, u.z]); if (p[2] < 0.4) continue;
+    var d = Math.hypot(p[0]-sx, p[1]-sy);
+    if (u.alt > 0.05){ var g = proj([u.x, heightAt(u.x,u.z)+0.1, u.z]); if (g[2] >= 0.4) d = Math.min(d, Math.hypot(g[0]-sx, g[1]-sy)); }   // or its base
+    d /= (radOfType(TY(u.k)) > 1 ? 1.6 : 1); if (d < 30 && d < bd){ bd = d; best = u; } } return best;
 }
 function twoMid(){ var ids = Object.keys(ptrs); if (ids.length < 2) return null;
   var a = ptrs[ids[0]], b = ptrs[ids[1]]; return [ (a[0]+b[0])/2, (a[1]+b[1])/2 ]; }
@@ -13574,7 +13783,7 @@ cv.addEventListener('pointermove', function(ev){ if (!(ev.pointerId in ptrs)) re
   if (drag){ var w = groundHit(p[0], p[1]); if (w) unitGoTo(drag, w[0], w[2]); return; }   // walks there; it does not warp
   if (!moved) return;
   if (rightPan || panMode) panScreen(prev, p);                    // ลากเลื่อนแมพ
-  else { cam.yaw -= (p[0]-prev[0])*0.008; cam.pitch = clamp(cam.pitch + (p[1]-prev[1])*0.006, 6*DEG, 82*DEG); dragging = true; dirty = true; } });
+  else { cam.yaw += (p[0]-prev[0])*0.008; cam.pitch = clamp(cam.pitch + (p[1]-prev[1])*0.006, 6*DEG, 82*DEG); dragging = true; dirty = true; } });   // += since the view is no longer mirrored: a drag turns it the same way on screen as before
 
 cv.addEventListener('pointerup', function(ev){ var p = ptrs[ev.pointerId]; delete ptrs[ev.pointerId];
   if (Object.keys(ptrs).length < 2) pinch = null;
@@ -13867,7 +14076,7 @@ function teamPicker(cur){
   return h + '</select>';
 }
 
-var depMode = false, ffaN = 4, perTeamN = 2, specN = 2;
+var depMode = false, ffaN = 4, perTeamN = 2, specN = 2, specOwn = false;   // specOwn: โหมดผู้ชม คนดูจัดกองให้บอทเอง
 // โหมดกำหนดจำนวนทีมกับคนต่อทีม · โต๊ะต้องใหญ่พอจะวางจุดลงสนามให้ครบทุกคนด้วย
 function applyMode(){
   var spec = G.mode === 'spectator';
@@ -13883,7 +14092,7 @@ function applyMode(){
   // ผู้ชมเล่นในเครื่องอย่างเดียว บอทไม่ต้องจับเวลา — ซ่อนกล่องเล่นกับเพื่อนกับนาฬิกา
   if ((el = $('btClockRow'))) el.classList.toggle('hide', spec);
   if ((el = $('btNetBox'))) el.classList.toggle('hide', spec);
-  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : spec ? 'เริ่มดูบอทตีกัน ›' : 'ถัดไป · จัดกองทัพ ›';
+  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : spec ? (specOwn ? 'ถัดไป · จัดกองทัพให้บอท ›' : 'เริ่มดูบอทตีกัน ›') : 'ถัดไป · จัดกองทัพ ›';
   growTableFor(G.teams * G.perTeam);
 }
 // ทุกคนต้องมีที่ลงของตัวเองห่างกัน 20 นิ้ว โต๊ะเล็กไปก็ขยายให้ แล้วบอกว่าขยายเพราะอะไร
@@ -13990,7 +14199,7 @@ $('btNew').addEventListener('click', newField);
 
 $('btNext').addEventListener('click', function(){
   if (G.mode === 'custom'){ G.on = false; units.length = 0; show('scCustom'); $('btTip').textContent = '· วางหน่วยเองได้อิสระ'; fitTable(); return; }
-  if (G.mode === 'spectator'){ spectate(); return; }
+  if (G.mode === 'spectator' && !specOwn){ spectate(); return; }
   mkPlayers();
   var i; for (i=0;i<G.players.length;i++) autoList(i);      // ตั้งกองให้ก่อน แก้เองได้ทุกคน
   G.cur = 0; show('scArmy'); paintRoster(); });
@@ -14018,7 +14227,7 @@ function randomArmy(anyFac){
   var P = G.players[G.cur]; if (!P) return;
   if (anyFac) P.fac = FACS[Math.floor(Math.random()*FACS.length)].k;
   else P.fac = facOf(P.list, P.fac);
-  autoList(G.cur); paintRoster();
+  autoList(G.cur, true); paintRoster();
 }
 $('btRandU').addEventListener('click', function(){ randomArmy(false); });
 $('btRandA').addEventListener('click', function(){ randomArmy(true); });
@@ -14049,12 +14258,14 @@ function pvSize(){
   var c = $('btPvC'), r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(120, Math.round(r.width));
   if (c.width !== Math.round(w*dpr)){ c.width = Math.round(w*dpr); c.height = Math.round(w*dpr); }
 }
-function pvUnit(){ var T = TYPES[PV.i]; return { k:T.k, t:T.k, x:0, z:0, rot:0, scale:kitScale(T.k), id:'pv.' + PV.j }; }
+function pvUnit(){ var T = TYPES[PV.i], u = { k:T.k, t:T.k, x:0, z:0, rot:0, scale:kitScale(T.k), id:'pv.' + PV.j }, K = flyK(u);
+  if (K){ u.alt = 1; if (K.hz) u.fph = ((PV.t || 0)/1000*K.hz) % 1; }       // a flier is shown flying, its wings beating
+  return u; }
 function pvDraw(){
   if (!PV) return;
   var c = $('btPvC'), g = c.getContext('2d'), S = c.width, T = TYPES[PV.i], u = pvUnit(), faces = rigFaces(u, 0);
-  var pt = 16*DEG, F3 = [0, -Math.sin(pt), -Math.cos(pt)], R3 = [F3[2], 0, -F3[0]], rl = Math.hypot(R3[0], R3[2]) || 1; R3 = [R3[0]/rl, 0, R3[2]/rl];
-  var U3 = [F3[1]*R3[2] - F3[2]*R3[1], F3[2]*R3[0] - F3[0]*R3[2], F3[0]*R3[1] - F3[1]*R3[0]];
+  var pt = 16*DEG, F3 = [0, -Math.sin(pt), -Math.cos(pt)], R3 = [-F3[2], 0, F3[0]], rl = Math.hypot(R3[0], R3[2]) || 1; R3 = [R3[0]/rl, 0, R3[2]/rl];
+  var U3 = [R3[1]*F3[2] - R3[2]*F3[1], R3[2]*F3[0] - R3[0]*F3[2], R3[0]*F3[1] - R3[1]*F3[0]];     // as setupCam: right-handed
   var L = flatFaces(faces, PV.rot, R3, U3, F3, pvPal(T.k, PV.side));
   if (!PV.fit){                                   // one size for every turn, from the figure's reach round its middle
     var rx = 0.3, y0 = 0, y1 = 0.5, i, m;
@@ -14101,6 +14312,7 @@ $('btStart').addEventListener('click', function(){
     return;
   }
   if (G.cur < G.players.length - 1){ G.cur++; paintRoster(); return; }
+  if (G.mode === 'spectator'){ spectateBuilt(); return; }      // โหมดผู้ชมที่จัดกองเอง: บอทลงสนามเองแล้วเริ่มเลย
   toDeploy(); });
 
 function paintDeploy(){
@@ -14224,6 +14436,13 @@ function spectate(){
   var i; for (i=0;i<G.players.length;i++){ autoList(i); G.players[i].dep = null; }
   SPEC.paused = false; startMatch();
 }
+// the viewer built each bot's army on the army page: keep those lists, let the bots pick their own ground, and start
+function spectateBuilt(){
+  var i; for (i=0;i<G.players.length;i++) G.players[i].dep = null;
+  SPEC.paused = false; startMatch();
+}
+$('btSpecOwn').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  specOwn = b.dataset.o === '1'; setOn(this, b); applyMode(); });
 $('btPause').addEventListener('click', function(){ SPEC.paused = !SPEC.paused; paintPlay(); });
 $('btSpd').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; SPEC.speed = +b.dataset.s; paintPlay(); });
 // ทีละจังหวะ: หยุดไว้ แล้วให้บอทเล่นหนึ่งอย่าง — เวลาที่ใหญ่มากผ่านตัวจับเวลาได้ครั้งเดียว แล้วมันตั้งเวลาใหม่เอง
@@ -14233,7 +14452,8 @@ $('btStep').addEventListener('click', function(){ if (!watching() || G.over) ret
   SPEC.paused = true;
   if (PEND.length) flushPend(true); else { botTick(1e9, true); flushPend(true); }
   paintPlay(); dirty = true; });
-$('btAgain').addEventListener('click', function(){ G.on = false; units.length = 0; newField(); spectate(); });
+$('btAgain').addEventListener('click', function(){ G.on = false; units.length = 0; newField();
+  if (specOwn && G.players.length) spectateBuilt(); else spectate(); });          // the armies the viewer built fight again
 
 $('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
 // ปุ่มเลือกหน่วยที่จะวาง แยกตามกองทัพ สร้างจากตาราง TYPES จะได้ไม่ตกหล่นเมื่อเพิ่มหน่วยใหม่
@@ -14325,6 +14545,7 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   select:function(u){ selectUnit(sq_(u)); return G.sel ? G.sel.id : null; }, act:function(a){ G.act = a; paintPlay(); },
   group:function(ids){ G.multi = ids == null ? null : ids === 'all' ? groupAll() : ids.slice(); G.sel = null; markGroup(); paintPlay(); return G.multi; },
   groupMove:function(x, z){ return groupMove(x, z); },
+  aimPoint:aimPoint, fallen:function(){ return FALLEN; }, flyK:flyK, abilityText:abilityText,
   screen:function(x, z, up){ setupCam(); var p = proj([x, heightAt(x, z) + (up || 0), z]); return [p[0], p[1]]; },
   tap:function(x, z){ var s = G.sel; if (!s) return false; if (G.phase === 'move') return tryMoveSq(s, x, z); return false; },
   stratOk:function(k, pi){ return canStrat(k, pi); },
