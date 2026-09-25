@@ -125,6 +125,20 @@
 #bt .seat select{font:inherit;font-size:12px;padding:4px 6px;border-radius:7px;border:1px solid var(--chipB);background:var(--bg);color:var(--ink)}
 #bt .code{font-size:26px;font-weight:700;letter-spacing:5px;color:var(--on)}
 #bt .hide{display:none !important}
+/* ---- ดูหน้าตาหน่วย: หน้าต่างกลางจอ ตัวหมากหมุนรอบตัว ลากหมุนเองได้ ---- */
+#bt .unit .pm button.pv{font-size:15px;color:var(--sub)}
+#bt .pvov{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,0.62);display:flex;align-items:center;justify-content:center;padding:16px}
+#bt .pvbox{width:min(400px,100%);max-height:calc(100vh - 32px);overflow-y:auto;background:var(--panel);border:1px solid var(--chipB);border-radius:14px;
+  padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
+#bt .pvh{display:flex;align-items:center;gap:8px}
+#bt .pvh>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+#bt .pvh b{font-size:16px;line-height:21px}
+#bt #btPvT{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+#bt .pvh button{flex:0 0 40px;min-height:40px;font-size:16px}
+#bt #btPvC{width:100%;height:auto;aspect-ratio:1/1;min-height:0;flex:none;border-radius:10px;background:#0E0F12;cursor:grab}
+#bt #btPvV:empty{display:none}
+#bt .pvs{font-size:12px;line-height:17px;color:var(--sub)}
+#bt .pvs b{color:var(--ink);font-weight:600}
 #bt .wide{flex:1 1 100%}
 #bt .dicepop{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);pointer-events:none;
   background:rgba(11,11,14,0.86);border:1px solid var(--on);border-radius:12px;padding:8px 14px;font-size:15px;
@@ -218,7 +232,7 @@
       <div class="hrow"><h3>จำนวนสิ่งก่อสร้าง</h3><div class="grp" id="btBld">
         <button data-b="0">ปิด</button><button data-b="1" class="on">เปิด</button>
       </div></div>
-      <div class="row" style="margin-top:4px"><label class="sl" id="btDensL">น้อย <input type="range" id="btDens" min="0.25" max="2.5" step="0.25" value="1"> มาก <em id="btDensV" style="font-style:normal;color:var(--ink);min-width:40px;text-align:right">×1</em></label></div>
+      <div class="row" style="margin-top:4px"><label class="sl" id="btDensL">น้อย <input type="range" id="btDens" min="0.05" max="2.5" step="0.05" value="1"> มาก <em id="btDensV" style="font-style:normal;color:var(--ink);min-width:40px;text-align:right">×1</em></label></div>
 
       <h3>โหมด</h3>
       <div class="modes" id="btModes">
@@ -416,6 +430,7 @@
       </div>
 
       <h3>จัดการยูนิต</h3>
+      <div class="row"><button class="sm" id="btRandU" style="flex:1">สุ่มหน่วยในกองนี้</button><button class="sm" id="btRandA" style="flex:1">สุ่มทั้งกองทัพ</button></div>
       <div class="budget"><span id="btUsedL">ใช้</span><span class="bar" id="btBar"><i></i></span><span id="btUsedV">0 / 400</span></div>
       <div id="btRoster" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
       <div class="row" style="margin-top:6px"><button class="sm wide" id="btDetail">แสดงรายละเอียด</button></div>
@@ -448,6 +463,7 @@
         <div class="row" style="margin-top:6px"><div class="grp" id="btAct">
           <button data-a="move" disabled>เดิน</button><button data-a="shoot" disabled>ยิง</button><button data-a="done" disabled>ข้าม</button>
         </div></div>
+        <div class="row hide" style="margin-top:6px" id="btGroup"></div>
         <div class="row" style="margin-top:6px"><button class="go" id="btEnd">จบเทิร์น</button></div>
       </div>
       <!-- โหมดผู้ชม: ไม่มีปุ่มสั่งหน่วย มีแต่ปุ่มคุมการเล่น -->
@@ -484,7 +500,15 @@
     <div class="row"><div class="grp">
       <button id="btPan">เลื่อนแมพ</button><button id="btTop">มุมสูง</button><button id="btEye">มุมต่ำ</button><button id="btFit">เห็นทั้งโต๊ะ</button>
     </div></div>
-    <div class="note">1 นิ้วเกม = 1 ม. ในสนาม · ลากนิ้วเดียว = หมุนกล้อง · <b>สองนิ้วลาก = เลื่อนแมพ</b> · บีบ = ซูม · บนคอมคลิกขวาลาก หรือกดลูกศร/WASD ก็เลื่อนได้</div>
+    <div class="note">1 นิ้วเกม = 1 ม. ในสนาม · ลากนิ้วเดียว = หมุนกล้อง · <b>สองนิ้วลาก = เลื่อนแมพ</b> · บีบ = ซูม · บนคอมคลิกขวาลาก หรือกดลูกศร/WASD ก็เลื่อนได้ · <span id="btVer"></span></div>
+  </div>
+ </div>
+ <div class="pvov hide" id="btPv" role="dialog" aria-modal="true" aria-labelledby="btPvN">
+  <div class="pvbox">
+   <div class="pvh"><span><b id="btPvN"></b><span id="btPvT"></span></span><button class="sm" id="btPvX" aria-label="ปิด">✕</button></div>
+   <canvas id="btPvC" aria-label="หน้าตาของหน่วย หมุนรอบตัว ลากเพื่อหมุนเอง"></canvas>
+   <div class="row" id="btPvV"></div>
+   <div class="pvs" id="btPvS"></div>
   </div>
  </div>
 </div>
@@ -10221,7 +10245,7 @@ function heightAt(x, z){    // bilinear over the field, clamped to the table
 
 // ---------- camera ----------
 var cam = { yaw: 0.6, pitch: 32*DEG, dist: 78, tx:0, tz:0 };
-var cv = $('btCv'), ctx = cv.getContext('2d'), W=0, H=0, DPR=1, FL=1;
+var cv = $('btCv'), ctx = cv.getContext('2d'), W=0, H=0, DPR=1, DPR0=1, FL=1;
 // A WebView can report a width of 0 while it is still laying the page out. Measuring once at start-up then only
 // listening for window 'resize' leaves the canvas 0 px wide and the page black for good -- the app's board page hit
 // exactly this (see the project's constraint 4). So: refuse a measurement under 2 px and fall back to the viewport,
@@ -10231,7 +10255,20 @@ function canvasSize(){
   var r = cv.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), de = document.documentElement;
   if (w < 2) w = Math.max(de && de.clientWidth || 0, window.innerWidth || 0, window.screen && screen.width || 0, 320) - 24;
   if (h < 2) h = 480;   // the canvas's CSS height, used until the real one can be measured
-  return { w: Math.max(w, 120), h: Math.max(h, 120), dpr: Math.min(2, window.devicePixelRatio||1) };
+  DPR0 = Math.min(2, window.devicePixelRatio||1);
+  return { w: Math.max(w, 120), h: Math.max(h, 120), dpr: Math.round(DPR0*(RS_SHARP ? 1 : RS)*100)/100 };
+}
+// Render scale: a slow device draws the table into fewer pixels (the browser stretches it back to size). Filling the
+// facets is most of a frame, and it scales with the pixels. frame() lowers it while frames run slow and raises it again
+// once there is time to spare; it never goes under RS_MIN, and a test can pin it (BT.renderScale). Once the table has
+// stood still for a moment it is drawn once more at full resolution (sharpFrame): smooth while moving, sharp when still.
+var RS = 1, RS_MIN = 0.55, RS_PIN = null, DRAW_MS = 0, RS_WAIT = 0, RS_SHARP = false, IDLE_N = 0;
+function adaptScale(ms){
+  DRAW_MS = DRAW_MS ? DRAW_MS*0.8 + ms*0.2 : ms;
+  if (RS_PIN != null){ RS = RS_PIN; return; }
+  if (RS_WAIT > 0){ RS_WAIT--; return; }
+  if (DRAW_MS > 45 && RS > RS_MIN){ RS = Math.max(RS_MIN, Math.round((RS - 0.15)*100)/100); RS_WAIT = 12; }
+  else if (DRAW_MS < 16 && RS < 1){ RS = Math.min(1, Math.round((RS + 0.1)*100)/100); RS_WAIT = 45; }
 }
 function resize(){
   var v = canvasSize(); if (v.w === W && v.h === H && v.dpr === DPR) return;
@@ -10763,9 +10800,13 @@ function planLod(){
     var y = heightAt(u.x, u.z), pa = proj([u.x, y, u.z]), pb = proj([u.x, y + 1.8, u.z]);
     u.px = (pa[2] > 0.4 && pb[2] > 0.4) ? Math.abs(pa[1]-pb[1]) : 0;
     u.onScr = pa[2] > 0.4 && pa[0] > -120 && pa[0] < W + 120 && pa[1] > -40 && pa[1] < H + 200;
-    u.lod = u.px > 70 ? (dragging ? 2 : 0) : u.px > 36 ? (dragging ? 2 : 1) : u.px > 24 ? 2 : 3;
+    u.lod = u.px > 70*LOD_K ? (dragging ? 2 : 0) : u.px > 36*LOD_K ? (dragging ? 2 : 1) : u.px > 24*LOD_K ? 2 : 3;
   }
 }
+// A crowded close view is thousands of facets from the figures alone: when the last frame drew more than FACE_BUDGET,
+// the size a figure needs on screen for each detail level goes up a little (and comes back down when there is room)
+var LOD_K = 1, FACE_BUDGET = 9000;
+function tuneLod(n){ LOD_K = n > FACE_BUDGET ? Math.min(1.8, LOD_K*1.08) : n < FACE_BUDGET*0.6 ? Math.max(1, LOD_K/1.04) : LOD_K; }
 function drawUnit(u){
   if (!u.onScr) return;
   var X = u.act && u.act.xf, al = X && X.alpha != null ? X.alpha : 1;
@@ -10773,10 +10814,66 @@ function drawUnit(u){
   var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0;
   shadowAt(u.x, u.z, 0.8, 0.34*al);
   var br = baseR(u.k);
-  prism(u.x, y, u.z, br, 0.1, u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
-  drawRig(u, 1.0);
+  prism(u.x, y, u.z, br, 0.1, u.lod === 3 ? 6 : u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
+  if (!(u.lod === 3 && !u.act && (!u.mv || u.px < 18) && spriteUnit(u, y))) drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
   else if (BLESSED && u.sq && BLESSED[u.sq] && al > 0.5) ringAt(u.x, u.z, br + 0.1, 'rgba(255,214,110,0.75)');   // ได้พรจากพระเจ้า
+}
+// ---------- far figures as pictures ----------
+// A figure a few pixels tall is still a hundred or more facets to project, sort and fill every frame, and a full table
+// seen whole is thousands. So a small figure that is standing still (or walking, when tiny) is drawn once into a little
+// picture for its kit, team colour, facing and the camera's angle, then copied onto the table: one drawImage in the
+// painter's order in place of all its facets. The pictures are made again when the camera turns (a few a frame), at
+// the screen's own pixel ratio: the render scale going up or down doesn't remake them.
+var SPR = {}, SPR_N = 0, SPR_MAX = 700, SPR_NEW = 0, SPR_ON = true, SPR_PPU = 22;
+function spriteUnit(u, y){
+  if (!SPR_ON) return false;
+  var pal = rigPal(u), rb = Math.round((((u.rot || 0) % TAU) + TAU) % TAU/(TAU/16)) % 16;
+  var key = kitOf(u) + '|' + u._pk + '|' + rb + '|' + Math.round(cam.yaw/(TAU/64)) + '|' + Math.round(cam.pitch/(1.5*DEG)) + '|' + DPR0, s = SPR[key];
+  if (!s){
+    if (SPR_NEW >= 24) return false;                 // the rest keep their facets this frame and get a picture in the next
+    if (SPR_N >= SPR_MAX){ SPR = {}; SPR_N = 0; }
+    SPR_NEW++; s = SPR[key] = spriteMake(u, rb*TAU/16, pal); SPR_N++; }
+  if (!s.cv) return true;                            // nothing to see from this side
+  var sc = u.scale || 1, pm = proj([u.x, y + 0.9*sc, u.z]), pa = proj([u.x, y, u.z]); if (pa[2] < 0.4 || pm[2] < 0.4) return false;
+  var ppu = FL/pa[2];
+  FACES.push({ d: pm[2] + RIG_OPT.bias, img: s.cv, x: pa[0] - s.ax*ppu, y: pa[1] - s.ay*ppu, w: s.w*ppu, h: s.h*ppu });
+  return true;
+}
+// the picture: the figure's facets turned to its facing, laid flat on the camera's right and up (no perspective at this
+// size), back faces dropped, shaded and sorted as the table does. Sizes are in table units, the bitmap SPR_PPU px a unit.
+function spriteMake(u, rot, pal){
+  var F = flatFaces(rigFaces(u, 2), rot, RT, UP, FW, pal), k = SPR_PPU*DPR0;
+  if (!F.list.length) return { cv: null };
+  var pad = 1.5/k, bw = Math.max(1, Math.ceil((F.x1 - F.x0 + 2*pad)*k)), bh = Math.max(1, Math.ceil((F.y1 - F.y0 + 2*pad)*k));
+  var cv2 = document.createElement('canvas'); cv2.width = bw; cv2.height = bh;
+  fillFlat(cv2.getContext('2d'), F.list, k, (pad - F.x0)*k, (pad - F.y0)*k);
+  return { cv: cv2, ax: pad - F.x0, ay: pad - F.y0, w: bw/k, h: bh/k };
+}
+// a figure's facets turned by rot about the vertical, onto a view's right / up / forward axes: the facing ones, shaded
+// by the table's light and sorted far first, with their extent on screen (table units, y down)
+function flatFaces(faces, rot, R3, U3, F3, pal){
+  var c = Math.cos(rot), sn = Math.sin(rot), list = [], i, m, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (i=0;i<faces.length;i++){ var f = faces[i], fp = f.p; if (fp.length < 3) continue;
+    var W3 = new Array(fp.length);
+    for (m=0;m<fp.length;m++){ var q = fp[m]; W3[m] = [q[0]*c + q[2]*sn, q[1], -q[0]*sn + q[2]*c]; }
+    var n = normal(W3[0], W3[1], W3[2]); if (n[0]*F3[0] + n[1]*F3[1] + n[2]*F3[2] > 0) continue;
+    var sp = new Array(W3.length), d = 0;
+    for (m=0;m<W3.length;m++){ var w3 = W3[m], sx = w3[0]*R3[0] + w3[1]*R3[1] + w3[2]*R3[2], sy = -(w3[0]*U3[0] + w3[1]*U3[1] + w3[2]*U3[2]);
+      d += w3[0]*F3[0] + w3[1]*F3[1] + w3[2]*F3[2]; sp[m] = [sx, sy];
+      if (sx < x0) x0 = sx; if (sx > x1) x1 = sx; if (sy < y0) y0 = sy; if (sy > y1) y1 = sy; }
+    list.push({ d: d/W3.length, sp: sp, fill: shade(pal[f.k] || pal.plate, n) }); }
+  list.sort(function(a, b){ return b.d - a.d; });
+  return { list: list, x0: x0, x1: x1, y0: y0, y1: y1 };
+}
+function fillFlat(g, list, k, ox, oy){
+  var run = null, i, m;
+  for (i=0;i<list.length;i++){ var e = list[i], P = e.sp;
+    if (run !== null && e.fill !== run){ g.fillStyle = run; g.fill(); run = null; }
+    if (run === null) g.beginPath();
+    g.moveTo(ox + P[0][0]*k, oy + P[0][1]*k); for (m=1;m<P.length;m++) g.lineTo(ox + P[m][0]*k, oy + P[m][1]*k); g.closePath();
+    run = e.fill; }
+  if (run !== null){ g.fillStyle = run; g.fill(); }
 }
 // หน่วยที่อยู่ในพรของอัศวินเทมพลาร์ตอนนี้ (วาดวงทองรอบฐาน) · คิดเฟรมละครั้ง เฉพาะตอนที่มีเทมพลาร์บนโต๊ะ
 var BLESSED = null;
@@ -10799,7 +10896,7 @@ function shadowAt(x, z, r, k){    // a soft dark patch on the ground so pieces s
 // ---------- frame ----------
 var dirty = true, dragging = false, raf = window.requestAnimationFrame || function(f){ setTimeout(f,16); };
 function drawScene(){
-  setupCam(); FACES = []; OVER = []; BLESSED = blessedNow();
+  setupCam(); FACES = []; OVER = []; BLESSED = blessedNow(); SPR_NEW = 0;
   var t = TH(), g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0, t.sky[0]); g.addColorStop(1, t.sky[1]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   var step = dragging ? 2 : 1;
@@ -10817,12 +10914,13 @@ function drawScene(){
   if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
   fxDraw();
   gameOverlay();
-  FACES.sort(function(a,b){ return b.d - a.d; });
+  sortFaces(); tuneLod(FACES.length);
   // Neighbours in depth order that share a colour go into one path and one fill: the fill is most of a frame's cost,
   // and a figure's facets or a patch of ground mostly repeat the same few shades. Same colour, so their order among
   // themselves cannot show. Faces with a line or their own alpha still go one at a time.
   var run = null;
   for (i=0;i<FACES.length;i++){ var f = FACES[i], sp = f.sp, solo = f.alpha != null || !!f.line;
+    if (f.img){ if (run !== null){ ctx.fillStyle = run; ctx.fill(); run = null; } ctx.drawImage(f.img, f.x, f.y, f.w, f.h); continue; }
     if (run !== null && (solo || f.fill !== run)){ ctx.fillStyle = run; ctx.fill(); run = null; }
     if (run === null) ctx.beginPath();
     ctx.moveTo(sp[0][0], sp[0][1]); for (var k=1;k<sp.length;k++) ctx.lineTo(sp[k][0], sp[k][1]); ctx.closePath();
@@ -10832,6 +10930,19 @@ function drawScene(){
   if (run !== null){ ctx.fillStyle = run; ctx.fill(); }
   for (i=0;i<OVER.length;i++) OVER[i]();
   hud();
+}
+// far first. The native sort of a typed array beats a comparator on ten thousand facets: the depth (to 1/8192 of a
+// unit) and the facet's index ride in one number, so equal depths keep the order they were drawn in, as before.
+var SORT_K = new Float64Array(4096);
+function sortFaces(){
+  var n = FACES.length, i;
+  if (n >= 65536){ FACES.sort(function(a,b){ return b.d - a.d; }); return; }
+  if (SORT_K.length < n) SORT_K = new Float64Array(Math.max(n, SORT_K.length*2));
+  var K = SORT_K.subarray(0, n), out = new Array(n);
+  for (i=0;i<n;i++){ var d = FACES[i].d; K[i] = (d === d ? Math.round(-d*8192) : 0)*65536 + i; }   // a NaN depth sorts as 0, not out of the list
+  K.sort();
+  for (i=0;i<n;i++){ var k = K[i]; out[i] = FACES[k - Math.floor(k/65536)*65536]; }
+  FACES = out;
 }
 function rulerLine(A, B, moving){
   var d = Math.hypot(B.x-A.x, B.z-A.z), a = proj([A.x, heightAt(A.x,A.z)+0.1, A.z]), b = proj([B.x, heightAt(B.x,B.z)+0.1, B.z]);
@@ -12675,7 +12786,7 @@ function startTurn(){
   var i;
   sqList().forEach(function(s){ s.owUsed = false; if (s.side === G.turn){ resetSq(s); s.shaken = false; } });
   for (i=0;i<G.players.length;i++) G.players[i].done = false;
-  G.phase = 'cmd'; G.sel = null; G.act = null; AIM = null; G.timeLeft = 0; G.fights = []; G.fightAt = 0;
+  G.phase = 'cmd'; G.sel = null; G.multi = null; G.act = null; AIM = null; G.timeLeft = 0; G.fights = []; G.fightAt = 0;
   say('— ' + TEAM(G.turn).nm + ' เริ่มตา (รอบ ' + G.round + '/' + MAX_ROUND + ') —');
   teamPlayers(G.turn).forEach(function(P){ P.cp = (P.cp || 0) + 1; });          // ทุกคนในทีมได้ 1 แต้มคำสั่ง
   sqList().forEach(function(s){ if (s.side !== G.turn || !sqHalf(s)) return;
@@ -12701,7 +12812,7 @@ function finishCommand(){
 function nextPhase(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
-  G.sel = null; G.act = null; AIM = null; G.timeLeft = 0;
+  G.sel = null; G.multi = null; G.act = null; AIM = null; G.timeLeft = 0;
   if (G.phase === 'move'){ G.phase = 'shoot'; say('เฟสยิง'); }
   else if (G.phase === 'shoot'){ G.phase = 'charge'; say('เฟสบุก — ศัตรูในระยะ ' + CHARGE_R + '" บุกได้'); }
   else if (G.phase === 'charge'){ G.phase = 'fight'; G.fights = null; }       // ลำดับตีคิดตอนบุกที่ค้างทอยจบหมดแล้ว (ใน advance)
@@ -12801,11 +12912,13 @@ function boardState(){
       shaken:!!s.shaken, engaged:isEngaged(s) }; }),
     units:units.map(function(u){ return { id:u.id, sq:u.sq, pl:u.pl, team:u.side, k:u.t, hp:u.hp, x:+gx(u).toFixed(1), z:+gz(u).toFixed(1) }; }) };
 }
-var RULES_V = 4;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
+var RULES_V = 5;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
+// the version people see (the home page reads it from this page): the rules version, then the fixes made within it
+var APP_VER = '5.0';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
-  G.sel = null; G.act = null; G.timeLeft = 0; AIM = null;
+  G.sel = null; G.multi = null; G.act = null; G.timeLeft = 0; AIM = null;
   // ทีมที่หมดหน่วยแล้วข้ามไป
   var t = G.turn, n = 0;
   do { t = (t + 1) % G.teams; if (t === 0) G.round++; n++; } while (!liveOf(t) && n <= G.teams);
@@ -12902,6 +13015,34 @@ function tryMoveSq(s, x, z){
   G.act = null; if (G.sel === s) selectUnit(null);
   return true;
 }
+// ---------- เดินเป็นกองทัพ ----------
+// เลือกหลายหน่วย (หรือทุกหน่วย) แล้วแตะพื้นที่เดียว: ทุกหน่วยขยับไปทางเดียวกันเท่า ๆ กัน รักษารูปกองเดิมไว้
+// แต่ละหน่วยไปได้ไม่เกินระยะเดินของตัวเอง (ช้าก็ตามไม่ทัน) · หน่วยหน้าเดินก่อน ตัวที่ตามมาจะได้ไม่แย่งที่กัน
+// ทุกหน่วยส่งเป็นการเดินปกติของใครของมัน (smove) เหมือนสั่งทีละหน่วย ทุกเครื่องจึงเห็นเหมือนกัน
+function canGroup(s){ return !!s && sqAlive(s) && canAct(s) && !s.moved && !isEngaged(s); }
+function markGroup(){ var i; for (i=0;i<units.length;i++) units[i].sel = !!(G.multi && G.multi.indexOf(units[i].sq) >= 0); }
+function groupAll(){ return sqList().filter(function(q){ return q.side === G.turn && canGroup(q); }).map(function(q){ return q.id; }); }
+function groupMove(x, z){
+  var list = (G.multi || []).map(sqById).filter(canGroup), n = list.length;
+  if (!n){ popDice('ยังไม่ได้เลือกหน่วย<br><span style="font-size:12px">แตะหน่วยของเราก่อน แล้วค่อยแตะพื้น</span>'); return false; }
+  var C = list.reduce(function(a, q){ var c = sqCenter(q); a.x += c.x/n; a.z += c.z/n; return a; }, { x:0, z:0 });
+  var dx = x - C.x, dz = z - C.z, L = Math.hypot(dx, dz);
+  if (L < 0.3) return false;
+  var fx = dx/L, fz = dz/L;
+  list.sort(function(a, b){ var ca = sqCenter(a), cb = sqCenter(b); return (cb.x*fx + cb.z*fz) - (ca.x*fx + ca.z*fz); });
+  var went = 0;
+  list.forEach(function(q){
+    var c = sqCenter(q), k = Math.min(L, moveRange(q)), how = q.adv ? 'adv' : 'move';
+    var tx = clamp(c.x + fx*k, -table.w/2 + 1.2, table.w/2 - 1.2), tz = clamp(c.z + fz*k, -table.d/2 + 1.2, table.d/2 - 1.2);
+    var to = planMove(q, tx, tz), ms = sqModels(q), i, any = false;
+    for (i=0;i<ms.length;i++) if (Math.hypot(to[i][0] - gx(ms[i]), to[i][1] - gz(ms[i])) > 0.3) any = true;
+    if (!any) return;
+    netSend({ a:'smove', u:q.id, to:to, how:how }); applySMove(q, to, how); went++;
+  });
+  G.multi = null; markGroup(); G.act = null; paintPlay(); dirty = true;
+  if (went < n) popDice('เดินได้ ' + went + ' จาก ' + n + ' หน่วย<br><span style="font-size:12px">หน่วยที่เหลือไม่มีที่ว่างไปทางนั้น</span>');
+  return went > 0;
+}
 function stayPut(s){ if (!s || s.moved) return; s.moved = true; netSend({ a:'stay', u:s.id }); say(sqLabel(s) + ' อยู่นิ่ง'); selectUnit(null); }
 function startAdvance(s){
   if (!s || s.moved || s.adv || isEngaged(s)) return;
@@ -12933,6 +13074,12 @@ function tapGame(p){
   var hitM = unitHit(p[0], p[1]), hit = hitM ? sqOf(hitM) : null;
   if (watching() || G.over || !humanTurn()){        // ดูข้อมูลได้เสมอ สั่งไม่ได้
     if (hit || !watching()) { var k; for (k=0;k<units.length;k++) units[k].sel = false; G.sel = hit; G.act = null; if (hit) sqModels(hit).forEach(function(m){ m.sel = true; }); paintPlay(); dirty = true; }
+    return; }
+  if (G.multi && G.phase === 'move'){
+    if (hit && hit.side === G.turn && canGroup(hit)){ var gi = G.multi.indexOf(hit.id); if (gi >= 0) G.multi.splice(gi, 1); else G.multi.push(hit.id);
+      markGroup(); paintPlay(); dirty = true; return; }
+    if (hit){ popDice('เลือกได้เฉพาะหน่วยของเราที่ยังไม่ได้เดิน<br><span style="font-size:12px">และไม่ได้ติดประชิดอยู่</span>'); return; }
+    var wg = groundHit(p[0], p[1]); if (wg) groupMove(wg[0], wg[2]);
     return; }
   var s = G.sel && sqAlive(G.sel) ? G.sel : null, mine = s && canAct(s);
   if (hit && mine && hit !== s){
@@ -13086,7 +13233,7 @@ function paintRoster(){
       (abilityText(T) ? '<span class="st ab">' + abilityText(T) + '</span>' : '') +
       (G.detail ? '<span class="st">ทน ' + T.T + ' · เกราะ ' + (T.sv > 6 ? 'ไม่มี' : T.sv + '+') + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc +
         (G1 ? ' · ยิง ' + (G1.tr ? 'โดนอัตโนมัติ' : 'เข้า ' + G1.bs + '+') + ' แรง ' + G1.s + ' เจาะ ' + G1.ap + ' ดาเมจ ' + G1.d : '') + ' · ตี เข้า ' + M1.ws + '+ แรง ' + M1.s + ' เจาะ ' + M1.ap + ' ดาเมจ ' + M1.d + ' — ' + T.d + '</span>' : '') +
-      '</span><span class="pm"><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
+      '</span><span class="pm"><button class="pv" data-pv="' + i + '" aria-label="ดูหน้าตา ' + T.nm + '" title="ดูหน้าตา">👁</button><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
       '</span><button data-i="' + i + '" data-v="1"' + (totalModels(s) + T.n > armyCap() ? ' disabled title="เกินจำนวนตัวสูงสุด"' : '') + '>+</button></span></div>';
   }
   host.innerHTML = h;
@@ -13128,7 +13275,15 @@ function paintPlay(){
   else if (!s) card.innerHTML = '<div class="nm">' + (G.over ? 'จบการรบ' : humanTurn() ? phaseHint() : 'รอ ' + TEAM(G.turn).nm + '…') +
       '</div><div class="st">' + (G.over ? 'กด "ออกจากการรบ" เพื่อตั้งสนามใหม่' : 'แตะที่ตัวหมากเพื่อดูข้อมูลหน่วย') + '</div>';
   else card.innerHTML = sqCard(s);
+  if (G.multi) card.innerHTML = '<div class="nm">เดินเป็นกองทัพ · เลือกไว้ ' + G.multi.length + ' หน่วย</div>' +
+    '<div class="st">แตะหน่วยของเราเพื่อเลือกหรือเอาออก · แตะพื้นเพื่อสั่งทุกหน่วยเดินไปทางนั้นพร้อมกัน (ต่างคนต่างไปได้ไม่เกินระยะเดินของตัวเอง)</div>';
   paintActs(s);
+  var grp = $('btGroup'), gOn = G.phase === 'move' && humanTurn() && !watching() && !G.over;
+  if (!gOn && G.multi){ G.multi = null; markGroup(); }
+  grp.classList.toggle('hide', !gOn);
+  if (gOn) setHTML(grp, '<button data-g="pick"' + (G.multi ? ' class="on"' : '') + '>' + (G.multi ? 'เลือกหลายหน่วย · ' + G.multi.length : 'เลือกหลายหน่วย') + '</button>' +
+    '<button data-g="all"' + (groupAll().length ? '' : ' disabled') + '>เลือกทุกหน่วย</button>' +
+    (G.multi ? '<button data-g="off">ยกเลิก</button>' : ''));
   var endB = $('btEnd'), myTurn = humanTurn();
   endB.disabled = !myTurn || G.over || G.phase === 'cmd' || G.phase === 'fight';
   endB.textContent = G.phase === 'move' ? 'ไปเฟสยิง ›' : G.phase === 'shoot' ? 'ไปเฟสบุก ›' : G.phase === 'charge' ? 'ไปตะลุมบอน ›'
@@ -13353,8 +13508,13 @@ function frame(ts){
   var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
   if (dt > 0 && dt < 0.5 && !CLOCK_STOP) simStep(dt);        // a long gap (tab in the background) is skipped, not crammed in
   tickDice();
-  if (!dirty) return; dirty = false; REDRAWS++; drawScene();
+  if (!dirty){ if (RS < 1 && RS_PIN == null && !RS_SHARP && ++IDLE_N > 15) sharpFrame(); return; }
+  IDLE_N = 0;
+  if (RS_SHARP){ RS_SHARP = false; resize(); }               // moving again: back to the scale that keeps it smooth
+  dirty = false; REDRAWS++;
+  var t0 = now(); drawScene(); adaptScale(now() - t0);
 }
+function sharpFrame(){ RS_SHARP = true; resize(); dirty = false; REDRAWS++; drawScene(); }
 var REDRAWS = 0;                // tests: frames actually drawn (the page only draws when something changed)
 
 // ---------- กล้อง: เลื่อนแมพได้อิสระ ไม่ยึดจุดศูนย์กลางอีกแล้ว ----------
@@ -13452,9 +13612,12 @@ $('btMaps').addEventListener('click', function(ev){ var b = ev.target.closest('.
   applyTheme(b.dataset.t); });
 // ภูมิประเทศกับสิ่งก่อสร้าง: เปลี่ยนแล้วสร้างพื้นกับของบนโต๊ะใหม่ทั้งหมดจาก SEED เดิม
 function setTerrain(r){ if (!TERRAINS[r]) return; terrain = r; buildTerrain(); genProps(); syncSetupUI(); dirty = true; }
+// สิ่งก่อสร้าง "น้อย" สุดคือ ×0.05 (เมืองพัง 48×34 เหลือสองสามหลัง) ช่วงต่ำกว่า 1 ละเอียดขึ้นทีละ 0.05 ช่วงบนทีละ 0.25
+// ค่าเดียวกันทุกเครื่อง: ห้องส่งค่านี้ไปให้ทุกคน และเซิร์ฟเวอร์ปัดแบบเดียวกัน
+function quantDens(v){ v = clamp(v, 0.05, 2.5); return v < 1 ? Math.round(v*20)/20 : Math.round(v*4)/4; }
 function setBuildings(on, dens){
   buildings = !!on;
-  if (dens != null && isFinite(+dens)) density = Math.round(clamp(+dens, 0.25, 2.5)*4)/4;
+  if (dens != null && isFinite(+dens)) density = quantDens(+dens);
   buildTerrain(); genProps(); syncSetupUI(); dirty = true;
 }
 // ปุ่มกับแถบเลื่อนหน้าตั้งสนามตามค่าจริง — ห้องสั่งค่ามาทับ (adoptRoom) ปุ่มต้องเปลี่ยนตาม ไม่งั้นออกจากห้องแล้วหน้าจอโกหก
@@ -13534,7 +13697,7 @@ function adoptRoom(R){
   var S = R.setup, i;
   // เซิร์ฟเวอร์รุ่นเก่าไม่ส่งสามค่านี้มา — ใช้ค่าตั้งต้น ซึ่งตรงกับโต๊ะแบบเดิม
   var th = THEMES[S.theme] ? S.theme : 'ruin', tr = TERRAINS[S.terrain] ? S.terrain : 'hills', bl = S.buildings !== false;
-  var dn = typeof S.density === 'number' && isFinite(S.density) ? clamp(S.density, 0.25, 2.5) : 1;
+  var dn = typeof S.density === 'number' && isFinite(S.density) ? quantDens(S.density) : 1;
   if (theme !== th || SEED !== S.seed || table.w !== S.w || terrain !== tr || buildings !== bl || density !== dn){
     theme = th; SEED = S.seed; table.w = S.w; table.d = S.d || Math.round(S.w*0.72/2)*2;
     terrain = tr; buildings = bl; density = dn;
@@ -13844,9 +14007,83 @@ $('btFacs').addEventListener('click', function(ev){ var b = ev.target.closest('.
   P.fac = b.dataset.f; for (var i=0;i<TYPES.length;i++) if (TYPES[i].fac !== P.fac) P.list[i] = 0;
   paintRoster(); });
 $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.pv != null){ openPreview(+b.dataset.pv); return; }
   var i = +b.dataset.i, v = +b.dataset.v, P = G.players[G.cur]; if (!P) return;
   if (v > 0 && totalModels(G.cur) + TYPES[i].n > armyCap()){ popDice('ตัวหมากเต็มแล้ว<br><span style="font-size:12px">คนละไม่เกิน ' + armyCap() + ' ตัว</span>'); return; }
   P.list[i] = Math.max(0, (P.list[i]||0) + v); paintRoster(); });
+
+// สุ่มทัพ: ใช้ตัวจัดทัพของบอท (คนจริงสุ่มด้วย Math.random ก็ได้ กองที่ได้ถูกส่งขึ้นห้องเป็นรายชื่ออยู่แล้ว)
+// "ในกองนี้" สุ่มหน่วยของกองทัพที่เลือกไว้ · "ทั้งกองทัพ" สุ่มกองทัพด้วย
+function randomArmy(anyFac){
+  var P = G.players[G.cur]; if (!P) return;
+  if (anyFac) P.fac = FACS[Math.floor(Math.random()*FACS.length)].k;
+  else P.fac = facOf(P.list, P.fac);
+  autoList(G.cur); paintRoster();
+}
+$('btRandU').addEventListener('click', function(){ randomArmy(false); });
+$('btRandA').addEventListener('click', function(){ randomArmy(true); });
+
+// ---------- ดูหน้าตาหน่วย ----------
+// หน้าต่างเล็กกลางจอ: ตัวหมากแบบเดียวกับบนโต๊ะ สีทีมของคนที่จัดทัพอยู่ หมุนช้า ๆ ลากเพื่อหมุนเองได้
+// หน่วยที่คนในหน่วยหน้าตาต่างกัน (ซามูไรมีธง อัศวินเกราะห้าอาวุธ ...) กดดูทีละแบบ
+var PV = null, PV_LOOP = false;
+function pvPal(k, side){
+  var src = MINI.SOLID[k] || MINI.SOLID.heavy, TC = TEAM(side).rgb, out = {}, n;
+  for (n in src) out[n] = NATURAL[n] ? src[n] : teamTint(src[n], TC);
+  return out;
+}
+function openPreview(i){
+  var T = TYPES[i], P = G.players[G.cur]; if (!T) return;
+  PV = { i:i, j:0, rot:0.5, t:0, spin:true, side: P ? P.team : 0, drag:null, fit:null, back: document.activeElement };
+  $('btPvN').textContent = T.nm;
+  $('btPvT').textContent = ' ×' + T.n + ' · ' + T.pts + ' แต้ม · เดิน ' + T.mv + '" · ทน ' + T.T + ' · เกราะ ' + (T.sv > 6 ? 'ไม่มี' : T.sv + '+') + (T.inv ? ' · พิเศษ ' + T.inv + '++' : '') + ' · แผล ' + T.w;
+  var V = VARIANTS[T.k] || null, h = '';
+  if (V && V.length > 1) V.forEach(function(v, j){ h += '<button class="sm' + (j ? '' : ' on') + '" data-j="' + j + '" style="flex:1">แบบ ' + (j + 1) + '</button>'; });
+  $('btPvV').innerHTML = h;
+  $('btPvS').innerHTML = (T.d ? '<b>' + esc(T.d) + '</b><br>' : '') + (abilityText(T) ? esc(abilityText(T)) : '');
+  $('btPv').classList.remove('hide'); $('btPvX').focus();
+  pvSize(); pvDraw(); if (!PV_LOOP){ PV_LOOP = true; raf(pvTick); }
+}
+function closePreview(){ var b = PV && PV.back; PV = null; $('btPv').classList.add('hide'); if (b && b.focus && document.contains(b)) b.focus(); }
+function pvSize(){
+  var c = $('btPvC'), r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(120, Math.round(r.width));
+  if (c.width !== Math.round(w*dpr)){ c.width = Math.round(w*dpr); c.height = Math.round(w*dpr); }
+}
+function pvUnit(){ var T = TYPES[PV.i]; return { k:T.k, t:T.k, x:0, z:0, rot:0, scale:kitScale(T.k), id:'pv.' + PV.j }; }
+function pvDraw(){
+  if (!PV) return;
+  var c = $('btPvC'), g = c.getContext('2d'), S = c.width, T = TYPES[PV.i], u = pvUnit(), faces = rigFaces(u, 0);
+  var pt = 16*DEG, F3 = [0, -Math.sin(pt), -Math.cos(pt)], R3 = [F3[2], 0, -F3[0]], rl = Math.hypot(R3[0], R3[2]) || 1; R3 = [R3[0]/rl, 0, R3[2]/rl];
+  var U3 = [F3[1]*R3[2] - F3[2]*R3[1], F3[2]*R3[0] - F3[0]*R3[2], F3[0]*R3[1] - F3[1]*R3[0]];
+  var L = flatFaces(faces, PV.rot, R3, U3, F3, pvPal(T.k, PV.side));
+  if (!PV.fit){                                   // one size for every turn, from the figure's reach round its middle
+    var rx = 0.3, y0 = 0, y1 = 0.5, i, m;
+    for (i=0;i<faces.length;i++) for (m=0;m<faces[i].p.length;m++){ var q = faces[i].p[m]; rx = Math.max(rx, Math.hypot(q[0], q[2])); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+    PV.fit = { r: rx, y0: y0, y1: y1 }; }
+  var fw = PV.fit, span = Math.max(fw.r*2, (fw.y1 - fw.y0)*U3[1] + fw.r*2*Math.abs(U3[2])), k = S*0.84/span;
+  var cy = -((fw.y1 + fw.y0)/2)*U3[1];            // the figure's middle, on screen
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  var bg = g.createRadialGradient(S/2, S*0.45, S*0.05, S/2, S*0.5, S*0.7); bg.addColorStop(0, '#23242B'); bg.addColorStop(1, '#0E0F12');
+  g.fillStyle = bg; g.fillRect(0, 0, S, S);
+  var gy = S/2 - cy*k;                            // the ground under it: a soft shadow and the team's base
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(S/2, gy, fw.r*k*0.9, fw.r*k*0.9*Math.abs(U3[2]) + 2, 0, 0, TAU); g.fill();
+  fillFlat(g, L.list, k, S/2, S/2 - cy*k);
+}
+function pvTick(ts){
+  if (!PV){ PV_LOOP = false; return; }
+  var t = ts || now(), dt = PV.t ? Math.min(0.1, (t - PV.t)/1000) : 0; PV.t = t;
+  if (PV.spin && !PV.drag) PV.rot += dt*0.7;
+  pvDraw(); raf(pvTick);
+}
+$('btPvX').addEventListener('click', closePreview);
+$('btPv').addEventListener('click', function(ev){ if (ev.target === this) closePreview(); });
+document.addEventListener('keydown', function(ev){ if (PV && ev.key === 'Escape') closePreview(); });
+$('btPvV').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b || !PV) return;
+  PV.j = +b.dataset.j; PV.fit = null; setOn(this, b); });
+$('btPvC').addEventListener('pointerdown', function(ev){ if (!PV) return; PV.drag = { x:ev.clientX, r:PV.rot }; PV.spin = false; this.setPointerCapture(ev.pointerId); });
+$('btPvC').addEventListener('pointermove', function(ev){ if (!PV || !PV.drag) return; PV.rot = PV.drag.r + (ev.clientX - PV.drag.x)*0.012; });
+$('btPvC').addEventListener('pointerup', function(){ if (PV) PV.drag = null; });
+window.addEventListener('resize', function(){ if (PV) pvSize(); });
 
 // หน้าจัดกองทัพกดถัดไป: คนต่อไป หรือถ้าครบแล้วก็ไปหน้าเลือกจุดลงสนาม
 function toDeploy(){
@@ -13911,7 +14148,7 @@ $('btDepGo').addEventListener('click', function(){
   startMatch(); });
 
 function startMatch(){
-  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.act = null; G.phase = 'cmd';
+  G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.multi = null; G.act = null; G.phase = 'cmd';
   G.timeLeft = 0; LOG.length = 0; resetTray(); G.used = {}; G.vp = []; G.fights = []; G.fightAt = 0;
   var i;
   for (i=0;i<G.players.length;i++){
@@ -13937,6 +14174,12 @@ $('btAct').addEventListener('click', function(ev){ var b = ev.target.closest('bu
   if (a === 'skip'){ if (G.phase === 'shoot') s.shot = true; else if (G.phase === 'charge') s.chDone = true;
     netSend({ a:'skip', u:s.id, ph:G.phase }); selectUnit(null); return; }
   G.act = a; paintPlay(); dirty = true; });
+$('btGroup').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b || b.disabled || G.phase !== 'move' || !humanTurn()) return;
+  var g = b.dataset.g;
+  if (g === 'off' || (g === 'pick' && G.multi)) G.multi = null;
+  else if (g === 'pick') G.multi = G.sel && canGroup(G.sel) ? [G.sel.id] : [];      // the squad already picked joins the group
+  else if (g === 'all') G.multi = groupAll();
+  G.sel = null; G.act = null; AIM = null; markGroup(); paintPlay(); dirty = true; });
 // เสร็จเฟสนี้: ในห้องเป็นของเราคนเดียว (ทีมไปต่อเมื่อทุกคนกด) · เครื่องเดียวไปเฟสต่อไปทั้งทีม
 $('btEnd').addEventListener('click', function(){
   if (!humanTurn() || G.phase === 'cmd' || G.phase === 'fight') return;
@@ -14011,6 +14254,7 @@ document.addEventListener('visibilitychange', function(){ resize(); });
 try { if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(cv); } catch(_){}
 buildTerrain(); genProps(); resize(); syncSetupUI(); show('scSetup');
 cam.dist = table.w*1.15; cam.pitch = 38*DEG; raf(frame);
+$('btVer').textContent = 'เวอร์ชัน ' + APP_VER;
 
 function sq_(x){ return !x ? null : SQ[x.id] === x ? x : typeof x === 'string' ? (SQ[x] || sqOf(unitById(x))) : sqOf(x); }   // เทสต์ส่งได้ทั้งหน่วย ตัวหมาก หรือรหัส
 window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
@@ -14023,7 +14267,9 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   kitInfo:function(k){ var K = MINI.kitInfo(k); return { scale:K.scale || 1, h:K.h || 1.75, mount:!!K.mount, creature:!!K.creature, known:!!MINI.KITS[k] }; },
   goTo:function(i,x,z){ var u = units[i]; if (u) unitGoTo(u, x, z); return !!u; },   // send piece i walking to (x,z)
   stop:function(i){ var u = units[i]; if (u) unitStop(u); }, walking:function(){ return units.filter(function(u){ return u.mv; }).length; },
-  draw:drawScene, faces:function(){ return FACES.length; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
+  draw:drawScene, faces:function(){ return FACES.length; },
+  renderScale:function(v){ RS_PIN = v == null ? null : +v; if (v != null) RS = +v; dirty = true; return RS; },
+  sprites:function(on){ if (on != null){ SPR_ON = !!on; SPR = {}; SPR_N = 0; dirty = true; } return { on:SPR_ON, n:SPR_N, lodK:LOD_K, rs:RS, ms:DRAW_MS, sharp:RS_SHARP }; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
   // ตะขอสำหรับเทสต์อัตโนมัติ
   pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
   props:function(){ return PROPS; }, heightAt:heightAt, blockAt:blockAt,
@@ -14077,6 +14323,9 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
     dirty = true; return true; },
   setPhase:function(ph){ G.phase = ph; G.cmdWait = false; if (ph === 'fight') G.fights = null; advance(); paintPlay(); },
   select:function(u){ selectUnit(sq_(u)); return G.sel ? G.sel.id : null; }, act:function(a){ G.act = a; paintPlay(); },
+  group:function(ids){ G.multi = ids == null ? null : ids === 'all' ? groupAll() : ids.slice(); G.sel = null; markGroup(); paintPlay(); return G.multi; },
+  groupMove:function(x, z){ return groupMove(x, z); },
+  screen:function(x, z, up){ setupCam(); var p = proj([x, heightAt(x, z) + (up || 0), z]); return [p[0], p[1]]; },
   tap:function(x, z){ var s = G.sel; if (!s) return false; if (G.phase === 'move') return tryMoveSq(s, x, z); return false; },
   stratOk:function(k, pi){ return canStrat(k, pi); },
   why:function(kind, u, t){ var a = sq_(u), b = sq_(t); return kind === 'chg' ? chargeWhyNot(a, b) : kind === 'heal' ? healWhyNot(a, b) : shotWhyNot(a, b); },
