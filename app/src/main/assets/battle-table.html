@@ -9875,12 +9875,6 @@ function mb_mknight(Wd, mo){
   if (hi) [-1, 1].forEach(function(s){ var bit = R.add(W.mz, [s*0.07, 0.02, -0.06]); rod(bit, lerp3(Rd.handL.p, Rd.wristL.p, 0.3), 0.009, 0.009, 4, 'leather'); });
 }
 kit('mknight', { mount:{ y:1.64, z:-0.06, hold:'shield', spread:33 }, h:2.3, build:function(Wd, mo){ mb_mknight(Wd, mo); } });
-// stand-ins for the Round 6 units until their own figures are spliced in below (the kit files re-register each key)
-(function(){ var S = {ktwarhound:['kdread', 5.5], ktwarlord:['kdread', 8.5], ktimperator:['kdread', 13]}, k, f;
-  for (k in S){ var B = KITS[S[k][0]], d = {}; for (f in B) d[f] = B[f];
-    d.scale = S[k][1] || B.scale; d.stand = S[k][0];
-    d.build = (function(b0, k0){ return function(Wd, mo){ var kk = KIT; KIT = k0; b0(Wd, mo); KIT = kk; }; })(B.build, S[k][0]);
-    kit(k, d); } })();
 // ════════ รอบ 6 · ka ════════
 // ════════ รอบ 6 · อัศวินเกราะพลัง ครบกองทัพ (group ka_) ════════
 // Six new infantry for the power-armour knights, built on the kn_ helpers so they share the army's armour language:
@@ -12156,6 +12150,673 @@ kit('kwarsuit', { scale:1.8, h:1.62, pose:kd_suitPose, build:function(Wd){ Wd = 
   ['L', 'R'].forEach(function(S){ armTube(Wd['shoulder'+S], -0.03, 0.085, 0.085, -0.26, 0.08, 0.08, 7, 0, TAU, 'under');
     if (kd_hi()) armDome(Wd['elbow'+S], [0, 0, 0], 0.095, -90, 90, 6, 3, null, 'steel'); });
   kd_suitRotary(Wd); kd_fist(Wd, 'L', 1.25); kd_suitLeg(Wd, 'L'); kd_suitLeg(Wd, 'R'); } });
+// ════════ รอบ 6 · ke ════════
+// ════════ รอบ 6 · ไททันของอัศวินเกราะพลัง (the knights' titans, group ke_) ════════
+// Three colossal walkers built on the rig and drawn `scale` times over, in the knights' armour language: team-colour
+// plates, gold trims, the knights' eight-point sunburst, great-helm faces with an eye slit. None of them draws the rig's
+// own thigh and shin: the hips and the planted feet are the rig's (so the gait walks them and a planted foot stays put),
+// set wider apart, and the leg between is solved again at the titan's own bone lengths (the hound's bird-like, the
+// warlord's and the emperor's with the knee forward). Each arm IS a gun: it swings from a gimbal at the side of the body
+// toward the point `len` beyond the rig's hand along the aim, so the page's flash is at its muzzle. Melee is a stomp:
+// ACT.lunge lifts the left foot in the wind-up and brings it down ahead in the strike.
+// Detail: the page picks a level from how tall 1.8 m looks on screen, so a framed titan is drawn at level 2 (and far off at
+// level 3, as a picture made from level 2). Trims, emblems, eyes and windows are kept down to level 2 (ke_mid); small
+// hardware (rams, hoses, fins, pinnacles) is drawn at levels 0-1 (ke_hi) and the finest (studs, corbels) at level 0 (ke_top).
+// Details are free-standing parts or sit on small faces of their own: a small decal on a big face loses the painter's sort.
+function ke_mid(){ return LODK > 0.4; }                       // detail levels 0..2
+function ke_hi(){ return LODK > 0.5; }                        // levels 0 and 1
+function ke_top(){ return LODK > 0.9; }                       // level 0 only
+function ke_F(p, q){ return { p:p, q:q || QID }; }
+// a closed hull through rings of local points (every ring the same count); faces turned out from the axis; optional caps.
+// kinds: one kind per band, or a function (band, facet) -> kind (null leaves the facet out)
+function ke_loft(W, rings, kind, capA, capB, kinds){
+  var n = rings[0].length, cen = [], j, i, kf = typeof kinds === 'function' ? kinds : null;
+  for (j=0;j<rings.length;j++){ var c = [0,0,0]; for (i=0;i<n;i++) c = R.add(c, rings[j][i]); cen.push(R.mul(c, 1/n)); }
+  for (j=0;j<rings.length-1;j++){ var ax = lerp3(cen[j], cen[j+1], 0.5), k = kf ? null : kinds ? kinds[j] : kind; if (!kf && !k) continue;
+    for (i=0;i<n;i++){ var a = rings[j][i], b = rings[j][(i+1) % n], c2 = rings[j+1][(i+1) % n], d = rings[j+1][i], kk = kf ? kf(j, i) : k;
+      if (kk) kn_q(W, a, b, c2, d, kk, R.sub(R.mul(R.add(R.add(a, b), R.add(c2, d)), 0.25), ax)); } }
+  if (capA) kn_polyOut(W, rings[0], capA, R.sub(cen[0], cen[1]));
+  if (capB) kn_polyOut(W, rings[rings.length-1], capB, R.sub(cen[rings.length-1], cen[rings.length-2]));
+}
+// n points round local Y at height y (facet 0 centred at the front, +Z; facet i at i/n of a turn toward +X), radii rx / rz, centre (cx, cz)
+function ke_ring(n, y, rx, rz, cx, cz){ var P = [], a0 = -Math.PI/n;
+  for (var i=0;i<n;i++){ var t = a0 + TAU*i/n; P.push([(cx || 0) + rx*Math.sin(t), y, (cz || 0) + rz*Math.cos(t)]); } return P; }
+// a top-view profile [[x, z], ...] at height y, scaled s (sz for depth), shifted (dx, dz)
+function ke_prof(pr, y, s, sz, dx, dz){ return pr.map(function(a){ return [(dx || 0) + a[0]*s, y, (dz || 0) + a[1]*(sz == null ? s : sz)]; }); }
+// a front-view profile [[x, y], ...] at depth z, scaled s (sy for height), shifted (dx, dy): hulls lofted front to back
+function ke_profZ(pr, z, s, sy, dx, dy){ return pr.map(function(a){ return [(dx || 0) + a[0]*s, (dy || 0) + a[1]*(sy == null ? s : sy), z]; }); }
+// centre, in-plane axes and outward normal of facet i between rings A and B (u round, v from A to B, u x v = n out)
+function ke_facetOf(A, B, i){ var n = A.length, a = A[i], b = A[(i+1) % n], c = B[(i+1) % n], d = B[i], ca = [0,0,0], k;
+  for (k=0;k<n;k++) ca = R.add(ca, R.add(A[k], B[k]));
+  var f = { c:R.mul(R.add(R.add(a, b), R.add(c, d)), 0.25), u:R.norm(R.sub(R.add(b, c), R.add(a, d))), v:R.norm(R.sub(R.add(c, d), R.add(a, b))) };
+  if (R.dot(R.cross(f.u, f.v), R.sub(f.c, R.mul(ca, 0.5/n))) < 0) f.u = R.mul(f.u, -1);
+  f.n = R.norm(R.cross(f.u, f.v)); return f; }
+// a raised n-sided boss on a face: base ring r0 at c, a flat front r1 at h out along u x v; returns the front's centre
+function ke_boss(W, c, u, v, r0, r1, h, n, kind, capKind, rot, backKind){
+  var w = R.norm(R.cross(u, v)), A = [], B = [], a0 = rot == null ? Math.PI/n : rot, i;
+  for (i=0;i<n;i++){ var t = a0 + TAU*i/n, e = R.add(R.mul(u, Math.cos(t)), R.mul(v, Math.sin(t)));
+    A.push(R.add(c, R.mul(e, r0))); B.push(R.add(R.add(c, R.mul(w, h)), R.mul(e, r1))); }
+  ke_loft(W, [A, B], kind, backKind || null, capKind || kind);
+  return R.add(c, R.mul(w, h));
+}
+// studs round a ke_boss (the same c, u, v, r0, r1, h, n): one on each side facet, at that facet's own centre
+function ke_bossStuds(W, c, u, v, r0, r1, h, n, sz, kind, rot){
+  var w = R.norm(R.cross(u, v)), a0 = rot == null ? Math.PI/n : rot;
+  for (var i=0;i<n;i++){ var tm = a0 + TAU*(i + 0.5)/n, e = R.add(R.mul(u, Math.cos(tm)), R.mul(v, Math.sin(tm))), k = Math.cos(Math.PI/n);
+    var p = R.add(R.add(c, R.mul(w, h*0.5)), R.mul(e, (r0 + r1)*0.5*k)), nn = R.norm(R.add(R.mul(e, h), R.mul(w, (r0 - r1)*k)));
+    armBox(frameOn(fw(W, R.add(p, R.mul(nn, sz*0.6))), R.qrot(W.q, nn), R.qrot(W.q, w)), [0, 0, 0], sz, sz, sz, kind || 'gold'); }
+}
+// a kneecap: a faceted boss on the outside of the bend (the thigh from H, the shin to E), the sunburst on it
+function ke_kneeBoss(H, K, E, r0, r1, h, out, kind, capKind){
+  var n = R.norm(R.add(R.norm(R.sub(K, H)), R.norm(R.sub(K, E)))), u = R.norm(R.cross([0, 1, 0], n)), v = R.cross(n, u);
+  var c = ke_boss(kn_ID, R.add(K, R.mul(n, out)), u, v, r0, r1, h, 8, kind, capKind, null, 'under');
+  if (ke_mid()) kn_star(kn_ID, c, u, v, r1*0.72, r1*0.29, 8, 0.004, 'gold', Math.PI/8);
+  if (ke_top()) ke_bossStuds(kn_ID, R.add(K, R.mul(n, out)), u, v, r0, r1, h, 8, 0.009, 'gold');
+}
+// a flat cap closing an armTube(.., seg, 0, TAU) of radius r at height y in the current frame, with the tube's own facets
+// at every detail level (kn_ngon's are fixed and turned half a facet); facing +Y, or -Y when `down`
+function ke_cap(y, r, seg, kind, down){ var n = segs(seg, 5), P = [];
+  for (var i=0;i<n;i++){ var t = TAU*i/n; P.push([r*Math.sin(t), y, r*Math.cos(t)]); }
+  kn_polyOut(null, P, kind, [0, down ? -1 : 1, 0]); }
+// a box laid along a -> b (model space): half-width w across, half-depth h toward `up`, ext longer at each end
+function ke_beam(a, b, w, h, kind, up, ext){ var d = R.sub(b, a), L = R.len(d); if (L < 1e-5) return;
+  armBox(frameOn(a, d, up || [0,1,0]), [0, -L/2, 0], w, L/2 + (ext || 0), h, kind); }
+// two-bone IK in model space: hip H to target T, bones a and b, the knee toward `pole`
+function ke_ik(H, T, a, b, pole){
+  var dv = R.sub(T, H), d = R.len(dv) || 1e-6, dir = R.mul(dv, 1/d), dc = R.clamp(d, Math.abs(a - b) + 0.01, (a + b)*0.9995);
+  var ca = R.clamp((a*a + dc*dc - b*b)/(2*a*dc), -1, 1), sa = Math.sqrt(1 - ca*ca), pp = R.sub(pole, R.mul(dir, R.dot(pole, dir)));
+  pp = R.len(pp) < 1e-4 ? [0, 0, 1] : R.norm(pp);
+  return { K:R.add(H, R.add(R.mul(dir, a*ca), R.mul(pp, a*sa))), E:R.add(H, R.mul(dir, dc)) };
+}
+// a hydraulic ram between two model points: a fat cylinder from a, a bright rod on to b (level 0-1 hardware)
+function ke_ram(a, b, r, kind){ var m = lerp3(a, b, 0.55); rod(a, m, r, r, 6, kind || 'under'); rod(m, b, r*0.55, r*0.55, 5, 'steel'); }
+// studs along a -> b (model space), n of them, half-size h, standing off along `out` (level 0 only: they vanish far off)
+function ke_studs(a, b, n, h, out, kind){ for (var i=0;i<n;i++){ var p = R.add(lerp3(a, b, (i + 0.5)/n), R.mul(out, h*0.6));
+  armBox(frameOn(p, out, R.sub(b, a)), [0, 0, 0], h, h, h, kind || 'steel'); } }
+// the stomp: ACT.lunge -0.35 (wind-up) .. 1 (the lunge) -> how high the left foot is lifted (0..1) and how far ahead
+function ke_stomp(){ var k = ACT && ACT.lunge != null ? ACT.lunge : 0, up = k < 0 ? R.clamp(-k/0.35, 0, 1) : 0;
+  return { up:up, fwd:Math.max(up, R.clamp(k, 0, 1)) }; }
+// the rig's hip and foot for a titan's leg: both moved out by o.sp (the hip with the pelvis, the foot in the model, so a
+// planted foot stays planted); o.lift / o.fwd / o.pitch raise and carry the foot (the stomp)
+function ke_legBase(Wd, S, o){
+  var s = S === 'L' ? 1 : -1, Pv = Wd.pelvis, A0 = Wd['ankle'+S], pF = R.qrot(Pv.q, [0, 0, 1]), fl = R.norm([pF[0], 0, pF[2]]);
+  var H = R.add(Wd['hip'+S].p, R.qrot(Pv.q, [s*o.sp, 0, 0])), Ap = R.add(A0.p, [s*o.sp, 0, 0]), Aq = A0.q;
+  if (o.lift || o.fwd){ Ap = R.add(Ap, R.add([0, o.lift || 0, 0], R.mul(fl, o.fwd || 0))); Aq = R.qmul(Aq, Q.qx((o.pitch || 0)*DEG)); }
+  var fF = R.qrot(Aq, [0, 0, 1]), fh = R.norm([fF[0], 0, fF[2]]);
+  return { s:s, H:H, Ft:{ p:Ap, q:Aq }, fl:fl, pole:R.norm([0.3*fl[0] + 0.7*fh[0] + s*0.1, o.pu == null ? 0.1 : o.pu, 0.3*fl[2] + 0.7*fh[2]]) };
+}
+// a walker's leg: thigh o.a and shin o.b (together >= the rig's 0.78, so the foot is always reached) from the hip to the
+// ankle, the knee toward where the foot points
+function ke_leg(Wd, S, o){
+  var L = ke_legBase(Wd, S, o), k = ke_ik(L.H, L.Ft.p, o.a, o.b, L.pole);
+  L.K = k.K; L.A = k.E; L.T = frameOn(L.H, R.sub(k.K, L.H), L.fl); L.Sh = frameOn(k.K, R.sub(k.E, k.K), L.fl);
+  return L;
+}
+// the stomping leg's options for a titan (left foot), from ke_stomp
+function ke_legOpts(S, o, st, lift, fwd, pitch){ var so = {}, k; for (k in o) so[k] = o[k];
+  if (S === 'L' && st.fwd > 0){ so.lift = lift*st.up; so.fwd = fwd*st.fwd; so.pitch = pitch*st.up; }
+  return so; }
+// the point on a leg's axis at height y (thigh or shin), or null above the hip
+function ke_legAt(L, y){
+  if (y > L.H[1]) return null;
+  if (y >= L.K[1]) return lerp3(L.K, L.H, R.clamp((y - L.K[1])/Math.max(0.02, L.H[1] - L.K[1]), 0, 1));
+  return lerp3(L.A, L.K, R.clamp((y - L.A[1])/Math.max(0.02, L.K[1] - L.A[1]), 0, 1));
+}
+// both arms out to the side at `ab` degrees, the forearms level and ahead (the guns' resting line)
+function ke_armPose(P, ab){
+  P.q.shoulderR = R.eul(0, 0, -ab); P.q.elbowR = R.eul(-90, 0, 0); P.q.wristR = R.QI;
+  P.q.shoulderL = R.eul(0, 0, ab); P.q.elbowL = R.eul(-90, 0, 0); P.q.wristL = R.QI;
+}
+// an arm gun's frame: from its gimbal `piv` (chest-local) toward the muzzle. The right one ends `len` beyond the rig's
+// right hand along aimed(rest, ACT.gunDir, ACT.gunW) (the page's flash); the left one is visual, laid from the chest's own
+// resting hand (chest-local `hand`). Local -Y runs to the muzzle, +Z is the gun's top, +X the figure's left. { F, L }
+function ke_gunFrame(Wd, S, piv, hand, len, rest){
+  var C = Wd.chest, P0 = fw(C, piv), d = R.qrot(C.q, R.norm(rest)), H;
+  if (S === 'R'){ H = Wd.handR.p; d = aimed(d, ACT && ACT.gunDir, ACT && ACT.gunW); } else H = fw(C, hand);
+  var M = R.add(H, R.mul(d, len));
+  return { F:frameOn(P0, R.sub(M, P0), R.qrot(C.q, [0, 1, 0])), L:R.len(R.sub(M, P0)) };
+}
+// a banner hanging from the belt at the front (o.fb 1) or the back (-1): team cloth both sides, a gold bar, a pointed gold
+// tail, the sunburst; its lower corners are pushed out past the legs so a stride swings it instead of passing through it
+function ke_banner(Wd, legs, o){
+  var Pv = Wd.pelvis, fb = o.fb, ax = R.qrot(Pv.q, [0, 0, fb]), sx = R.qrot(Pv.q, [1, 0, 0]), mid = ke_mid();
+  var P = function(x, y, z){ return fw(Pv, [x, y, fb*z]); }, ym = o.y0 + (o.y1 - o.y0)*0.45, wm = o.w0 + (o.w1 - o.w0)*0.45;
+  var push = function(p, k){ legs.forEach(function(L){ var q = ke_legAt(L, p[1]); if (!q) return;
+      var lat = Math.abs(R.dot(R.sub(q, p), sx)), f = R.clamp(1.4 - lat/(o.rl + 0.05), 0, 1), d = R.dot(R.sub(q, p), ax) + o.rl;
+      if (d > 0) p = R.add(p, R.mul(ax, d*f*k)); }); return p; };
+  var tl = P(o.w0, o.y0, o.z), tr = P(-o.w0, o.y0, o.z);
+  var ml = push(P(wm, ym, o.z + 0.01), 0.7), mr = push(P(-wm, ym, o.z + 0.01), 0.7), mm = lerp3(ml, mr, 0.5);
+  var bl = push(P(o.w1, o.y1, o.z + 0.02), 1), br = push(P(-o.w1, o.y1, o.z + 0.02), 1), bm = push(P(0, o.y1 - o.tail, o.z + 0.02), 1);
+  [1, -1].forEach(function(sd){ var out = R.mul(ax, sd), k = sd > 0 ? 'cloth' : (o.back || 'cloth');
+    kn_q(kn_ID, tl, tr, mr, ml, k, out); kn_q(kn_ID, ml, mr, br, bl, k, out);
+    kn_q(kn_ID, bl, br, bm, null, mid && sd > 0 ? 'gold' : k, out); });
+  var up = R.norm(R.sub(lerp3(tl, tr, 0.5), mm)), u = R.norm(R.sub(tl, tr)); if (fb < 0) u = R.mul(u, -1);
+  ke_beam(R.add(tl, R.mul(R.norm(R.sub(tl, tr)), 0.03)), R.add(tr, R.mul(R.norm(R.sub(tr, tl)), 0.03)), 0.014, 0.014, 'gold', ax);
+  if (mid) kn_star(kn_ID, R.add(lerp3(lerp3(tl, tr, 0.5), mm, 0.55), R.mul(ax, 0.001)), u, up, o.w0*0.62, o.w0*0.25, 8, 0.004, 'gold', Math.PI/8);
+  if (ke_hi()) [bl, br, bm].forEach(function(p){ rod(p, R.add(p, [0, -0.05, 0]), 0.012, 0.004, 4, 'gold'); });
+}
+// the mega-gatling (an arm): an armoured drum over the gimbal, an ammunition feed outboard, a ring of barrels, clamps
+function ke_gatling(G, s, r){
+  var L = G.L, mid = ke_mid(), nb = ke_hi() ? 8 : 5;
+  J(G.F, function(){
+    armRollX(null, [0, 0, 0], 0.13, 0.1, 8, 'under');
+    armTube(null, 0.1, r, r, -0.46, r, r, 10, 0, TAU, 'plate');
+    ke_cap(0.1, r, 10, 'plate', false);
+    if (mid){ armTube(null, -0.02, r + 0.008, r + 0.008, -0.07, r + 0.008, r + 0.008, 10, 0, TAU, 'gold');
+      armTube(null, -0.38, r + 0.008, r + 0.008, -0.43, r + 0.008, r + 0.008, 10, 0, TAU, 'gold'); }
+    armBox(null, [s*(r + 0.03), -0.18, 0.0], 0.035, 0.2, 0.075, 'pack');
+    ke_cap(-0.46, r, 10, 'steel', true);
+    for (var i=0;i<nb;i++){ var t = TAU*i/nb + 0.2;
+      at([r*0.58*Math.cos(t), 0, r*0.58*Math.sin(t)], function(){ armTube(null, -0.46, 0.027, 0.027, -L + 0.02, 0.025, 0.025, 5, 0, TAU, 'steel');
+        if (ke_hi()) armTube(null, -L + 0.1, 0.031, 0.031, -L + 0.07, 0.031, 0.031, 5, 0, TAU, 'gun'); }); }
+    armTube(null, -0.46, 0.035, 0.035, -L + 0.06, 0.035, 0.035, 6, 0, TAU, 'gun');
+    armTube(null, -L*0.72, r*0.86, r*0.86, -L*0.72 - 0.06, r*0.86, r*0.86, 10, 0, TAU, 'steel');
+    if (ke_hi()){ armTube(null, -L*0.46, r*0.84, r*0.84, -L*0.46 - 0.04, r*0.84, r*0.84, 10, 0, TAU, 'gun');
+      armBox(null, [0, -0.2, r + 0.02], 0.03, 0.14, 0.02, 'steel'); }
+    armTube(null, -L + 0.06, r*0.86, r*0.86, -L, r*0.86, r*0.86, 10, 0, TAU, 'gun');
+  });
+}
+
+// ======================= the hound titan: a hunched scout, its head thrust out ahead, bird-like legs =======================
+// The body leans out over the knees under a humped carapace; the armoured head-cockpit juts from its front like a hound's
+// muzzle (glowing eye slits, a gold ridge, a grilled snout). The legs are a bird's: the rig's planted foot, a hock raised
+// behind it (the joint that bends backward), thigh and shin solved from the hip to that hock with the knee forward, a long
+// metatarsus down to a three-toed clawed foot with a spur. Right arm: the mega-gatling (it fires); left: the plasma gun.
+var ke_WH = { sp:0.1, a:0.37, b:0.4, hk:0.2, hb:0.06, len:1.2, lenL:1.05, piv:[0.366, -0.245, 0.0], hand:[0.366, -0.256, 0.309] };
+var ke_WH_CAR = [[0.1, 0.13], [0.3, 0.09], [0.43, -0.03], [0.41, -0.11], [-0.41, -0.11], [-0.43, -0.03], [-0.3, 0.09], [-0.1, 0.13]];
+var ke_WH_HULL = [[0.2, -0.02], [0.26, -0.1], [0.26, -0.24], [0.17, -0.34], [-0.17, -0.34], [-0.26, -0.24], [-0.26, -0.1], [-0.2, -0.02]];
+var ke_WH_HEAD = [[0.06, 0.1], [0.12, 0.06], [0.13, -0.03], [0.09, -0.09], [-0.09, -0.09], [-0.13, -0.03], [-0.12, 0.06], [-0.06, 0.1]];
+var ke_WH_FOOT = [[0.07, 0.14], [0.11, 0.06], [0.11, -0.05], [0.06, -0.12], [-0.06, -0.12], [-0.11, -0.05], [-0.11, 0.06], [-0.07, 0.14]];
+function ke_whPose(P){ ke_armPose(P, 40); }
+// a bird's leg: the hock raised o.hk over the foot and o.hb behind it, thigh o.a and shin o.b from the hip to the hock
+// (knee forward), the metatarsus from the hock down to the ball of the foot
+function ke_legBird(Wd, S, o){
+  var L = ke_legBase(Wd, S, o), s = L.s;
+  L.Hk = fw(L.Ft, [0, o.hk, -o.hb]); L.Bl = fw(L.Ft, [0, -0.02, 0.07]);
+  var k = ke_ik(L.H, L.Hk, o.a, o.b, R.norm([L.pole[0] - s*0.02, 0.05, L.pole[2]]));
+  L.K = k.K; L.Hk = k.E; L.A = k.E;
+  L.T = frameOn(L.H, R.sub(k.K, L.H), L.fl); L.Sh = frameOn(k.K, R.sub(k.E, k.K), L.fl); L.Mt = frameOn(k.E, R.sub(L.Bl, k.E), L.fl);
+  return L;
+}
+function ke_whLeg(L){
+  var T = L.T, Sh = L.Sh, Mt = L.Mt, Ft = L.Ft, s = L.s, mid = ke_mid(), hi = ke_hi(), up = R.qrot(Ft.q, [0, 1, 0]);
+  var a = R.len(R.sub(L.K, L.H)), b = R.len(R.sub(L.Hk, L.K)), m = R.len(R.sub(L.Bl, L.Hk));
+  // hip: a ball, an armoured cap facing out; the thigh under a plate round its front and outside
+  armDome(T, [0, 0, 0], 0.105, -90, 90, 8, 4, null, 'under');
+  var hc = ke_boss(kn_ID, R.add(L.H, [s*0.085, 0, 0]), [0, 0, -s], [0, 1, 0], 0.11, 0.085, 0.035, 8, 'pauld', 'plate');
+  if (mid) kn_disc(kn_ID, hc, [0, 0, -s], [0, 1, 0], 0.04, 8, 0.004, 'gold');
+  armTube(T, -0.02, 0.096, 0.096, -a + 0.03, 0.088, 0.088, 8, 0, TAU, 'limb');
+  armTube(T, 0.05, 0.148, 0.14, -a + 0.1, 0.134, 0.128, 4, s*0.8 - 1.3, s*0.8 + 1.3, 'plate');
+  if (mid) armTube(T, -a + 0.135, 0.135, 0.129, -a + 0.1, 0.134, 0.128, 4, s*0.8 - 1.3, s*0.8 + 1.3, 'gold');
+  // knee and shin
+  armDome(Sh, [0, 0, 0], 0.09, -90, 90, 8, 3, null, 'under');
+  ke_kneeBoss(L.H, L.K, L.Hk, 0.125, 0.095, 0.045, 0.07, 'pauld', 'plate');
+  ke_loft(Sh, [ke_ring(8, -0.03, 0.096, 0.102), ke_ring(8, -b*0.55, 0.09, 0.097), ke_ring(8, -b + 0.02, 0.072, 0.078)], 'plate');
+  if (mid) armTube(Sh, -b + 0.09, 0.08, 0.086, -b + 0.05, 0.077, 0.083, 8, -Math.PI/8, TAU - Math.PI/8, 'gold');
+  if (hi){ var bT = R.qrot(T.q, [0, 0, -1]), bS = R.qrot(Sh.q, [0, 0, -1]);      // rams behind the knee and the hock
+    ke_ram(R.add(fw(T, [0, -0.08, 0]), R.mul(bT, 0.1)), R.add(fw(Sh, [0, -0.12, 0]), R.mul(bS, 0.09)), 0.028);
+    ke_ram(R.add(fw(Sh, [0, -b*0.5, 0]), R.mul(bS, 0.085)), R.add(fw(Mt, [0, -m*0.5, 0]), R.mul(R.qrot(Mt.q, [0, 0, -1]), 0.07)), 0.022);
+    ke_beam(fw(Sh, [0, -0.1, 0.1]), fw(Sh, [0, -b + 0.12, 0.085]), 0.035, 0.01, 'pauld', R.qrot(Sh.q, [0, 0, 1])); }
+  // the hock (bends backward) with a spur behind, the metatarsus to the foot under a front plate
+  armDome(ke_F(L.Hk, Sh.q), [0, 0, 0], 0.075, -90, 90, 8, 3, null, 'under');
+  var bk = R.norm(R.sub(L.Hk, L.Bl));
+  ke_beam(L.Hk, R.add(L.Hk, R.add(R.mul(bk, 0.13), R.mul(L.fl, -0.05))), 0.026, 0.02, 'steel', up);
+  armTube(Mt, 0.0, 0.068, 0.064, -m, 0.072, 0.068, 8, 0, TAU, 'limb');
+  armTube(Mt, -0.02, 0.094, 0.096, -m + 0.04, 0.098, 0.1, 3, -1.05, 1.05, 'plate');
+  if (hi){ armTube(Mt, -m + 0.07, 0.1, 0.102, -m + 0.04, 0.1, 0.102, 3, -1.05, 1.05, 'gold');
+    ke_ram(fw(ke_F(L.H, QID), [s*0.02, 0.1, -0.1]), fw(T, [0, -a*0.45, -0.07]), 0.026); }
+  // the foot: a pad, three long clawed toes spread ahead, one behind
+  ke_loft(Ft, [ke_prof(ke_WH_FOOT, -0.07, 1), ke_prof(ke_WH_FOOT, -0.035, 0.9), ke_prof(ke_WH_FOOT, -0.005, 0.62)], 'limb', null, 'plate');
+  [-0.5, 0, 0.5].forEach(function(g){
+    var b0 = fw(Ft, [Math.sin(g)*0.05, -0.045, 0.1]), t0 = fw(Ft, [Math.sin(g)*0.2, -0.052, 0.1 + Math.cos(g)*0.2]);
+    ke_beam(b0, t0, 0.036, 0.024, 'plate', up, 0.015);
+    if (hi){ rod(t0, R.add(t0, R.add(R.mul(R.norm(R.sub(t0, b0)), 0.08), R.mul(up, -0.02))), 0.024, 0.003, 5, 'steel');
+      ke_beam(R.add(lerp3(b0, t0, 0.25), R.mul(up, 0.026)), R.add(lerp3(b0, t0, 0.62), R.mul(up, 0.026)), 0.03, 0.007, 'pauld', up); } });
+  if (hi){ var sx = R.norm(R.cross(L.fl, [0, 1, 0]));  // a hose round the outside of the knee
+    kn_sweep(kn_ID, [fw(T, [s*0.07, -a*0.55, -0.05]), R.add(L.K, R.mul(sx, -s*0.13)), fw(Sh, [s*0.065, -0.14, -0.03])], [0.018, 0.018, 0.018], 5, 'under'); }
+  var h0 = fw(Ft, [0, -0.045, -0.03]), h1 = fw(Ft, [0, -0.055, -0.21]);
+  ke_beam(h0, h1, 0.034, 0.024, 'plate', up); if (hi) rod(h1, R.add(h1, R.mul(R.norm(R.sub(h1, h0)), 0.06)), 0.02, 0.003, 5, 'steel');
+}
+// the plasma gun (an arm): a housing over the gimbal, a fat accumulator banded with glowing coils, a wide emitter
+function ke_plasmaArm(G, s){
+  var L = G.L, mid = ke_mid();
+  J(G.F, function(){
+    armRollX(null, [0, 0, 0], 0.13, 0.095, 8, 'under');
+    armBox(null, [0, -0.12, 0], 0.1, 0.22, 0.112, 'plate');
+    if (mid) armBox(null, [0, -0.12, 0.12], 0.06, 0.18, 0.01, 'gold');
+    var B = mid ? [[-0.34, -0.45, 0], [-0.45, -0.5, 1], [-0.5, -0.64, 0], [-0.64, -0.69, 1], [-0.69, -0.8, 0]] : [[-0.34, -0.8, 0]];
+    B.forEach(function(b){ var r = b[2] ? 0.118 : 0.108; armTube(null, b[0], r, r, b[1], r, r, 8, 0, TAU, b[2] ? 'glow' : 'steel'); });
+    armTube(null, -0.8, 0.108, 0.108, -0.88, 0.072, 0.072, 8, 0, TAU, 'steel');
+    armTube(null, -0.88, 0.066, 0.066, -L + 0.09, 0.064, 0.064, 8, 0, TAU, 'gun');
+    armTube(null, -L + 0.09, 0.09, 0.09, -L, 0.086, 0.086, 8, 0, TAU, 'gold');
+    kn_ngon(null, -L, 0.07, 0.07, 8, 'glow', true);
+    if (ke_hi()){ for (var f=0;f<5;f++) armBox(null, [0, -0.92 - f*0.07, 0.078], 0.05, 0.012, 0.016, 'steel');     // cooling fins
+      kn_sweep(null, [[s*0.07, 0.02, -0.09], [s*0.1, -0.2, -0.13], [s*0.1, -0.4, -0.12], [s*0.06, -0.5, -0.1]], [0.022, 0.022, 0.022, 0.022], 5, 'under'); }
+  });
+}
+function ke_hound(Wd){
+  var C = Wd.chest, Pv = Wd.pelvis, mid = ke_mid(), hi = ke_hi(), o = ke_WH, st = ke_stomp();
+  var legs = ['L', 'R'].map(function(S){ return ke_legBird(Wd, S, ke_legOpts(S, o, st, 0.22, 0.12, 16)); });
+  legs.forEach(ke_whLeg);
+  // pelvis: a compact hip block under the rear of the body, a waist up into it
+  ke_loft(Pv, [ke_ring(8, -0.12, 0.15, 0.13), ke_ring(8, 0.0, 0.2, 0.15), ke_ring(8, 0.1, 0.17, 0.13)], 'plate', 'under', 'under');
+  armTube(Pv, 0.05, 0.13, 0.11, 0.22, 0.13, 0.11, 8, 0, TAU, 'under');
+  // the lower hull, lofted front to back
+  var HU = [[0.34, 0.78, 0.85, 0.0], [0.16, 1, 1, 0], [-0.1, 1, 1, 0], [-0.26, 0.8, 0.85, 0.02]].map(function(r){ return ke_profZ(ke_WH_HULL, r[0], r[1], r[2], 0, r[3]); });
+  ke_loft(C, HU, 'limb', 'under', 'pack');
+  // the carapace: humped over the middle, dipping to the front over the head; gold along its lower edges, the sunburst on its flanks
+  var CA = [[0.42, 0.56, 0.5, -0.03], [0.26, 0.9, 0.85, 0.02], [0.04, 1.0, 1.0, 0.08], [-0.18, 0.95, 0.95, 0.08], [-0.33, 0.7, 0.75, 0.03]].map(function(r){ return ke_profZ(ke_WH_CAR, r[0], r[1], r[2], 0, r[3]); });
+  ke_loft(C, CA, 'plate', 'plate', 'plate', function(j, i){ return i === 3 ? 'under' : (i === 2 || i === 4) ? 'gold' : i === 7 ? 'helm' : 'plate'; });
+  if (mid) [1, 5].forEach(function(i){ var f = ke_facetOf(CA[1], CA[2], i); kn_star(C, f.c, f.u, f.v, 0.058, 0.023, 8, 0.004, 'gold', Math.PI/8); });
+  if (hi){ [[0.0, 0.991, 0.991, 0.08], [-0.25, 0.833, 0.857, 0.057]].forEach(function(r){     // raised seams across the carapace
+      ke_loft(C, [ke_profZ(ke_WH_CAR, r[0] + 0.014, r[1]*1.025, r[2]*1.04, 0, r[3]), ke_profZ(ke_WH_CAR, r[0] - 0.014, r[1]*1.025, r[2]*1.04, 0, r[3])], null, null, null,
+        function(j, i){ return i === 3 ? null : 'helm'; }); });
+    [-1, 1].forEach(function(s){ armBox(C, [s*0.272, -0.21, 0.07], 0.016, 0.085, 0.15, 'pauld');     // skirts over the gimbals
+      if (ke_top()) ke_studs(fw(C, [s*0.29, -0.28, -0.05]), fw(C, [s*0.29, -0.28, 0.19]), 4, 0.009, R.qrot(C.q, [s, 0, 0])); });
+    rod(fw(C, [0.2, 0.13, -0.18]), fw(C, [0.23, 0.36, -0.28]), 0.006, 0.004, 4, 'steel');
+    for (var tt=0;tt<4;tt++) armBox(C, [(tt - 1.5)*0.032, -0.222, 0.608], 0.009, 0.012, 0.01, 'steel');
+    for (var j=1;j<3;j++){ var tf = ke_facetOf(CA[j], CA[j+1], 7);                 // a raised spine along the hump
+      ke_beam(fw(C, R.add(R.add(tf.c, R.mul(tf.v, -0.11)), R.mul(tf.n, 0.008))), fw(C, R.add(R.add(tf.c, R.mul(tf.v, 0.11)), R.mul(tf.n, 0.008))), 0.03, 0.01, 'gold', R.qrot(C.q, tf.n)); }
+    var vf = ke_facetOf(CA[3], CA[4], 7);                                                // vents on the rear slope
+    for (var vv=0;vv<4;vv++) armBox(C, R.add(R.add(vf.c, R.mul(vf.n, 0.006)), [(vv - 1.5)*0.045, 0, 0]), 0.012, 0.004, 0.05, 'steel'); }
+  // the head-cockpit thrust out ahead: eye slits glowing on its brow, a gold ridge, a grilled snout, a jaw plate
+  var HD = [[0.26, 1, 1, -0.06], [0.48, 0.95, 0.95, -0.09], [0.64, 0.74, 0.72, -0.115], [0.72, 0.52, 0.48, -0.125]].map(function(r){ return ke_profZ(ke_WH_HEAD, r[0], r[1], r[2], 0, r[3]); });
+  ke_loft(C, HD, 'helm', null, 'helm', function(j, i){ return i === 3 ? 'under' : 'helm'; });
+  [0, 6].forEach(function(i){ var f = ke_facetOf(HD[1], HD[2], i);
+    var P = function(a, b){ return R.add(R.add(f.c, R.mul(f.n, 0.004)), R.add(R.mul(f.u, a), R.mul(f.v, b))); };
+    kn_q(C, P(-0.016, -0.05), P(0.016, -0.05), P(0.016, 0.045), P(-0.016, 0.045), 'eye', f.n); });
+  for (var q=0;q<2;q++){ var ta = ke_facetOf(HD[q], HD[q+1], 7);         // the gold ridge laid on the top facets
+    ke_beam(fw(C, R.add(R.add(ta.c, R.mul(ta.v, -0.1)), R.mul(ta.n, 0.006))), fw(C, R.add(R.add(ta.c, R.mul(ta.v, 0.09)), R.mul(ta.n, 0.006))), 0.02, 0.007, 'gold', R.qrot(C.q, ta.n)); }
+  if (hi) for (var g=0;g<3;g++) armBox(C, [0, -0.15 + g*0.024, 0.722], 0.04, 0.006, 0.003, 'visor');
+  if (hi){ [-1, 1].forEach(function(s){ J(C, function(){                                     // cheek guards on the head
+      kn_q(null, [s*0.13, 0.0, 0.3], [s*0.13, 0.0, 0.5], [s*0.125, -0.11, 0.46], [s*0.125, -0.12, 0.3], 'pauld', [s, 0, 0]); }); });
+    for (var bv=0;bv<4;bv++) armBox(C, [0, -0.345, 0.2 - bv*0.09], 0.12, 0.008, 0.018, 'steel');   // vents under the belly
+    [-1, 1].forEach(function(s){ ke_beam(fw(Pv, [s*0.16, 0.02, 0.1]), fw(Pv, [s*0.21, -0.17, 0.13]), 0.07, 0.014, 'pauld', R.qrot(Pv.q, [s*0.3, 0, 1])); }); }
+  armBox(C, [0, -0.195, 0.47], 0.075, 0.022, 0.15, 'plate');
+  if (hi) armBox(C, [0, -0.24, 0.34], 0.1, 0.03, 0.05, 'pauld');
+  if (hi){ armDome(C, [0, 0.03, 0.4], 0.042, 0, 90, 8, 2, null, 'steel');               // a sensor dome on the head's crown
+    kn_disc(C, [0, 0.03, 0.442], [1, 0, 0], [0, 1, 0], 0.02, 6, 0.001, 'eye');
+    [-1, 1].forEach(function(s){ J(C, function(){                                         // two raked sensor vanes, a hound's ears
+      kn_q(null, [s*0.085, 0.02, 0.44], [s*0.105, 0.0, 0.34], [s*0.13, 0.1, 0.3], null, 'helm', [s, 0.3, 0]);
+      kn_q(null, [s*0.085, 0.02, 0.44], [s*0.105, 0.0, 0.34], [s*0.13, 0.1, 0.3], null, 'under', [-s, -0.3, 0]); }); }); }
+  // exhaust stacks raked back from the carapace's rear
+  [-1, 1].forEach(function(s){ var a = fw(C, [s*0.13, 0.1, -0.24]), b = fw(C, [s*0.15, 0.28, -0.4]);
+    if (hi){ kn_stack(a, b, 0.045, 0.04, 8, 'steel', 'visor'); armTube(ke_F(lerp3(a, b, 0.62), frameOn(a, R.sub(b, a)).q), 0.025, 0.056, 0.056, -0.025, 0.056, 0.056, 8, 0, TAU, 'gold'); }
+    else rod(a, b, 0.045, 0.04, 8, 'steel'); });
+  // the arms: the mega-gatling on the right (it fires), the plasma gun on the left
+  ke_gatling(ke_gunFrame(Wd, 'R', [-o.piv[0], o.piv[1], o.piv[2]], null, o.len, [0, -0.04, 1]), -1, 0.115);
+  ke_plasmaArm(ke_gunFrame(Wd, 'L', o.piv, o.hand, o.lenL, [0, -0.04, 1]), 1);
+}
+SOLID.ktwarhound = { plate:[124,138,166], helm:[134,148,174], pauld:[128,142,170], limb:[108,120,146], cloth:[150,44,46],
+  visor:[20,22,28], under:[52,54,62], pack:[96,106,128], gold:[214,172,86], steel:[82,84,92], gun:[58,62,72],
+  glow:[150,214,255], eye:[255,70,50] };
+kit('ktwarhound', { scale:5.5, h:1.55, pose:ke_whPose, build:function(Wd){ ke_hound(Wd); } });
+
+// ======================= the warlord titan: upright, massive, a broad carapace carrying guns =======================
+// Massive legs (a thick thigh under a curved plate and a tasset, a knee boss with the sunburst, a bell-shaped greave, a
+// broad three-toed foot), a banner front and back from the belt, a broad chest tapering to the waist, a thick carapace
+// wider than the body with a gold band and spine, missiles on its left and twin turbo-cannons on its right, great shoulder
+// guards over the arm gimbals, the small great-helm cockpit under the carapace's brow between two cowl plates, a reactor
+// with stacks behind. Right arm: the volcano cannon (it fires); left arm: the mega-gatling.
+var ke_WL = { sp:0.14, a:0.35, b:0.44, len:1.3, lenL:1.1, piv:[0.431, -0.17, 0.0], hand:[0.431, -0.18, 0.312] };
+var ke_WL_TOR = [[0.2, 0.22], [0.31, 0.12], [0.31, -0.13], [0.2, -0.22], [-0.2, -0.22], [-0.31, -0.13], [-0.31, 0.12], [-0.2, 0.22]];
+var ke_WL_CAR = [[0.26, 0.34], [0.47, 0.17], [0.5, -0.12], [0.34, -0.33], [-0.34, -0.33], [-0.5, -0.12], [-0.47, 0.17], [-0.26, 0.34]];
+var ke_WL_FOOT = [[0.11, 0.24], [0.17, 0.11], [0.17, -0.09], [0.1, -0.18], [-0.1, -0.18], [-0.17, -0.09], [-0.17, 0.11], [-0.11, 0.24]];
+function ke_wlPose(P){ ke_armPose(P, 60); }
+function ke_wlLeg(L){
+  var T = L.T, Sh = L.Sh, Ft = L.Ft, s = L.s, a = R.len(R.sub(L.K, L.H)), b = R.len(R.sub(L.A, L.K)), mid = ke_mid(), hi = ke_hi(), E = Math.PI/8;
+  armDome(T, [0, 0, 0], 0.135, -90, 90, 8, 4, null, 'under');
+  armTube(T, -0.02, 0.112, 0.112, -a + 0.02, 0.104, 0.104, 8, 0, TAU, 'limb');
+  armTube(T, -0.04, 0.158, 0.162, -a + 0.1, 0.145, 0.152, 4, -1.25, 1.25, 'plate');
+  armTube(T, 0.08, 0.182, 0.17, -a*0.64, 0.174, 0.165, 3, s*Math.PI/2 - 0.75, s*Math.PI/2 + 0.75, 'pauld');
+  if (mid){ armTube(T, -a + 0.13, 0.148, 0.155, -a + 0.1, 0.146, 0.153, 4, -1.25, 1.25, 'gold');
+    armTube(T, -a*0.64 + 0.03, 0.176, 0.167, -a*0.64, 0.175, 0.166, 3, s*Math.PI/2 - 0.75, s*Math.PI/2 + 0.75, 'gold'); }
+  // knee: a joint ball and the boss
+  armDome(Sh, [0, 0, 0], 0.12, -90, 90, 8, 3, null, 'under');
+  var kc = ke_boss(Sh, [0, -0.015, 0.095], [1, 0, 0], [0, 1, 0], 0.165, 0.124, 0.065, 8, 'pauld', 'plate', null, 'under');
+  if (mid) kn_star(Sh, kc, [1, 0, 0], [0, 1, 0], 0.086, 0.034, 8, 0.004, 'gold', Math.PI/8);
+  if (ke_top()) ke_bossStuds(Sh, [0, -0.015, 0.095], [1, 0, 0], [0, 1, 0], 0.165, 0.124, 0.065, 8, 0.011, 'gold');
+  // greave: an octagonal bell flaring to the ankle, a gold ridge down its front, a gold hem
+  var G0 = ke_ring(8, -0.04, 0.13, 0.138), G1 = ke_ring(8, -b*0.52, 0.146, 0.156), G2 = ke_ring(8, -b + 0.035, 0.188, 0.198);
+  ke_loft(Sh, [G0, G1, G2], 'plate');
+  if (mid){ var f0 = ke_facetOf(G1, G2, 0), f1 = ke_facetOf(G0, G1, 0);
+    ke_beam(fw(Sh, R.add(f1.c, R.mul(f1.n, 0.006))), fw(Sh, R.add(R.add(f0.c, R.mul(f0.v, 0.08)), R.mul(f0.n, 0.006))), 0.026, 0.008, 'gold', R.qrot(Sh.q, f0.n), 0.04);
+    armTube(Sh, -b + 0.035, 0.193, 0.203, -b + 0.085, 0.186, 0.196, 8, -E, TAU - E, 'gold'); }
+  if (hi){ var bT = R.qrot(T.q, [0, 0, -1]), bS = R.qrot(Sh.q, [0, 0, -1]);
+    ke_ram(R.add(fw(T, [0, -0.06, 0]), R.mul(bT, 0.12)), R.add(fw(Sh, [0, -0.16, 0]), R.mul(bS, 0.14)), 0.032);
+    if (ke_top()) [1, 7].forEach(function(i){ var sf = ke_facetOf(G1, G2, i);
+      ke_studs(fw(Sh, R.add(sf.c, R.mul(sf.v, -0.1))), fw(Sh, R.add(sf.c, R.mul(sf.v, 0.1))), 3, 0.01, R.qrot(Sh.q, sf.n)); }); }
+  if (hi) [-1, 1].forEach(function(t){ var sf = ke_facetOf(G1, G2, t > 0 ? 2 : 6);        // plates on the greave's flanks
+    ke_beam(fw(Sh, R.add(R.add(sf.c, R.mul(sf.v, -0.1)), R.mul(sf.n, 0.008))), fw(Sh, R.add(R.add(sf.c, R.mul(sf.v, 0.12)), R.mul(sf.n, 0.008))), 0.04, 0.008, 'pauld', R.qrot(Sh.q, sf.n)); });
+  // ankle and foot
+  armDome(Ft, [0, 0.01, -0.01], 0.11, -90, 90, 8, 3, null, 'under');
+  if (hi) armTube(Ft, 0.08, 0.125, 0.125, 0.035, 0.132, 0.132, 8, 0, TAU, 'steel');
+  ke_loft(Ft, [ke_prof(ke_WL_FOOT, -0.07, 1), ke_prof(ke_WL_FOOT, -0.03, 0.96), ke_prof(ke_WL_FOOT, 0.025, 0.62)], 'limb', null, 'plate');
+  var up = R.qrot(Ft.q, [0, 1, 0]);
+  [-0.55, 0, 0.55].forEach(function(g){
+    var b0 = fw(Ft, [Math.sin(g)*0.1, -0.042, 0.19]), t0 = fw(Ft, [Math.sin(g)*0.23, -0.05, 0.19 + Math.cos(g)*0.16]);
+    ke_beam(b0, t0, 0.052, 0.03, 'plate', up, 0.02);
+    if (hi){ rod(t0, R.add(t0, R.mul(R.norm(R.sub(t0, b0)), 0.075)), 0.032, 0.004, 5, 'steel');
+      ke_beam(R.add(lerp3(b0, t0, 0.2), R.mul(up, 0.033)), R.add(lerp3(b0, t0, 0.6), R.mul(up, 0.033)), 0.042, 0.008, 'pauld', up); } });
+  if (hi){ var sx = R.norm(R.cross(L.fl, [0, 1, 0]));
+    kn_sweep(kn_ID, [fw(T, [s*0.09, -a*0.6, -0.07]), R.add(L.K, R.add(R.mul(sx, -s*0.16), R.mul(L.fl, -0.05))), fw(Sh, [s*0.1, -0.16, -0.06])], [0.022, 0.022, 0.022], 5, 'under');
+    if (ke_top()) [-0.9, -0.3, 0.3, 0.9].forEach(function(t){ var n = R.qrot(T.q, [Math.sin(t), 0, Math.cos(t)]);   // studs on the plate's hem
+      armBox(frameOn(R.add(fw(T, [0.16*Math.sin(t), -a + 0.115, 0.165*Math.cos(t)]), R.mul(n, 0.006)), n, R.qrot(T.q, [0, 1, 0])), [0, 0, 0], 0.01, 0.01, 0.01, 'steel'); }); }
+  ke_beam(fw(Ft, [0, -0.045, -0.13]), fw(Ft, [0, -0.055, -0.29]), 0.05, 0.027, 'plate', up);
+}
+// the volcano cannon (an arm): a big armoured housing over the gimbal, heat fins, glowing focusing coils, a long barrel,
+// a gold muzzle ring
+function ke_volcano(G, s){
+  var L = G.L, mid = ke_mid(), hi = ke_hi();
+  J(G.F, function(){
+    armRollX(null, [0, 0, 0], 0.13, 0.1, 8, 'under');
+    armBox(null, [0, -0.2, 0.0], 0.11, 0.32, 0.13, 'plate');
+    if (mid) armBox(null, [0, -0.2, 0.138], 0.07, 0.28, 0.01, 'gold');
+    if (hi) for (var i=0;i<4;i++) armBox(null, [s*0.118, -0.1 - i*0.1, 0.0], 0.012, 0.03, 0.1, 'steel');
+    armTube(null, -0.52, 0.1, 0.1, -0.62, 0.092, 0.092, 8, 0, TAU, 'steel');
+    armTube(null, -0.62, 0.084, 0.084, -0.9, 0.08, 0.08, 8, 0, TAU, 'steel');
+    if (mid){ armTube(null, -0.66, 0.09, 0.09, -0.7, 0.09, 0.09, 8, 0, TAU, 'glow'); armTube(null, -0.8, 0.088, 0.088, -0.84, 0.088, 0.088, 8, 0, TAU, 'glow'); }
+    armTube(null, -0.88, 0.068, 0.068, -L + 0.12, 0.062, 0.062, 8, 0, TAU, 'gun');
+    armTube(null, -L + 0.12, 0.09, 0.09, -L, 0.086, 0.086, 8, 0, TAU, 'gold');
+    kn_ngon(null, -L, 0.062, 0.062, 8, 'visor', true);
+    if (hi){ armBox(null, [-s*0.06, -0.3, 0.16], 0.025, 0.08, 0.025, 'steel');                     // targeting scope
+      at([-s*0.06, 0, 0.16], function(){ armTube(null, -0.38, 0.018, 0.018, -0.41, 0.018, 0.018, 6, 0, TAU, 'eye'); });
+      kn_sweep(null, [[0, -0.3, -0.13], [0, -0.55, -0.12], [0, -0.75, -0.1], [0, -0.95, -0.08]], [0.024, 0.024, 0.024, 0.024], 5, 'under'); }
+  });
+}
+function ke_missiles(C, c){             // a launcher on the carapace, pitched up: its face a rack of gold cells, each a dark mouth
+  var mid = ke_mid(), hi = ke_hi(), noses = [];    // and a missile's nose (a big face behind small decals would sort over them)
+  J(C, function(){ withRot(Q.qx(-18*DEG), c, function(){
+    var x = 0.105, y = 0.07, z = 0.15;
+    kn_q(null, [-x, y, -z], [x, y, -z], [x, y, z], [-x, y, z], 'plate', [0, 1, 0]); kn_q(null, [-x, -y, -z], [x, -y, -z], [x, -y, z], [-x, -y, z], 'plate', [0, -1, 0]);
+    kn_q(null, [x, -y, -z], [x, y, -z], [x, y, z], [x, -y, z], 'plate', [1, 0, 0]); kn_q(null, [-x, -y, -z], [-x, y, -z], [-x, y, z], [-x, -y, z], 'plate', [-1, 0, 0]);
+    kn_q(null, [-x, -y, -z], [x, -y, -z], [x, y, -z], [-x, y, -z], 'plate', [0, 0, -1]);
+    armBox(null, [0, -0.1, -0.03], 0.05, 0.04, 0.08, 'under');
+    if (!mid){ kn_q(null, [-x, -y, z], [x, -y, z], [x, y, z], [-x, y, z], 'under', [0, 0, 1]); return; }
+    for (var i=0;i<4;i++) for (var j=0;j<2;j++){ var cx = -x + (i + 0.5)*x/2, cy = -y + (j + 0.5)*y, hx = x/4, hy = y/2;
+      kn_q(null, [cx - hx, cy - hy, z], [cx + hx, cy - hy, z], [cx + hx, cy + hy, z], [cx - hx, cy + hy, z], 'gold', [0, 0, 1]);
+      kn_disc(null, [cx, cy, z], [1, 0, 0], [0, 1, 0], 0.018, 6, 0.002, 'visor');
+      if (hi) noses.push([fw(C, lp([cx, cy, z + 0.002])), fw(C, lp([cx, cy, z + 0.045]))]); }
+    armBox(null, [0, y + 0.004, 0.0], 0.075, 0.004, 0.12, 'gold');
+  }); });
+  noses.forEach(function(n){ rod(n[0], n[1], 0.014, 0.003, 5, 'steel'); });          // outside withRot: rod() builds in its own frame
+}
+function ke_turbo(C, c){                // twin long turbo-cannons on a mount, finned shrouds, dark bores
+  var mid = ke_mid();
+  J(C, function(){ at(c, function(){
+    armBox(null, [0, 0, 0], 0.09, 0.06, 0.12, 'plate');
+    armBox(null, [0, -0.085, -0.02], 0.05, 0.03, 0.07, 'under');
+    if (mid) armBox(null, [0, 0.063, 0], 0.06, 0.005, 0.1, 'gold'); }); });
+  [-1, 1].forEach(function(t){ var a = fw(C, [c[0] + t*0.045, c[1] + 0.01, c[2] + 0.1]), b = fw(C, [c[0] + t*0.045, c[1] + 0.02, c[2] + 0.62]);
+    rod(a, b, 0.024, 0.021, 6, 'steel'); rod(a, lerp3(a, b, 0.42), 0.042, 0.04, 6, 'gun');
+    kn_stack(lerp3(a, b, 0.9), b, 0.032, 0.032, 6, 'steel', 'visor');
+    if (ke_hi()) for (var f=0;f<3;f++){ var fc = lerp3(a, b, 0.1 + f*0.12); armBox(frameOn(fc, R.sub(b, a), R.qrot(C.q, [0, 1, 0])), [0, 0, 0.05], 0.008, 0.02, 0.018, 'steel'); } });
+}
+// a raised boss with the sunburst on the outboard face of a kn_pauldron built with options o
+function ke_pauldBoss(C, s, o, la){
+  var r = o.pr, c = [s*(Bm.shX + o.pdx), Bm.shY + o.pdy, 0], rot = R.qmul(Q.qz(-s*o.ptilt*DEG), Q.qy(s*90*DEG)); la = (la || 18)*DEG;
+  J(C, function(){ withRot(rot, c, function(){
+    var p = [0, o.psy*r*Math.sin(la)*0.97, r*Math.cos(la)*0.97], u = [1, 0, 0], v = [0, Math.cos(la), -Math.sin(la)];
+    var fc = ke_boss(null, p, u, v, r*0.4, r*0.33, 0.022, 6, 'pauld', 'plate');
+    kn_star(null, fc, u, v, r*0.28, r*0.11, 8, 0.004, 'gold', Math.PI/8); }); });
+}
+function ke_warlord(Wd){
+  var C = Wd.chest, Pv = Wd.pelvis, mid = ke_mid(), hi = ke_hi(), o = ke_WL, st = ke_stomp(), E = Math.PI/8;
+  var legs = ['L', 'R'].map(function(S){ return ke_leg(Wd, S, ke_legOpts(S, o, st, 0.24, 0.13, 14)); });
+  legs.forEach(ke_wlLeg);
+  // ---- pelvis, belt, waist, the banners
+  ke_loft(Pv, [ke_ring(8, -0.15, 0.2, 0.15), ke_ring(8, -0.05, 0.3, 0.2), ke_ring(8, 0.07, 0.28, 0.19)], 'plate', 'under', 'under');
+  if (mid) armTube(Pv, 0.015, 0.294, 0.198, 0.06, 0.287, 0.194, 8, -E, TAU - E, 'gold');
+  armTube(Pv, 0.05, 0.17, 0.13, 0.3, 0.16, 0.12, 8, 0, TAU, 'under');
+  if (hi) [0.12, 0.19].forEach(function(y){ armTube(Pv, y, 0.19, 0.15, y + 0.03, 0.19, 0.15, 8, 0, TAU, 'steel'); });
+  ke_banner(Wd, legs, { fb:1, y0:0.03, y1:-0.48, w0:0.12, w1:0.14, z:0.205, tail:0.08, rl:0.16 });
+  ke_banner(Wd, legs, { fb:-1, y0:0.03, y1:-0.37, w0:0.105, w1:0.115, z:0.2, tail:0.06, rl:0.16 });
+  // ---- torso: broad chest tapering to the waist, the sunburst on a boss below the head
+  var T0 = ke_prof(ke_WL_TOR, -0.36, 0.6), T1 = ke_prof(ke_WL_TOR, -0.26, 0.8), T2 = ke_prof(ke_WL_TOR, -0.12, 0.96), T3 = ke_prof(ke_WL_TOR, 0.1, 1.0);
+  var T1b = ke_prof(ke_WL_TOR, -0.24, 0.84);
+  ke_loft(C, [T0, T1, T1b, T2, T3], 'plate', 'under', null, ['plate', 'gold', 'helm', 'plate']);
+  if (hi) [2, 5].forEach(function(i){ var vf = ke_facetOf(T2, T3, i);
+    for (var v=0;v<3;v++) armBox(C, R.add(R.add(vf.c, R.mul(vf.n, 0.004)), R.mul(vf.v, (v - 1)*0.05)), 0.012, 0.012, 0.012, 'steel'); });
+  var f = ke_facetOf(T1, T2, 7), bc = ke_boss(C, f.c, f.u, f.v, 0.085, 0.072, 0.022, 6, 'pauld', 'plate');
+  if (mid) kn_star(C, bc, f.u, f.v, 0.062, 0.025, 8, 0.004, 'gold', Math.PI/8);
+  // ---- carapace: a thick bevelled slab, wider than the torso, a gold band round its widest part, a raised spine, the brow's sunburst
+  var K0 = ke_prof(ke_WL_CAR, 0.08, 0.93), K1 = ke_prof(ke_WL_CAR, 0.13, 1.0), K2 = ke_prof(ke_WL_CAR, 0.155, 1.0), K3 = ke_prof(ke_WL_CAR, 0.21, 0.94), K4 = ke_prof(ke_WL_CAR, 0.245, 0.8);
+  ke_loft(C, [K0, K1, K2, K3, K4], 'plate', 'under', 'helm', ['plate', 'gold', 'plate', 'helm']);
+  if (hi){ if (ke_top()) [0, 1, 6].forEach(function(i){ var rf = ke_facetOf(K1, K2, i);
+      ke_studs(fw(C, R.add(rf.c, R.mul(rf.u, -0.12))), fw(C, R.add(rf.c, R.mul(rf.u, 0.12))), 4, 0.009, R.qrot(C.q, rf.n), 'steel'); }); }
+  var SP = [[0.07, 0.36], [0.1, 0.2], [0.1, -0.24], [0.06, -0.3], [-0.06, -0.3], [-0.1, -0.24], [-0.1, 0.2], [-0.07, 0.36]];
+  ke_loft(C, [ke_prof(SP, 0.235, 1), ke_prof(SP, 0.275, 0.9)], mid ? 'gold' : 'helm', null, 'helm');
+  if (mid){ var fb = ke_facetOf(K2, K3, 7); kn_star(C, fb.c, fb.u, fb.v, 0.048, 0.02, 8, 0.004, 'gold', Math.PI/8); }
+  // ---- the head: a great-helm cockpit tucked under the carapace's brow, a gold collar, a cowl either side
+  var HF = { head:{ p:fw(C, [0, -0.01, 0.2]), q:C.q } };
+  kn_helm(HF, {});
+  armTube(HF.head, -0.135, 0.132, 0.142, -0.095, 0.126, 0.136, 8, 0, TAU, 'gold');
+  [-1, 1].forEach(function(s){ var a = [s*0.145, 0.07, 0.3], b = [s*0.165, 0.07, 0.12], c = [s*0.165, -0.12, 0.12], d = [s*0.14, -0.1, 0.28];
+    J(C, function(){ kn_q(null, a, b, c, d, 'helm', [s, 0, 0.3]); kn_q(null, a, b, c, d, 'under', [-s, 0, -0.3]);
+      if (mid) kn_q(null, a, d, [d[0] - s*0.02, d[1], d[2] + 0.01], [a[0] - s*0.02, a[1], a[2] + 0.01], 'gold', [0, 0, 1]); }); });
+  // ---- shoulder guards over the arm gimbals, each with the sunburst on a boss
+  var So = { pr:0.19, pdx:0.25, pdy:-0.01, ptilt:14, psy:0.85, pwall:0.1 };
+  kn_pauldron(C, 1, So); kn_pauldron(C, -1, So);
+  if (mid){ ke_pauldBoss(C, 1, So, 12); ke_pauldBoss(C, -1, So, 12); }
+  if (hi) [-1, 1].forEach(function(s){ J(C, function(){ withRot(R.qmul(Q.qz(-s*So.ptilt*DEG), Q.qy(s*90*DEG)), [s*(Bm.shX + So.pdx), Bm.shY + So.pdy, 0], function(){
+      armTube(null, -So.pwall - 0.03, So.pr + 0.02, So.pr + 0.02, -So.pwall - 0.075, So.pr + 0.03, So.pr + 0.03, 7, -1.9, 1.9, 'pauld');       // a lame below the rim
+      armTube(null, -So.pwall - 0.075, So.pr + 0.031, So.pr + 0.031, -So.pwall - 0.09, So.pr + 0.031, So.pr + 0.031, 7, -1.9, 1.9, 'gold'); }); });
+    ke_beam(fw(C, [s*0.3, 0.08, 0.15]), fw(C, [s*0.3, -0.05, 0.1]), 0.02, 0.02, 'under', R.qrot(C.q, [0, 0, 1]));
+    ke_beam(fw(C, [s*0.3, 0.08, -0.2]), fw(C, [s*0.3, -0.05, -0.15]), 0.02, 0.02, 'under', R.qrot(C.q, [0, 0, 1])); });
+  // ---- guns on the carapace: missiles on the left, twin turbo-cannons on the right
+  ke_missiles(C, [0.27, 0.34, 0.02]); ke_turbo(C, [-0.27, 0.31, -0.02]);
+  // ---- reactor behind, slatted vents, two exhaust stacks
+  armBox(C, [0, -0.1, -0.3], 0.24, 0.2, 0.1, 'pack');
+  if (mid) for (var v=0;v<3;v++) armBox(C, [0, -0.2 + v*0.08, -0.402], 0.17, 0.014, 0.008, 'steel');
+  [-1, 1].forEach(function(s){ var a = fw(C, [s*0.17, 0.14, -0.35]), b = fw(C, [s*0.19, 0.46, -0.42]);
+    if (hi){ kn_stack(a, b, 0.052, 0.046, 8, 'steel', 'visor'); armTube(ke_F(lerp3(a, b, 0.7), frameOn(a, R.sub(b, a)).q), 0.02, 0.062, 0.062, -0.02, 0.062, 0.062, 8, 0, TAU, 'gold');
+ }
+    else rod(a, b, 0.052, 0.046, 8, 'steel'); });
+  // ---- the arms: the volcano cannon on the right (it fires), the mega-gatling on the left
+  ke_volcano(ke_gunFrame(Wd, 'R', [-o.piv[0], o.piv[1], o.piv[2]], null, o.len, [0, -0.05, 1]), -1);
+  ke_gatling(ke_gunFrame(Wd, 'L', o.piv, o.hand, o.lenL, [0, -0.05, 1]), 1, 0.13);
+}
+SOLID.ktwarlord = { plate:[124,138,166], helm:[134,148,174], pauld:[128,142,170], limb:[108,120,146], cloth:[150,44,46],
+  visor:[20,22,28], under:[52,54,62], pack:[96,106,128], gold:[214,172,86], steel:[82,84,92], gun:[58,62,72],
+  glow:[255,190,110], eye:[255,70,50] };
+kit('ktwarlord', { scale:8.5, h:1.72, pose:ke_wlPose, build:function(Wd){ ke_warlord(Wd); } });
+
+// ======================= the emperor titan: a walking cathedral fortress =======================
+// Legs are tower bastions: octagonal towers battered out at the foot, rows of arched windows (some lit), buttress ribs,
+// a battlemented rim round the knee, on stepped plinths. The pelvis is a gatehouse hung with banners, the torso a keep,
+// crowned by a battlemented deck with a gun tower at each shoulder and a cathedral at the back: a pitched nave, a rose
+// window (the sunburst), lit windows, pinnacles and a tall spire with a gold finial. The small head is a crowned
+// great-helm before a gold sunburst halo. Right arm: the plasma annihilator (it fires); left: the storm cannon.
+var ke_EM = { sp:0.22, a:0.24, b:0.54, pu:0.05, len:1.3, lenL:1.1, piv:[0.456, -0.11, 0.0], hand:[0.456, -0.124, 0.315] };
+var ke_EM_KEEP = [[0.22, 0.26], [0.3, 0.16], [0.3, -0.16], [0.22, -0.24], [-0.22, -0.24], [-0.3, -0.16], [-0.3, 0.16], [-0.22, 0.26]];
+var ke_EM_DECK = [[0.4, 0.38], [0.58, 0.22], [0.58, -0.22], [0.4, -0.36], [-0.4, -0.36], [-0.58, -0.22], [-0.58, 0.22], [-0.4, 0.38]];
+function ke_emPose(P){ ke_armPose(P, 72); }
+// battlements: merlons along each edge of a ring of local points (spaced about `pitch`), h tall, t thick
+function ke_merlons(W, ring, h, t, kind, pitch, alt){
+  var n = ring.length, up = R.qrot(W.q, [0, 1, 0]), i, k;
+  for (i=0;i<n;i++){ if (alt && i % 2) continue;
+    var a = ring[i], b = ring[(i+1) % n], e = R.sub(b, a), L = R.len(e), m = Math.max(1, Math.round(L/pitch)), dq = R.qrot(W.q, e);
+    for (k=0;k<m;k++) ke_block(frameOn(fw(W, R.add(lerp3(a, b, (k + 0.5)/m), [0, h/2, 0])), dq, up), t/2, L/m*0.3, h/2, kind); }
+}
+// a box in frame F without its bottom (local -Z) face: a merlon sits on its wall
+function ke_block(F, hx, hy, hz, kind){
+  var P = function(x, y, z){ return [x*hx, y*hy, z*hz]; };
+  J(F, function(){
+    kn_q(null, P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1), kind, [0, 0, 1]);
+    kn_q(null, P(1, -1, -1), P(1, 1, -1), P(1, 1, 1), P(1, -1, 1), kind, [1, 0, 0]);
+    kn_q(null, P(-1, -1, -1), P(-1, 1, -1), P(-1, 1, 1), P(-1, -1, 1), kind, [-1, 0, 0]);
+    kn_q(null, P(-1, 1, -1), P(1, 1, -1), P(1, 1, 1), P(-1, 1, 1), kind, [0, 1, 0]);
+    kn_q(null, P(-1, -1, -1), P(1, -1, -1), P(1, -1, 1), P(-1, -1, 1), kind, [0, -1, 0]); });
+}
+// an arched window on a facet f (ke_facetOf), dy up the facet from its centre
+function ke_window(W, f, w, h, dy, kind){
+  var u = f.u, v = f.v; if (v[1] < 0){ u = R.mul(u, -1); v = R.mul(v, -1); }
+  var P = function(x, y){ return R.add(R.add(f.c, R.mul(f.n, 0.003)), R.add(R.mul(u, x), R.mul(v, y + (dy || 0)))); };
+  kn_polyOut(W, [P(-w, -h), P(w, -h), P(w, h*0.3), P(0, h), P(-w, h*0.3)], kind, f.n);
+}
+// a pyramid spire: base ring (n sides, radius r) at local c, apex h above
+function ke_spire(W, c, r, h, n, kind){
+  var B = ke_ring(n, c[1], r, r, c[0], c[2]), ap = [c[0], c[1] + h, c[2]];
+  for (var i=0;i<n;i++){ var a = B[i], b = B[(i+1) % n]; kn_q(W, a, b, ap, null, kind, R.sub(lerp3(a, b, 0.5), [c[0], c[1] + h*0.3, c[2]])); }
+}
+function ke_emLeg(L){
+  var T = L.T, Sh = L.Sh, Ft = L.Ft, mid = ke_mid(), hi = ke_hi(), top = ke_top(), E = Math.PI/8;
+  var a = R.len(R.sub(L.K, L.H)), b = R.len(R.sub(L.A, L.K));
+  armDome(T, [0, 0, 0], 0.13, -90, 90, 8, 4, null, 'under');
+  armTube(T, 0.0, 0.12, 0.12, -a, 0.115, 0.115, 8, 0, TAU, 'limb');
+  // the tower
+  var R0 = ke_ring(8, 0.12, 0.175, 0.175), R1 = ke_ring(8, -b*0.62, 0.19, 0.19), R2 = ke_ring(8, -b + 0.1, 0.205, 0.205), R3 = ke_ring(8, -b + 0.02, 0.25, 0.25);
+  ke_loft(Sh, [R0, R1, R2, R3], 'plate', 'plate', null, ['plate', 'plate', 'pauld']);
+  if (mid){ armTube(Sh, 0.12, 0.183, 0.183, 0.085, 0.183, 0.183, 8, -E, TAU - E, 'gold');
+    armTube(Sh, -b + 0.1, 0.212, 0.212, -b + 0.13, 0.21, 0.21, 8, -E, TAU - E, 'gold');
+    ke_merlons(Sh, ke_ring(8, 0.12, 0.165, 0.165), 0.05, 0.03, 'plate', 0.2, !hi);
+    for (var i=0;i<8;i++){ var f1 = ke_facetOf(R0, R1, i);
+      ke_window(Sh, f1, 0.028, 0.055, 0.075, i % 3 ? 'visor' : 'glow');
+      if (hi && !(i % 3)){ var sl = R.add(R.add(f1.c, R.mul(f1.n, 0.012)), R.mul(f1.v[1] < 0 ? R.mul(f1.v, -1) : f1.v, 0.015));
+        ke_beam(fw(Sh, R.add(sl, R.mul(f1.u, -0.035))), fw(Sh, R.add(sl, R.mul(f1.u, 0.035))), 0.008, 0.01, 'gold', R.qrot(Sh.q, f1.n)); }
+      if (hi) ke_window(Sh, f1, 0.024, 0.04, -0.1, 'visor');
+      if (hi) ke_beam(fw(Sh, R.add(R2[i], R.mul(R.norm([R2[i][0], 0, R2[i][2]]), 0.01))), fw(Sh, R.add(R0[i], [R0[i][0]*0.07, -0.03, R0[i][2]*0.07])), 0.017, 0.017, 'pauld', R.qrot(Sh.q, [R0[i][0], 0, R0[i][2]]));
+      if (top){ var f2 = ke_facetOf(R1, R2, i); ke_window(Sh, f2, 0.01, 0.035, 0, 'visor'); } }
+    if (hi) [0.05, -0.12].forEach(function(y){ var rr = 0.176 + (0.19 - 0.175)*(0.12 - y)/(0.12 + b*0.62);    // string courses
+      armTube(Sh, y, rr + 0.008, rr + 0.008, y - 0.018, rr + 0.009, rr + 0.009, 8, -E, TAU - E, 'pauld'); }); }
+  // the plinth: stepped, a gold step, three blunt toes
+  var F0 = ke_ring(8, -0.07, 0.25, 0.27, 0, 0.03), F1 = ke_ring(8, -0.035, 0.25, 0.27, 0, 0.03), F2 = ke_ring(8, -0.03, 0.22, 0.24, 0, 0.03), F3 = ke_ring(8, 0.005, 0.2, 0.22, 0, 0.03);
+  ke_loft(Ft, [F0, F1, F2, F3], 'limb', null, 'plate', ['limb', 'gold', 'limb']);
+  var up = R.qrot(Ft.q, [0, 1, 0]);
+  [-0.5, 0, 0.5].forEach(function(g){ var b0 = fw(Ft, [Math.sin(g)*0.13, -0.045, 0.2 + Math.cos(g)*0.05]), t0 = fw(Ft, [Math.sin(g)*0.2, -0.05, 0.22 + Math.cos(g)*0.14]);
+    ke_beam(b0, t0, 0.05, 0.025, 'plate', up, 0.02);
+    if (hi) rod(t0, R.add(t0, R.add(R.mul(R.norm(R.sub(t0, b0)), 0.07), R.mul(up, -0.015))), 0.028, 0.004, 5, 'steel'); });
+}
+// the plasma annihilator (an arm): a great accumulator drum ringed with glowing coils, a thick barrel, a glowing mouth
+function ke_annihil(G){
+  var L = G.L, mid = ke_mid(), hi = ke_hi();
+  J(G.F, function(){
+    armRollX(null, [0, 0, 0], 0.15, 0.12, 8, 'under');
+    armTube(null, 0.14, 0.15, 0.15, -0.52, 0.15, 0.15, 10, 0, TAU, 'plate');
+    ke_cap(0.14, 0.15, 10, 'plate', false);
+    if (mid){ [0.02, -0.46].forEach(function(y){ armTube(null, y, 0.158, 0.158, y - 0.045, 0.158, 0.158, 10, 0, TAU, 'gold'); });
+      [-0.13, -0.24, -0.35].forEach(function(y){ armTube(null, y, 0.16, 0.16, y - 0.04, 0.16, 0.16, 10, 0, TAU, 'glow'); }); }
+    armTube(null, -0.52, 0.15, 0.15, -0.62, 0.11, 0.11, 10, 0, TAU, 'steel');
+    armTube(null, -0.62, 0.1, 0.1, -L + 0.14, 0.094, 0.094, 10, 0, TAU, 'gun');
+    if (hi){ armTube(null, -L*0.62, 0.122, 0.122, -L*0.62 - 0.05, 0.122, 0.122, 10, 0, TAU, 'steel');
+      armTube(null, -L*0.8, 0.118, 0.118, -L*0.8 - 0.05, 0.118, 0.118, 10, 0, TAU, 'steel'); }
+    armTube(null, -L + 0.14, 0.14, 0.14, -L, 0.13, 0.13, 10, 0, TAU, 'gold');
+    kn_ngon(null, -L, 0.105, 0.105, 10, 'glow', true);
+    if (hi){ for (var f=0;f<6;f++){ var t = TAU*f/6 + 0.26; withRot(Q.qy(t), [0, 0, 0], function(){ armBox(null, [0, -0.72, 0.13], 0.008, 0.09, 0.04, 'steel'); }); }
+      kn_sweep(null, [[0, 0.1, -0.15], [0, -0.1, -0.2], [0, -0.3, -0.19], [0, -0.45, -0.16]], [0.03, 0.03, 0.03, 0.03], 5, 'under'); }
+  });
+}
+// the storm cannon (an arm): an armoured breech over the gimbal, six great barrels in two rows, a clamp and a muzzle block
+function ke_storm(G, s){
+  var L = G.L, mid = ke_mid();
+  J(G.F, function(){
+    armRollX(null, [0, 0, 0], 0.15, 0.12, 8, 'under');
+    armBox(null, [0, -0.2, 0.0], 0.135, 0.33, 0.135, 'plate');
+    if (mid){ armBox(null, [0, -0.2, 0.14], 0.04, 0.3, 0.008, 'gold');
+      var bc = ke_boss(null, [s*0.135, -0.22, 0], [0, 0, -s], [0, 1, 0], 0.085, 0.07, 0.02, 8, 'pauld', 'plate');
+      kn_star(null, bc, [0, 0, -s], [0, 1, 0], 0.052, 0.021, 8, 0.004, 'gold', Math.PI/8); }
+    var hi = ke_hi();
+    for (var i=0;i<3;i++) for (var j=0;j<2;j++) at([(i - 1)*0.078, 0, (j - 0.5)*0.09], function(){
+      armTube(null, -0.53, 0.036, 0.036, -L + 0.02, 0.034, 0.034, 6, 0, TAU, 'steel');
+      if (hi){ armTube(null, -0.53, 0.045, 0.045, -0.7, 0.045, 0.045, 6, 0, TAU, 'gun'); armTube(null, -L + 0.12, 0.042, 0.042, -L + 0.08, 0.042, 0.042, 6, 0, TAU, 'gun'); } });
+    if (hi) armBox(null, [0, -0.2, -0.165], 0.095, 0.22, 0.032, 'pack');
+    armBox(null, [0, -L*0.66, 0], 0.13, 0.025, 0.095, 'gun');
+    armBox(null, [0, -L + 0.04, 0], 0.13, 0.04, 0.095, 'gun');
+    if (hi) armBox(null, [0, -L*0.66, 0.1], 0.06, 0.03, 0.012, 'gold');
+  });
+}
+function ke_emperor(Wd){
+  var C = Wd.chest, Pv = Wd.pelvis, mid = ke_mid(), hi = ke_hi(), top = ke_top(), o = ke_EM, st = ke_stomp(), E = Math.PI/8, i;
+  var legs = ['L', 'R'].map(function(S){ return ke_leg(Wd, S, ke_legOpts(S, o, st, 0.2, 0.12, 10)); });
+  legs.forEach(ke_emLeg);
+  // ---- the gatehouse (pelvis): a gold band, banners front and back
+  var G0 = ke_ring(8, -0.13, 0.31, 0.21), G1 = ke_ring(8, -0.07, 0.41, 0.265), G2 = ke_ring(8, 0.08, 0.38, 0.25);
+  ke_loft(Pv, [G0, G1, G2], 'plate', 'under', 'under');
+  if (mid) armTube(Pv, -0.065, 0.415, 0.27, -0.1, 0.405, 0.264, 8, -E, TAU - E, 'gold');
+  armTube(Pv, 0.05, 0.2, 0.15, 0.3, 0.2, 0.15, 8, 0, TAU, 'under');
+  if (hi) [-1, 1].forEach(function(s){ var cx = s*0.2, cz = 0.2;                          // turrets at the gatehouse's front corners
+    ke_loft(Pv, [ke_ring(6, -0.06, 0.05, 0.05, cx, cz), ke_ring(6, 0.1, 0.05, 0.05, cx, cz)], 'pauld', null, 'gold');
+    ke_spire(Pv, [cx, 0.1, cz], 0.058, 0.1, 6, 'gold'); });
+  ke_banner(Wd, legs, { fb:1, y0:0.04, y1:-0.5, w0:0.12, w1:0.13, z:0.262, tail:0.09, rl:0.2 });
+  ke_banner(Wd, legs, { fb:-1, y0:0.04, y1:-0.42, w0:0.11, w1:0.12, z:0.25, tail:0.07, rl:0.2 });
+  // ---- the keep (torso)
+  var K0 = ke_prof(ke_EM_KEEP, -0.4, 0.95), K1 = ke_prof(ke_EM_KEEP, -0.2, 1.0), K2 = ke_prof(ke_EM_KEEP, 0.02, 1.0);
+  ke_loft(C, [K0, K1, K2], 'plate', 'under', null);
+  if (hi) [0, 3, 4, 7].forEach(function(i){ var p0 = K0[i], p2 = K2[i], on = R.norm([p0[0], 0, p0[2]]);    // ribs up the keep's corners
+    ke_beam(fw(C, R.add(p0, R.mul(on, 0.012))), fw(C, R.add(p2, R.mul(on, 0.012))), 0.018, 0.018, 'pauld', R.qrot(C.q, on)); });
+  if (top) ke_EM_DECK.forEach(function(p, i){ var q = ke_EM_DECK[(i + 1) % 8];            // corbels under the deck's edge
+    for (var k=0;k<3;k++){ var m = lerp3([p[0], 0, p[1]], [q[0], 0, q[1]], (k + 0.5)/3);
+      armBox(C, [m[0]*0.93, -0.02, m[2]*0.93], 0.018, 0.022, 0.018, 'under'); } });
+  // ---- the head: a crowned great-helm before a halo: a gold-rimmed octagon on the keep's face, its field tessellated
+  //      round a twelve-point sunburst so the painter's sort keeps every piece in front of the wall
+  var hc = [0, -0.17], oct = [];
+  for (i=0;i<8;i++){ var t = Math.PI/8 + TAU*i/8; oct.push([0.2*Math.cos(t), hc[1] + 0.2*Math.sin(t)]); }
+  J(C, function(){ var Pz = function(p, off){ return [p[0], p[1], 0.285 + (off || 0)]; };
+    for (var k=0;k<8;k++){ var a = oct[k], b = oct[(k+1) % 8];
+      kn_q(null, [a[0], a[1], 0.255], [b[0], b[1], 0.255], Pz(b), Pz(a), 'gold', [a[0] + b[0], a[1] + b[1] - 2*hc[1], 0]); }
+    if (mid) kn_starField(Pz, oct, hc, 0.178, 0.105, 12, Math.PI/2, 'under', 'gold', 0.003);
+    else kn_poly(null, oct.map(function(p){ return Pz(p); }), 'gold'); });
+  var HF = { head:{ p:fw(C, [0, -0.15, 0.33]), q:C.q } };
+  kn_helm(HF, {}); kn_laurel(HF);
+  // ---- the deck: a wide battlemented platform with a gold cornice
+  var D0 = ke_prof(ke_EM_DECK, 0.0, 0.94), D1 = ke_prof(ke_EM_DECK, 0.05, 1.0), D2 = ke_prof(ke_EM_DECK, 0.1, 1.0);
+  ke_loft(C, [D0, D1, D2], 'plate', 'under', 'helm', ['plate', 'gold']);
+  if (mid) ke_merlons(C, ke_prof(ke_EM_DECK, 0.1, 0.97), 0.055, 0.035, 'plate', top ? 0.1 : hi ? 0.15 : 0.26);
+  if (hi) ke_EM_DECK.forEach(function(p){ ke_spire(C, [p[0]*0.965, 0.155, p[1]*0.965], 0.022, 0.1, 4, 'gold'); });
+  // organ-pipe exhausts rising behind the keep, over a manifold
+  armBox(C, [0, -0.3, -0.33], 0.2, 0.06, 0.09, 'pack');
+  [[-0.16, 0.18], [-0.08, 0.28], [0, 0.36], [0.08, 0.28], [0.16, 0.18]].forEach(function(pp){ var a = fw(C, [pp[0], -0.3, -0.42]), b = fw(C, [pp[0], pp[1], -0.42]);
+    if (mid) kn_stack(a, b, 0.028, 0.027, 6, 'gold', 'visor'); else rod(a, b, 0.028, 0.027, 6, 'gold');
+    if (hi) armTube(ke_F(lerp3(a, b, 0.78), frameOn(a, R.sub(b, a)).q), 0.012, 0.034, 0.034, -0.012, 0.034, 0.034, 6, 0, TAU, 'steel'); });
+  // ---- gun towers at the shoulders: drum towers, battlements, lit windows, a twin gun on each
+  [-1, 1].forEach(function(s){ var cx = s*0.43, cz = 0.05, T0 = ke_ring(8, 0.1, 0.13, 0.13, cx, cz), T1 = ke_ring(8, 0.33, 0.12, 0.12, cx, cz);
+    ke_loft(C, [T0, T1], 'pauld', null, 'helm');
+    if (mid){ ke_loft(C, [ke_ring(8, 0.33, 0.13, 0.13, cx, cz), ke_ring(8, 0.36, 0.13, 0.13, cx, cz)], 'gold', null, 'helm');
+      ke_merlons(C, ke_ring(8, 0.36, 0.12, 0.12, cx, cz), 0.045, 0.026, 'pauld', 0.2, !hi);
+      for (var w=0;w<8;w++) if (w !== 4 + 2*s && (hi || w % 2 === 0)) ke_window(C, ke_facetOf(T0, T1, w), 0.022, 0.04, 0.02, w % 2 ? 'glow' : 'visor'); }
+    J(C, function(){ at([cx, 0.41, cz], function(){ armBox(null, [0, 0, 0], 0.06, 0.04, 0.07, 'plate'); }); });
+    if (hi) armDome(C, [cx, 0.365, cz], 0.075, 0, 90, 8, 2, null, 'helm');
+    [-1, 1].forEach(function(t){ var a = fw(C, [cx + t*0.028, 0.42, cz + 0.05]), b = fw(C, [cx + t*0.028, 0.43, cz + 0.36]);
+      rod(a, b, 0.018, 0.016, 6, 'steel'); if (hi) kn_stack(lerp3(a, b, 0.88), b, 0.024, 0.024, 6, 'steel', 'visor'); }); });
+  // ---- the cathedral at the back of the deck: nave, pitched roof, rose window, lit windows, pinnacles, belfry and spire
+  armBox(C, [0, 0.24, -0.16], 0.15, 0.14, 0.18, 'plate');
+  J(C, function(){ var y0 = 0.38, y1 = 0.52, zf = 0.035, zb = -0.36, w = 0.165;
+    kn_q(null, [w, y0, zf], [w, y0, zb], [0, y1, zb], [0, y1, zf], 'pauld', [1, 1, 0]);
+    kn_q(null, [-w, y0, zf], [-w, y0, zb], [0, y1, zb], [0, y1, zf], 'pauld', [-1, 1, 0]);
+    kn_q(null, [w, y0, zf], [-w, y0, zf], [0, y1, zf], null, 'plate', [0, 0, 1]);
+    kn_q(null, [w, y0, zb], [-w, y0, zb], [0, y1, zb], null, 'plate', [0, 0, -1]);
+    if (mid){ armBox(null, [0, y1 + 0.004, (zf + zb)/2], 0.012, 0.01, (zf - zb)/2, 'gold');
+      kn_star(null, [0, 0.29, 0.02], [1, 0, 0], [0, 1, 0], 0.085, 0.034, 8, 0.004, 'gold', Math.PI/8);
+      kn_disc(null, [0, 0.29, 0.02], [1, 0, 0], [0, 1, 0], 0.03, 8, 0.008, 'glow');
+      [-1, 1].forEach(function(sd){ for (var w2=0;w2<3;w2++) ke_window(null, { c:[sd*0.15, 0.25, -0.05 - w2*0.11], u:[0, 0, sd], v:[0, 1, 0], n:[sd, 0, 0] }, 0.025, 0.07, 0, 'glow'); }); }
+  });
+  [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(function(c){ ke_spire(C, [c[0]*0.15, 0.38, c[1] > 0 ? 0.035 : -0.36], 0.028, 0.14, 6, 'gold'); });
+  if (hi) [-1, 1].forEach(function(sd){ [-0.13, -0.23, -0.33].forEach(function(z){
+    ke_beam(fw(C, [sd*0.15, 0.35, z]), fw(C, [sd*0.3, 0.2, z]), 0.012, 0.016, 'plate', R.qrot(C.q, [sd, 1, 0]));
+    J(C, function(){ armBox(null, [sd*0.31, 0.16, z], 0.024, 0.06, 0.024, 'plate'); });
+    ke_spire(C, [sd*0.31, 0.22, z], 0.024, 0.07, 4, 'gold'); }); });
+  var BF0 = ke_ring(8, 0.44, 0.085, 0.085, 0, -0.14), BF1 = ke_ring(8, 0.6, 0.08, 0.08, 0, -0.14);
+  ke_loft(C, [BF0, BF1], 'plate', null, 'plate');
+  if (mid){ for (var bw=0;bw<8;bw+=2) ke_window(C, ke_facetOf(BF0, BF1, bw), 0.018, 0.05, 0.01, 'glow');
+    ke_loft(C, [ke_ring(8, 0.6, 0.09, 0.09, 0, -0.14), ke_ring(8, 0.625, 0.09, 0.09, 0, -0.14)], 'gold', null, 'gold'); }
+  ke_spire(C, [0, 0.625, -0.14], 0.085, 0.29, 8, 'pauld');
+  if (hi){ ke_spire(C, [0, 0.52, 0.035], 0.02, 0.09, 4, 'gold'); ke_spire(C, [0, 0.52, -0.36], 0.02, 0.09, 4, 'gold');
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(function(c){ ke_spire(C, [c[0]*0.07, 0.625, -0.14 + c[1]*0.07], 0.016, 0.1, 4, 'gold'); });
+    J(C, function(){ at([0, 0, -0.14], function(){ armTube(null, 0.72, 0.061, 0.061, 0.745, 0.055, 0.055, 8, -Math.PI/8, TAU - Math.PI/8, 'gold'); }); });
+    [-1, 1].forEach(function(s){ var a = fw(C, [s*0.5, 0.1, 0.3]), b = fw(C, [s*0.5, 0.5, 0.3]);     // standards on the deck's front corners
+      rod(a, b, 0.01, 0.008, 5, 'gold');
+      [1, -1].forEach(function(sd){ kn_star(C, [s*0.5, 0.5, 0.3], [sd, 0, 0], [0, 1, 0], 0.055, 0.022, 8, 0.012, 'gold', Math.PI/8); }); }); }
+  if (top) for (var cr=0;cr<5;cr++) ke_spire(C, [0, 0.52, -0.3 + cr*0.07], 0.012, 0.035, 4, 'gold');
+  rod(fw(C, [0, 0.895, -0.14]), fw(C, [0, 0.99, -0.14]), 0.008, 0.008, 5, 'gold');
+  if (mid) [1, -1].forEach(function(sd){ kn_star(C, [0, 0.97, -0.14], [sd, 0, 0], [0, 1, 0], 0.04, 0.016, 8, 0.002, 'gold', Math.PI/8); });
+  // ---- the arms: the plasma annihilator on the right (it fires), the storm cannon on the left
+  ke_annihil(ke_gunFrame(Wd, 'R', [-o.piv[0], o.piv[1], o.piv[2]], null, o.len, [0, -0.06, 1]));
+  ke_storm(ke_gunFrame(Wd, 'L', o.piv, o.hand, o.lenL, [0, -0.06, 1]), 1);
+}
+SOLID.ktimperator = { plate:[124,138,166], helm:[134,148,174], pauld:[128,142,170], limb:[108,120,146], cloth:[150,44,46],
+  visor:[20,22,28], under:[52,54,62], pack:[96,106,128], gold:[214,172,86], steel:[82,84,92], gun:[58,62,72],
+  glow:[170,220,255], eye:[255,70,50] };
+kit('ktimperator', { scale:13, h:1.9, pose:ke_emPose, build:function(Wd){ ke_emperor(Wd); } });
 // ════════ รอบ 6 · sa ════════
 // ════════ รอบ 6 · ฝูงสัตว์ต่างดาว: หน่วยที่เหลือ (group sa_) ════════
 // Eight more creatures for the alien swarm, built from its own sw_ parts so they stand with gaunt, hound, warrior,
@@ -15484,6 +16145,16 @@ function prism(cx, cy, cz, r, h, n, col, rotY, taper, alpha){   // n-gon column:
   for (i=0;i<n;i++){ var k=(i+1)%n; face([bot[i], bot[k], top[k], top[i]], col, o); }
   face(top, col, o);
 }
+// a big base (giants, titans): its top in rings and wedges about 1.2 m across, each sorted where it lies, so the far
+// foot of a giant standing on it is not painted over by one big disc sorted at its centre
+function bigBase(cx, cy, cz, r, n, col, rotY, alpha){
+  var o = alpha != null ? { alpha:true, a:alpha } : undefined, h = 0.1, R = Math.ceil(r/1.2), i, j;
+  function P(a, rr, y){ return [cx + Math.cos(a)*rr, y, cz + Math.sin(a)*rr]; }
+  for (i=0;i<n;i++){ var a0 = rotY + i*TAU/n, a1 = rotY + (i + 1)*TAU/n;
+    face([P(a0, r, cy), P(a1, r, cy), P(a1, r, cy + h), P(a0, r, cy + h)], col, o);          // the rim
+    for (j=0;j<R;j++){ var r0 = r*j/R, r1 = r*(j + 1)/R;
+      face(j ? [P(a0, r0, cy + h), P(a0, r1, cy + h), P(a1, r1, cy + h), P(a1, r0, cy + h)] : [[cx, cy + h, cz], P(a0, r1, cy + h), P(a1, r1, cy + h)], col, o); } }
+}
 
 // ---------- the table itself: ground mesh + wooden rails ----------
 function pointAt(i, j){ var x = -table.w/2 + i*CELL, z = -table.d/2 + j*CELL; return [x, HG[j*(hw+1)+i], z]; }
@@ -15990,7 +16661,8 @@ function drawUnit(u){
   var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0, alt = u.alt || 0;
   shadowAt(u.x, u.z, 0.8*(1 + 0.2*alt), 0.34*al/(1 + 0.5*alt));      // a flier's shadow spreads and pales with height
   var br = baseR(u.k);
-  prism(u.x, y, u.z, br, 0.1, u.lod === 3 ? 6 : u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);     // base disc
+  if (br > 1.2) bigBase(u.x, y, u.z, br, u.lod === 3 ? 8 : 12, C.base, rot, al < 0.999 ? al : null);     // base disc
+  else prism(u.x, y, u.z, br, 0.1, u.lod === 3 ? 6 : u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);
   if (!(u.lod === 3 && !u.act && (!u.mv || u.px < 18) && spriteUnit(u, alt ? unitY(u) : y))) drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
   else if (BLESSED && u.sq && BLESSED[u.sq] && al > 0.5) ringAt(u.x, u.z, br + 0.1, 'rgba(255,214,110,0.75)');   // ได้พรจากพระเจ้า
