@@ -23,9 +23,14 @@
   #bt .panel{width:clamp(320px,26vw,420px);flex:0 0 auto;overflow-y:auto;padding-right:2px;
     display:flex;flex-direction:column}
   /* บันทึกการรบเคยสูงตายตัว 130px บนคอมจึงตัดบรรทัดขาดครึ่ง ทั้งที่ข้างล่างว่างอีกเกือบครึ่งแผง */
-  #bt #scPlay{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
-  #bt #scPlay .log{flex:1 1 auto;min-height:137px;max-height:none}
+  /* แผงเตี้ยกว่าของข้างใน (หน้าต่างโปรแกรมบนจอสูง 768): เดิมหน้าเล่นถูกบีบหด หัว "กล้อง" กับปุ่มกล้องเลยขึ้นมาทับ
+     บันทึกการรบกับปุ่ม "ออกจากการรบ" · ตอนนี้หน้าเล่นไม่หด ทั้งแผงเลื่อนแทน · แผงเหลือที่ บันทึกการรบค่อยยืดเต็ม */
+  #bt #scPlay{display:flex;flex-direction:column;flex:1 0 auto}
+  #bt #scPlay .log{flex:1 1 137px;min-height:137px;max-height:none}
   #bt #scPlay #btDone:not(.hide){display:flex}
+}
+@media (min-width:900px) and (min-height:560px) and (max-height:760px){
+  #bt #scPlay .log{flex-basis:100px;min-height:100px}
 }
 
 /* ---- bits ---- */
@@ -28358,6 +28363,7 @@ var SND = (function(){
   // ---- ชิ้นเสียง: ซองความดัง (ขึ้นเร็ว ลงช้า) ต่อเข้าช่อง · สัญญาณรบกวนผ่านฟิลเตอร์ · คลื่นเสียงที่เลื่อนระดับได้ ----
   function voice(n, c){ if (c) live++; n.onended = function(){ if (c) live--; try { n.disconnect(); } catch(e){} }; }   // c: นับเป็นเสียงเอฟเฟกต์
   function env(t0, a, peak, dec, bus, pan){ var g = AC.createGain(), dst = bus;
+    g.gain.value = 0;   // เริ่มที่ศูนย์: ค่าตั้งต้นคือ 1 ตัวอย่างแรกที่เริ่มกลางช่องเลยหลุดมาเต็มแรง (คลิก)
     g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(Math.max(0.0002, peak), t0 + a); g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + dec);
     if (pan && AC.createStereoPanner){ var p = AC.createStereoPanner(); p.pan.value = pan; p.connect(bus); dst = p; }
     g.connect(dst); return g; }
@@ -28407,58 +28413,140 @@ var SND = (function(){
     if (x < -1.1 || x > 1.1) g *= 0.6;
     return [g, clamp(x, -1, 1)*0.6]; }
   function at(kind, p, k){
+    if (AC) heat(kind);
     if (!AC || !on.sfx || AC.state !== 'running') return; var D = DEF[kind]; if (!D) return;
     var ms = AC.currentTime*1000; if ((last[kind] != null && ms - last[kind] < D.gap) || live > MAXV){ stats.drop++; return; }
     last[kind] = ms; var pl = place(p); stats.n++; stats.by[kind] = (stats.by[kind] || 0) + 1;
     try { D.f(AC.currentTime + 0.005, D.v*pl[0]*(k || 1), pl[1]); } catch(e){} }
 
-  // ---- เพลง: กลองศึกช้า ๆ เสียงพื้นต่ำ ๆ คอร์ดยาว กับทำนองสั้น ๆ ตามบันไดเสียงของแผนที่ แต่งสดไม่ซ้ำ ----
-  // ระหว่างรบ: กลองเต็ม · หน้าเมนู: เบา ช้า แค่พื้นกับกลองใหญ่
-  var MT = { ruin:{ root:38, sc:[0, 2, 3, 5, 7, 8, 10], bpm:84 }, forest:{ root:45, sc:[0, 2, 3, 5, 7, 9, 10], bpm:72 },
-             desert:{ root:40, sc:[0, 1, 4, 5, 7, 8, 10], bpm:88 }, ice:{ root:36, sc:[0, 3, 5, 7, 10], bpm:64 } };
-  var PROG = [[0, 5, 3, 6], [0, 3, 4, 0], [0, 6, 5, 4], [0, 2, 5, 4]];
-  var M = { timer:null, next:0, beat:0, prog:PROG[0], mel:0, dly:null };
+  // ---- เพลง: แนวมหากาพย์ ตามเพลงตัวอย่างสี่เพลงที่ส่งมา (ถอดเป็นตัวเลขแล้วแต่งใหม่ ไม่ได้ลอกทำนอง) ----
+  // คีย์ไมเนอร์ 92–104 จังหวะต่อนาที แต่กลองศึกตีถี่ทีละเขบ็ตสองชั้น · เครื่องสายสับโน้ตวน · คอรัส "อา" · เครื่องเป่ากระแทก 3+3+2
+  // คอร์ดวนอยู่ที่คอร์ดหลัก สลับ VI III V · ความแรงสี่ขั้น: 0 หน้าเมนู · 1 เริ่มรบ · 2 รบดุ · 3 พีค (ดุมาก หรือรอบสุดท้าย)
+  // ขึ้นขั้นได้ทุกสองห้อง มีกลองรัวกับฉาบเสียงดูดส่งก่อนขึ้น · ลงทีละขั้นทุกสี่ห้อง · แต่งสดไม่ซ้ำ
+  var MT = {
+    ruin:   { k:38, bpm:100, pg:['0m 0m 8M 8M 3M 3M 7M 7M', '0m 8M 3M 10M 0m 8M 5m 7M', '0m 0m 8M 0m 0m 0m 10M 7M', '0m 0m 5m 5m 8M 8M 7M 7M'] },
+    forest: { k:40, bpm:96,  pg:['0m 5M 0m 5M 10M 10M 7m 0m', '0m 0m 10M 5M 0m 0m 3M 10M', '0m 3M 10M 5M 0m 3M 5M 7m'] },
+    desert: { k:37, bpm:104, pg:['0m 1M 0m 1M 8M 1M 7M 7M', '0m 0m 1M 0m 5m 1M 7M 7M', '0m 8M 1M 7M 0m 8M 1M 7M'] },
+    ice:    { k:35, bpm:92,  pg:['0m 0m 8M 8M 3M 3M 10M 10M', '0m 8M 5m 7M 0m 8M 3M 7M', '0m 3M 8M 7M 0m 3M 10M 7M'] } };
+  // ห้องละ 16 ช่อง (เขบ็ตสองชั้น) · X หนัก x เบา · แถวละขั้นความแรง 0..3 · ost: r ราก o คู่แปด f คู่ห้า t คู่สามข้างบน
+  var PAT = {
+    big: ['X.......x.......', 'X.....x.X.......', 'X..x..x.X..x..x.', 'X.xX.xx.X.xX.xxx'],
+    tom: ['................', '....x.....x...x.', '..x.x.x...x.xxx.', '.xx.xx.xx.x.xxxx'],
+    snr: ['................', '................', '....X.......X...', '....X.......X..x'],
+    hat: ['................', '..x...x...x...x.', 'x.x.x.x.x.x.x.x.', 'xXxxxXxxxXxxxXxx'],
+    brs: ['................', '................', 'X.....X.....X...', 'X.....X.....X.x.'],
+    ost: ['................', 'r.r.o.r.r.r.f.r.', 'rrorrrfrrrorrftf', 'rrorrrfrrrorrftf'] },
+    ACC = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+    SEND = { drum:0.2, str:0.22, brs:0.35, cho:0.7, hi:0.3, lead:0.5 },
+    GV = { drum:0.3, hi:1.8, str:0.4, brs:0.5, cho:0.3, lead:0.4 };             // ความดังแต่ละกลุ่ม วัดจากเสียงที่อัดจริงแล้ว
+  var M = { timer:null, next:0, step:0, bpm:100, lv:0, nextLv:null, rise:0, pg:null, ch:{ r:0, m:true }, mel:74, g:{}, bus:null, rev:null, force:null, only:null, th:null };
+  var HEAT = { v:0, t:0, l:{} }, HK = { die:3, charge:4, boom:2.5, heavy:1.2, catapult:0.8, hit:0.7, clang:0.7, flame:0.6, saw:0.6, swing:0.4, zap:0.4, throw:0.3, laser:0.25, bolt:0.25, shot:0.2 };
   function mtof(m){ return 440*Math.pow(2, (m - 69)/12); }
-  function deg(sc, d){ var n = sc.length, o = Math.floor(d/n); return sc[((d % n) + n) % n] + 12*o; }
+  function gz(){ var g = AC.createGain(); g.gain.value = 0; return g; }
   function mood(){ return typeof G !== 'undefined' && G.on && !G.over ? 'battle' : 'menu'; }
-  function pad(t0, dur, midi, peak){ var o = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain();
-    o.type = 'sawtooth'; o2.type = 'sawtooth'; o.frequency.value = mtof(midi); o2.frequency.value = mtof(midi)*1.006;
-    f.type = 'lowpass'; f.frequency.setValueAtTime(420, t0); f.frequency.linearRampToValueAtTime(900, t0 + dur*0.5); f.frequency.linearRampToValueAtTime(420, t0 + dur); f.Q.value = 0.6;
-    g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(peak, t0 + dur*0.35); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(f); o2.connect(f); f.connect(g); g.connect(MUS); o.start(t0); o2.start(t0); o.stop(t0 + dur + 0.05); o2.stop(t0 + dur + 0.05); voice(o); voice(o2); }
-  function kick(t, v){ tone(t, 0.32, 'sine', 100, 38, v, 0.003, MUS, 0); noise(t, 0.05, 'lowpass', 600, 200, 0.7, v*0.3, 0.001, MUS, 0); }
-  function tom(t, v){ tone(t, 0.26, 'sine', 150, 90, v, 0.003, MUS, 0); noise(t, 0.12, 'bandpass', 400, 250, 1, v*0.3, 0.002, MUS, 0); }
-  function snare(t, v){ noise(t, 0.09, 'bandpass', 1900, 1500, 0.9, v, 0.001, MUS, 0); }
-  function lead(t, dur, midi, v){ if (!M.dly){ var d = AC.createDelay(1.5), fb = AC.createGain(); fb.gain.value = 0.32; d.connect(fb); fb.connect(d); d.connect(MUS); M.dly = d; }
-    M.dly.delayTime.setValueAtTime(60/M.bpm*0.75, t);
-    var o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(); o.type = 'triangle'; o.frequency.value = mtof(midi);
-    f.type = 'lowpass'; f.frequency.value = 1900; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(f); f.connect(g); g.connect(MUS); g.connect(M.dly); o.start(t); o.stop(t + dur + 0.05); voice(o); }
-  function beat(t){
-    var th = MT[typeof theme !== 'undefined' && MT[theme] ? theme : 'ruin'], md = mood(), b = M.beat % 4, bar = Math.floor(M.beat/4), spb = 60/M.bpm, i;
-    if (b === 0){ if (bar % 8 === 0) M.prog = PROG[Math.floor(Math.random()*PROG.length)];
-      var d = M.prog[bar % 4], r = th.root + deg(th.sc, d), pk = md === 'battle' ? 0.034 : 0.026;
-      pad(t, spb*4, r - 12, pk*1.5); pad(t, spb*4, th.root + 12 + deg(th.sc, d), pk); pad(t, spb*4, th.root + 12 + deg(th.sc, d + 2), pk*0.85); pad(t, spb*4, th.root + 12 + deg(th.sc, d + 4), pk*0.8); }
-    if (md === 'battle'){
-      if (b === 0 || b === 2) kick(t, 0.2);
-      if (b === 3){ tom(t, 0.12); if (Math.random() < 0.5) tom(t + spb/2, 0.1); }
-      if (b === 1 || b === 3){ snare(t, 0.045); if (Math.random() < 0.35) for (i=1;i<4;i++) snare(t + i*spb/8, 0.02 + i*0.005); }
-    } else if (b === 0) kick(t, 0.12);
-    // ทำนอง: เดินขึ้นลงบนบันไดเสียงแถวเสียงคอร์ด ทุกสองห้อง บางทีเป็นเขบ็ต
-    if (bar % 2 === 1 && Math.random() < (md === 'battle' ? 0.7 : 0.45)){
-      M.mel = clamp(M.mel + [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random()*7)], -3, 7);
-      var mm = th.root + 24 + deg(th.sc, M.prog[bar % 4] + M.mel);
-      if (Math.random() < 0.3){ lead(t, spb*0.45, mm, 0.05); lead(t + spb/2, spb*0.45, th.root + 24 + deg(th.sc, M.prog[bar % 4] + M.mel + 1), 0.045); }
-      else lead(t, spb*0.9, mm, 0.055); }
+  function TH(){ var k = M.th || (typeof theme !== 'undefined' ? theme : ''); return MT[k] || MT.ruin; }
+  function oct(n, lo){ while (n < lo) n += 12; while (n >= lo + 12) n -= 12; return n; }
+  function pv(c){ return c === 'X' ? 1 : 0.55; }
+  function use(k){ return !M.only || M.only === k; }
+  // ความดุของสนาม: เสียงตาย บุก ระเบิด ปะทะ สะสมแล้วจางลงใน 6 วินาที (ปิดเสียงเอฟเฟกต์อยู่ก็ยังนับ)
+  function heat(k){ var w = HK[k], now = AC.currentTime; if (!w || (HEAT.l[k] != null && now - HEAT.l[k] < 0.25)) return;
+    HEAT.l[k] = now; HEAT.v = Math.min(60, HEAT.v*Math.exp(-(now - HEAT.t)/6) + w); HEAT.t = now; }
+  function level(st){ if (M.force) return M.force(st);
+    if (mood() !== 'battle') return 0;
+    var h = HEAT.v*Math.exp(-(AC.currentTime - HEAT.t)/6), lv = h > 22 ? 3 : h > 8 ? 2 : 1, mr;
+    if (typeof maxRound === 'function' && G.round){ mr = maxRound(); if (G.round >= mr) lv = 3; else if (G.round >= mr - 1 && lv < 2) lv = 2; }
+    return lv; }
+  // วงย่อยแต่ละกลุ่มส่งเข้าห้องก้องไม่เท่ากัน · ทั้งวงผ่านตัวกดความดังของเพลงเองก่อนเข้าช่องเพลง ไม่ให้แตก
+  function grp(k){ if (M.g[k]) return M.g[k];
+    if (!M.bus){ var c = AC.createDynamicsCompressor(), cv = AC.createConvolver(), rg = AC.createGain(), n = Math.floor(AC.sampleRate*2.2), ir = AC.createBuffer(2, n, AC.sampleRate), ch, j, d;
+      c.threshold.value = -12; c.knee.value = 10; c.ratio.value = 4; c.attack.value = 0.008; c.release.value = 0.2;
+      M.bus = AC.createGain(); M.bus.gain.value = 0.8; M.bus.connect(c); c.connect(MUS);
+      for (ch=0; ch<2; ch++){ d = ir.getChannelData(ch); for (j=0;j<n;j++) d[j] = (Math.random()*2 - 1)*Math.pow(1 - j/n, 3); }
+      cv.buffer = ir; rg.gain.value = 0.5; cv.connect(rg); rg.connect(M.bus); M.rev = cv; }
+    var g = AC.createGain(), sd = AC.createGain(); g.gain.value = GV[k]; sd.gain.value = SEND[k]; g.connect(M.bus); g.connect(sd); sd.connect(M.rev);
+    return (M.g[k] = g); }
+  // ---- เครื่องในวง ----
+  function taiko(t, v){ var g = grp('drum'); tone(t, 0.55, 'sine', 118, 44, 0.5*v, 0.002, g, 0); noise(t, 0.07, 'lowpass', 700, 260, 0.8, 0.22*v, 0.001, g, 0); }
+  function tom(t, v, hi){ var g = grp('drum'), f = hi ? 205 : 160, p = hi ? 0.2 : -0.2; tone(t, 0.3, 'sine', f, f*0.62, 0.3*v, 0.002, g, p); noise(t, 0.05, 'bandpass', 1100, 700, 1.2, 0.12*v, 0.001, g, p); }
+  function snare(t, v){ var g = grp('drum'); noise(t, 0.14, 'bandpass', 1900, 1300, 0.8, 0.16*v, 0.001, g, 0); tone(t, 0.06, 'triangle', 200, 150, 0.08*v, 0.001, g, 0); }
+  function hat(t, v){ noise(t, 0.035, 'highpass', 7500, 7500, 0.7, 0.06*v, 0.001, grp('hi'), 0.25); }
+  function crash(t, v){ noise(t, 1.8, 'highpass', 4200, 2600, 0.6, 0.12*v, 0.002, grp('hi'), 0); }
+  function boom(t, v){ var g = grp('drum'); tone(t, 1.5, 'sine', 62, 28, 0.6*v, 0.004, g, 0); noise(t, 0.9, 'lowpass', 300, 60, 0.7, 0.35*v, 0.004, g, 0); }
+  function swell(t, dur){ var s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = gz();
+    s.buffer = NB; s.loop = true; f.type = 'highpass'; f.frequency.setValueAtTime(1800, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.1, t + dur); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.03);
+    s.connect(f); f.connect(g); g.connect(grp('hi')); s.start(t); s.stop(t + dur + 0.06); voice(s); }
+  function saws(t, end, midi, n, det, dst, lfo){ for (var i=0;i<n;i++){ var o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(midi);
+    o.detune.value = n > 1 ? (i/(n - 1)*2 - 1)*det : 0; if (lfo) lfo.connect(o.detune); o.connect(dst); o.start(t); o.stop(end); voice(o); } }
+  function strings(t, dur, midi, v){ var g = gz(), f = AC.createBiquadFilter();       // เครื่องสายสับสั้น ๆ
+    f.type = 'lowpass'; f.Q.value = 0.9; f.frequency.setValueAtTime(3800, t); f.frequency.exponentialRampToValueAtTime(1300, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.045*v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    saws(t, t + dur + 0.03, midi, 2, 7, f); f.connect(g); g.connect(grp('str')); }
+  function brass(t, dur, notes, v){ var g = gz(), f = AC.createBiquadFilter();       // เครื่องเป่า: ฟิลเตอร์เปิดพรวดแล้วค่อยปิด
+    f.type = 'lowpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(260, t); f.frequency.exponentialRampToValueAtTime(3400, t + 0.06); f.frequency.exponentialRampToValueAtTime(700, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.035*v, t + 0.025); g.gain.setTargetAtTime(0.022*v, t + 0.06, 0.15); g.gain.setTargetAtTime(0.0001, t + dur, 0.08);
+    notes.forEach(function(n){ saws(t, t + dur + 0.5, n, 2, 6, f); }); f.connect(g); g.connect(grp('brs')); }
+  function choir(t, dur, notes, v){ var g = gz(), mix = AC.createGain(), lf = AC.createOscillator(), ld = AC.createGain(), end = t + dur + 0.7,
+      body = AC.createBiquadFilter(), bg = AC.createGain();                                        // คอรัส "อา": คลื่นฟันเลื่อยผ่านฟอร์แมนต์สามลูก
+    lf.frequency.value = 5.1; ld.gain.value = 9; lf.connect(ld); lf.start(t); lf.stop(end); voice(lf);
+    [[730, 3.5, 1], [1090, 5, 0.55], [2440, 7, 0.42]].forEach(function(F){ var b = AC.createBiquadFilter(), fg = AC.createGain();
+      b.type = 'bandpass'; b.frequency.value = F[0]; b.Q.value = F[1]; fg.gain.value = F[2]; mix.connect(b); b.connect(fg); fg.connect(g); });
+    body.type = 'lowpass'; body.frequency.value = 700; bg.gain.value = 0.18; mix.connect(body); body.connect(bg); bg.connect(g);
+    notes.forEach(function(n){ saws(t, end, n, 2, 10, mix, ld); });
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16*v, t + Math.min(0.45, dur*0.3)); g.gain.setValueAtTime(0.16*v, t + dur); g.gain.linearRampToValueAtTime(0.0001, end - 0.05);
+    g.connect(grp('cho')); }
+  function bass(t, dur, midi, v){ var g = gz(), f = AC.createBiquadFilter(), o = AC.createOscillator(), o2 = AC.createOscillator();
+    o.type = 'sine'; o2.type = 'triangle'; o.frequency.value = mtof(midi); o2.frequency.value = mtof(midi + 12); f.type = 'lowpass'; f.frequency.value = 420;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07*v, t + 0.01); g.gain.setTargetAtTime(0.0001, t + dur*0.7, dur*0.12 + 0.02);
+    o.connect(g); o2.connect(f); f.connect(g); g.connect(grp('str')); o.start(t); o2.start(t); o.stop(t + dur + 0.3); o2.stop(t + dur + 0.3); voice(o); voice(o2); }
+  function lead(t, dur, midi, v){ var g = gz(), f = AC.createBiquadFilter(), lf = AC.createOscillator(), ld = AC.createGain();   // ไวโอลินสูงลากยาว
+    lf.frequency.value = 5.6; ld.gain.value = 12; lf.connect(ld); lf.start(t); lf.stop(t + dur + 0.6); voice(lf);
+    f.type = 'lowpass'; f.frequency.value = 3200; f.Q.value = 0.5; saws(t, t + dur + 0.6, midi, 3, 8, f, ld);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03*v, t + 0.12); g.gain.setValueAtTime(0.03*v, t + dur); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.5);
+    f.connect(g); g.connect(grp('lead')); }
+  function mel(t, dur, K, r, third){ var cs = [0, third, 7].map(function(i){ return oct(K + r + i, 69); }), pr = M.mel, b = cs[0];
+    cs.forEach(function(x){ var d = Math.abs(x - pr), e = Math.abs(b - pr); if (d < e || (d === e && Math.random() < 0.5)) b = x; });
+    if (b === pr && Math.random() < 0.6) b = cs[(cs.indexOf(b) + 1) % 3];                         // ขยับบ้าง ไม่ค้างโน้ตเดิม
+    M.mel = b; lead(t, dur, b, 1); }
+  // ---- ทีละช่อง (เขบ็ตสองชั้น) ----
+  function step(t){
+    var th = TH(), s = M.step % 16, bar = Math.floor(M.step/16), K = th.k, nl, c, lv, sp, r, third, root, x, n, v, pre;
+    if (s === 0){
+      nl = M.nextLv != null ? M.nextLv : level(M.step); M.nextLv = null; pre = M.lv;
+      if (nl > pre && (bar % 2 === 0 || pre === 0)){ M.lv = nl; M.rise = pre === 0 ? 2 : 1; }
+      else if (nl < pre && bar % 4 === 0) M.lv = nl === 0 ? 0 : pre - 1;
+      if (!M.pg || bar % 8 === 0) M.pg = th.pg[Math.floor(Math.random()*th.pg.length)].split(' ');
+      c = M.pg[bar % 8]; M.ch = { r:parseInt(c, 10), m:c.charAt(c.length - 1) === 'm' };
+      M.bpm = th.bpm*(M.lv ? 1 : 0.84);
+    }
+    lv = M.lv; c = M.ch; sp = 60/M.bpm/4; r = c.r > 7 ? c.r - 12 : c.r; third = c.m ? 3 : 4; root = K + r;
+    if (s === 8 && bar % 2 === 1){ M.nextLv = level(M.step + 8); if (M.nextLv > lv && use('hi')) swell(t, sp*8); }
+    var fill = bar % 2 === 1 && s >= 12 && M.nextLv != null && M.nextLv > lv;
+    if (s === 0){
+      if (use('cho')){ x = [0, third, 7].map(function(i){ return oct(K + 24 + r + i, 57); }).sort(function(a, b){ return a - b; });
+        choir(t, sp*16, x, [0.5, 0.6, 0.8, 1][lv]); if (lv === 3) choir(t, sp*16, [x[2] + 12], 0.55); }
+      if (M.rise){ if (use('hi')) crash(t, lv === 3 ? 1 : 0.8); if ((M.rise === 2 || lv >= 2) && use('drum')) boom(t, 1); M.rise = 0; }
+      if (!lv && use('str')) bass(t, sp*15, root, 0.8);
+    }
+    if (lv === 3 && (s === 0 || s === 8) && use('lead')) mel(t, sp*7.6, K, r, third);
+    if (lv && s % (lv === 1 ? 4 : 2) === 0 && use('str')) bass(t, sp*(lv === 1 ? 3.6 : 1.8), root, ACC[s] ? 1 : 0.75);
+    x = PAT.ost[lv].charAt(s);
+    if (x !== '.' && use('str')){ n = K + 12 + r + (x === 'o' ? 12 : x === 'f' ? 7 : x === 't' ? 12 + third : 0); v = (ACC[s] ? 1 : 0.62)*(lv === 1 ? 0.8 : 1);
+      strings(t, sp*0.9, n, v); if (lv === 3) strings(t, sp*0.9, n + 12, v*0.5); }
+    if (use('drum')){
+      if (fill){ tom(t, 0.45 + (s - 12)*0.18, s % 2); if (s === 15) taiko(t + sp*0.5, 0.8); }
+      else { x = PAT.big[lv].charAt(s); if (x !== '.') taiko(t, pv(x)); x = PAT.tom[lv].charAt(s); if (x !== '.') tom(t, pv(x), s % 2); }
+      x = PAT.snr[lv].charAt(s); if (x !== '.') snare(t, pv(x)); }
+    x = PAT.hat[lv].charAt(s); if (x !== '.' && use('hi')) hat(t, pv(x));
+    x = PAT.brs[lv].charAt(s);
+    if (x !== '.' && use('brs')) brass(t, sp*(s === 12 ? 3.5 : 2.6), [K + 12 + r, K + 19 + r, K + 24 + r].concat(lv === 3 ? [K + 24 + r + third] : []), pv(x));
   }
   function tick(){
     if (!AC || AC.state !== 'running' || !on.mus) return;
-    var th = MT[typeof theme !== 'undefined' && MT[theme] ? theme : 'ruin'];
-    M.bpm = th.bpm*(mood() === 'battle' ? 1 : 0.85);
     if (M.next < AC.currentTime) M.next = AC.currentTime + 0.06;       // เพิ่งกลับมาจากเงียบ
-    while (M.next < AC.currentTime + 0.35){ try { beat(M.next); } catch(e){} M.next += 60/M.bpm; M.beat++; }
+    while (M.next < AC.currentTime + 0.3){ try { step(M.next); } catch(e){} M.next += 60/M.bpm/4; M.step++; }
   }
-  function musOn(){ if (!M.timer && AC && on.mus){ M.next = 0; M.timer = setInterval(tick, 110); tick(); } }
+  function musOn(){ if (!M.timer && AC && on.mus){ M.next = 0; M.step = 0; M.lv = 0; M.nextLv = null; M.pg = null; M.timer = setInterval(tick, 90); tick(); } }
   function musOff(){ if (M.timer){ clearInterval(M.timer); M.timer = null; } }
   function unlock(){ var c = init(); if (!c) return;
     if (c.state === 'suspended' && !document.hidden){ try { c.resume(); } catch(e){} }
@@ -28474,20 +28562,32 @@ var SND = (function(){
     toggle:function(k){ if (k !== 'sfx' && k !== 'mus') return; on[k] = !on[k]; save();
       if (k === 'sfx') ramp(SFX, on.sfx ? 1 : 0); else { ramp(MUS, on.mus ? 1 : 0); if (on.mus) musOn(); else musOff(); } return on[k]; },
     volume:function(v){ if (v != null){ vol = clamp(+v || 0, 0, 1); save(); ramp(OUT, vol); } return vol; },
-    state:function(){ return { sfx:on.sfx, mus:on.mus, vol:vol, ctx:AC ? AC.state : 'none', live:live, music:!!M.timer }; },
+    state:function(){ return { sfx:on.sfx, mus:on.mus, vol:vol, ctx:AC ? AC.state : 'none', live:live, music:!!M.timer, lv:M.lv }; },
     stats:function(){ return { n:stats.n, drop:stats.drop, by:JSON.parse(JSON.stringify(stats.by)) }; },
     kinds:function(){ return Object.keys(DEF); },
-    // เทสต์: เล่นเสียงหนึ่ง (หรือเพลงแปดจังหวะ) ลงเครื่องอัดแบบไม่ออกลำโพง แล้ววัดความดังสูงสุดกับความดังเฉลี่ย
-    probe:function(kind, cb){ var C = window.OfflineAudioContext; if (!C || (kind !== 'music' && !DEF[kind])) return cb(null);
-      var keep = [AC, SFX, MUS, NB, M.dly, M.beat, M.bpm], oc = new C(1, 44100*(kind === 'music' ? 7 : 2.5), 44100), n = oc.sampleRate, d, i, err = null;
-      AC = oc; SFX = oc.createGain(); MUS = oc.createGain(); SFX.connect(oc.destination); MUS.connect(oc.destination); M.dly = null;
-      NB = oc.createBuffer(1, n, n); d = NB.getChannelData(0); for (i=0;i<n;i++) d[i] = Math.random()*2 - 1;
-      try { if (kind === 'music'){ M.bpm = 84; M.beat = 0; for (i=0;i<8;i++){ beat(0.05 + i*60/84); M.beat++; } } else DEF[kind].f(0.01, DEF[kind].v, 0); } catch(e){ err = String(e); }
-      AC = keep[0]; SFX = keep[1]; MUS = keep[2]; NB = keep[3]; M.dly = keep[4]; M.beat = keep[5]; M.bpm = keep[6];
+    // เทสต์: เล่นเสียงหนึ่ง (หรือเพลงสองห้อง) ลงเครื่องอัดแบบไม่ออกลำโพง แล้ววัดความดังสูงสุดกับความดังเฉลี่ย
+    // op (เพลงเท่านั้น): levels ขั้นความแรงทีละห้อง · theme · only เล่นกลุ่มเดียว · sec · sr · ch · raw คืนเสียงเป็น base64 ไว้ฟังหรือวิเคราะห์
+    probe:function(kind, cb, op){ var C = window.OfflineAudioContext; if (!C || (kind !== 'music' && !DEF[kind])) return cb(null);
+      op = op || {};
+      var sr = op.sr || 44100, len = kind === 'music' ? (op.sec || 7) : 2.5, oc = new C(op.ch || 1, Math.ceil(sr*len), sr), lvs = op.levels || [2, 2],
+          keep = [AC, SFX, MUS, NB, M], d, i, t, err = null;
+      AC = oc; SFX = oc.createGain(); MUS = oc.createGain(); SFX.connect(oc.destination); MUS.connect(oc.destination);
+      NB = oc.createBuffer(1, sr, sr); d = NB.getChannelData(0); for (i=0;i<sr;i++) d[i] = Math.random()*2 - 1;
+      M = { timer:null, next:0, step:0, bpm:100, lv:lvs[0], nextLv:null, rise:0, pg:null, ch:{ r:0, m:true }, mel:74, g:{}, bus:null, rev:null,
+            only:op.only || null, th:op.theme || null, force:function(st){ return lvs[Math.min(lvs.length - 1, Math.floor(st/16))]; } };
+      try { if (kind === 'music'){ M.bpm = TH().bpm*(M.lv ? 1 : 0.84); for (t = 0.05; M.step < 16*lvs.length && t < len - 0.3; M.step++){ step(t); t += 60/M.bpm/4; } }
+            else DEF[kind].f(0.01, DEF[kind].v, 0); } catch(e){ err = String(e); }
+      AC = keep[0]; SFX = keep[1]; MUS = keep[2]; NB = keep[3]; M = keep[4];
       if (err) return cb({ err:err });
-      oc.startRendering().then(function(buf){ var x = buf.getChannelData(0), pk = 0, ss = 0, j;
-        for (j=0;j<x.length;j++){ var a = Math.abs(x[j]); if (a > pk) pk = a; ss += x[j]*x[j]; }
-        cb({ peak:+pk.toFixed(3), rms:+Math.sqrt(ss/x.length).toFixed(4), nan:isNaN(ss) }); }, function(e){ cb({ err:String(e) }); }); }
+      oc.startRendering().then(function(buf){ var nc = buf.numberOfChannels, L = buf.length, X = [], pk = 0, ss = 0, j, c, a, r;
+        for (c=0;c<nc;c++) X.push(buf.getChannelData(c));
+        for (c=0;c<nc;c++) for (j=0;j<L;j++){ a = X[c][j]; ss += a*a; if (a < 0) a = -a; if (a > pk) pk = a; }
+        r = { peak:+pk.toFixed(3), rms:+Math.sqrt(ss/(L*nc)).toFixed(4), nan:isNaN(ss) };
+        if (op.raw){ var u = new Int16Array(L*nc), by, s2 = '';
+          for (j=0;j<L;j++) for (c=0;c<nc;c++){ a = X[c][j]; u[j*nc + c] = (a > 1 ? 1 : a < -1 ? -1 : a)*32767; }
+          by = new Uint8Array(u.buffer); for (j=0;j<by.length;j+=0x8000) s2 += String.fromCharCode.apply(null, by.subarray(j, j + 0x8000));
+          r.pcm = btoa(s2); r.sr = sr; r.ch = nc; }
+        cb(r); }, function(e){ cb({ err:String(e) }); }); }
   };
 })();
 // ปืนแสง พลาสมา เกาส์: เสียงแสง · ปืนใหญ่: เสียงหนัก · เอฟเฟกต์บางอย่างมีเสียงของมันเอง
@@ -28655,7 +28755,7 @@ function boardState(){
 }
 var RULES_V = 8;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 // the version people see (the home page reads it from this page): the rules version, then the fixes made within it
-var APP_VER = '8.1';
+var APP_VER = '8.2';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -28957,6 +29057,7 @@ function botTick(dt, step){
 
 // ---------- หน้าจอ ----------
 function show(id){
+  if (show.cur !== id){ show.cur = id; var pn = document.querySelector('#bt .panel'); if (pn) pn.scrollTop = 0; }
   ['scSetup','scLobby','scArmy','scDeploy','scPlay','scCustom'].forEach(function(s){ var el = $(s); if (el) el.classList.toggle('hide', s !== id); });
   var tb = $('btTurn'); if (tb) tb.classList.toggle('hide', id !== 'scPlay');
   var hd = $('btHud'); if (hd) hd.style.display = (id === 'scPlay') ? 'none' : '';
