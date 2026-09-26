@@ -308,6 +308,9 @@
         <div class="hrow" style="margin-top:6px"><h3>กองทัพของบอท</h3><div class="grp" id="btSpecOwn">
           <button data-o="0" class="on">สุ่มให้</button><button data-o="1">จัดเอง</button>
         </div></div>
+        <div class="hrow" style="margin-top:6px"><h3>จุดลงสนาม</h3><div class="grp" id="btSpecDep">
+          <button data-d="0" class="on">บอทหาเอง</button><button data-d="1">วางเอง</button>
+        </div></div>
       </div>
       <div id="btRules">
         <h3>ขนาดเกม · งบต่อทีม</h3>
@@ -486,6 +489,7 @@
       <div class="card" id="btDepWho"></div>
       <div id="btDepNote" class="warn"></div>
       <div class="row" style="margin-top:8px"><button class="sm wide" id="btDepAuto">หาจุดให้</button></div>
+      <div class="row" style="margin-top:6px"><button class="sm wide hide" id="btDepAll">ที่เหลือให้บอทหาจุดเอง · เริ่มเลย ›</button></div>
       <div class="row" style="margin-top:10px"><button class="sm" id="btDepBack" style="flex:0 0 96px">‹ กลับ</button><button class="go" id="btDepGo">ถัดไป ›</button></div>
     </div>
 
@@ -536,6 +540,8 @@
     <h3>เสียง</h3>
     <div class="row"><div class="grp" id="btSnd"><button data-s="sfx" class="on" aria-pressed="true">🔊 เอฟเฟกต์</button><button data-s="mus" class="on" aria-pressed="true">🎵 เพลง</button></div></div>
     <div class="row"><label class="sl">ดัง <input type="range" id="btVol" min="0" max="100" step="5" value="80"><em id="btVolV" style="font-style:normal;color:var(--ink);min-width:44px;text-align:right">80%</em></label></div>
+    <h3>กราฟิก</h3>
+    <div class="row"><div class="grp" id="btGfx"><button data-g="hi" aria-pressed="false">สูง</button><button data-g="mid" class="on" aria-pressed="true">กลาง</button><button data-g="lo" aria-pressed="false">ต่ำ · เครื่องช้า</button></div></div>
     <div class="note">1 นิ้วเกม = 1 ม. ในสนาม · ลากนิ้วเดียว = หมุนกล้อง · <b>สองนิ้วลาก = เลื่อนแมพ</b> · บีบ = ซูม · บนคอมคลิกขวาลาก หรือกดลูกศร/WASD ก็เลื่อนได้ · <span id="btVer"></span></div>
   </div>
  </div>
@@ -25123,20 +25129,27 @@ function canvasSize(){
   var r = cv.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), de = document.documentElement;
   if (w < 2) w = Math.max(de && de.clientWidth || 0, window.innerWidth || 0, window.screen && screen.width || 0, 320) - 24;
   if (h < 2) h = 480;   // the canvas's CSS height, used until the real one can be measured
-  DPR0 = Math.min(2, window.devicePixelRatio||1);
+  DPR0 = Math.min(gfx().dpr, window.devicePixelRatio||1);
   return { w: Math.max(w, 120), h: Math.max(h, 120), dpr: Math.round(DPR0*(RS_SHARP ? 1 : RS)*100)/100 };
 }
 // Render scale: a slow device draws the table into fewer pixels (the browser stretches it back to size). Filling the
 // facets is most of a frame, and it scales with the pixels. frame() lowers it while frames run slow and raises it again
 // once there is time to spare; it never goes under RS_MIN, and a test can pin it (BT.renderScale). Once the table has
 // stood still for a moment it is drawn once more at full resolution (sharpFrame): smooth while moving, sharp when still.
-var RS = 1, RS_MIN = 0.55, RS_PIN = null, DRAW_MS = 0, RS_WAIT = 0, RS_SHARP = false, IDLE_N = 0;
+// รอบ 7.1: ตั้งค่ากราฟิก สูง · กลาง · ต่ำ (เครื่องช้าเลือกต่ำ: วาดพิกเซลน้อยลง ตัวไกลเรียบลงเร็วขึ้น ไม่วาดซ้ำให้คมตอนหยุด)
+var GFX_OPT = { hi:{ dpr:2, rsMax:1, rsMin:0.7, face:16000, lod:1, sharp:true },
+                mid:{ dpr:2, rsMax:1, rsMin:0.55, face:9000, lod:1, sharp:true },
+                lo:{ dpr:1, rsMax:0.8, rsMin:0.45, face:4500, lod:1.6, sharp:false } };
+var GFX = (function(){ try { var g = localStorage.getItem('bt_gfx'); return GFX_OPT[g] ? g : 'mid'; } catch (e){ return 'mid'; } })();
+function gfx(){ return GFX_OPT[GFX]; }
+var RS = Math.min(1, GFX_OPT[GFX].rsMax), RS_MIN = GFX_OPT[GFX].rsMin, RS_PIN = null, DRAW_MS = 0, RS_WAIT = 0, RS_SHARP = false, IDLE_N = 0;
 function adaptScale(ms){
   DRAW_MS = DRAW_MS ? DRAW_MS*0.8 + ms*0.2 : ms;
   if (RS_PIN != null){ RS = RS_PIN; return; }
   if (RS_WAIT > 0){ RS_WAIT--; return; }
+  var mx = gfx().rsMax; if (RS > mx) RS = mx;
   if (DRAW_MS > 45 && RS > RS_MIN){ RS = Math.max(RS_MIN, Math.round((RS - 0.15)*100)/100); RS_WAIT = 12; }
-  else if (DRAW_MS < 16 && RS < 1){ RS = Math.min(1, Math.round((RS + 0.1)*100)/100); RS_WAIT = 45; }
+  else if (DRAW_MS < 16 && RS < mx){ RS = Math.min(mx, Math.round((RS + 0.1)*100)/100); RS_WAIT = 45; }
 }
 function resize(){
   var v = canvasSize(); if (v.w === W && v.h === H && v.dpr === DPR) return;
@@ -25756,8 +25769,8 @@ function planLod(){
 }
 // A crowded close view is thousands of facets from the figures alone: when the last frame drew more than FACE_BUDGET,
 // the size a figure needs on screen for each detail level goes up a little (and comes back down when there is room)
-var LOD_K = 1, FACE_BUDGET = 9000;
-function tuneLod(n){ LOD_K = n > FACE_BUDGET ? Math.min(2.6, LOD_K*1.08) : n < FACE_BUDGET*0.6 ? Math.max(1, LOD_K/1.04) : LOD_K; }   // รอบ 6: กองใหญ่ขึ้น ลดรายละเอียดได้ไกลกว่าเดิม
+var LOD_K = GFX_OPT[GFX].lod, FACE_BUDGET = GFX_OPT[GFX].face;
+function tuneLod(n){ LOD_K = n > FACE_BUDGET ? Math.min(Math.max(2.6, gfx().lod), LOD_K*1.08) : n < FACE_BUDGET*0.6 ? Math.max(gfx().lod, LOD_K/1.04) : LOD_K; }   // รอบ 6: กองใหญ่ขึ้น ลดรายละเอียดได้ไกลกว่าเดิม
 function drawUnit(u){
   if (!u.onScr) return;
   var X = u.act && u.act.xf, al = X && X.alpha != null ? X.alpha : 1;
@@ -28642,7 +28655,7 @@ function boardState(){
 }
 var RULES_V = 8;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 // the version people see (the home page reads it from this page): the rules version, then the fixes made within it
-var APP_VER = '8.0';
+var APP_VER = '8.1';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -29253,7 +29266,7 @@ function frame(ts){
   var t = ts || now(), dt = tPrev ? (t - tPrev)/1000 : 0; tPrev = t;
   if (dt > 0 && dt < 0.5 && !CLOCK_STOP) simStep(dt);        // a long gap (tab in the background) is skipped, not crammed in
   tickDice();
-  if (!dirty){ if (RS < 1 && RS_PIN == null && !RS_SHARP && ++IDLE_N > 15) sharpFrame(); return; }
+  if (!dirty){ if (RS < 1 && RS_PIN == null && !RS_SHARP && gfx().sharp && ++IDLE_N > 15) sharpFrame(); return; }
   IDLE_N = 0;
   if (RS_SHARP){ RS_SHARP = false; resize(); }               // moving again: back to the scale that keeps it smooth
   dirty = false; REDRAWS++;
@@ -29615,7 +29628,7 @@ function teamPicker(cur){
   return h + '</select>';
 }
 
-var depMode = false, ffaN = 4, perTeamN = 2, specN = 2, specOwn = false;   // specOwn: โหมดผู้ชม คนดูจัดกองให้บอทเอง
+var depMode = false, ffaN = 4, perTeamN = 2, specN = 2, specOwn = false, specDep = false;   // specDep: คนดูวางจุดลงสนามให้บอทเอง (รอบ 7.1)   // specOwn: โหมดผู้ชม คนดูจัดกองให้บอทเอง
 // โหมดกำหนดจำนวนทีมกับคนต่อทีม · โต๊ะต้องใหญ่พอจะวางจุดลงสนามให้ครบทุกคนด้วย
 function applyMode(){
   var spec = G.mode === 'spectator';
@@ -29634,7 +29647,7 @@ function applyMode(){
   // ผู้ชมเล่นในเครื่องอย่างเดียว บอทไม่ต้องจับเวลา — ซ่อนกล่องเล่นกับเพื่อนกับนาฬิกา
   if ((el = $('btClockRow'))) el.classList.toggle('hide', spec);
   if ((el = $('btNetBox'))) el.classList.toggle('hide', spec);
-  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : spec ? (specOwn ? 'ถัดไป · จัดกองทัพให้บอท ›' : 'เริ่มดูบอทตีกัน ›') : 'ถัดไป · จัดกองทัพ ›';
+  $('btNext').textContent = G.mode === 'custom' ? 'เข้าโต๊ะ ›' : spec ? (specOwn ? 'ถัดไป · จัดกองทัพให้บอท ›' : specDep ? 'ถัดไป · วางจุดลงสนาม ›' : 'เริ่มดูบอทตีกัน ›') : 'ถัดไป · จัดกองทัพ ›';
   growTableFor(G.teams * G.perTeam);
 }
 // ทุกคนต้องมีที่ลงของตัวเองห่างกัน 20 นิ้ว โต๊ะเล็กไปก็ขยายให้ แล้วบอกว่าขยายเพราะอะไร
@@ -29751,7 +29764,7 @@ $('btNew').addEventListener('click', newField);
 
 $('btNext').addEventListener('click', function(){
   if (G.mode === 'custom'){ G.on = false; units.length = 0; show('scCustom'); $('btTip').textContent = '· วางหน่วยเองได้อิสระ'; fitTable(); return; }
-  if (G.mode === 'spectator' && !specOwn){ spectate(); return; }
+  if (G.mode === 'spectator' && !specOwn){ if (specDep) specPlace(); else spectate(); return; }
   mkPlayers();
   var i; for (i=0;i<G.players.length;i++) autoList(i);      // ตั้งกองให้ก่อน แก้เองได้ทุกคน
   G.cur = 0; show('scArmy'); paintRoster(); });
@@ -29880,21 +29893,22 @@ $('btStart').addEventListener('click', function(){
     return;
   }
   if (G.cur < G.players.length - 1){ G.cur++; paintRoster(); return; }
-  if (G.mode === 'spectator'){ spectateBuilt(); return; }      // โหมดผู้ชมที่จัดกองเอง: บอทลงสนามเองแล้วเริ่มเลย
+  if (G.mode === 'spectator'){ if (specDep) toDeploy(); else spectateBuilt(); return; }      // โหมดผู้ชมที่จัดกองเอง: วางจุดเอง หรือบอทลงสนามเองแล้วเริ่มเลย
   toDeploy(); });
 
 function paintDeploy(){
   var P = G.players[G.cur]; if (!P) return;
   var who = $('btDepWho');
   who.innerHTML = '<div class="nm"><span class="dot" style="background:' + TEAM(P.team).ui + '"></span>' + esc(P.nm) + ' · ' + TEAM(P.team).nm + '</div>' +
-    '<div class="st">' + (P.dep ? 'วางไว้แล้ว — แตะที่อื่นเพื่อย้าย' : 'แตะบนโต๊ะว่าจะให้กองของคุณลงตรงไหน') +
+    '<div class="st">' + (P.dep ? 'วางไว้แล้ว — แตะที่อื่นเพื่อย้าย' : G.mode === 'spectator' ? 'แตะบนโต๊ะว่าจะให้กองนี้ลงตรงไหน' : 'แตะบนโต๊ะว่าจะให้กองของคุณลงตรงไหน') +
     '<br>ห่างทีมอื่นอย่างน้อย ' + DEP_FOE + '" · ห่างเพื่อนร่วมทีม ' + DEP_MATE + '"</div>';
   $('btDepGo').disabled = !P.dep;
+  $('btDepAll').classList.toggle('hide', G.mode !== 'spectator' || NET.on);
   if (NET.on){
     $('btDepGo').textContent = NET.owner ? 'ส่งจุด · เริ่มรบ ›' : 'ส่งจุดลงสนาม ›';
     $('btDepBack').textContent = '‹ จัดกองทัพ';
   } else {
-    $('btDepGo').textContent = (G.cur >= G.players.length - 1) ? 'เริ่มรบ ›' : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
+    $('btDepGo').textContent = (G.cur >= G.players.length - 1) ? (G.mode === 'spectator' ? 'เริ่มดูบอทตีกัน ›' : 'เริ่มรบ ›') : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
     $('btDepBack').textContent = G.cur > 0 ? '‹ ' + G.players[G.cur-1].nm : '‹ กลับ';
   }
 }
@@ -29913,6 +29927,7 @@ $('btDepBack').addEventListener('click', function(){
   $('btDepNote').textContent = '';
   if (NET.on){ show('scArmy'); paintRoster(); return; }
   if (G.cur > 0){ G.cur--; paintDeploy(); dirty = true; return; }
+  if (G.mode === 'spectator' && !specOwn){ show('scSetup'); syncRulesUI(); dirty = true; return; }   // สุ่มกองให้แล้วมาวางจุด: กลับไปหน้าตั้งสนาม
   show('scArmy'); paintRoster(); });
 $('btDepGo').addEventListener('click', function(){
   $('btDepNote').textContent = '';
@@ -29925,7 +29940,9 @@ $('btDepGo').addEventListener('click', function(){
     return;
   }
   if (G.cur < G.players.length - 1){ G.cur++; paintDeploy(); dirty = true; return; }
+  if (G.mode === 'spectator') SPEC.paused = false;
   startMatch(); });
+$('btDepAll').addEventListener('click', function(){ $('btDepNote').textContent = ''; SPEC.paused = false; startMatch(); });   // จุดที่ยังไม่วาง deploy() หาให้
 
 function startMatch(){
   G.on = true; G.over = false; G.turn = 0; G.round = 1; G.sel = null; G.multi = null; G.act = null; G.phase = 'cmd';
@@ -30004,6 +30021,13 @@ function spectate(){
   var i; for (i=0;i<G.players.length;i++){ autoList(i); G.players[i].dep = null; }
   SPEC.paused = false; startMatch();
 }
+// รอบ 7.1: คนดูวางจุดลงสนามเอง: กองสุ่มตาม SEED แล้วไปหน้าเลือกจุดลงสนาม ทีละฝ่าย
+function specPlace(){
+  if (G.mode !== 'spectator') setMode('spectator');
+  mkPlayers();
+  var i; for (i=0;i<G.players.length;i++) autoList(i);
+  toDeploy();
+}
 // the viewer built each bot's army on the army page: keep those lists, let the bots pick their own ground, and start
 function spectateBuilt(){
   var i; for (i=0;i<G.players.length;i++) G.players[i].dep = null;
@@ -30011,6 +30035,18 @@ function spectateBuilt(){
 }
 $('btSpecOwn').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
   specOwn = b.dataset.o === '1'; setOn(this, b); applyMode(); });
+$('btSpecDep').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return;
+  specDep = b.dataset.d === '1'; setOn(this, b); applyMode(); });
+// กราฟิก: เลือกแล้วเครื่องจำไว้ มีผลทันที
+function paintGfx(){ Array.prototype.forEach.call($('btGfx').querySelectorAll('button'), function(b){ var on = b.dataset.g === GFX;
+  b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }); }
+function setGfx(v){ if (!GFX_OPT[v]) return; var o = GFX_OPT[v]; GFX = v;
+  FACE_BUDGET = o.face; RS_MIN = o.rsMin; LOD_K = o.lod; RS = RS_PIN != null ? RS_PIN : o.rsMax;   // the frame after tunes them again
+  RS_WAIT = 0; SPR = {}; SPR_N = 0;
+  try { localStorage.setItem('bt_gfx', v); } catch (e) {}
+  paintGfx(); W = 0; resize(); dirty = true; }
+$('btGfx').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (b) setGfx(b.dataset.g); });
+paintGfx();
 $('btPause').addEventListener('click', function(){ SPEC.paused = !SPEC.paused; paintPlay(); });
 $('btSpd').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; SPEC.speed = +b.dataset.s; paintPlay(); });
 // ทีละจังหวะ: หยุดไว้ แล้วให้บอทเล่นหนึ่งอย่าง — เวลาที่ใหญ่มากผ่านตัวจับเวลาได้ครั้งเดียว แล้วมันตั้งเวลาใหม่เอง
@@ -30021,6 +30057,7 @@ $('btStep').addEventListener('click', function(){ if (!watching() || G.over) ret
   if (PEND.length) flushPend(true); else { botTick(1e9, true); flushPend(true); }
   paintPlay(); dirty = true; });
 $('btAgain').addEventListener('click', function(){ G.on = false; units.length = 0; newField();
+  if (specDep){ if (specOwn && G.players.length) toDeploy(); else specPlace(); return; }   // วางจุดเองอีกรอบบนสนามใหม่
   if (specOwn && G.players.length) spectateBuilt(); else spectate(); });          // the armies the viewer built fight again
 
 $('btMode').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (!b) return; mode = b.dataset.m; setOn($('btMode'), b); if (mode !== 'measure') measure = null; dirty = true; });
@@ -30057,6 +30094,7 @@ window.BT = { cam:cam, table:table, units:units, G:G, TYPES:TYPES,
   stop:function(i){ var u = units[i]; if (u) unitStop(u); }, walking:function(){ return units.filter(function(u){ return u.mv; }).length; },
   draw:drawScene, faces:function(){ return FACES.length; },
   renderScale:function(v){ RS_PIN = v == null ? null : +v; if (v != null) RS = +v; dirty = true; return RS; }, adapt:function(ms){ adaptScale(ms); return RS; },
+  gfx:function(v){ if (v) setGfx(v); return { g:GFX, dpr:DPR0, rs:RS, face:FACE_BUDGET, lod:LOD_K, rsMin:RS_MIN }; },
   sprites:function(on){ if (on != null){ SPR_ON = !!on; SPR = {}; SPR_N = 0; dirty = true; } return { on:SPR_ON, n:SPR_N, lodK:LOD_K, rs:RS, ms:DRAW_MS, sharp:RS_SHARP }; }, size:function(w){ table.w = w; table.d = Math.round(w*0.72/2)*2; buildTerrain(); genProps(); dirty = true; },
   // ตะขอสำหรับเทสต์อัตโนมัติ
   pan:panScreen, panBy:panBy, fit:fitTable, quit:quitGame,
