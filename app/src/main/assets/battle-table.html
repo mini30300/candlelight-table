@@ -30965,7 +30965,7 @@ var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล�
   { k:'ta', nm:'จักรวรรดิผิวฟ้า', d:'ปืนพัลส์ยิงไกล ชุดรบ โดรน — ชี้เป้าแล้วยิงรวม' },
   { k:'cx', nm:'อัศวินทรยศกับปีศาจ', d:'อัศวินเกราะที่ทรยศไปรับใช้ปีศาจ กับปีศาจจากนรก — ตีประชิดได้ 6 เข้าเพิ่ม' } ];
 function emptyList(){ var out = [], i; for (i=0;i<TYPES.length;i++) out.push(0); return out; }
-function fitList(L){ var out = emptyList(), i; if (L) for (i=0;i<out.length;i++) out[i] = clamp(L[i] | 0, 0, TYPES[i].sec ? 1 : SLOT_MAX); return out; }   // ตัวลับได้คนละหนึ่ง อย่างอื่นไม่เกิน SLOT_MAX ทุกเครื่องตัดเหมือนกัน
+function fitList(L){ var out = emptyList(), i; if (L) for (i=0;i<out.length;i++) out[i] = clamp(L[i] | 0, 0, TYPES[i].sec || TYPES[i].lk ? 1 : SLOT_MAX); return out; }   // ตัวลับกับหน่วยลับได้คนละหนึ่ง อย่างอื่นไม่เกิน SLOT_MAX ทุกเครื่องตัดเหมือนกัน
 // กองทัพของรายชื่อนี้ ดูจากหน่วยที่มี · ยังว่างอยู่ก็ใช้ที่เลือกไว้ (ค่าตั้งต้น กองทหาร)
 function facOf(L, dflt){ if (L) for (var i=0;i<TYPES.length;i++) if ((L[i]|0) > 0 && !TYPES[i].sec) return TYPES[i].fac; return dflt || 'mod'; }
 function radOfType(T){ return (T && T.r) || 0.8; }
@@ -31033,8 +31033,8 @@ function d6(){ return DQ.length ? DQ.shift() : 1 + Math.floor(Math.random()*6); 
 function gx(u){ return u.gx != null ? u.gx : u.x; }
 function gz(u){ return u.gz != null ? u.gz : u.z; }
 function dist2(a, b){ return Math.hypot(gx(a)-gx(b), gz(a)-gz(b)); }
-function ptsOf(pi){ var P = G.players[pi]; if (!P) return 0;       // ตัวลับไม่นับแต้ม
-  var t = 0, i; for (i=0;i<TYPES.length;i++) if (!TYPES[i].sec) t += (P.list[i]||0) * TYPES[i].pts; return t; }
+function ptsOf(pi){ var P = G.players[pi]; if (!P) return 0;       // ตัวลับกับหน่วยลับไม่นับแต้ม
+  var t = 0, i; for (i=0;i<TYPES.length;i++) if (!TYPES[i].sec && !TYPES[i].lk) t += (P.list[i]||0) * TYPES[i].pts; return t; }
 function teamPts(t){ var ps = teamPlayers(t), n = 0, i; for (i=0;i<ps.length;i++) n += ptsOf(ps[i].id); return n; }
 // มีหน่วยในกองไหม (ตัวลับไม่คิดแต้ม แต่นับเป็นหน่วย: กองที่มีแค่ดูมไม่ใช่กองว่าง จะไม่โดนสุ่มกองมาแทน)
 function hasUnits(pi){ var P = G.players[pi], i; if (!P || !P.list) return false; for (i=0;i<TYPES.length;i++) if ((P.list[i]|0) > 0) return true; return false; }
@@ -34032,7 +34032,7 @@ function boardState(){
 }
 var RULES_V = 9;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 // the version people see (the home page reads it from this page): the rules version, then the fixes made within it
-var APP_VER = '9.0';
+var APP_VER = '9.1';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -34364,14 +34364,14 @@ function paintRoster(){
     if (anyCh && !T.sec && !T.lk && (T.ch || '') !== chap){ chap = T.ch || ''; h += chapHead(chap); }
     var G1 = T.gun, M1 = T.mel;
     h += '<div class="unit"><span class="sw" style="background:rgb(' + C.plate.join(',') + ')"></span>' +
-      '<span><span class="nm">' + (T.sec ? '🔥 ' : T.lk ? '✦ ' : '') + T.nm + ' <em class="pts">×' + T.n + ' · ' + fmtPts(T.pts) + ' แต้ม' + (T.sec ? ' · ตัวลับ ไม่นับแต้ม' : T.lk ? ' · หน่วยลับ' : '') + '</em>' +
+      '<span><span class="nm">' + (T.sec ? '🔥 ' : T.lk ? '✦ ' : '') + T.nm + ' <em class="pts">×' + T.n + ' · ' + fmtPts(T.pts) + ' แต้ม' + (T.sec ? ' · ตัวลับ ไม่นับแต้ม' : T.lk ? ' · หน่วยลับ ไม่นับแต้ม' : '') + '</em>' +
       (SKINS[T.k] && (P.skin || {})[T.k] ? ' <em class="pts">· สกิน' + SKINS[T.k][(P.skin || {})[T.k]].nm + '</em>' : '') + '</span>' +
       '<span class="st">เดิน ' + T.mv + '" · ' + (G1 ? G1.nm + ' ' + G1.rng + '" ' + G1.a + ' นัด' : 'ต้องบุกเข้าประชิด') + ' · ' + M1.nm + ' ' + M1.a + ' ครั้ง' + (T.heal ? ' · รักษาเพื่อน' : '') + '</span>' +
       (abilityText(T) ? '<span class="st ab">' + abilityText(T) + '</span>' : '') +
       (G.detail ? '<span class="st">ทน ' + T.T + ' · เกราะ ' + (T.sv > 6 ? 'ไม่มี' : T.sv + '+') + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc +
         (G1 ? ' · ยิง ' + (G1.tr ? 'โดนอัตโนมัติ' : 'เข้า ' + G1.bs + '+') + ' แรง ' + G1.s + ' เจาะ ' + G1.ap + ' ดาเมจ ' + G1.d : '') + ' · ตี เข้า ' + M1.ws + '+ แรง ' + M1.s + ' เจาะ ' + M1.ap + ' ดาเมจ ' + M1.d + ' — ' + T.d + '</span>' : '') +
       '</span><span class="pm"><button class="pv" data-pv="' + i + '" aria-label="ดูหน้าตา ' + T.nm + '" title="ดูหน้าตา">👁</button><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
-      '</span><button data-i="' + i + '" data-v="1"' + (totalModels(s) + T.n > armyCap() || n >= (T.sec ? 1 : SLOT_MAX) ? ' disabled title="เต็มแล้ว"' : '') + '>+</button></span></div>';
+      '</span><button data-i="' + i + '" data-v="1"' + (totalModels(s) + T.n > armyCap() || n >= (T.sec || T.lk ? 1 : SLOT_MAX) ? ' disabled title="เต็มแล้ว"' : '') + '>+</button></span></div>';
     if (T.sec || T.lk){ hs += h.slice(h.lastIndexOf('<div class="unit">')); h = h.slice(0, h.lastIndexOf('<div class="unit">')); }   // ตัวลับกับหน่วยลับขึ้นบนสุด
   }
   host.innerHTML = hs + h;
@@ -34454,7 +34454,7 @@ function abilityText(T){ var a = [];
   if (T.fac === 'el') a.push('สมาธิรบ: วิ่งแล้วยังยิงได้');
   if (T.fac === 'de') a.push('ยิ่งรบยิ่งดุ: ตั้งแต่รอบ ' + PAIN_ROUND + ' ตีประชิดเข้า +1 และวิ่งแล้วบุกได้');
   if (T.fac === 'cx') a.push('สัญญาปีศาจ: ตีประชิดทอยเข้าได้ 6 เข้าเพิ่มอีกครั้ง');
-  if (T.lk) a.push('✦ หน่วยลับ');
+  if (T.lk) a.push('✦ หน่วยลับ ไม่นับแต้ม มีได้คนละตัว');
   return a.join(' · '); }
 function sqCard(s){
   var T = TY(s.k), ms = sqModels(s), hp = 0, P = G.players[s.pl]; ms.forEach(function(m){ hp += m.hp; });
@@ -35173,7 +35173,7 @@ $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest(
   if (b.dataset.pv != null){ openPreview(+b.dataset.pv); return; }
   var i = +b.dataset.i, v = +b.dataset.v, P = G.players[G.cur]; if (!P) return;
   if (v > 0 && totalModels(G.cur) + TYPES[i].n > armyCap()){ popDice('ตัวหมากเต็มแล้ว<br><span style="font-size:12px">คนละไม่เกิน ' + armyCap() + ' ตัว เครื่องจะได้ไม่ช้า<br>แต้มที่เหลือใช้กับตัวใหญ่ ๆ ได้</span>'); return; }
-  if (v > 0 && (P.list[i] || 0) >= (TYPES[i].sec ? 1 : SLOT_MAX)){ popDice(TYPES[i].sec ? 'ตัวลับมีได้คนละตัว' : 'หน่วยนี้ครบ ' + SLOT_MAX + ' ชุดแล้ว'); return; }
+  if (v > 0 && (P.list[i] || 0) >= (TYPES[i].sec || TYPES[i].lk ? 1 : SLOT_MAX)){ popDice(TYPES[i].sec ? 'ตัวลับมีได้คนละตัว' : TYPES[i].lk ? 'หน่วยลับมีได้คนละตัว' : 'หน่วยนี้ครบ ' + SLOT_MAX + ' ชุดแล้ว'); return; }
   P.list[i] = Math.max(0, (P.list[i]||0) + v); paintRoster(); });
 
 // สุ่มทัพ: ใช้ตัวจัดทัพของบอท (คนจริงสุ่มด้วย Math.random ก็ได้ กองที่ได้ถูกส่งขึ้นห้องเป็นรายชื่ออยู่แล้ว)
