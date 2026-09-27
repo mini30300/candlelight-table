@@ -28659,25 +28659,28 @@ kit('kne2_h', { pose:ka_assaultPose, build:function(Wd){ kcb_initiate(Wd, true);
 
 // ---- Round 8: kits_gm.js ----
 // ════════ รอบ 8 · หุ่นรบนักบินฟ้า (tagm: the blue-skinned empire's secret giant battle mech, group gm_) ════════
-// หุ่นรบยักษ์สูง 16 เมตร แบบของเราเอง: เกราะขาว แผงสีทีม (ดิบเป็นเขียวน้ำทะเล) ชิ้นสีทราย ขีดส้ม
-// A humanoid battle mech of our own design: white armour, teal panels (the team colour in play), sand parts, orange
-// accents. A small head with a twin-eye visor, one swept crest and two small side antennae; the chest cockpit open, the
-// blue-skinned pilot inside in a white helmet and an orange flight suit; a long beam rifle in the right hand, a kite shield
-// on the left forearm, an energy sword (the hilt rides on the backpack; drawn for melee, its blade glows), a backpack
-// whose thrusters glow, and flame when it flies.
+// หุ่นรบยักษ์สูง 16 เมตร ตามภาพที่เจ้าของเกมให้มา: ตัวขาว อกสีทีม ปีกบิน โล่แดง ดาบลำแสงชมพู — ไม่มีชื่อ โลโก้ ตัวเลข หรือเครื่องหมาย
+// A slim heroic white battle mech after the owner's reference photo (silhouette and colour layout only: no names, logos,
+// numbers or markings). Head: white, a yellow V antenna, a small red centre crest, twin green eyes, face vents, a red
+// chin. Body: the chest block in the team colour with white vents, a red centre and waist, big white shoulders, white
+// forearms, grey joints and hands, white skirts with a red crotch and a yellow V, long white legs with grey knees, red and
+// white feet. A flight pack: two big wings spread in a V (white root, team colour, long red blade, team tip), glowing
+// thrusters that flame when it flies, two beam-saber hilts on top. A long grey and black beam rifle with a scope, a tall
+// red shield with a white rim and a yellow stripe, a beam saber with a magenta blade.
+// Weapon switch (render only, from ACT): at rest and shooting the rifle is in the right hand and both hilts sit on the
+// pack; in melee (ACT.blade, or the page's 'lunge' which the kit swings itself) the right hand holds a saber drawn from the
+// pack (its hilt gone from there), the blade lit, and the rifle hangs clipped to the right hip; after it, back again.
 // Built on the rig like the knights' titans and drawn gm_MK.S times over: the legs are solved again from the rig's hips
-// and planted feet set a little wider (the big feet never cross in a stride), the arms are the rig's (the page's aim,
-// swing and brace pose them). The rifle's muzzle sits where the page puts the flash: GUN[gm_MK.gun].len (+0.03) beyond
-// the right hand along the aim (gm_MK.gun is 'gmrifle'; the kit registers GUN.gmrifle when the page has none). ANIM it is
-// built for:
-//   tagm:{ r:'fire', g:'gmrifle', hand:'R', m:'swing', sh:1 }  (a 'lunge' melee swings the sword too; a two-handed fire
-//   lays the rifle between the hands)
-// Palette: ivory (white armour), bone (sand), gold (orange accents), steel, glow, fire and skin are natural keys and keep
-// their colour on every side; plate / trim (teal: chest, collar, crest, shoulder tops, cuffs, shins, feet, backpack, the
-// shield's field), under (the dark frame), gun and visor take the team colour.
-// Detail: the page picks a level from how tall 1.8 m looks on screen, so the mech framed on screen is drawn at level 2
-// and far off at level 3 (a picture made from level 2): eyes, crest, pilot, vents and glows stay to level 2 (gm_mkMid);
-// panel lines and small hardware are drawn at levels 0-1 (gm_mkHi); at level 3 the limbs are boxes (gm_mkN).
+// and planted feet set a little wider (the big feet never cross), the arms are the rig's (the page's aim, swing and brace
+// pose them). The rifle's muzzle sits where the page puts the flash: GUN[gm_MK.gun].len (+0.03) beyond the right hand
+// along the aim (the kit registers GUN.gmrifle when the page has none). ANIM it is built for:
+//   tagm:{ r:'fire', g:'gmrifle', hand:'R', m:'swing', sh:1 }   (FLY_K tagm:{ alt:1.6, hz:0, legs:1 })
+// Palette: natural keys keep their colour on every side: ivory (white armour), leather (red), gold (yellow), stone (grey
+// joints, hands, knees, rifle), steel (metal), glow (green eyes and lens), fire / tusk (thruster flames), feather / hair
+// (the saber's magenta blade); plate / trim (the chest, the wings' panels) take the team colour, as do under / visor / gun.
+// Detail: the page picks a level from how tall 1.8 m looks, so the mech framed on screen is drawn at level 2 and far off
+// at level 3 (a picture made from level 2): eyes, V antenna, wings, hilts, stripes stay to level 2 (gm_mkMid); panel lines
+// and small hardware are drawn at levels 0-1 (gm_mkHi); at level 3 the limbs are boxes (gm_mkN).
 
 // gun: the GUN key the page fires the rifle with (its len puts the muzzle where the flash is)
 var gm_MK = { S:9.8, h:1.66, a:0.395, b:0.4, hipX:0.035, footX:0.05, blade:0.74, gun:'gmrifle' };
@@ -28696,9 +28699,7 @@ function gm_mkPart(W, T, n, capA, capB, zc){
   ke_loft(W, rings, null, capA, capB, function(j, i){ var k = rows[j][5]; return typeof k === 'function' ? k(i, n) : k; });
   return rings;
 }
-// facet i of an n-ring: the front, the back, or the side toward s (+1 left, -1 right)
-function gm_mkCos(i, n){ return Math.cos(TAU*i/n); }
-function gm_mkSide(i, n, s, c){ return s*Math.sin(TAU*i/n) > (c == null ? 0.9 : c); }
+function gm_mkCos(i, n){ return Math.cos(TAU*i/n); }             // facet i of an n-ring: 1 at the front, -1 at the back
 // quad a b c d (a b the bottom edge, d c the top, local points) cut into m bands bottom to top, kinds k(band)
 function gm_mkBands(W, a, b, c, d, m, k, out){
   for (var j=0;j<m;j++){ var t0 = j/m, t1 = (j + 1)/m;
@@ -28715,26 +28716,34 @@ function gm_mkCen(r){ var c = [0, 0, 0]; for (var i=0;i<r.length;i++) c = R.add(
 function gm_mkFacet(rings, j, i){ var n = rings[j].length, i2 = (i + 1) % n;
   var a = rings[j][i], b = rings[j][i2], c = rings[j+1][i2], d = rings[j+1][i], m = lerp3(lerp3(a, b, 0.5), lerp3(c, d, 0.5), 0.5);
   return { a:a, b:b, c:c, d:d, n:R.norm(R.sub(m, lerp3(gm_mkCen(rings[j]), gm_mkCen(rings[j+1]), 0.5))), m:m }; }
-// a thruster in frame W from local p along local dir: a dark throat, a steel bell (radius r, length len) with an orange
-// rim, its glowing mouth; on: a flame swelling out of the bell, white-hot, then mint to its tip (length pl)
+// the part of a convex 2D polygon [[u, v], ..] on one side of the line u = u0 (keep +1: u >= u0, -1: u <= u0)
+function gm_mkClipU(P, u0, keep){
+  var out = [], n = P.length, i;
+  for (i=0;i<n;i++){ var a = P[i], b = P[(i+1) % n], ia = keep*(a[0] - u0) >= 0, ib = keep*(b[0] - u0) >= 0;
+    if (ia) out.push(a);
+    if (ia !== ib){ var t = (u0 - a[0])/(b[0] - a[0]); out.push([u0, a[1] + (b[1] - a[1])*t]); } }
+  return out;
+}
+// a thruster in frame W from local p along local dir: a dark throat, a steel bell (radius r, length len), its glowing
+// mouth; on: a flame swelling out of the bell, white-hot, then pale blue to its tip (length pl)
 function gm_mkJet(W, p, dir, r, len, on, pl){
   var F = frameOn(fw(W, p), R.qrot(W.q, dir), R.qrot(W.q, [0, 0, 1])), n = gm_mkN(8, 6);
   J(F, function(){
     armTube(null, 0.01, r*0.78, r*0.78, -len*0.35, r*0.92, r*0.92, n, 0, TAU, 'under');
     armTube(null, -len*0.35, r*0.92, r*0.92, -len, r*1.3, r*1.3, n, 0, TAU, 'steel');
-    if (gm_mkHi()) armTube(null, -len*0.86, r*1.26, r*1.26, -len, r*1.33, r*1.33, n, 0, TAU, 'gold');
-    kn_ngon(null, -len*0.9, r*1.18, r*1.18, n, 'glow', true);
+    if (gm_mkHi()) armTube(null, -len*0.88, r*1.27, r*1.27, -len, r*1.33, r*1.33, n, 0, TAU, 'stone');
+    kn_ngon(null, -len*0.9, r*1.18, r*1.18, n, 'tusk', true);
     if (on){ var m = gm_mkN(6, 5);
       armTube(null, -len*0.9, r*1.12, r*1.12, -len - pl*0.22, r*1.42, r*1.42, m, 0, TAU, 'fire');
       armTube(null, -len - pl*0.22, r*1.42, r*1.42, -len - pl*0.55, r*0.95, r*0.95, m, 0, TAU, 'fire');
-      armTube(null, -len - pl*0.55, r*0.95, r*0.95, -len - pl, 0, 0, m, 0, TAU, 'glow'); }
+      armTube(null, -len - pl*0.55, r*0.95, r*0.95, -len - pl, 0, 0, m, 0, TAU, 'tusk'); }
   });
 }
 
 // ---------- palette ----------
-SOLID.tagm = { ivory:[236,236,229], plate:[64,176,172], trim:[40,126,128], bone:[214,196,150], gold:[242,132,42],
-  under:[60,64,76], visor:[22,24,30], gun:[74,78,90], steel:[118,124,136], glow:[132,252,216], fire:[226,255,246],
-  skin:[118,140,170], eye:[20,22,28] };
+SOLID.tagm = { ivory:[238,238,232], plate:[80,138,236], trim:[54,98,190], leather:[214,38,44], gold:[250,206,44],
+  stone:[134,138,148], steel:[98,102,112], under:[72,76,88], visor:[24,26,32], gun:[62,64,72], glow:[110,255,150],
+  fire:[224,242,255], tusk:[140,205,255], feather:[255,64,196], hair:[255,208,244] };
 
 // ---------- pose ----------
 // the rifle held low at the right side, the muzzle ahead and down; the shield arm hanging a little forward
@@ -28758,250 +28767,232 @@ function gm_mkLeg(Wd, S){
 var gm_FOOT = [[-0.12, 0.06, 0.026, 0.037, -0.033], [-0.05, 0.07, 0.057, 0.055, -0.015], [0.055, 0.075, 0.043, 0.037, -0.033],
   [0.16, 0.071, 0.028, 0.026, -0.044], [0.228, 0.054, 0.013, 0.021, -0.049]];
 function gm_mkLegArmour(L, fly){
-  var T = L.T, Sh = L.Sh, Ft = L.Ft, s = L.s, hi = gm_mkHi(), mid = gm_mkMid(), n = gm_mkN(8, 6);
+  var T = L.T, Sh = L.Sh, Ft = L.Ft, hi = gm_mkHi(), mid = gm_mkMid(), n = gm_mkN(8, 6);
   var a = R.len(R.sub(L.K, L.H)), b = R.len(R.sub(L.A, L.K));
   // hip joint and the thigh: a squarish white shell, a panel line round it
-  if (hi) armDome(T, [0, 0, 0], 0.066, -90, 90, 8, 3, null, 'under');
-  gm_mkPart(T, [[0.02, 0.075, 0.075, 0.07, 0.6, 'ivory'], [-a*0.42, 0.083, 0.085, 0.077, 0.55, 'under', 1], [-a*0.42 - 0.007, 0.083, 0.085, 0.077, 0.55, 'ivory', 1],
-    [-a + 0.05, 0.069, 0.071, 0.066, 0.6, null]], n, 'ivory', null);
-  // the knee joint and a sand knee guard, a wedge jutting forward over it (on the shin: it turns with the knee)
-  if (mid) armDome(Sh, [0, 0, 0], 0.058, -90, 90, gm_mkN(8, 6), hi ? 3 : 2, null, 'under');
-  gm_mkPart(Sh, [[0.074, 0.046, 0.016, 0.018, 0.6, 'bone'], [0.016, 0.066, 0.038, 0.03, 0.55, 'bone'], [-0.03, 0.064, 0.034, 0.03, 0.55, 'under', 1],
-    [-0.036, 0.064, 0.034, 0.03, 0.55, 'bone', 1], [-0.088, 0.06, 0.028, 0.03, 0.6, null]], n, 'bone', 'bone', 0.072);
-  // the shin: the biggest part of the leg, flaring to the ankle; a teal panel down its front, a vent in the calf
-  var vent = function(i, n2){ return gm_mkCos(i, n2) < -0.9 ? (fly ? 'glow' : 'under') : gm_mkCos(i, n2) > 0.9 ? 'plate' : 'ivory'; };
-  gm_mkPart(Sh, [[-0.02, 0.07, 0.072, 0.07, 0.6, 'ivory'], [-0.118, 0.082, 0.082, 0.089, 0.55, 'under', 1], [-0.125, 0.082, 0.082, 0.089, 0.55, 'ivory', 1],
-    [-0.14, 0.084, 0.083, 0.09, 0.55, vent], [-0.27, 0.094, 0.087, 0.102, 0.5, function(i, n2){ return gm_mkCos(i, n2) > 0.9 ? 'plate' : 'ivory'; }],
-    [-b + 0.04, 0.098, 0.092, 0.094, 0.5, 'ivory'], [-b - 0.012, 0.088, 0.086, 0.084, 0.55, null]], n, null, 'under');
+  if (hi) armDome(T, [0, 0, 0], 0.066, -90, 90, 8, 3, null, 'stone');
+  gm_mkPart(T, [[0.02, 0.072, 0.073, 0.068, 0.6, 'ivory'], [-a*0.42, 0.079, 0.082, 0.074, 0.55, 'stone', 1], [-a*0.42 - 0.007, 0.079, 0.082, 0.074, 0.55, 'ivory', 1],
+    [-a + 0.05, 0.066, 0.068, 0.064, 0.6, null]], n, 'ivory', null);
+  // the knee joint and a grey knee guard jutting forward over it (on the shin: it turns with the knee)
+  if (mid) armDome(Sh, [0, 0, 0], 0.058, -90, 90, gm_mkN(8, 6), hi ? 3 : 2, null, 'stone');
+  gm_mkPart(Sh, [[0.074, 0.046, 0.016, 0.018, 0.6, 'stone'], [0.016, 0.064, 0.038, 0.03, 0.55, 'stone'], [-0.03, 0.062, 0.034, 0.03, 0.55, 'under', 1],
+    [-0.036, 0.062, 0.034, 0.03, 0.55, 'stone', 1], [-0.088, 0.058, 0.028, 0.03, 0.6, null]], n, 'stone', 'stone', 0.072);
+  // the shin: long and white, flaring to the ankle, a grey panel line, a vent in the calf (it glows when it flies)
+  var vent = function(i, n2){ return gm_mkCos(i, n2) < -0.9 ? (fly ? 'tusk' : 'stone') : 'ivory'; };
+  gm_mkPart(Sh, [[-0.02, 0.068, 0.07, 0.068, 0.6, 'ivory'], [-0.118, 0.08, 0.08, 0.087, 0.55, 'stone', 1], [-0.125, 0.08, 0.08, 0.087, 0.55, 'ivory', 1],
+    [-0.14, 0.082, 0.081, 0.088, 0.55, vent], [-0.27, 0.092, 0.085, 0.1, 0.5, 'ivory'],
+    [-b + 0.04, 0.096, 0.09, 0.092, 0.5, 'ivory'], [-b - 0.012, 0.086, 0.084, 0.082, 0.55, null]], n, null, 'stone');
   if (fly && mid) gm_mkJet(Sh, [0, -0.25, -0.085], R.norm([0, -1, -0.5]), 0.022, 0.035, true, 0.2);
-  if (hi) ke_ram(fw(T, [0, -a*0.5, -0.066]), fw(Sh, [0, -0.13, -0.086]), 0.016, 'under');             // the knee's ram
-  // the foot: a big wedge, teal over the instep, white at the toe, a dark sole
+  if (hi) ke_ram(fw(T, [0, -a*0.5, -0.064]), fw(Sh, [0, -0.13, -0.084]), 0.016, 'stone');             // the knee's ram
+  // the foot: red, white over the instep, a dark sole
   var FR = gm_FOOT.map(function(r){ return taa_ringZ(r[0], r[1], r[2], r[3]/0.95, n, 0.6, r[4]); });
-  ke_loft(Ft, FR, null, 'plate', 'ivory', function(j, i){ return i === n/2 ? 'under' : j >= 2 ? 'ivory' : 'plate'; });
-  if (hi){ armBox(Ft, [0, 0.0, -0.035], 0.05, 0.03, 0.045, 'under');                              // the ankle joint
-    armBox(Ft, [0, -0.02, -0.132], 0.036, 0.03, 0.018, 'gold'); }                                  // an orange heel block
+  ke_loft(Ft, FR, null, 'leather', 'leather', function(j, i){ return i === n/2 ? 'visor' : j === 1 && gm_mkCos(i, n) > 0.2 ? 'ivory' : 'leather'; });
+  if (hi) armBox(Ft, [0, 0.0, -0.035], 0.05, 0.03, 0.045, 'stone');                               // the ankle joint
 }
 
 // ---------- pelvis, skirt armour and abdomen ----------
 function gm_mkWaist(Wd, legs, fly){
   var Pv = Wd.pelvis, Sp = Wd.spine, hi = gm_mkHi(), mid = gm_mkMid(), n = gm_mkN(8, 6);
-  gm_mkPart(Sp, [[-0.13, 0.098, 0.078, 0.074, 0.6, 'under'], [-0.05, 0.108, 0.086, 0.078, 0.6, 'under'], [0.03, 0.122, 0.092, 0.082, 0.6, null]], n, null, null);
-  armBox(Sp, [0, -0.07, 0.083], 0.062, 0.03, 0.012, 'bone');                                       // the abdominal plates
-  if (hi) armBox(Sp, [0, -0.012, 0.089], 0.068, 0.026, 0.012, 'bone');
-  gm_mkPart(Pv, [[-0.045, 0.13, 0.098, 0.092, 0.55, 'under'], [0.035, 0.158, 0.117, 0.107, 0.5, 'ivory'], [0.1, 0.12, 0.092, 0.087, 0.6, null]], n, 'under', 'under');
-  armBox(Pv, [0, -0.05, 0.078], 0.046, 0.062, 0.034, 'bone');                                      // the crotch block
-  if (mid) armBox(Pv, [0, -0.035, 0.114], 0.024, 0.026, 0.004, 'gold');
+  gm_mkPart(Sp, [[-0.13, 0.094, 0.076, 0.072, 0.6, 'stone'], [-0.05, 0.104, 0.084, 0.076, 0.6, 'stone'], [0.03, 0.118, 0.09, 0.08, 0.6, null]], n, null, null);
+  armBox(Sp, [0, -0.07, 0.081], 0.06, 0.03, 0.012, 'leather');                                     // the red waist plates
+  if (hi) armBox(Sp, [0, -0.012, 0.087], 0.066, 0.026, 0.012, 'leather');
+  gm_mkPart(Pv, [[-0.045, 0.126, 0.096, 0.09, 0.55, 'stone'], [0.035, 0.152, 0.114, 0.104, 0.5, 'ivory'], [0.1, 0.116, 0.09, 0.085, 0.6, null]], n, 'stone', 'stone');
+  armBox(Pv, [0, -0.05, 0.078], 0.046, 0.064, 0.034, 'leather');                                   // the red crotch block
+  if (mid) [-1, 1].forEach(function(s){                                                             // its yellow V
+    armBox(frameOn(fw(Pv, [s*0.02, -0.06, 0.114]), R.qrot(Pv.q, R.norm([s*0.42, 1, 0])), R.qrot(Pv.q, [0, 0, 1])), [0, 0, 0], 0.009, 0.042, 0.004, 'gold'); });
   // the front and side skirts ride the thighs; the rear skirt hangs from the belt
   legs.forEach(function(L){ var s = L.s, T = L.T;
-    var ft = [-s*0.076, 0.12, 0.124], fo = [s*0.088, 0.12, 0.117], bo = [s*0.082, -0.17, 0.142], bi = [-s*0.064, -0.172, 0.148];
-    if (mid) gm_mkBands(T, bi, bo, fo, ft, 3, function(j){ return j === 0 ? 'plate' : 'ivory'; }, [0, 0, 1]);   // a teal hem
-    else gm_q(T, ft, fo, bo, bi, 'ivory', [0, 0, 1]);
-    gm_q(T, ft, fo, bo, bi, 'under', [0, 0, -1]);
-    if (hi){ var d = [0, 0, -0.016]; gm_q(T, bi, bo, R.add(bo, d), R.add(bi, d), 'plate', [0, -1, 0]);
+    var ft = [-s*0.074, 0.12, 0.122], fo = [s*0.086, 0.12, 0.115], bo = [s*0.08, -0.17, 0.14], bi = [-s*0.062, -0.172, 0.146];
+    gm_q(T, ft, fo, bo, bi, 'ivory', [0, 0, 1]); gm_q(T, ft, fo, bo, bi, 'stone', [0, 0, -1]);
+    if (hi){ var d = [0, 0, -0.016]; gm_q(T, bi, bo, R.add(bo, d), R.add(bi, d), 'ivory', [0, -1, 0]);
       gm_q(T, fo, bo, R.add(bo, d), R.add(fo, d), 'ivory', [s, 0, 0]); }
-    var st = [s*0.094, 0.11, 0.082], sb = [s*0.094, 0.11, -0.082], bb = [s*0.106, -0.13, -0.074], bf = [s*0.106, -0.13, 0.072];
-    if (hi) gm_mkBands(T, bf, bb, sb, st, 7, function(j){ return j === 2 || j === 4 ? 'under' : 'ivory'; }, [s, 0, 0]);
+    var st = [s*0.092, 0.11, 0.08], sb = [s*0.092, 0.11, -0.08], bb = [s*0.104, -0.13, -0.072], bf = [s*0.104, -0.13, 0.07];
+    if (hi) gm_mkBands(T, bf, bb, sb, st, 7, function(j){ return j === 2 || j === 4 ? 'stone' : 'ivory'; }, [s, 0, 0]);
     else gm_q(T, st, sb, bb, bf, 'ivory', [s, 0, 0]);
-    gm_q(T, st, sb, bb, bf, 'under', [-s, 0, 0]); });
-  gm_sheet(Pv, [0.132, 0.07, -0.108], [-0.132, 0.07, -0.108], [-0.12, -0.15, -0.138], [0.12, -0.15, -0.138], 'ivory', 'under', [0, 0, -1]);
-  if (hi || (fly && mid)) [-1, 1].forEach(function(s){ gm_mkJet(Pv, [s*0.066, -0.075, -0.112], R.norm([0, -1, -0.35]), 0.022, 0.035, fly, 0.18); });
+    gm_q(T, st, sb, bb, bf, 'stone', [-s, 0, 0]); });
+  gm_sheet(Pv, [0.13, 0.07, -0.106], [-0.13, 0.07, -0.106], [-0.118, -0.15, -0.136], [0.118, -0.15, -0.136], 'ivory', 'stone', [0, 0, -1]);
+  if (hi || (fly && mid)) [-1, 1].forEach(function(s){ gm_mkJet(Pv, [s*0.066, -0.075, -0.11], R.norm([0, -1, -0.35]), 0.022, 0.035, fly, 0.18); });
 }
 
-// ---------- chest, cockpit and pilot ----------
-var gm_CHEST = [[-0.25, 0.13, 0.105, 0.09, 0.6], [-0.19, 0.158, 0.14, 0.105, 0.55], [-0.01, 0.2, 0.165, 0.125, 0.5],
-  [0.07, 0.207, 0.148, 0.12, 0.5], [0.125, 0.14, 0.095, 0.095, 0.6]];
+// ---------- chest: closed, the team colour, white vents, a red centre ----------
+var gm_CHEST = [[-0.25, 0.124, 0.105, 0.09, 0.6], [-0.19, 0.15, 0.14, 0.105, 0.55], [-0.01, 0.19, 0.165, 0.125, 0.5],
+  [0.07, 0.197, 0.148, 0.12, 0.5], [0.125, 0.134, 0.095, 0.095, 0.6]];
+var gm_CHEST_NEAR = [gm_CHEST[0], gm_CHEST[1], gm_CHEST[2], gm_CHEST[3], [0.078, 0.192, 0.143, 0.118, 0.5], gm_CHEST[4]];   // + a panel line
 function gm_mkChest(Wd){
-  var C = Wd.chest, hi = gm_mkHi(), mid = gm_mkMid(), n = hi ? 12 : 8, rings = gm_mkRings(gm_CHEST, n);
+  var C = Wd.chest, hi = gm_mkHi(), n = hi ? 12 : 8, rings = gm_mkRings(hi ? gm_CHEST_NEAR : gm_CHEST, n);
   ke_loft(C, rings, null, 'under', 'plate', function(j, i){
-    if (j === 1 && i === 0) return null;                                        // the open cockpit
-    if (j === 2 && (i === 1 || i === n - 1)) return hi ? null : 'gold';         // the intakes (cut into slats near)
-    if (j === 3) return 'trim';
-    return 'plate'; });
+    if (j <= 1 && i === 0) return 'leather';                                    // the red centre
+    if (j === 2 && (i === 1 || i === n - 1)) return hi ? null : 'ivory';        // the vents (cut into slats near)
+    if (j === 3) return hi ? 'under' : 'trim';                                  // near: a dark line over the shoulder slope
+    return j === 4 ? 'trim' : 'plate'; });
   if (hi) [1, n - 1].forEach(function(i){ var f = gm_mkFacet(rings, 2, i);
-    gm_mkBands(C, f.a, f.b, f.c, f.d, 5, function(j){ return j % 2 ? 'visor' : 'gold'; }, f.n); });
-  // the cockpit: a dark recess behind the open front
-  var A = rings[1][0], B = rings[1][1], Cc = rings[2][1], D = rings[2][0], zb = 0.03;
-  var bk = function(p){ return [p[0]*0.86, p[1], zb]; }, A2 = bk(A), B2 = bk(B), C2 = bk(Cc), D2 = bk(D);
-  kn_q(C, A, B, B2, A2, 'under', [0, 1, 0]); kn_q(C, D, Cc, C2, D2, 'visor', [0, -1, 0]);
-  kn_q(C, B, Cc, C2, B2, 'visor', [-1, 0, 0]); kn_q(C, A, D, D2, A2, 'visor', [1, 0, 0]);
-  kn_q(C, A2, B2, C2, D2, 'visor', [0, 0, 1]);
-  // the hatch, folded down and forward from the sill: sand inside (up) with a dark tread, the chest's teal outside (down)
-  var f = R.norm([0, -0.26, 1]), Lh = 0.15, A3 = R.add([D[0]*0.95, A[1], A[2]], R.mul(f, Lh)), B3 = R.add([Cc[0]*0.95, B[1], B[2]], R.mul(f, Lh));
-  var up = R.norm([0, 1, 0.26]), dn = R.mul(up, -0.014);
-  if (hi) gm_mkCols(C, A, B, B3, A3, 5, function(j){ return j === 2 ? 'visor' : 'bone'; }, up); else kn_q(C, A, B, B3, A3, 'bone', up);
-  kn_q(C, R.add(A, dn), R.add(B, dn), R.add(B3, dn), R.add(A3, dn), 'plate', R.mul(up, -1));
-  kn_q(C, A3, B3, R.add(B3, dn), R.add(A3, dn), 'plate', f);
-  if (hi) [[A, A3, -1], [B, B3, 1]].forEach(function(e){ kn_q(C, e[0], e[1], R.add(e[1], dn), R.add(e[0], dn), 'plate', [e[2], 0, 0]); });
-  // collar round the neck, a raised guard behind the head, the neck
-  gm_mkPart(C, [[0.085, 0.104, 0.09, 0.085, 0.7, 'trim'], [0.132, 0.088, 0.076, 0.07, 0.7, null]], gm_mkN(8, 6), null, null);
-  if (mid) gm_sheet(C, [0.085, 0.11, -0.07], [-0.085, 0.11, -0.07], [-0.066, 0.19, -0.094], [0.066, 0.19, -0.094], 'plate', 'under', [0, 0.3, -1]);
-  armTube(Wd.neck, -0.03, 0.042, 0.04, 0.1, 0.036, 0.034, gm_mkN(8, 5), 0, TAU, 'under');
-}
-// the pilot in the cockpit, facing out: a white helmet, the grey-blue face, an orange flight suit, hands on the sticks
-function gm_mkPilot(Wd){
-  var C = Wd.chest, hi = gm_mkHi(), mid = gm_mkMid(), z = 0.094;
-  J(C, function(){
-    if (hi){ armBox(null, [0, -0.125, z - 0.034], 0.034, 0.062, 0.008, 'bone');                // the seat back, the headrest
-      armBox(null, [0, -0.07, z - 0.036], 0.022, 0.016, 0.008, 'bone'); }
-    armBox(null, [0, -0.141, z], 0.027, 0.034, 0.019, 'gold');                                  // the flight suit
-    if (hi) armBox(null, [0, -0.106, z + 0.001], 0.03, 0.006, 0.016, 'gold');                   // shoulders
-    armDome(null, [0, -0.083, z + 0.004], 0.021, -40, 90, hi ? 8 : 6, hi ? 3 : 2, mid ? [-55, 55, 30] : null, 'ivory');   // the helmet, open at the face
-    if (mid) armBox(null, [0, -0.089, z + 0.011], 0.013, 0.012, 0.011, 'skin');                  // the face
-    if (hi){ armBox(null, [0, -0.07, z + 0.017], 0.015, 0.0025, 0.006, 'visor');               // the visor, raised
-      armBox(null, [0, -0.083, z - 0.019], 0.006, 0.014, 0.004, 'gold'); }                      // a stripe on the helmet
-  });
-  if (hi) [-1, 1].forEach(function(s){                                                           // arms to the sticks
-    var sh = fw(C, [s*0.028, -0.113, z]), hd = fw(C, [s*0.034, -0.147, z + 0.042]);
-    rod(sh, hd, 0.008, 0.007, 4, 'gold'); rod(hd, fw(C, [s*0.034, -0.186, z + 0.045]), 0.004, 0.004, 4, 'steel');
-    armBox({ p:hd, q:C.q }, [0, 0, 0], 0.007, 0.007, 0.007, 'under');
-    rod(fw(C, [s*0.013, -0.175, z]), fw(C, [s*0.015, -0.176, z + 0.05]), 0.01, 0.009, 4, 'gold'); });
+    gm_mkBands(C, f.a, f.b, f.c, f.d, 5, function(j){ return j % 2 ? 'stone' : 'ivory'; }, f.n); });
+  // collar round the neck, the neck
+  gm_mkPart(C, [[0.085, 0.1, 0.088, 0.083, 0.7, 'trim'], [0.132, 0.085, 0.074, 0.068, 0.7, null]], gm_mkN(8, 6), null, null);
+  armTube(Wd.neck, -0.03, 0.042, 0.04, 0.1, 0.036, 0.034, gm_mkN(8, 5), 0, TAU, 'stone');
 }
 
-// ---------- head: a small helmet, a twin-eye visor, one swept crest, two side antennae ----------
-// band 1 a dark line under the eyes; band 2 the eyes: glowing either side of a dark bridge on the front facet and on
-// round the corners (near, the corner facets cut into a slanted glowing blade over a dark corner)
+// ---------- head: white, a yellow V antenna, a small red crest, twin green eyes, face vents, a red chin ----------
 function gm_mkHead(Wd){
   var H = Wd.head, hi = gm_mkHi(), mid = gm_mkMid(), n = hi ? 10 : 8;
   var eyeK = function(i, n2){ return i === 0 ? null : (i === 1 || i === n2 - 1) ? (hi ? null : 'glow') : gm_mkCos(i, n2) > 0.2 ? 'visor' : 'ivory'; };
-  var rings = gm_mkPart(H, [[-0.056, 0.056, 0.052, 0.06, 0.8, function(i){ return i === 0 ? (hi ? null : 'bone') : 'ivory'; }],
-    [-0.02, 0.067, 0.065, 0.071, 0.75, function(i, n2){ return gm_mkCos(i, n2) > 0.5 ? 'visor' : 'ivory'; }], [-0.008, 0.071, 0.069, 0.075, 0.75, eyeK],
-    [0.017, 0.074, 0.072, 0.078, 0.75, 'ivory'], [0.058, 0.068, 0.065, 0.074, 0.75, 'ivory'], [0.09, 0.038, 0.038, 0.05, 0.8, null]], n, 'under', 'ivory');
+  var rings = gm_mkPart(H, [[-0.056, 0.054, 0.052, 0.06, 0.8, function(i){ return i === 0 ? (hi ? null : 'stone') : 'ivory'; }],
+    [-0.02, 0.065, 0.065, 0.071, 0.75, function(i, n2){ return gm_mkCos(i, n2) > 0.5 ? 'visor' : 'ivory'; }], [-0.008, 0.069, 0.069, 0.075, 0.75, eyeK],
+    [0.017, 0.072, 0.072, 0.078, 0.75, 'ivory'], [0.058, 0.066, 0.065, 0.074, 0.75, 'ivory'], [0.09, 0.038, 0.038, 0.05, 0.8, null]], n, 'stone', 'ivory');
   var ef = gm_mkFacet(rings, 2, 0);                                                                // the eyes each side of the bridge
   gm_mkCols(H, ef.a, ef.b, ef.c, ef.d, [0, 0.41, 0.59, 1], function(j){ return j === 1 ? 'visor' : 'glow'; }, ef.n);
-  if (hi){ var f = gm_mkFacet(rings, 0, 0);                                                         // the mouth plate's vents
-    gm_mkCols(H, f.a, f.b, f.c, f.d, 5, function(j){ return j % 2 ? 'visor' : 'bone'; }, f.n);
+  if (hi){ var f = gm_mkFacet(rings, 0, 0);                                                         // the face vents
+    gm_mkCols(H, f.a, f.b, f.c, f.d, 5, function(j){ return j % 2 ? 'visor' : 'stone'; }, f.n);
     var eL = gm_mkFacet(rings, 2, 1), eR = gm_mkFacet(rings, 2, n - 1);                            // the eyes, slanted
     kn_q(H, eL.b, eL.c, eL.d, null, 'glow', eL.n); kn_q(H, eL.a, eL.b, eL.d, null, 'visor', eL.n);
     kn_q(H, eR.a, eR.c, eR.d, null, 'glow', eR.n); kn_q(H, eR.a, eR.b, eR.c, null, 'visor', eR.n); }
-  // a brow ledge over the eyes, cheek guards framing the mouth plate, a chin
+  // a brow over the eyes, cheek guards, the red chin
   armBox(H, [0, 0.022, 0.07], 0.043, 0.0055, 0.011, 'ivory');
   if (mid) [-1, 1].forEach(function(s){
-    gm_sheet(H, [s*0.072, 0.006, 0.018], [s*0.056, 0.004, 0.062], [s*0.04, -0.052, 0.054], [s*0.056, -0.054, 0.012], 'ivory', 'under', [s, 0, 0.35]); });
-  if (hi) armBox(H, [0, -0.06, 0.044], 0.02, 0.008, 0.012, 'ivory');
-  // the crest: one fin rising from the brow and sweeping back over the crown, its tip orange
-  var B = [[0, 0.034, 0.068], [0, 0.066, 0.058], [0, 0.088, 0.022], [0, 0.088, -0.034], [0, 0.072, -0.066]];
-  var T = [[0, 0.05, 0.078], [0, 0.108, 0.044], [0, 0.146, -0.02], [0, 0.163, -0.092], [0, 0.156, -0.152]];
-  if (mid){ gm_fin(H, B.slice(0, 4), T.slice(0, 4), 0.0095, 0.005, 'plate'); gm_fin(H, B.slice(3), T.slice(3), 0.0085, 0.0045, 'gold'); }
-  else gm_fin(H, [B[0], B[2], B[4]], [T[0], T[2], T[4]], 0.009, 0.005, 'plate');
-  // ear pods and the two antennae
+    gm_sheet(H, [s*0.07, 0.006, 0.018], [s*0.055, 0.004, 0.062], [s*0.04, -0.052, 0.054], [s*0.055, -0.054, 0.012], 'ivory', 'stone', [s, 0, 0.35]); });
+  armBox(H, [0, -0.061, 0.047], 0.021, 0.01, 0.014, 'leather');
+  // the red centre crest and the yellow V: two thin blades from the brow, up and out past the crown
+  armBox(H, [0, 0.043, 0.07], 0.009, 0.019, 0.011, 'leather');
   [-1, 1].forEach(function(s){
-    if (hi){ armRollX(H, [s*0.073, 0.014, -0.006], 0.009, 0.025, 8, 'ivory');
-      kn_disc(H, [s*0.082, 0.014, -0.006], [0, 1, 0], [0, 0, s], 0.021, 8, 0, 'gold'); }
-    var a = fw(H, [s*0.071, 0.034, -0.004]), b = fw(H, [s*0.093, 0.122, -0.058]);
-    if (mid) rod(a, b, 0.0055, 0.003, 4, 'steel');
-    if (hi) rod(b, R.add(b, R.mul(R.norm(R.sub(b, a)), 0.022)), 0.004, 0.0015, 4, 'gold'); });
+    var B = [s*0.008, 0.036, 0.076], T = [s*0.11, 0.165, 0.055], ax = R.norm(R.sub(T, B)), w = R.norm([ax[1], -ax[0], 0]), t = [0, 0, 0.0035];
+    var p = [R.add(B, R.mul(w, 0.011)), R.add(T, R.mul(w, 0.0025)), R.sub(T, R.mul(w, 0.0025)), R.sub(B, R.mul(w, 0.011))];
+    kn_q(H, R.add(p[0], t), R.add(p[1], t), R.add(p[2], t), R.add(p[3], t), 'gold', [0, 0, 1]);
+    kn_q(H, R.sub(p[0], t), R.sub(p[1], t), R.sub(p[2], t), R.sub(p[3], t), 'gold', [0, 0, -1]);
+    if (hi) [[0, 1], [2, 3], [1, 2]].forEach(function(e){ var a = p[e[0]], b = p[e[1]], o = R.sub(lerp3(a, b, 0.5), lerp3(B, T, 0.5));
+      kn_q(H, R.add(a, t), R.add(b, t), R.sub(b, t), R.sub(a, t), 'gold', R.len(o) > 1e-5 ? o : ax); }); });
+  // ear pods
+  if (hi) [-1, 1].forEach(function(s){ armRollX(H, [s*0.071, 0.014, -0.006], 0.009, 0.025, 8, 'ivory');
+    kn_disc(H, [s*0.08, 0.014, -0.006], [0, 1, 0], [0, 0, s], 0.019, 8, 0, 'stone'); });
 }
 
 // ---------- shoulders and arms ----------
 function gm_mkShoulder(Wd, S){
   var s = S === 'L' ? 1 : -1, Sj = Wd['shoulder'+S], n = gm_mkN(8, 6);
   var F = { p:Sj.p, q:R.qslerp(Wd.chest.q, Sj.q, 0.4) };                // follows the arm part way
-  var stripe = function(i, n2){ return gm_mkSide(i, n2, s, 0.6) ? 'gold' : 'ivory'; };
   J(F, function(){ taa_at([s*0.098, 0.012, 0], function(){
-    gm_mkPart(null, [[-0.11, 0.074, 0.087, 0.087, 0.5, 'ivory'], [0.012, 0.089, 0.107, 0.103, 0.45, 'ivory'], [0.05, 0.09, 0.108, 0.104, 0.45, stripe, 1],
-      [0.064, 0.09, 0.108, 0.104, 0.45, 'ivory', 1], [0.086, 0.086, 0.1, 0.096, 0.45, 'plate'], [0.118, 0.064, 0.077, 0.073, 0.5, null]], n, 'under', 'plate'); }); });
+    gm_mkPart(null, [[-0.11, 0.074, 0.087, 0.087, 0.5, 'ivory'], [0.012, 0.089, 0.107, 0.103, 0.45, 'ivory'], [0.05, 0.09, 0.108, 0.104, 0.45, 'stone', 1],
+      [0.057, 0.09, 0.108, 0.104, 0.45, 'ivory', 1], [0.086, 0.086, 0.1, 0.096, 0.45, 'ivory'], [0.118, 0.064, 0.077, 0.073, 0.5, null]], n, 'stone', 'ivory'); }); });
 }
 function gm_mkArm(Wd, S){
   var s = S === 'L' ? 1 : -1, Sj = Wd['shoulder'+S], E = Wd['elbow'+S], Wr = Wd['wrist'+S], hi = gm_mkHi(), mid = gm_mkMid(), n = gm_mkN(8, 6);
-  if (hi) armTube(Sj, -0.04, 0.045, 0.045, -0.27, 0.042, 0.042, 8, 0, TAU, 'under');
-  gm_mkPart(Sj, [[-0.1, 0.058, 0.059, 0.057, 0.6, 'bone'], [-0.245, 0.054, 0.056, 0.054, 0.6, null]], n, 'bone', 'bone');
-  if (mid) armDome(E, [0, 0, 0], 0.05, -90, 90, gm_mkN(8, 6), hi ? 3 : 2, null, 'under');
+  if (hi) armTube(Sj, -0.04, 0.045, 0.045, -0.27, 0.042, 0.042, 8, 0, TAU, 'stone');
+  gm_mkPart(Sj, [[-0.1, 0.056, 0.057, 0.055, 0.6, 'ivory'], [-0.245, 0.052, 0.054, 0.052, 0.6, null]], n, 'stone', 'ivory');
+  if (mid) armDome(E, [0, 0, 0], 0.05, -90, 90, gm_mkN(8, 6), hi ? 3 : 2, null, 'stone');
   if (hi){ armBox(E, [0, 0.0, -0.05], 0.036, 0.04, 0.012, 'ivory');                              // elbow guard
-    ke_ram(fw(Sj, [s*0.012, -0.15, -0.052]), fw(E, [s*0.012, -0.085, -0.06]), 0.013, 'under');       // its ram
-    if (s < 0) armBox(E, [-0.072, -0.1, 0.0], 0.008, 0.055, 0.03, 'trim'); }                         // a rail outboard
-  gm_mkPart(E, [[-0.015, 0.058, 0.06, 0.058, 0.55, 'ivory'], [-0.13, 0.068, 0.07, 0.066, 0.5, 'ivory'], [-0.17, 0.071, 0.073, 0.069, 0.5, 'under', 1],
-    [-0.177, 0.071, 0.073, 0.069, 0.5, 'plate'], [-0.235, 0.065, 0.067, 0.063, 0.55, null]], n, 'under', 'plate');
-  J(Wr, function(){                                                                              // the fist
-    armBox(null, [0, -0.045, 0.004], 0.037, 0.047, 0.041, 'under');
+    ke_ram(fw(Sj, [s*0.012, -0.15, -0.052]), fw(E, [s*0.012, -0.085, -0.06]), 0.013, 'stone'); }    // its ram
+  gm_mkPart(E, [[-0.015, 0.058, 0.06, 0.058, 0.55, 'ivory'], [-0.13, 0.068, 0.07, 0.066, 0.5, 'ivory'], [-0.17, 0.071, 0.073, 0.069, 0.5, 'stone', 1],
+    [-0.177, 0.071, 0.073, 0.069, 0.5, 'ivory'], [-0.235, 0.065, 0.067, 0.063, 0.55, null]], n, 'stone', 'ivory');
+  J(Wr, function(){                                                                              // the grey fist
+    armBox(null, [0, -0.045, 0.004], 0.037, 0.047, 0.041, 'stone');
     if (hi){ armBox(null, [s*0.038, -0.044, 0.004], 0.006, 0.036, 0.035, 'ivory');
-      for (var f=0;f<4;f++) armBox(null, [-s*0.006, -0.099, -0.027 + f*0.018], 0.031, 0.017, 0.0078, 'under');
-      armBox(null, [-s*0.02, -0.058, 0.045], 0.012, 0.024, 0.01, 'under'); }
-    else armBox(null, [-s*0.004, -0.098, 0.004], 0.032, 0.018, 0.037, 'under');
+      for (var f=0;f<4;f++) armBox(null, [-s*0.006, -0.099, -0.027 + f*0.018], 0.031, 0.017, 0.0078, 'stone');
+      armBox(null, [-s*0.02, -0.058, 0.045], 0.012, 0.024, 0.01, 'stone'); }
+    else armBox(null, [-s*0.004, -0.098, 0.004], 0.032, 0.018, 0.037, 'stone');
   });
 }
 
-// ---------- the kite shield on the left forearm ----------
+// ---------- the tall red shield on the left forearm ----------
 // Laid out in its own plane (u right as seen from the front, v up: its point always hangs down), just off the forearm:
 // at rest the face looks out and ahead; the brace turns it to ACT.shield. A white rim, a raised ridge down the middle,
-// the teal field in two halves round an orange diamond (every piece its own face, so none sorts behind another).
-var gm_KITE = [[0, -0.41], [0.1, -0.26], [0.155, -0.09], [0.17, 0.07], [0.152, 0.165], [0.085, 0.21], [0, 0.222],
-  [-0.085, 0.21], [-0.152, 0.165], [-0.17, 0.07], [-0.155, -0.09], [-0.1, -0.26]];
+// the red field in two halves, a yellow stripe down the right one (every piece its own face: none sorts behind another)
+var gm_KITE = [[0, -0.53], [0.075, -0.39], [0.125, -0.2], [0.148, 0.0], [0.15, 0.16], [0.128, 0.235], [0.062, 0.262], [0, 0.268],
+  [-0.062, 0.262], [-0.128, 0.235], [-0.15, 0.16], [-0.148, 0.0], [-0.125, -0.2], [-0.075, -0.39]];
 function gm_mkShield(Wd){
   var E = Wd.elbowL, Wr = Wd.wristL, C = Wd.chest, hi = gm_mkHi(), mid = gm_mkMid();
   var face = R.qrot(C.q, R.norm([0.72, 0.0, 0.7]));
   if (ACT && ACT.shield){ var w = ACT.shieldW == null ? 1 : ACT.shieldW; face = R.norm(R.add(R.mul(face, 1 - w), R.mul(R.norm(ACT.shield), w))); }
   var v = R.norm(R.sub([0, 1, 0], R.mul(face, face[1]))), u = R.cross(v, face), mount = lerp3(E.p, Wr.p, 0.45), c = R.add(mount, R.mul(face, 0.07));
-  var rg = 0.028, th = 0.028;
-  function P(a, lift){ return R.add(R.add(c, R.add(R.mul(u, a[0]), R.mul(v, a[1] - 0.04))), R.mul(face, (lift || 0) + rg*(1 - Math.abs(a[0])/0.17))); }
-  var O = gm_KITE, n = O.length, I = O.map(function(p){ return [p[0]*0.83, p[1] < 0 ? p[1]*0.87 + 0.003 : p[1]*0.84]; }), i;
-  for (i=0;i<n;i++){ var i2 = (i + 1) % n;                                                      // the rim, a little proud
+  var rg = 0.026, th = 0.026;
+  function P(a, lift){ return R.add(R.add(c, R.add(R.mul(u, a[0]), R.mul(v, a[1] - 0.05))), R.mul(face, (lift || 0) + rg*(1 - Math.abs(a[0])/0.15))); }
+  var O = gm_KITE, n = O.length, I = O.map(function(p){ return [p[0]*0.8, p[1] < 0 ? p[1]*0.9 + 0.004 : p[1]*0.86]; }), i;
+  for (i=0;i<n;i++){ var i2 = (i + 1) % n;                                                      // the white rim, a little proud
     kn_q(kn_ID, P(O[i], 0.004), P(O[i2], 0.004), P(I[i2], 0.004), P(I[i], 0.004), 'ivory', face); }
-  // the field, split down the ridge, a notch for the diamond
-  var dT = [0, 0.12], dB = [0, -0.03], dS = 0.055, dM = 0.045;
-  [1, -1].forEach(function(sd){
-    var pts = [I[0]], k;
-    if (sd > 0){ for (k=1;k<=6;k++) pts.push(I[k]); } else { for (k=11;k>=6;k--) pts.push(I[k]); }
-    if (mid){ pts.push(dT); pts.push([sd*dS, dM]); pts.push(dB); }
-    kn_polyOut(kn_ID, pts.map(function(p){ return P(p, 0.002); }), 'plate', face);
-    if (mid) kn_polyOut(kn_ID, [dT, [sd*dS, dM], dB].map(function(p){ return P(p, 0.002); }), 'gold', face); });
-  kn_polyOut(kn_ID, O.map(function(p){ return P(p, -th); }), 'under', R.mul(face, -1));        // the back
+  var half = function(sd){ var pts = [I[0]], k; if (sd > 0){ for (k=1;k<=7;k++) pts.push(I[k]); } else { for (k=13;k>=7;k--) pts.push(I[k]); } return pts; };
+  var poly = function(pts, kind){ if (pts.length > 2) kn_polyOut(kn_ID, pts.map(function(p){ return P(p, 0.002); }), kind, face); };
+  poly(half(-1), 'leather');
+  var Hr = half(1);
+  if (mid){ poly(gm_mkClipU(Hr, 0.03, -1), 'leather'); poly(gm_mkClipU(gm_mkClipU(Hr, 0.03, 1), 0.064, -1), 'gold'); poly(gm_mkClipU(Hr, 0.064, 1), 'leather'); }
+  else poly(Hr, 'leather');
+  kn_polyOut(kn_ID, O.map(function(p){ return P(p, -th); }), 'stone', R.mul(face, -1));        // the back
   if (hi){ for (i=0;i<n;i++){ var j2 = (i + 1) % n, e = R.sub(lerp3(P(O[i]), P(O[j2]), 0.5), c);   // the edge
       kn_q(kn_ID, P(O[i], 0.004), P(O[j2], 0.004), P(O[j2], -th), P(O[i], -th), 'ivory', e); }
-    armBox(frameOn(lerp3(mount, c, 0.5), face, v), [0, 0, 0], 0.03, 0.035, 0.05, 'under'); }   // the mount
+    armBox(frameOn(lerp3(mount, c, 0.5), face, v), [0, 0, 0], 0.03, 0.035, 0.05, 'stone'); }   // the mount
 }
 
-// ---------- backpack: the teal housing under a sand top, two big bells down and back, two smaller nozzles high on its back ----------
+// ---------- the flight pack: a white body, two bells, two big wings in a V ----------
+// a wing (s +1 left, -1 right): a long flat blade from the pack's upper back, up and out past the shoulder, in zones
+// from the root: white, the team colour, a long red blade, a team-colour tip; both faces, its edges near
+function gm_mkWing(C, s){
+  var hi = gm_mkHi(), R0 = [s*0.07, 0.03, -0.262], dS = R.norm([s*0.74, 0.6, -0.3]), dC = R.norm([s*0.6, -0.74, 0]), L = 0.64, t = 0.014;
+  var nb = R.norm(R.cross(dS, dC)); if (nb[2] > 0) nb = R.mul(nb, -1);        // the back face's normal
+  var X = function(a, b, o){ return R.add(R.add(R.add(R0, R.mul(dS, a)), R.mul(dC, b)), R.mul(nb, o || 0)); };
+  var bt = function(a){ return 0.23 - 0.12*a/L; };                               // the chord, root to tip
+  var Z = [[0, 0.1, 'ivory'], [0.1, 0.24, 'plate'], [0.24, L - 0.11, 'leather'], [L - 0.11, L, 'plate']];
+  Z.forEach(function(z, k){ var a0 = z[0], a1 = z[1], tipA = k === Z.length - 1 ? 0.08 : 0;
+    var q = [[a0, 0], [a1 + tipA, -0.015*(tipA ? 1 : 0)], [a1, bt(a1)], [a0, bt(a0)]];
+    kn_q(C, X(q[0][0], q[0][1]), X(q[1][0], q[1][1]), X(q[2][0], q[2][1]), X(q[3][0], q[3][1]), z[2], nb);
+    kn_q(C, X(q[0][0], q[0][1], -t), X(q[1][0], q[1][1], -t), X(q[2][0], q[2][1], -t), X(q[3][0], q[3][1], -t), z[2], R.mul(nb, -1));
+    if (hi){ kn_q(C, X(q[0][0], q[0][1]), X(q[1][0], q[1][1]), X(q[1][0], q[1][1], -t), X(q[0][0], q[0][1], -t), z[2], R.mul(dC, -1));   // leading edge
+      kn_q(C, X(q[3][0], q[3][1]), X(q[2][0], q[2][1]), X(q[2][0], q[2][1], -t), X(q[3][0], q[3][1], -t), z[2], dC); }   // trailing edge
+    if (tipA) kn_q(C, X(q[1][0], q[1][1]), X(q[2][0], q[2][1]), X(q[2][0], q[2][1], -t), X(q[1][0], q[1][1], -t), z[2], dS); });
+  if (hi) armBox(frameOn(fw(C, R.add(R0, R.mul(dS, 0.03))), R.qrot(C.q, dS), R.qrot(C.q, nb)), [0, 0, 0], 0.035, 0.045, 0.03, 'stone');   // the hinge
+}
 function gm_mkPack(Wd, fly){
   var C = Wd.chest, hi = gm_mkHi(), mid = gm_mkMid(), n = gm_mkN(8, 6);
-  gm_mkPart(C, [[-0.21, 0.11, 0.065, 0.06, 0.5, 'plate'], [-0.02, 0.13, 0.075, 0.07, 0.45, 'plate'], [0.035, 0.129, 0.074, 0.069, 0.45, 'under', 1],
-    [0.042, 0.128, 0.073, 0.068, 0.45, 'plate', 1], [0.07, 0.125, 0.07, 0.065, 0.45, 'bone'], [0.11, 0.095, 0.05, 0.05, 0.55, null]], n, 'under', 'bone', -0.195);
+  gm_mkPart(C, [[-0.21, 0.108, 0.063, 0.058, 0.5, 'stone'], [-0.1, 0.122, 0.07, 0.066, 0.45, 'ivory'], [0.035, 0.126, 0.072, 0.067, 0.45, 'stone', 1],
+    [0.042, 0.125, 0.071, 0.066, 0.45, 'ivory', 1], [0.07, 0.12, 0.068, 0.063, 0.45, 'ivory'], [0.105, 0.09, 0.048, 0.048, 0.55, null]], n, 'stone', 'ivory', -0.195);
+  gm_mkWing(C, 1); gm_mkWing(C, -1);
   [-1, 1].forEach(function(s){
-    gm_mkJet(C, [s*0.068, -0.19, -0.232], R.norm([s*0.1, -0.75, -0.66]), 0.036, 0.11, fly, 0.42);
-    if (mid) gm_mkJet(C, [s*0.104, 0.03, -0.258], R.norm([s*0.25, -0.5, -1]), 0.03, 0.07, fly, 0.15); });
+    gm_mkJet(C, [s*0.066, -0.19, -0.232], R.norm([s*0.1, -0.75, -0.66]), 0.036, 0.11, fly, 0.42);
+    if (hi) gm_mkJet(C, [s*0.1, -0.06, -0.258], R.norm([s*0.25, -0.5, -1]), 0.028, 0.065, fly, 0.15); });
 }
 
 // ---------- weapons ----------
-// the beam rifle: grip in the right fist, the muzzle at GUN[gm_MK.gun].len (+0.03) beyond the hand along d, where the flash is
-function gm_mkRifle(Wd, g, d, hand){
-  var hi = gm_mkHi(), mid = gm_mkMid(), up = R.sub([0, 1, 0], R.mul(d, d[1])); if (R.len(up) < 0.1) up = [0, 0, 1];
+// the beam rifle, grey and black with a scope: grip in the right fist, the muzzle at GUN[gm_MK.gun].len (+0.03) beyond
+// the hand along d, where the page's flash is; upv (optional) the way its top faces
+function gm_mkRifle(g, d, hand, upv){
+  var hi = gm_mkHi(), mid = gm_mkMid(), up = upv || R.sub([0, 1, 0], R.mul(d, d[1])); if (R.len(up) < 0.1) up = [0, 0, 1];
   var tip = (hand ? R.dot(R.sub(hand, g), d) : 0.04) + gm_mkLen() + 0.03, F = frameOn(g, d, up);
   J(F, function(){
-    armBox(null, [0, 0.004, 0.0], 0.013, 0.02, 0.036, 'gun');                                   // the grip
-    armBox(null, [0, -0.05, 0.062], 0.03, 0.17, 0.03, 'gun');                                    // the receiver
-    armBox(null, [0, 0.19, 0.056], 0.024, 0.072, 0.027, 'gun');                                  // the stock
-    if (mid) armBox(null, [0, 0.075, 0.02], 0.021, 0.04, 0.018, 'glow');                         // the energy cell
-    if (hi){ armBox(null, [0, 0.265, 0.056], 0.026, 0.006, 0.03, 'bone');
-      armBox(null, [0, -0.075, 0.107], 0.016, 0.07, 0.016, 'bone');                              // the sensor on top
-      kn_disc(null, [0, -0.146, 0.107], [1, 0, 0], [0, 0, 1], 0.011, 6, 0.0, 'glow');
-      armBox(null, [0, -0.3, 0.018], 0.012, 0.02, 0.024, 'gun');                                 // the foregrip
-      [-1, 1].forEach(function(s){ armBox(null, [s*0.031, -0.05, 0.068], 0.002, 0.11, 0.009, 'glow'); }); }
+    armBox(null, [0, 0.004, 0.0], 0.013, 0.02, 0.036, 'visor');                                  // the grip
+    armBox(null, [0, -0.05, 0.062], 0.03, 0.17, 0.03, 'stone');                                   // the receiver
+    armBox(null, [0, 0.19, 0.056], 0.024, 0.072, 0.027, 'visor');                                 // the stock
+    if (mid){ armBox(null, [0, -0.07, 0.112], 0.017, 0.085, 0.017, 'visor');                      // the scope on top
+      kn_disc(null, [0, -0.156, 0.112], [1, 0, 0], [0, 0, 1], 0.012, 6, 0.0, 'glow'); }
+    if (hi){ armBox(null, [0, 0.08, 0.02], 0.016, 0.03, 0.02, 'visor');                           // the magazine
+      armBox(null, [0, -0.3, 0.018], 0.012, 0.02, 0.024, 'visor');                                // the foregrip
+      armBox(null, [0, -0.07, 0.092], 0.006, 0.02, 0.006, 'stone'); }                             // the scope's mount
     at([0, 0, 0.062], function(){
-      armTube(null, -0.2, 0.034, 0.034, -0.44, 0.03, 0.03, gm_mkN(8, 6), 0, TAU, 'gun');      // the shroud
+      armTube(null, -0.2, 0.034, 0.034, -0.44, 0.03, 0.03, gm_mkN(8, 6), 0, TAU, 'visor');    // the shroud
       armTube(null, -0.44, 0.019, 0.019, -tip + 0.05, 0.017, 0.017, gm_mkN(6, 5), 0, TAU, 'steel');   // the barrel
-      if (hi) armTube(null, -tip + 0.075, 0.022, 0.022, -tip + 0.05, 0.022, 0.022, 6, 0, TAU, 'gold');
-      armTube(null, -tip + 0.05, 0.027, 0.027, -tip, 0.024, 0.024, gm_mkN(8, 6), 0, TAU, 'gun'); // the muzzle
-      kn_ngon(null, -tip, 0.017, 0.017, gm_mkN(8, 6), 'glow', true);
-      if (hi) kn_ngon(null, -0.2, 0.034, 0.034, 8, 'gun', false);
+      armTube(null, -tip + 0.05, 0.027, 0.027, -tip, 0.024, 0.024, gm_mkN(8, 6), 0, TAU, 'visor');   // the muzzle
+      if (hi){ kn_ngon(null, -0.2, 0.034, 0.034, 8, 'visor', false); kn_ngon(null, -tip, 0.017, 0.017, 8, 'steel', true); }
     });
   });
 }
-// the energy sword: a steel hilt, an orange emitter, the glowing blade (a flat six-sided beam, white-hot faces)
-function gm_mkSword(g, d, side, lit){
+// a beam saber: a grey hilt with a white band, a steel emitter; lit, the magenta blade (a flat six-sided beam, pale core)
+function gm_mkSaber(g, d, side, lit){
   var hi = gm_mkHi(), L = gm_MK.blade, F = frameOn(g, d, side);
   J(F, function(){
-    armTube(null, 0.07, 0.018, 0.018, -0.06, 0.018, 0.018, gm_mkN(6, 5), 0, TAU, 'steel');
-    armTube(null, -0.06, 0.025, 0.025, -0.085, 0.025, 0.025, gm_mkN(6, 5), 0, TAU, 'gold');
-    if (hi){ armTube(null, 0.085, 0.021, 0.021, 0.07, 0.021, 0.021, 6, 0, TAU, 'gold');
-      [0.035, 0.0, -0.035].forEach(function(y){ armTube(null, y + 0.007, 0.0205, 0.0205, y - 0.007, 0.0205, 0.0205, 6, 0, TAU, 'under'); }); }
+    armTube(null, 0.07, 0.018, 0.018, -0.06, 0.018, 0.018, gm_mkN(6, 5), 0, TAU, 'stone');
+    armTube(null, -0.06, 0.024, 0.024, -0.085, 0.024, 0.024, gm_mkN(6, 5), 0, TAU, 'steel');
+    if (hi) armTube(null, 0.025, 0.0205, 0.0205, -0.005, 0.0205, 0.0205, 6, 0, TAU, 'ivory');
     if (!lit) return;
     var sec = function(y, w, t){ return [[w, y, 0], [w*0.5, y, t], [-w*0.5, y, t], [-w, y, 0], [-w*0.5, y, -t], [w*0.5, y, -t]]; };
-    ke_loft(null, [sec(-0.08, 0.024, 0.017), sec(-0.12, 0.034, 0.02), sec(-L*0.86, 0.034, 0.02), sec(-L - 0.02, 0.002, 0.002)], null, 'glow', null,
-      function(j, i){ return i === 1 || i === 4 ? 'fire' : 'glow'; });
+    ke_loft(null, [sec(-0.08, 0.024, 0.017), sec(-0.12, 0.034, 0.02), sec(-L*0.86, 0.034, 0.02), sec(-L - 0.02, 0.002, 0.002)], null, 'feather', null,
+      function(j, i){ return i === 1 || i === 4 ? 'hair' : 'feather'; });
   });
 }
-// the rifle stowed across the back of the waist (melee), the sword's hilt stowed on the backpack
-function gm_mkStowRifle(Wd){ var Pv = Wd.pelvis; gm_mkRifle(Wd, fw(Pv, [0.02, -0.02, -0.19]), R.qrot(Pv.q, R.norm([-0.9, -0.38, -0.08])), null); }
-function gm_mkStowSword(Wd){ var C = Wd.chest; gm_mkSword(fw(C, [-0.105, 0.125, -0.24]), R.qrot(C.q, R.norm([-0.45, 1, -0.25])), R.qrot(C.q, [0, 0, -1]), false); }
+// the two saber hilts on top of the pack (s +1 left, -1 right); `drawn` leaves the right one out (it is in the hand)
+function gm_mkHilts(Wd, drawn){
+  if (!gm_mkMid()) return;
+  var C = Wd.chest;
+  [-1, 1].forEach(function(s){ if (drawn && s < 0) return;
+    gm_mkSaber(fw(C, [s*0.034, 0.16, -0.232]), R.qrot(C.q, R.norm([s*0.2, 1, -0.15])), R.qrot(C.q, [0, 0, -1]), false); });
+}
+// the rifle clipped to the right hip, muzzle down and back, its top outboard (melee)
+function gm_mkHipRifle(Wd){ var Pv = Wd.pelvis;
+  gm_mkRifle(fw(Pv, [-0.218, -0.04, -0.01]), R.qrot(Pv.q, R.norm([-0.1, -0.86, -0.5])), null, R.qrot(Pv.q, [-1, 0, 0])); }
 // a melee with no swing of its own (the page's 'lunge'): the right arm is solved again, raised over the shoulder as it
 // draws back (ACT.lunge < 0) and cutting down ahead as it drives in; returns { W, blade } or null
 function gm_mkLungeArm(Wd){
@@ -29017,17 +29008,19 @@ function gm_mkLungeArm(Wd){
   var Ep = R.add(Sp, R.add(R.mul(dn, a*cosA), R.mul(pp, a*sinA)));
   return { W:kd_withArm(Wd, 'R', kd_armFrames(Sp, Ep, R.add(Sp, R.mul(dn, dd)), R.qrot(C.q, [0, 0, 1]))), blade:R.norm(R.qrot(C.q, R.norm(bd))) };
 }
+// the weapon switch: melee = the saber drawn in the right hand, the rifle on the hip; otherwise the rifle in hand (aimed,
+// or laid between both hands, or held low) and both hilts on the pack
 function gm_mkWeapons(Wd, lunge){
-  var Wr = Wd.wristR, g = fw(Wr, [0, -0.05, 0.004]);
-  if ((ACT && ACT.blade) || lunge){
+  var Wr = Wd.wristR, g = fw(Wr, [0, -0.05, 0.004]), melee = !!(ACT && ACT.blade) || !!lunge;
+  gm_mkHilts(Wd, melee);
+  if (melee){
     var d = lunge ? lunge.blade : aimed(R.qrot(Wr.q, R.norm([0, 0.45, 1])), ACT.blade, ACT.bladeW);
-    gm_mkSword(g, d, R.qrot(Wr.q, [1, 0, 0]), true); gm_mkStowRifle(Wd); return; }
-  gm_mkStowSword(Wd);
+    gm_mkSaber(g, d, R.qrot(Wr.q, [1, 0, 0]), true); gm_mkHipRifle(Wd); return; }
   var f = R.norm(R.sub(Wd.handR.p, Wd.elbowR.p)), fwd = R.qrot(Wd.chest.q, [0, 0, 1]);
-  var idle = R.norm(R.add(R.add(R.mul(f, 0.45), R.mul(fwd, 0.62)), [0, -0.08, 0])), d;
-  if (ACT && ACT.gunDir) d = aimed(idle, ACT.gunDir, ACT.gunW);
-  else { var v = R.sub(Wd.handL.p, Wd.handR.p); d = R.len(v) < 0.5 && R.dot(v, fwd) > 0.08 ? R.norm(v) : idle; }   // both hands on it
-  gm_mkRifle(Wd, g, d, Wd.handR.p);
+  var idle = R.norm(R.add(R.add(R.mul(f, 0.45), R.mul(fwd, 0.62)), [0, -0.08, 0])), dd;
+  if (ACT && ACT.gunDir) dd = aimed(idle, ACT.gunDir, ACT.gunW);
+  else { var v = R.sub(Wd.handL.p, Wd.handR.p); dd = R.len(v) < 0.5 && R.dot(v, fwd) > 0.08 ? R.norm(v) : idle; }   // both hands on it
+  gm_mkRifle(g, dd, Wd.handR.p);
 }
 
 // ---------- the whole figure ----------
@@ -29035,7 +29028,7 @@ function gm_mkBuild(Wd, mo){
   var fly = !!(mo && mo.fly), lg = gm_mkLungeArm(Wd), W = lg ? lg.W : Wd;
   var legs = [gm_mkLeg(W, 'L'), gm_mkLeg(W, 'R')];
   legs.forEach(function(L){ gm_mkLegArmour(L, fly); });
-  gm_mkWaist(W, legs, fly); gm_mkChest(W); gm_mkPilot(W); gm_mkHead(W); gm_mkPack(W, fly);
+  gm_mkWaist(W, legs, fly); gm_mkChest(W); gm_mkHead(W); gm_mkPack(W, fly);
   gm_mkShoulder(W, 'L'); gm_mkShoulder(W, 'R'); gm_mkArm(W, 'L'); gm_mkArm(W, 'R');
   gm_mkShield(W); gm_mkWeapons(W, lg);
 }
@@ -30663,7 +30656,7 @@ var TYPES = [
   { k:'rbking',   fac:'rb',  nm:'ราชาบัลลังก์ลอย',     n:1, pts:420, mv:8,  T:8,  sv:2, inv:4, w:16, ld:5, oc:4, r:1.8, hero:1, fly:1, aura:'hit', brave:1,
     gun:{ nm:'คทาราชัน', rng:24, a:4, bs:2, s:9, ap:3, d:3 }, mel:{ nm:'ดาบราชัน', a:6, ws:2, s:8, ap:3, d:3 }, d:'ตัวเอก ราชาหุ่นเหล็กบนบัลลังก์ลอยได้ มีแผ่นศิลาลอยคุ้มกันสองแผ่น หน่วยพวกเดียวกันในระยะ 6" เข้าเป้า +1' },
   // ตัวลับ (ปลดล็อกแล้วเท่านั้น)
-  { k:'doom',     fac:'*',   nm:'ดูม',                n:1, pts:40000, mv:10, T:14, sv:2, inv:3, w:60, ld:4, oc:10, r:1.1, hero:1, hd:1, gk:1, brave:1, sec:1,
+  { k:'doom',     fac:'*',   nm:'ดูม',                n:1, pts:40000, mv:10, T:14, sv:2, inv:3, w:100, ld:4, oc:10, r:1.1, hero:1, hd:1, gk:1, brave:1, sec:1,
     gun:{ nm:'โล่ฟันเลื่อย', rng:18, a:6, bs:2, s:12, ap:4, d:4 }, mel:{ nm:'กระบองหนามติดโซ่', a:14, ws:2, s:16, ap:4, d:5 }, d:'ตัวลับ นักรบนรกในเกราะหนา ขว้างโล่ฟันเลื่อยแล้วโล่กลับมาหา กระบองหนามบดทุกอย่าง ความเสียหายที่โดนลดครึ่ง ฆ่าได้แล้วฟื้นแผล' },
   // ── รอบ 7: ออร์คเติมจากรูปที่มินิส่งมา · กองทัพใหม่สามกอง: เอลฟ์อวกาศ (el) เอลฟ์มืด (de) จักรวรรดิผิวฟ้า (ta) ──
   // อาวุธใหม่: po:N พิษ (ทหารเดินเท้า เจาะได้ตั้งแต่ N+ เสมอ) · mk ชี้เป้า (ยิงโดนแล้ว พวกเดียวกันยิงเป้านั้นเข้า +1 จนจบตา)
@@ -30956,9 +30949,9 @@ var TYPES = [
     gun:{ nm:'ปืนพกระเบิด', rng:12, a:1, bs:4, s:4, ap:0, d:1, pi:1, fx:'bolter' }, mel:{ nm:'ดาบเลื่อยยนต์', a:3, ws:3, s:4, ap:1, d:1, fx:'chain' },
     d:'อัศวินฝึกหัดในเกราะเบาของภาคีกางเขนดำ ถือดาบเลื่อย คนเยอะ บุกมาตีเพิ่ม' },
   // จักรวรรดิผิวฟ้า: หน่วยลับ
-  { k:'tagm', fac:'ta', lk:'ta', nm:'หุ่นรบนักบินฟ้า',  n:1,  pts:1400, mv:14, T:14, sv:2, inv:4, w:36, ld:5, oc:12, r:3.6, fly:1, ttn:1, brave:1, veh:1,
-    gun:{ nm:'ปืนลำแสงยาว', rng:60, a:4, bs:2, s:16, ap:5, d:6, fx:'beam' }, mel:{ nm:'ดาบพลังงานเรืองแสง', a:6, ws:2, s:16, ap:4, d:6, fx:'power' },
-    d:'หน่วยลับ หุ่นรบยักษ์สูง 16 เมตร นักบินผิวฟ้านั่งในห้องนักบินที่อก ปืนลำแสงยาว โล่ และดาบพลังงาน บินได้ ร่างมหึมา' }
+  { k:'tagm', fac:'ta', lk:'ta', nm:'หุ่นรบนักบินฟ้า',  n:1,  pts:40000, mv:16, T:16, sv:2, inv:3, w:150, ld:4, oc:15, r:3.6, hd:1, gk:1, fly:1, ttn:1, brave:1, veh:1,
+    gun:{ nm:'ปืนลำแสงยาว', rng:72, a:8, bs:2, s:20, ap:6, d:8, fx:'beam' }, mel:{ nm:'ดาบลำแสง', a:12, ws:2, s:20, ap:6, d:8, fx:'power', trail:'#ff5ad2' },
+    d:'หน่วยลับ หุ่นรบยักษ์สูง 16 เมตร ยิงปืนลำแสงไกลสุดสนาม เข้าประชิดแล้วเก็บปืนชักดาบลำแสงจากเป้หลัง โล่ใหญ่ บินได้ ความเสียหายที่โดนลดครึ่ง ฆ่าได้แล้วฟื้นแผล' }
 ];
 // สองกองทัพ แต่ละคนเลือกของตัวเอง สู้ข้ามกองได้
 var FACS = [ { k:'gr', nm:'กองทัพกรีก', d:'หอก โล่ ธนู ม้า วีรบุรุษ อสูร — ต้องบุกเข้าประชิด' }, { k:'mod', nm:'กองทหาร', d:'ปืน เกราะ รถถัง — ยิงจากระยะไกล' },
@@ -32298,6 +32291,21 @@ var ACT_FN = {
     strikeAt(u, a, b.i, b.tt >= 0.28);
   },
   // ฟาดด้วยพานท้ายปืน (หรือของที่ถืออยู่): สามแบบ (กระแทกตรง · ทุบจากเหนือหัว · เหวี่ยงข้าง) สองมือพุ่งไปพร้อมตัว
+  // ไททันกระทืบ: ยกขาข้างหนึ่งขึ้นสูง (ถ่ายน้ำหนักไปขาอีกข้าง เอนหลัง) ค้างนิดหนึ่ง แล้วกระแทกลงหน้าตัวแรงเร่ง
+  //   (โน้มไปหน้า ตัวยุบ) เท้าลงมีคลื่นกระแทก ฝุ่น เศษ กล้องสั่น เสียงครืน · แล้วเลื่อนเท้ากลับที่เดิม · สลับขาทุกครั้ง
+  stomp: function(u, a){
+    var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, n = a.shots.length, i = clamp(Math.floor((t - 0.2)/STOMP8), 0, n - 1), tt = Math.max(0, t - 0.2 - i*STOMP8);
+    var sd = i % 2 ? 'L' : 'R', an = sd === 'L' ? W0.ankleL : W0.ankleR, L = Math.max(0.2, P.root[1] - an.p[1]), dv = aimDir(u, a, P.root);
+    var fv = Math.hypot(dv[0], dv[2]) > 0.2 ? vnorm([dv[0], 0, dv[2]]) : [0, 0, 1];
+    var up = tt < 0.42 ? ease(tt/0.42) : tt < 0.52 ? 1 : tt < 0.6 ? 1 - Math.pow((tt - 0.52)/0.08, 2) : 0;
+    var b2 = clamp((tt - 0.72)/0.18, 0, 1), fw = tt < 0.72 ? Math.min(1, tt/0.45) : 1 - ease(b2), slam = tt >= 0.6 ? Math.max(0, 1 - (tt - 0.6)/0.22) : 0;
+    var w = inOut(t, 0.2, 0.3, a.dur), lift = 0.7*L*up + 0.08*L*Math.sin(Math.PI*b2);
+    if (bodyOn(u)) bodyEng(P, W0, { dx:(sd === 'R' ? 1 : -1)*0.1*L*Math.max(up, 0.6*fw)*w, dy:-0.07*L*slam*w, pitch:(10*slam - 7*up)*w });
+    RIGQ.legIK(P, sd, vmix(an.p, vadd(an.p, [fv[0]*0.32*L*fw, lift, fv[2]*0.32*L*fw]), w), RIGQ.qmul(an.q, RIGQ.eul(-22*up*w, 0, 0)));
+    handsTo(a, P, W0, null, null, 0);
+    for (var j=0;j<n;j++){ var s = a.shots[j]; if (s && !s.done && t >= 0.2 + j*STOMP8 + 0.6){ s.done = true; var aj = j % 2 ? W0.ankleL : W0.ankleR;
+      stompHit8(u, a, s, toWorld(u, [aj.p[0] + fv[0]*0.32*L, aj.p[1], aj.p[2] + fv[2]*0.32*L])); } }
+  },
   bash: function(u, a){
     var P = basePose(u), W0 = RIGQ.fk(P), t = a.t, sh = W0.shoulderR.p, d = aimDir(u, a, sh), b = blowAt(a), bt = blowT8(b.tt);
     var V = BASH8[(a.vars || [])[b.i] || 0], cock = vadd(sh, V.up), jab = vadd(vadd(sh, V.hit), vmul(d, V.hd)), guard = vadd(sh, [0.0, 0.08, 0.02]);
@@ -32776,11 +32784,20 @@ function fxSetup8(u, a, P){
   a.vk = clamp(0.8 + 0.05*(S - 4), 0.75, 1.5); a.hs = clamp(0.45 + 0.07*(S - 4) + 0.05*(D - 1), 0.35, 2.4);
   a.vars = []; for (i=0;i<4;i++){ v = Math.floor(Math.random()*3); if (v === last) v = (v + 1 + Math.floor(Math.random()*2)) % 3; a.vars.push(last = v); }
 }
+// ไททันกระทืบ: ร่างมหึมา (ttn) ที่เดินสองขา ไม่บิน ไม่ใช่สัตว์ และท่าประชิดไม่ใช่การฟันด้วยอาวุธ (lunge/bash/ไม่ระบุ)
+//   ใส่ m:'stomp' ใน ANIM ก็ได้ (ต้องมีขา) · STOMP8 = วินาทีต่อหนึ่งครั้ง
+var STOMP8 = 0.9, STOMP8_M = { lunge:1, bash:1 };
+function stompOf8(u, A){ if (isMount(u.k) || isBeast(u.k) || airborne(u)) return false; var T = TY(u.t || u.k) || {};
+  if (A.m !== 'stomp' && !(T.ttn && !T.fly && (!A.m || STOMP8_M[A.m]))) return false;
+  try { var W = RIGQ.fk(basePose(u)); return !!(W && W.ankleL && W.ankleR); } catch (e){ return false; } }
 function startAttack(u, tgt, P, hits){
   var A = animOf(kitOf(u)), a = { tgt:tgt, face:aimPoint(tgt), shots:[] }, n, i, k = P.melee ? (A.m || 'bash') : (A.r || 'fire');   // ท่าตามหน้าตาที่ใส่อยู่ (ชุดย่อย สกิน)
+  if (P.melee){ if (stompOf8(u, A)) k = 'stomp'; else if (k === 'stomp') k = 'lunge'; }
   a.kind = k;
   try { fxSetup8(u, a, P); } catch (e){ a.fk = null; }
-  if (P.melee){ n = Math.min(3, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.15 + n*0.55 + 0.25; }
+  if (P.melee && k === 'stomp'){ n = Math.min(2, hits.length); var g8s = Math.ceil(hits.length/n);      // ลูกเต๋าแบ่งเป็นสองกระทืบ
+    for (i=0;i<n;i++) a.shots.push({ hit:hits.slice(i*g8s, (i + 1)*g8s).some(Boolean) }); a.dur = 0.2 + n*STOMP8 + 0.3; }
+  else if (P.melee){ n = Math.min(3, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.15 + n*0.55 + 0.25; }
   else if (k === 'bow'){ a.rel = 0.75; a.dur = 1.3; a.shots.push({ hit:hits[0] }); }
   else if (k === 'throw' || k === 'hurl'){ a.proj = A.g || 'jav'; n = Math.min(2, hits.length); for (i=0;i<n;i++) a.shots.push({ hit:hits[i] }); a.dur = 0.1 + n*0.8 + 0.25;
     if (a.proj === 'saw'){ var sd = Math.hypot(tgt.x - u.x, tgt.z - u.z); a.shots = [{ hit:hits.some(Boolean) }]; a.dur = 0.54 + 2*(0.25 + sd*0.016) + 0.05; } }   // ไปแล้วกลับ
@@ -33414,6 +33431,14 @@ function stompTick8(){
     if (u._g8 === undefined) u._g8 = giant8(u); if (!u._g8 || !c.L || !c.R) continue;
     stompFoot8(u, c.L, 0); stompFoot8(u, c.R, 1); }
 }
+// ไททันกระทืบลงพื้น: คลื่นกระแทกวงกว้างวิ่งออกจากเท้า ฝุ่นพุ่ง เศษหินกระเด็น กล้องสั่น เสียงครืน · โดนจริงเป้าเซถอย
+function stompHit8(u, a, s, p){ var sc = Math.min(8, u.scale || 1), gg = Math.max(1, giant8(u)), q = a.tgt;
+  p[1] = heightAt(p[0], p[2]) + 0.05;
+  fxAdd({ kind:'ring', p:p, r0:0.2*sc, r1:2.6*sc, life:0.75, col:dustCol(), a:0.75 });
+  fxAdd({ kind:'ring', p:p, r0:0.1*sc, r1:1.2*sc, life:0.35, col:'255,238,210', a:0.6 });
+  dustP8(p, 8 + 4*gg, 0.3*sc); dustP8(vadd(p, [0, 0.1*sc, 0]), 4 + 2*gg, 0.6*sc); debrisP8(p, 4 + 2*gg, 2.5*Math.sqrt(sc), null);
+  shake8(p, 3 + 1.5*gg); SND.at('quake', p, 1);
+  if (s.hit && q){ knock(q); if (!q.act){ var kb = unitH(q) < 3.2 ? 0.35 : 0; startAct(q, { kind:'flinch', dur:0.75 + (kb ? 0.3 : 0), axis:awayAxis(q, u), k:0.8, kb:kb, sy:rn8(12) }); } } }
 // ---- ไฟไหม้ซากรถ: ไฟลุก ควันดำพวยพุ่ง ถ่านแดงปลิว ค่อย ๆ มอดลงในไม่กี่วินาที ----
 function burnStep8(f, dt){ var k = 1 - f.t/f.life, s = f.size, K = PT8_K[GFX] || 0.7;
   f.a1 = (f.a1 || 0) + dt*22*k*K; f.a2 = (f.a2 || 0) + dt*9*K; f.a3 = (f.a3 || 0) + dt*5*k*K;
@@ -33440,15 +33465,15 @@ function flameStep8(f, dt){ if (f.t > f.dur + 0.15) return; var K = PT8_K[GFX] |
     else pt8(1, p[0], p[1], p[2], rn8(0.8), 0.5 + Math.random()*1.2, rn8(0.8), 0.35 + Math.random()*0.45, 0.022, c); } }
 // ---- ตัวสูง (ไททัน หุ่นยักษ์): ยังอยู่บนจอถ้าลำตัวหรือหัวอยู่บนจอ แม้ฐานจะหลุดขอบจอไปแล้ว · ขอบเผื่อตามความกว้างของตัวบนจอ ----
 function onScr8(u, y, pa){
-  var r = u._r8 || (u._r8 = radOfType(TY(u.t || u.k))), m = 120, hh, pt, pm, i, q, mq;
+  var r = u._r8 || (u._r8 = radOfType(TY(u.t || u.k))), m = 120, hh, i, q, mq, dn = false, upv = false;
   if (pa[2] > 0.4){ if (r > 1.2) m = Math.max(120, FL/pa[2]*r*1.3);
-    if (pa[0] > -m && pa[0] < W + m && pa[1] > -40 && pa[1] < H + 200) return true; }
-  hh = unitH(u); if (hh < 2.2) return false;
-  pm = proj([u.x, y + hh*0.5, u.z]); pt = proj([u.x, y + hh, u.z]);
-  for (i=0;i<2;i++){ q = i ? pt : pm; if (q[2] < 0.4) continue; mq = Math.max(120, FL/q[2]*r*1.3);
-    if (q[0] > -mq && q[0] < W + mq && q[1] > -mq && q[1] < H + mq) return true; }
-  return pa[2] > 0.4 && pt[2] > 0.4 && pa[1] > H && pt[1] < 0 && Math.min(pa[0], pt[0]) < W + m && Math.max(pa[0], pt[0]) > -m;   // ฐานใต้จอ หัวเหนือจอ: ตัวเต็มจอ
-}
+    if (pa[0] > -m && pa[0] < W + m && pa[1] > -40 && pa[1] < H + 200) return true;
+    if (pa[0] > -m && pa[0] < W + m) dn = pa[1] > H; }
+  // ฐานไม่อยู่ในจอ: ลองจุดตามความสูงของตัว (¼ ½ ¾ ยอด) · หรือตัวพาดผ่านจอ (จุดล่างใต้จอ จุดบนเหนือจอ) ก็ยังวาด
+  hh = unitH(u);
+  for (i=1;i<=4;i++){ q = proj([u.x, y + hh*i/4, u.z]); if (q[2] < 0.4) continue; mq = Math.max(120, FL/q[2]*r*1.3);
+    if (q[0] > -mq && q[0] < W + mq){ if (q[1] > -mq && q[1] < H + mq) return true; if (q[1] > H) dn = true; else upv = true; } }
+  return dn && upv; }
 // ---- ปาระเบิดมือ (คำสั่ง 1 CP): ตัวแรกของหน่วยเงื้อแล้วขว้างลูกระเบิดโค้งไปตกกลางเป้า ----
 function grenade8(att, tgt){ var m = sqModels(att)[0], tm = m ? nearestOf(m, tgt) : null; if (!m || !tm || units.indexOf(m) < 0) return;
   startAct(m, { kind:'throw', tgt:tm, face:aimPoint(tm), shots:[{ hit:true }], proj:'gren8', dur:1.15, fk:null }); }
@@ -33569,6 +33594,10 @@ var SND = (function(){
       noise(t + 0.08, 0.05, 'bandpass', 1700*r, 900, 2, v, 0.001, SFX, p); tone(t + 0.08, 0.07, 'triangle', 320*r, 130, v*0.5, 0.001, SFX, p); } },   // งับ
     stomp:   { gap:140, v:0.6, h:null, f:function(t, v, p){ var r = vr8(0.12);
       tone(t, 0.4, 'sine', 55*r, 26, v, 0.004, SFX, p); noise(t, 0.3, 'lowpass', 380*r, 60, 0.7, v*0.7, 0.004, SFX, p); } },
+    quake:   { gap:300, v:0.55, h:'boom', f:function(t, v, p){ var r = vr8(0.1), i;     // ไททันกระทืบ: ตึงต่ำลึก พื้นครืน เศษหินหล่น
+      tone(t, 1.1, 'sine', 50*r, 22, v, 0.006, SFX, p); noise(t, 1.4*vr8(0.15), 'lowpass', 260*r, 45, 0.8, v*0.8, 0.01, SFX, p);
+      noise(t, 0.07, 'bandpass', 700*r, 300, 1.2, v*0.5, 0.002, SFX, p);
+      for (i=0;i<3;i++) noise(t + 0.15 + Math.random()*0.5, 0.05, 'bandpass', 800 + Math.random()*1800, 900, 2, v*(0.2 + Math.random()*0.3), 0.002, SFX, p); } },
     ricochet:{ gap:180, v:0.22, h:null, f:function(t, v, p){ var r = vr8(0.2);
       tone(t, 0.22, 'sine', 3200*r, 1500*r, v, 0.002, SFX, p); noise(t, 0.02, 'highpass', 5000, 5000, 0.7, v*0.6, 0.001, SFX, p); } },
     debris:  { gap:250, v:0.55, h:'boom', f:function(t, v, p){ var i;
