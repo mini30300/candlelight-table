@@ -559,7 +559,7 @@
     <div class="row"><div class="grp" id="btMusSt"><button data-m="mix" class="on" aria-pressed="true">สลับเพลง</button><button data-m="epic" aria-pressed="false">เพลงใหม่</button><button data-m="old" aria-pressed="false">เพลงเดิม</button></div></div>
     <div class="row"><label class="sl">ดัง <input type="range" id="btVol" min="0" max="100" step="5" value="80"><em id="btVolV" style="font-style:normal;color:var(--ink);min-width:44px;text-align:right">80%</em></label></div>
     <h3>กราฟิก</h3>
-    <div class="row"><div class="grp" id="btGfx"><button data-g="hi" aria-pressed="false">สูง</button><button data-g="mid" class="on" aria-pressed="true">กลาง</button><button data-g="lo" aria-pressed="false">ต่ำ · เครื่องช้า</button></div></div>
+    <div class="row"><div class="grp" id="btGfx"><button data-g="hi" aria-pressed="false">สูง</button><button data-g="mid" class="on" aria-pressed="true">กลาง</button><button data-g="lo" aria-pressed="false">ต่ำ · เครื่องช้า</button><button data-g="min" aria-pressed="false">ต่ำสุด</button></div></div>
     <div class="note">1 นิ้วเกม = 1 ม. ในสนาม · ลากนิ้วเดียว = หมุนกล้อง · <b>สองนิ้วลาก = เลื่อนแมพ</b> · บีบ = ซูม · บนคอมคลิกขวาลาก หรือกดลูกศร/WASD ก็เลื่อนได้ · <span id="btVer"></span></div>
   </div>
  </div>
@@ -29462,18 +29462,26 @@ function canvasSize(){
 // รอบ 7.1: ตั้งค่ากราฟิก สูง · กลาง · ต่ำ (เครื่องช้าเลือกต่ำ: วาดพิกเซลน้อยลง ตัวไกลเรียบลงเร็วขึ้น ไม่วาดซ้ำให้คมตอนหยุด)
 var GFX_OPT = { hi:{ dpr:2, rsMax:1, rsMin:0.7, face:16000, lod:1, sharp:true },
                 mid:{ dpr:2, rsMax:1, rsMin:0.55, face:9000, lod:1, sharp:true },
-                lo:{ dpr:1, rsMax:0.8, rsMin:0.45, face:4500, lod:1.6, sharp:false } };
-var GFX = (function(){ try { var g = localStorage.getItem('bt_gfx'); return GFX_OPT[g] ? g : 'mid'; } catch (e){ return 'mid'; } })();
+                lo:{ dpr:1, rsMax:0.8, rsMin:0.45, face:4500, lod:1.6, sharp:false },
+                min:{ dpr:1, rsMax:0.7, rsMin:0.4, face:2500, lod:2.4, sharp:false, potato:true } };   // ต่ำสุด: ตัวไกลเป็นภาพ ไม่มีเงา ไม่เกิน ~30 ภาพต่อวินาที
+var GFX = (function(){ try { var g = localStorage.getItem('bt_gfx'); if (GFX_OPT[g]) return g; } catch (e) {}
+  var m = navigator.deviceMemory || 8; return m <= 2 ? 'min' : m <= 4 ? 'lo' : 'mid'; })();   // ยังไม่เคยเลือก: เครื่อง RAM น้อยเริ่มที่ต่ำหรือต่ำสุด
 function gfx(){ return GFX_OPT[GFX]; }
 var RS = Math.min(1, GFX_OPT[GFX].rsMax), RS_MIN = GFX_OPT[GFX].rsMin, RS_PIN = null, DRAW_MS = 0, RS_WAIT = 0, RS_SHARP = false, IDLE_N = 0;
 function adaptScale(ms){
   DRAW_MS = DRAW_MS ? DRAW_MS*0.8 + ms*0.2 : ms;
   if (RS_PIN != null){ RS = RS_PIN; return; }
+  slowStep();
   if (RS_WAIT > 0){ RS_WAIT--; return; }
   var mx = gfx().rsMax; if (RS > mx) RS = mx;
   if (DRAW_MS > 45 && RS > RS_MIN){ RS = Math.max(RS_MIN, Math.round((RS - 0.15)*100)/100); RS_WAIT = 12; }
   else if (DRAW_MS < 16 && RS < mx){ RS = Math.min(mx, Math.round((RS + 0.1)*100)/100); RS_WAIT = 45; }
 }
+// ลดความละเอียดจนสุดแล้วยังเกิน 60 ms ต่อภาพอยู่นาน ๆ: ลดกราฟิกลงหนึ่งขั้นให้เอง (ไม่ขึ้นเอง เปลี่ยนกลับได้ที่ปุ่มกราฟิก)
+var GFX_DOWN = { hi:'mid', mid:'lo', lo:'min' }, GFX_NM = { mid:'กลาง', lo:'ต่ำ', min:'ต่ำสุด' }, SLOW_N = 0;
+function slowStep(){ SLOW_N = RS <= RS_MIN && DRAW_MS > 60 ? SLOW_N + 1 : Math.max(0, SLOW_N - 2);
+  if (SLOW_N > 40 && GFX_DOWN[GFX]){ SLOW_N = 0; var nx = GFX_DOWN[GFX]; setGfx(nx);
+    popDice('เครื่องช้า ลดกราฟิกเป็น <b>' + GFX_NM[nx] + '</b> ให้แล้ว<br><span style="font-size:12px">เปลี่ยนกลับได้ที่ปุ่มกราฟิก</span>'); } }
 function resize(){
   var v = canvasSize(); if (v.w === W && v.h === H && v.dpr === DPR) return;
   W = v.w; H = v.h; DPR = v.dpr;
@@ -29540,7 +29548,7 @@ var FACES = [], LIGHT = (function(){ var v=[-0.45,0.78,0.44], l=Math.hypot(v[0],
 function shade(col, n, amb){
   var nl = n ? (n[0]*LIGHT[0] + n[1]*LIGHT[1] + n[2]*LIGHT[2]) : 1;
   var a0 = (amb == null ? 0.6 : amb), k = a0 + (1-a0)*Math.max(0, nl)*1.08;
-  k = Math.round(k*40)/40;          // 40 light steps: invisible banding, and far more neighbouring faces share one fill
+  k = gfx().potato ? Math.round(k*10)/10 : Math.round(k*40)/40;   // ต่ำสุด: แสง 10 ขั้น หน้าที่อยู่ติดกันได้สีเดียวกันมากขึ้น จึงวาดรวดเดียวได้          // 40 light steps: invisible banding, and far more neighbouring faces share one fill
   return 'rgb(' + (col[0]*k|0) + ',' + (col[1]*k|0) + ',' + (col[2]*k|0) + ')';
 }
 function normal(a, b, c){ var u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
@@ -29584,6 +29592,9 @@ function prism(cx, cy, cz, r, h, n, col, rotY, taper, alpha){   // n-gon column:
   for (i=0;i<n;i++){ var k=(i+1)%n; face([bot[i], bot[k], top[k], top[i]], col, o); }
   face(top, col, o);
 }
+// ต่ำสุด: ฐานของตัวไกลเหลือแค่หน้าบน (หน้าเดียวแทนเจ็ดหน้า)
+function baseCap(cx, cy, cz, r, n, col, rotY, alpha){ var top = [], i, o = alpha != null ? { alpha:true, a:alpha } : undefined;
+  for (i=0;i<n;i++){ var a = rotY + i*TAU/n; top.push([cx+Math.cos(a)*r, cy+0.1, cz+Math.sin(a)*r]); } face(top, col, o); }
 // a big base (giants, titans): its top in rings and wedges about 1.2 m across, each sorted where it lies, so the far
 // foot of a giant standing on it is not painted over by one big disc sorted at its centre
 function bigBase(cx, cy, cz, r, n, col, rotY, alpha){
@@ -30103,11 +30114,13 @@ function drawUnit(u){
   var X = u.act && u.act.xf, al = X && X.alpha != null ? X.alpha : 1;
   if (al <= 0.01) return;                                          // faded out after falling
   var C = unitCol(u), y = heightAt(u.x, u.z), rot = u.rot || 0, alt = u.alt || 0;
-  shadowAt(u.x, u.z, 0.8*(1 + 0.2*alt), 0.34*al/(1 + 0.5*alt));      // a flier's shadow spreads and pales with height
+  var PT = gfx().potato && u.lod >= 2;                             // ต่ำสุด: ตัวไกลไม่มีเงา ฐานหน้าเดียว และเป็นภาพแม้กำลังเดิน
+  if (!PT) shadowAt(u.x, u.z, 0.8*(1 + 0.2*alt), 0.34*al/(1 + 0.5*alt));      // a flier's shadow spreads and pales with height
   var br = baseR(u.k);
   if (br > 1.2) bigBase(u.x, y, u.z, br, u.lod === 3 ? 8 : 12, C.base, rot, al < 0.999 ? al : null);     // base disc
+  else if (PT) baseCap(u.x, y, u.z, br, 6, C.base, rot, al < 0.999 ? al : null);
   else prism(u.x, y, u.z, br, 0.1, u.lod === 3 ? 6 : u.lod ? 8 : 12, C.base, rot, 1, al < 0.999 ? al : null);
-  if (!(u.lod === 3 && !u.act && (!u.mv || u.px < 18) && spriteUnit(u, alt ? unitY(u) : y))) drawRig(u, 1.0);
+  if (!((PT ? !u.act : u.lod === 3 && !u.act && (!u.mv || u.px < 18)) && spriteUnit(u, alt ? unitY(u) : y))) drawRig(u, 1.0);
   if (u.sel) ringAt(u.x, u.z, br + 0.33, '#E0B26A');
   else if (BLESSED && u.sq && BLESSED[u.sq] && al > 0.5) ringAt(u.x, u.z, br + 0.1, 'rgba(255,214,110,0.75)');   // ได้พรจากพระเจ้า
 }
@@ -30260,17 +30273,17 @@ function drawBackdrop(){
 function drawScene(){
   setupCam(); shakeOn8(); FACES = []; OVER = []; BLESSED = blessedNow(); SPR_NEW = 0;
   drawBackdrop();
-  var step = dragging ? 2 : 1;
+  var PTS = gfx().potato, step = dragging || PTS ? 2 : 1;           // ต่ำสุด: พื้นหยาบลงครึ่งหนึ่งตลอด
   planLod();
   drawGround(step); drawRails();
-  var i, detail = dragging ? 46 : 26;
+  var i, detail = dragging || PTS ? 46 : 26;
   // a dense forest on a big table is hundreds of pieces: one only a few pixels tall skips its shadow and trunk
   for (i=0;i<PROPS.length;i++){ var o = PROPS[i], ps = propScale(o);
-    if (ps < detail){ var tiny = ps < 10; if (!tiny) shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o, tiny); } else drawProp(o); }
+    if (ps < detail){ var tiny = ps < 10; if (!tiny && !PTS) shadowAt(o.x, o.z, Math.min(o.rad*0.5, 2.6)*o.s, 0.18); propSimple(o, tiny); } else drawProp(o); }
   for (i=0;i<units.length;i++) drawUnit(units[i]);
   for (i=0;i<FALLEN.length;i++) drawUnit(FALLEN[i]);   // ล้มแล้ว แต่ลูกเต๋ายังไม่หยุด
   for (i=0;i<units.length;i++){ var mu = units[i];      // where a piece still on its way is heading
-    if (mu.mv && mu.tx != null && mu !== drag) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
+    if (mu.mv && mu.tx != null && mu !== drag && (!PTS || mu.sel)) ringAt(mu.tx, mu.tz, 0.45, 'rgba(224,178,106,0.7)', [4,4]); }
   if (measure && measure.a){ var A = measure.a, B = measure.b || measure.a; rulerLine(A, B); }
   if (drag && dragFrom) rulerLine({x:dragFrom[0], z:dragFrom[1]}, {x:drag.tx != null ? drag.tx : drag.x, z:drag.tz != null ? drag.tz : drag.z}, true);
   fxDraw();
@@ -31098,7 +31111,11 @@ var CORE = { gr:['hoplite','archer','spartan','peltast','cavalry','centaur','tro
 // ตัวหมากต่อคนไม่เกินเท่านี้ (ฝูงละสิบตัวซื้อได้เยอะ โต๊ะจะหนักเกิน): รวมทั้งโต๊ะราว 200 ตัว
 // รอบ 6: ราว 500 ตัวทั้งโต๊ะ (เดิม 200) ตัวไกลวาดเป็นรูปแล้ว จึงรับได้มากขึ้น · หน่วยละไม่เกิน SLOT_MAX ชุด
 var SLOT_MAX = 99;
-function armyCap(){ return Math.min(250, Math.floor(500 / Math.max(1, G.players.length || 2))); }
+function baseCap(){ return Math.min(250, Math.floor(500 / Math.max(1, G.players.length || 2))); }
+// โหมดผู้ชมเล่นอิสระ: จัดกองเองได้ใหญ่กว่ามาก (รวมทั้งโต๊ะไม่เกิน 3,000 ตัว กันเครื่องค้าง) เกินงบก็เริ่มได้ ตัวลับใส่ได้หลายตัว
+var SPEC_TOTAL = 3000;
+function armyCap(){ return G.mode === 'spectator' ? Math.floor(SPEC_TOTAL / Math.max(1, G.players.length || 2)) : baseCap(); }
+function slotMax(T){ return (T.sec || T.lk) && G.mode !== 'spectator' ? 1 : SLOT_MAX; }
 function autoList(s, free){                     // free: a person pressed "random" (a bot's list included), so any dice will do
   var out = emptyList(), share = shareOf(), left = share, k, pass;
   var P = G.players[s], tick = 0;
@@ -31106,7 +31123,7 @@ function autoList(s, free){                     // free: a person pressed "rando
   // Claude (ai) ก็ไม่มีใครเลือกให้ — สุ่มแบบผูกกับ SEED เหมือนบอท ทุกเครื่องจะได้กองเดียวกัน
   var seeded = !free && P && (P.bot || P.ai), rnd = seeded ? function(){ return seededRoll(s * 97 + (tick++)); } : Math.random;
   var fac = seeded ? FACS[Math.min(FACS.length - 1, Math.floor(rnd()*FACS.length))].k : (P && P.fac) || 'mod';
-  var MAX_MODELS = Math.min(armyCap(), Math.max(6, Math.ceil(40 / Math.max(1, G.perTeam)), Math.round(share / 25)));   // งบใหญ่ กองใหญ่ตาม   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
+  var MAX_MODELS = Math.min(baseCap(), Math.max(6, Math.ceil(40 / Math.max(1, G.perTeam)), Math.round(share / 25)));   // งบใหญ่ กองใหญ่ตาม   // ทีมใหญ่ คนละกองเล็กลง โต๊ะจะได้ไม่แน่น
   var order = CORE[fac].map(function(key){ for (var i=0;i<TYPES.length;i++) if (TYPES[i].k === key) return i; return 0; });
   var cheap = order.reduce(function(a, i){ return TYPES[i].pts < TYPES[a].pts ? i : a; }, order[0]);
   function models(){ var t = 0, j; for (j=0;j<out.length;j++) t += out[j]*TYPES[j].n; return t; }
@@ -34032,7 +34049,7 @@ function boardState(){
 }
 var RULES_V = 9;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 // the version people see (the home page reads it from this page): the rules version, then the fixes made within it
-var APP_VER = '9.1';
+var APP_VER = '9.2';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;
@@ -34371,14 +34388,14 @@ function paintRoster(){
       (G.detail ? '<span class="st">ทน ' + T.T + ' · เกราะ ' + (T.sv > 6 ? 'ไม่มี' : T.sv + '+') + (T.inv ? ' (พิเศษ ' + T.inv + '++)' : '') + ' · แผล ' + T.w + ' · ขวัญ ' + T.ld + '+ · คุมจุด ' + T.oc +
         (G1 ? ' · ยิง ' + (G1.tr ? 'โดนอัตโนมัติ' : 'เข้า ' + G1.bs + '+') + ' แรง ' + G1.s + ' เจาะ ' + G1.ap + ' ดาเมจ ' + G1.d : '') + ' · ตี เข้า ' + M1.ws + '+ แรง ' + M1.s + ' เจาะ ' + M1.ap + ' ดาเมจ ' + M1.d + ' — ' + T.d + '</span>' : '') +
       '</span><span class="pm"><button class="pv" data-pv="' + i + '" aria-label="ดูหน้าตา ' + T.nm + '" title="ดูหน้าตา">👁</button><button data-i="' + i + '" data-v="-1">−</button><span class="n">' + n +
-      '</span><button data-i="' + i + '" data-v="1"' + (totalModels(s) + T.n > armyCap() || n >= (T.sec || T.lk ? 1 : SLOT_MAX) ? ' disabled title="เต็มแล้ว"' : '') + '>+</button></span></div>';
+      '</span><button data-i="' + i + '" data-v="1"' + (totalModels(s) + T.n > armyCap() || n >= slotMax(T) ? ' disabled title="เต็มแล้ว"' : '') + '>+</button></span></div>';
     if (T.sec || T.lk){ hs += h.slice(h.lastIndexOf('<div class="unit">')); h = h.slice(0, h.lastIndexOf('<div class="unit">')); }   // ตัวลับกับหน่วยลับขึ้นบนสุด
   }
   host.innerHTML = hs + h;
   var used = ptsOf(s), over = used > share, empty = !hasUnits(s);
   $('btUsedV').textContent = fmtPts(used) + ' / ' + fmtPts(share);
   var bar = $('btBar'); bar.classList.toggle('over', over); bar.firstChild.style.width = Math.min(100, used/share*100) + '%';
-  $('btStart').disabled = over || empty;
+  $('btStart').disabled = (over && G.mode !== 'spectator') || empty;   // โหมดผู้ชม: เกินงบก็เริ่มได้
   if (NET.on){
     $('btStart').textContent = NET.owner ? 'ส่งกองทัพ · ไปเลือกจุดลงสนาม ›' : 'ส่งกองทัพ ›';
     $('btBack1').textContent = '‹ ล็อบบี้';
@@ -34387,9 +34404,10 @@ function paintRoster(){
     $('btStart').textContent = last ? (G.mode === 'spectator' ? 'เริ่มดูบอทตีกัน ›' : 'ถัดไป · เลือกจุดลงสนาม ›') : 'ถัดไป · ' + G.players[G.cur+1].nm + ' ›';
     $('btBack1').textContent = G.cur > 0 ? '‹ ' + G.players[G.cur-1].nm : '‹ กลับ';
   }
-  $('btArmyNote').innerHTML = over ? '<b style="color:var(--p2)">เกินงบ</b> ลดหน่วยลงก่อน'
+  var SPF = G.mode === 'spectator', tm = totalModels(s);
+  $('btArmyNote').innerHTML = over && !SPF ? '<b style="color:var(--p2)">เกินงบ</b> ลดหน่วยลงก่อน'
     : empty ? 'ต้องมีหน่วยอย่างน้อยหนึ่งตัว'
-    : 'พร้อม · ' + fmtPts(used) + ' แต้ม · ' + totalModels(s) + '/' + armyCap() + ' ตัว';
+    : (over ? '<b style="color:var(--p2)">เกินงบ</b> · โหมดผู้ชมเริ่มได้ · ' : 'พร้อม · ') + fmtPts(used) + ' แต้ม · ' + tm + '/' + armyCap() + ' ตัว' + (SPF && tm > 500 ? ' · ตัวเยอะมาก เครื่องอาจช้า' : '');
 }
 function totalModels(pi){ var P = G.players[pi], n = 0, i; if (!P) return 0;
   for (i=0;i<TYPES.length;i++) n += (P.list[i] || 0)*TYPES[i].n; return n; }
@@ -34656,13 +34674,14 @@ function frame(ts){
   if (dt > 0 && dt < 0.5 && !CLOCK_STOP) simStep(dt);        // a long gap (tab in the background) is skipped, not crammed in
   tickDice();
   if (!dirty){ if (RS < 1 && RS_PIN == null && !RS_SHARP && gfx().sharp && ++IDLE_N > 15) sharpFrame(); return; }
-  IDLE_N = 0;
+  if (gfx().potato && t - DRAW_T < 30) return;               // ต่ำสุด: วาดไม่เกินราว 30 ภาพต่อวินาที เครื่องจะได้ไม่ร้อน
+  DRAW_T = t; IDLE_N = 0;
   if (RS_SHARP){ RS_SHARP = false; resize(); }               // moving again: back to the scale that keeps it smooth
   dirty = false; REDRAWS++;
   var t0 = now(); drawScene(); adaptScale(now() - t0);
 }
 function sharpFrame(){ RS_SHARP = true; resize(); dirty = false; REDRAWS++; drawScene(); }
-var REDRAWS = 0;                // tests: frames actually drawn (the page only draws when something changed)
+var REDRAWS = 0, DRAW_T = 0;                // tests: frames actually drawn (the page only draws when something changed)
 
 // ---------- กล้อง: เลื่อนแมพได้อิสระ ไม่ยึดจุดศูนย์กลางอีกแล้ว ----------
 // ย้ายเป้ากล้องด้วยจุดบนพื้นจริง ไม่ใช่สูตรพิกเซล: จุดที่อยู่ใต้นิ้วตอนเริ่มลากจะอยู่ใต้นิ้วตลอด
@@ -35173,7 +35192,7 @@ $('btRoster').addEventListener('click', function(ev){ var b = ev.target.closest(
   if (b.dataset.pv != null){ openPreview(+b.dataset.pv); return; }
   var i = +b.dataset.i, v = +b.dataset.v, P = G.players[G.cur]; if (!P) return;
   if (v > 0 && totalModels(G.cur) + TYPES[i].n > armyCap()){ popDice('ตัวหมากเต็มแล้ว<br><span style="font-size:12px">คนละไม่เกิน ' + armyCap() + ' ตัว เครื่องจะได้ไม่ช้า<br>แต้มที่เหลือใช้กับตัวใหญ่ ๆ ได้</span>'); return; }
-  if (v > 0 && (P.list[i] || 0) >= (TYPES[i].sec || TYPES[i].lk ? 1 : SLOT_MAX)){ popDice(TYPES[i].sec ? 'ตัวลับมีได้คนละตัว' : TYPES[i].lk ? 'หน่วยลับมีได้คนละตัว' : 'หน่วยนี้ครบ ' + SLOT_MAX + ' ชุดแล้ว'); return; }
+  if (v > 0 && (P.list[i] || 0) >= slotMax(TYPES[i])){ popDice(slotMax(TYPES[i]) > 1 ? 'หน่วยนี้ครบ ' + SLOT_MAX + ' ชุดแล้ว' : TYPES[i].sec ? 'ตัวลับมีได้คนละตัว' : TYPES[i].lk ? 'หน่วยลับมีได้คนละตัว' : 'หน่วยนี้ครบ ' + SLOT_MAX + ' ชุดแล้ว'); return; }
   P.list[i] = Math.max(0, (P.list[i]||0) + v); paintRoster(); });
 
 // สุ่มทัพ: ใช้ตัวจัดทัพของบอท (คนจริงสุ่มด้วย Math.random ก็ได้ กองที่ได้ถูกส่งขึ้นห้องเป็นรายชื่ออยู่แล้ว)
