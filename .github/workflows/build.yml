@@ -48,7 +48,7 @@ jobs:
 
   # ---- Windows .exe -------------------------------------------------------
   # ต้องสร้างบน windows-latest เท่านั้น คอนเทนเนอร์ Linux ทำไฟล์ .exe ของ Tauri ไม่ได้
-  # แอพเดสก์ท็อปเป็นหน้าต่างเดียวที่ชี้ไป /app บนเซิร์ฟเวอร์ ตัว Rust จึงแทบไม่มีโค้ด
+  # แอพเดสก์ท็อปเปิดหน้าแรกในเครื่อง (desktop/dist) มีเน็ตก็ไป /app บนเซิร์ฟเวอร์ ไม่มีเน็ตก็เล่นโต๊ะรบกับบอทได้ ตัว Rust จึงแทบไม่มีโค้ด
   windows-check:
     if: github.event_name == 'pull_request'
     runs-on: windows-latest
@@ -57,6 +57,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: desktop/src-tauri }
+      - name: Put the battle table inside the app (plays offline)
+        shell: bash
+        run: cp app/src/main/assets/battle-table.html desktop/dist/battle-table.html
       - name: Build the Windows app
         working-directory: desktop
         run: npx --yes @tauri-apps/cli@2 build
@@ -78,6 +81,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: desktop/src-tauri }
+      - name: Put the battle table inside the app (plays offline)
+        shell: bash
+        run: cp app/src/main/assets/battle-table.html desktop/dist/battle-table.html
       - name: Build the Windows app
         working-directory: desktop
         run: npx --yes @tauri-apps/cli@2 build
