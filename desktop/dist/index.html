@@ -31,9 +31,15 @@ iframe{flex:1;border:0;width:100%}
 <script>
 var SERVER = 'https://candlelight-table.mini3030023450.workers.dev';
 function $(id){ return document.getElementById(id); }
-function offline(){ $('msg').textContent = 'ไม่มีอินเทอร์เน็ต'; $('off').hidden = false; }
+// ภาษาอังกฤษถ้าผู้เล่นเลือกไว้ (ปุ่มภาษาในโต๊ะรบตั้งค่า cl_lang)
+var EN = (function(){ try { return localStorage.getItem('cl_lang') === 'en'; } catch (e) { return false; } })();
+function T(th, en){ return EN ? en : th; }
+if (EN){ document.documentElement.lang = 'en';
+  $('off').querySelector('.note').innerHTML = 'Cannot reach the server. You can still play the battle table against bots.<br>D&amp;D and playing with friends need the internet.';
+  $('play').textContent = 'Play the battle table offline with bots ›'; $('retry').textContent = 'Try again'; $('back').textContent = '‹ Back'; $('fr').title = 'Battle table'; }
+function offline(){ $('msg').textContent = T('ไม่มีอินเทอร์เน็ต', 'No internet'); $('off').hidden = false; }
 function tryOnline(){
-  $('msg').textContent = 'กำลังเปิด Candlelight Table…'; $('off').hidden = true;
+  $('msg').textContent = T('กำลังเปิด Candlelight Table…', 'Opening Candlelight Table…'); $('off').hidden = true;
   var done = false, t = setTimeout(function(){ if (!done){ done = true; offline(); } }, 6000);
   fetch(SERVER + '/app', { mode:'no-cors', cache:'no-store' })
     .then(function(){ if (done) return; done = true; clearTimeout(t); location.replace(SERVER + '/app'); })
