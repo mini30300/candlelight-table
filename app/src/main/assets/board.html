@@ -18,7 +18,10 @@
 <div id="joy"><div class="knob"></div></div>
 <div id="toast"></div>
 <div id="err"></div>
-<script>window.onerror=function(m,src,l,c){var e=document.getElementById("err"); e.textContent+=m+" @"+l+":"+c+"\n"; try{ if(window.Android&&window.Android.log) window.Android.log("JS error: "+m+" @"+l+":"+c);}catch(_){} };</script>
+<script>
+// ภาษาเดียวกับหน้าแอป (ตั้งค่า → ภาษา) — กระดานมีข้อความของตัวเองแค่ไม่กี่อัน
+var B_EN = (function(){ try { return localStorage.getItem("cl_lang") === "en"; } catch (e) { return false; } })();
+window.onerror=function(m,src,l,c){var e=document.getElementById("err"); e.textContent+=m+" @"+l+":"+c+"\n"; try{ if(window.Android&&window.Android.log) window.Android.log("JS error: "+m+" @"+l+":"+c);}catch(_){} };</script>
 <script>
 // ==DICE-BEGIN==
 // Shared dice: the same throw on every player's screen.
@@ -1688,7 +1691,7 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
   let diceShow = null;
   window.showRoll = function(seq, who, die, value, mine){
     const res = DICE.roll(die|0, value|0, (seq|0) || 1);
-    if (!res) { toast((who||"") + " ทอย d" + die + " → " + value); return; }   // a die we have no solid for (d100)
+    if (!res) { toast((who||"") + (B_EN ? " rolls d" : " ทอย d") + die + " → " + value); return; }   // a die we have no solid for (d100)
     let x = camT.x, z = camT.z;                       // land it by whoever rolled, so you can see who it was
     for (const q of pawns.values()) if (q.t && q.t.name && q.t.name === who) { x = q.pos.x; z = q.pos.z; break; }
     if (cam){ const dx = cam.C.x - x, dz = cam.C.z - z, dl = Math.hypot(dx, dz) || 1;   // thrown down in front of them,
@@ -1901,10 +1904,10 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     for (const p of pawns.values()){ if (!p.hit || p.t.id === me) continue; const h = p.hit; const inside = cx > h.x - h.r && cx < h.x + h.r && cy > h.y - 6 && cy < h.y2 + 6; if (inside && h.z < bd) { bd = h.z; best = p; } }
     if (best) { bridge.tapToken(best.t.id); return; }
     if (control !== "tap") return;
-    if (!canMove) { toast("ยังไม่ถึงเทิร์นของคุณ"); return; }
+    if (!canMove) { toast(B_EN ? "Not your turn yet" : "ยังไม่ถึงเทิร์นของคุณ"); return; }
     const f = screenToFloor(cx, cy); if (!f) return;
     const x = clamp(f.x, -bounds.w, bounds.w), z = clamp(f.z, -bounds.d, bounds.d);
-    if (turnStart && Math.hypot(x-turnStart.pos.x, z-turnStart.pos.z) > 6) { toast("ไกลเกินระยะเดิน 30 ft"); return; }
+    if (turnStart && Math.hypot(x-turnStart.pos.x, z-turnStart.pos.z) > 6) { toast(B_EN ? "Too far — you move 30 ft" : "ไกลเกินระยะเดิน 30 ft"); return; }
     const mine = pawns.get(me); if (mine) mine.target = { x, z };
     marker = { x, z, a: 1 };
     bridge.move(x, z);
@@ -1926,7 +1929,7 @@ return { roll:roll, faceUp:faceUp, shapes:shapes, qrot:qrot, TRAY:TRAY, rngFrom:
     const dt = Math.min(0.05, (now-last)/1000); last = now; tAcc += dt;
     resize();
     if (joyActive && me && !preview && !camp && (joyVec.x || joyVec.y)) {
-      if (!canMove) { if (!localMoving) toast("ยังไม่ถึงเทิร์นของคุณ"); }
+      if (!canMove) { if (!localMoving) toast(B_EN ? "Not your turn yet" : "ยังไม่ถึงเทิร์นของคุณ"); }
       else { const mine = pawns.get(me); if (mine) {
         const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
         const dx = (fx*-joyVec.y + rx*joyVec.x)*3.2*dt, dz = (fz*-joyVec.y + rz*joyVec.x)*3.2*dt;

@@ -33449,10 +33449,10 @@ function stompTick8(){
     stompFoot8(u, c.L, 0); stompFoot8(u, c.R, 1); }
 }
 // ไททันกระทืบลงพื้น: คลื่นกระแทกวงกว้างวิ่งออกจากเท้า ฝุ่นพุ่ง เศษหินกระเด็น กล้องสั่น เสียงครืน · โดนจริงเป้าเซถอย
-function stompHit8(u, a, s, p){ var sc = Math.min(8, u.scale || 1), gg = Math.max(1, giant8(u)), q = a.tgt;
+function stompHit8(u, a, s, p){ var sc = Math.min(8, u.scale || 1), sr = Math.min(14, u.scale || 1), gg = Math.max(1, giant8(u)), q = a.tgt;   // วงคลื่นโตตามตัวถึง 14 เท่า
   p[1] = heightAt(p[0], p[2]) + 0.05;
-  fxAdd({ kind:'ring', p:p, r0:0.2*sc, r1:2.6*sc, life:0.75, col:dustCol(), a:0.75 });
-  fxAdd({ kind:'ring', p:p, r0:0.1*sc, r1:1.2*sc, life:0.35, col:'255,238,210', a:0.6 });
+  fxAdd({ kind:'ring', p:p, r0:0.2*sr, r1:2.6*sr, life:0.75, col:dustCol(), a:0.75 });
+  fxAdd({ kind:'ring', p:p, r0:0.1*sr, r1:1.2*sr, life:0.35, col:'255,238,210', a:0.6 });
   dustP8(p, 8 + 4*gg, 0.3*sc); dustP8(vadd(p, [0, 0.1*sc, 0]), 4 + 2*gg, 0.6*sc); debrisP8(p, 4 + 2*gg, 2.5*Math.sqrt(sc), null);
   shake8(p, 3 + 1.5*gg); SND.at('quake', p, 1);
   if (s.hit && q){ knock(q); if (!q.act){ var kb = unitH(q) < 3.2 ? 0.35 : 0; startAct(q, { kind:'flinch', dur:0.75 + (kb ? 0.3 : 0), axis:awayAxis(q, u), k:0.8, kb:kb, sy:rn8(12) }); } } }
@@ -34049,7 +34049,7 @@ function boardState(){
 }
 var RULES_V = 9;                  // กติการุ่นที่สอง (แบบ 40k) — ห้องกับเครื่องที่รุ่นไม่ตรงกันเล่นด้วยกันไม่ได้
 // the version people see (the home page reads it from this page): the rules version, then the fixes made within it
-var APP_VER = '9.2';
+var APP_VER = '9.3';
 function endTurn(){
   if (!G.on || G.over) return;
   var i; for (i=0;i<G.players.length;i++) G.players[i].done = false;

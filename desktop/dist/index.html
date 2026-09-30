@@ -1,14 +1,48 @@
 <!doctype html>
 <html lang="th">
-<head><meta charset="utf-8"><title>Candlelight Table</title>
-<style>html,body{margin:0;height:100%;display:grid;place-items:center;background:#0B0B0E;color:#C9C4B8;
-font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif;text-align:center}a{color:#E0B26A}</style>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Candlelight Table</title>
+<style>
+html,body{margin:0;height:100%;background:#0B0B0E;color:#C9C4B8;font-family:'Sarabun','Noto Sans Thai',system-ui,sans-serif}
+#home{height:100%;display:grid;place-items:center;text-align:center}
+#home.gone,#tt.gone{display:none}
+.box{max-width:380px;padding:24px}
+.note{font-size:13px;color:#8C8577;line-height:1.6;margin:6px 0 16px}
+.box button{display:block;width:100%;margin:10px 0;padding:12px 16px;border-radius:8px;border:1px solid #3A352C;background:#1A1814;color:#E0B26A;font:inherit;font-size:15px;cursor:pointer}
+.box button.main{background:#E0B26A;border-color:#E0B26A;color:#1A1510;font-weight:600}
+a{color:#E0B26A}
+#tt{height:100%;display:flex;flex-direction:column}
+#bar{display:flex;align-items:center;gap:12px;padding:4px 8px}
+#bar button{border:0;background:none;color:#E0B26A;font:inherit;font-size:14px;cursor:pointer;padding:4px 8px}
+#bar span{font:12px monospace;letter-spacing:2px;color:#8C8577}
+iframe{flex:1;border:0;width:100%}
+</style>
 </head>
 <body>
-  <!-- หน้าต่างหลักชี้ไปที่ /app บนเซิร์ฟเวอร์โดยตรง (tauri.conf.json) หน้านี้จึงเป็นแค่ตัวสำรอง -->
-  <div>
-    <p>กำลังเปิด Candlelight Table…</p>
-    <p><a href="https://candlelight-table.mini3030023450.workers.dev/app">เปิดในเบราว์เซอร์</a></p>
+<!-- หน้าแรกของแอพเดสก์ท็อป: ต่อเซิร์ฟเวอร์ได้ก็ไป /app เหมือนเดิม ต่อไม่ได้ก็เล่นโต๊ะรบกับบอทจาก battle-table.html ที่ใส่มาตอน build -->
+<div id="home"><div class="box">
+  <p id="msg">กำลังเปิด Candlelight Table…</p>
+  <div id="off" hidden>
+    <p class="note">ต่อเซิร์ฟเวอร์ไม่ได้ ยังเล่นโต๊ะรบกับบอทได้<br>ส่วน D&amp;D และเล่นกับเพื่อนต้องใช้เน็ต</p>
+    <button class="main" id="play" type="button">เล่นโต๊ะรบกับบอทแบบออฟไลน์ ›</button>
+    <button id="retry" type="button">ลองใหม่</button>
   </div>
+</div></div>
+<div id="tt" class="gone"><div id="bar"><button id="back" type="button">‹ กลับ</button><span>TABLETOP</span></div><iframe id="fr" title="โต๊ะรบ"></iframe></div>
+<script>
+var SERVER = 'https://candlelight-table.mini3030023450.workers.dev';
+function $(id){ return document.getElementById(id); }
+function offline(){ $('msg').textContent = 'ไม่มีอินเทอร์เน็ต'; $('off').hidden = false; }
+function tryOnline(){
+  $('msg').textContent = 'กำลังเปิด Candlelight Table…'; $('off').hidden = true;
+  var done = false, t = setTimeout(function(){ if (!done){ done = true; offline(); } }, 6000);
+  fetch(SERVER + '/app', { mode:'no-cors', cache:'no-store' })
+    .then(function(){ if (done) return; done = true; clearTimeout(t); location.replace(SERVER + '/app'); })
+    .catch(function(){ if (done) return; done = true; clearTimeout(t); offline(); });
+}
+$('play').onclick = function(){ $('home').classList.add('gone'); $('tt').classList.remove('gone'); if (!$('fr').getAttribute('src')) $('fr').src = 'battle-table.html'; };
+$('back').onclick = function(){ $('tt').classList.add('gone'); $('home').classList.remove('gone'); };
+$('retry').onclick = tryOnline;
+tryOnline();
+</script>
 </body>
 </html>
