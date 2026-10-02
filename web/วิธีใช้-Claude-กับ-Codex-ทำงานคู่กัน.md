@@ -7,13 +7,19 @@
 
 1. ใช้ ChatGPT แบบเสียเงินที่มี Codex (โควตาแยกจาก Claude ใช้ตอนโควตา Claude หมดได้)
 2. เปิด Codex (chatgpt.com/codex หรือแอป Codex) → เชื่อม GitHub → อนุญาตให้เข้าถึง `candlelight-table` กับ `candlelight-server`
-3. สร้าง environment ให้แต่ละ repo แล้วใส่คำสั่งติดตั้ง (setup script) ตามนี้ ให้เปิดอินเทอร์เน็ตตอนติดตั้งด้วย (ต้องโหลด Chromium มาเทส)
-   - **candlelight-table:** `cd tests && npm ci && npx playwright install --with-deps chromium`
-   - **candlelight-server:** `npm ci && cd tests && npm ci && npx playwright install --with-deps chromium`
-   - **ไม่ต้องใส่ secret หรือกุญแจอะไรเลย** เทสใช้เซิร์ฟเวอร์จำลองในเครื่อง ส่วนการ deploy ทำเองตอนคุณกด merge
-4. ในตั้งค่า Codex → Code review → เปิด **รีวิวอัตโนมัติ** ให้ทั้งสอง repo ทุก PR (ของ Claude ด้วย) จะถูก Codex ตรวจให้
+3. สร้าง cloud environment ให้แต่ละ repo: เลือก repo แล้ว Codex จะลองติดตั้งของที่ต้องใช้และลองรันให้เอง ไม่ต้องเขียนคำสั่งเอง
+   เสร็จแล้วจะมีสองช่องให้ดู
+   - **Install script** = ของที่ต้องติดตั้งก่อนเริ่มงาน ถ้าในช่องไม่มีคำว่า `playwright` ให้เพิ่มบรรทัดนี้ต่อท้าย (ใช้โหลด Chromium มาเทส)
+     - **candlelight-table:** `cd tests && npm ci && npx playwright install --with-deps chromium`
+     - **candlelight-server:** `npm ci && cd tests && npm ci && npx playwright install --with-deps chromium`
+   - **Start skill** = วิธีเปิดโปรแกรมที่ต้องเปิดค้างไว้ระหว่างทำงาน งานนี้ไม่มี (เทสเปิดเซิร์ฟเวอร์จำลองเองแล้วปิดเอง) ช่องจะว่างหรือมีอะไรอยู่ก็ปล่อยไว้ได้
+   - กด **Publish** แล้วรอจนขึ้น **Environment published** งานใหม่ทุกงานจะเริ่มจากตรงนี้
+   - **ไม่ต้องใส่ secret หรือกุญแจอะไรเลย** ถ้า Codex ขอ token, API key หรือรหัส Cloudflare ให้ตอบว่าไม่ต้องใช้
+     เทสใช้เซิร์ฟเวอร์จำลองในเครื่อง ส่วนการ deploy เกิดเองตอนคุณกด merge
+4. ในตั้งค่า Codex → **Review code** → เปิดให้ทั้งสอง repo และเปิด **Automatic review** ทุก PR (ของ Claude ด้วย) จะถูก Codex ตรวจให้
+   ถ้าหาไม่เจอ ข้ามไปก่อนได้ แล้วพิมพ์ `@codex review` ในคอมเมนต์ของ PR ที่อยากให้ตรวจแทน
 
-ชื่อปุ่มในหน้า Codex อาจต่างจากนี้เล็กน้อย เพราะ OpenAI เพิ่งปรับหน้าตาเมื่อปลายเดือน ก.ย.
+Codex แบบใหม่เปิดตัวเมื่อ 29 ก.ย. 69 ชื่อปุ่มอาจต่างจากนี้เล็กน้อย ถ้าไม่แน่ใจ แคปหน้าจอไปถาม Claude ได้
 
 ## 2. ทั้งสองตัวรู้กฎได้อย่างไร
 
