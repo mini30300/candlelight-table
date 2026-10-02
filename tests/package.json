@@ -1,0 +1,12 @@
+{
+  "name": "candlelight-table-tests",
+  "private": true,
+  "description": "Browser tests for the battle table (battle-table.html) and the desktop start page, with Playwright + Chromium. See README.md.",
+  "scripts": {
+    "quick": "bash run.sh quick",
+    "full": "bash run.sh full"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
