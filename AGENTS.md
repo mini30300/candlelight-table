@@ -61,6 +61,9 @@ The big pages in this repo:
 
 `tests/` holds Playwright suites (see `tests/README.md`). Once: `cd tests && npm ci && npx playwright install --with-deps chromium`.
 
+If the install fails because root access is unavailable, run `npx playwright install chromium` from `tests/`
+instead. This downloads the browser only; the required system libraries must already be installed.
+
 ```bash
 bash tests/run.sh                 # quick set, ~15 min — CI runs the same on every pull request ("Tests" check)
 bash tests/run.sh full            # everything, ~1 h — run it for rules, network or renderer changes
