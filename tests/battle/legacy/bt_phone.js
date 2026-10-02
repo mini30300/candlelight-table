@@ -37,7 +37,7 @@ const SIZES = [
     ok(m.nextW > 80 && m.mapsW > 120, 'the controls are laid out, not collapsed');
     ok(m.overflowX <= 1, `no sideways scroll (${m.overflowX} px)`);
     ok(errs.length === 0, 'no JS errors');
-    await p.screenshot({ path: __dirname + `/../shots/bt/fit-${S.w}x${S.h}.png` });
+    await p.screenshot({ path: (process.env.TEST_OUT || require('os').tmpdir()) + `/shots/bt/fit-${S.w}x${S.h}.png` });
     await p.close();
   }
   await b.close();

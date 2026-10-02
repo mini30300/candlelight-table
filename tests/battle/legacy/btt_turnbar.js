@@ -15,7 +15,7 @@ const F = 'file://' + (process.env.PAGE || require('path').resolve(__dirname, '.
     n++; const ok = r.scroll <= 0 && r.barRight <= r.cvRight + 0.5;
     if (!ok) fail++;
     console.log((ok ? 'ok  ' : 'FAIL') + ` ${w}x${h} ${sides} sides: scroll ${r.scroll}, bar right ${r.barRight.toFixed(0)} / canvas ${r.cvRight.toFixed(0)}, bar ${r.barH.toFixed(0)} px tall — ${r.text}`);
-    if (sides !== 5) await p.screenshot({ path: `../shots/btt/turnbar_${w}_${sides}.png`, clip: { x: 0, y: 0, width: w, height: Math.min(h, 260) } });
+    if (sides !== 5) await p.screenshot({ path: (process.env.TEST_OUT || require('os').tmpdir()) + `/shots/btt/turnbar_${w}_${sides}.png`, clip: { x: 0, y: 0, width: w, height: Math.min(h, 260) } });
     await p.close();
   }
   console.log(fail ? fail + ' FAILED' : `turnbar: ${n} passed`); await b.close(); process.exit(fail ? 1 : 0);
