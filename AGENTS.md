@@ -42,6 +42,8 @@ The big pages in this repo:
    Eldar/Aeldari, Drukhari, Chaos (as a faction), Khorne, Nurgle, Tzeentch, Slaanesh, Imperium, Primarch, Terminator,
    Dreadnought, Land Raider, Leman Russ, Carnifex, Warhound/Warlord/Reaver/Imperator (titan classes), Knight
    Castellan/Paladin/Warden, Crisis suit, Riptide, Stormsurge, Gundam or any mobile-suit name.
+   A few older internal identifiers and code comments still contain genre words; add no new ones, and rename old ones
+   only in a dedicated PR (renaming a unit key `k` touches the server's `BT2`, the tests and the army-list protocol).
 2. **Secrets never enter the repo, chats, PRs, issues or logs.** Signing keys and Cloudflare tokens live only in GitHub
    Actions secrets. Never ask the owner to paste a key; if a task needs one, stop and say which secret to set and where.
 3. **Hidden units stay hidden.** Never write how a hidden or secret unit is unlocked in notes, PRs, issues or comments.

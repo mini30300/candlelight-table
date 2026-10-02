@@ -54,6 +54,9 @@ for s in $SUITES; do
   if [ $rc -eq 0 ]; then pass=$((pass+1)); line="PASS  $s (${secs}s) :: $last"
   else fail=$((fail+1)); failed="$failed $s"; line="FAIL  $s (${secs}s, exit $rc) :: $last"; fi
   echo "$line" | tee -a "$TEST_OUT/summary.txt"
+  if [ $rc -ne 0 ]; then   # show why right here (CI logs included), not only in the log file
+    echo "----- last lines of $log -----"; grep -v '^\s*$' "$log" | grep -v 'dbus\|handshake\|^\[pid' | tail -40; echo "-----"
+  fi
 done
 echo "$pass passed, $fail failed${failed:+ —$failed}   (logs: $TEST_OUT)" | tee -a "$TEST_OUT/summary.txt"
 [ $fail -eq 0 ]
