@@ -10,3 +10,6 @@ desktop/node_modules/
 
 node_modules/
 *.log
+
+# a symlinked node_modules (local test setups) is a file, not a folder
+node_modules
