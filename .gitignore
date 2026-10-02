@@ -10,3 +10,9 @@ desktop/node_modules/
 
 node_modules/
 *.log
+
+# a symlinked node_modules (local test setups) is a file, not a folder
+node_modules
+
+# the offline battle table is copied into desktop/dist at build time (CI does it); never commit the copy
+desktop/dist/battle-table.html

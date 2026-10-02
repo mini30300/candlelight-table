@@ -1,0 +1,45 @@
+# เทสโต๊ะรบกับหน้าเปิดของแอปคอม — รันทุก pull request (จะเป็นของ Claude หรือ Codex ก็ตาม)
+# PR: ชุดเร็ว (quick ราว 15 นาที) · กด Run workflow เองแล้วเลือก full ได้ (ชุดเต็ม ราว 1 ชม.)
+# ถ้าขึ้นแดง: เปิดดู log ในหน้า Actions หรือโหลด test-logs ที่แนบท้ายงาน
+name: Tests
+on:
+  pull_request:
+    paths-ignore: [ 'web/**', '**/*.md' ]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: quick หรือ full
+        type: choice
+        options: [ quick, full ]
+        default: quick
+
+concurrency:              # push ใหม่ใน PR เดียวกัน ยกเลิกรอบเก่าที่ยังรันอยู่
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  battle-table:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Install Playwright and Chromium
+        working-directory: tests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run the tests
+        run: bash tests/run.sh ${{ github.event.inputs.suite || 'quick' }}
+        env:
+          TEST_OUT: ${{ runner.temp }}/test-out
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs
+          path: ${{ runner.temp }}/test-out
+          retention-days: 7
