@@ -12,6 +12,10 @@
    - **Install script** = ของที่ต้องติดตั้งก่อนเริ่มงาน ถ้าในช่องไม่มีคำว่า `playwright` ให้เพิ่มบรรทัดนี้ต่อท้าย (ใช้โหลด Chromium มาเทส)
      - **candlelight-table:** `cd tests && npm ci && npx playwright install --with-deps chromium`
      - **candlelight-server:** `npm ci && cd tests && npm ci && npx playwright install --with-deps chromium`
+   - ถ้าติดตั้งไม่ผ่านเพราะไม่มีสิทธิ์ root (สิทธิ์ผู้ดูแลเครื่อง) เช่นขึ้น `su: Authentication failure` ให้ใช้คำสั่งด้านล่างแทนตาม repo:
+     - **candlelight-table:** `cd tests && npm ci && npx playwright install chromium`
+     - **candlelight-server:** `npm ci && cd tests && npm ci && npx playwright install chromium`
+     - วิธีนี้โหลดเฉพาะเบราว์เซอร์ เครื่องต้องมีส่วนประกอบระบบที่ Chromium ใช้อยู่แล้ว ถ้ายังเปิดเบราว์เซอร์ไม่ได้ ให้ส่งข้อความผิดพลาดให้ agent ตรวจต่อ
    - **Start skill** = วิธีเปิดโปรแกรมที่ต้องเปิดค้างไว้ระหว่างทำงาน งานนี้ไม่มี (เทสเปิดเซิร์ฟเวอร์จำลองเองแล้วปิดเอง) ช่องจะว่างหรือมีอะไรอยู่ก็ปล่อยไว้ได้
    - กด **Publish** แล้วรอจนขึ้น **Environment published** งานใหม่ทุกงานจะเริ่มจากตรงนี้
    - **ไม่ต้องใส่ secret หรือกุญแจอะไรเลย** ถ้า Codex ขอ token, API key หรือรหัส Cloudflare ให้ตอบว่าไม่ต้องใช้

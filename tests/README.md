@@ -13,6 +13,10 @@ bash tests/run.sh full            # everything, about an hour
 bash tests/run.sh battle/english battle/net_sync:2    # chosen suites (":N" = scenario number)
 ```
 
+If `npx playwright install --with-deps chromium` fails because root access is unavailable, run
+`npx playwright install chromium` from `tests/` instead. This downloads the browser only and requires
+the Chromium system libraries to already be installed.
+
 | Variable | Meaning |
 | --- | --- |
 | `PAGE` | test another copy of the page (default: the repo's `battle-table.html`) |
