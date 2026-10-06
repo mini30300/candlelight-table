@@ -1,0 +1,333 @@
+{
+  "fxs": {
+    "bolter": {
+      "snd": "bolter",
+      "pr": "bolt8",
+      "spd": 46,
+      "hit": "pop",
+      "fl": 0.2,
+      "sm": 2,
+      "cas": 1
+    },
+    "hbolter": {
+      "snd": "hbolter",
+      "pr": "bolt8",
+      "spd": 44,
+      "hit": "pop",
+      "fl": 0.28,
+      "sm": 3,
+      "cas": 1,
+      "big": 1
+    },
+    "gatling": {
+      "snd": "gatling",
+      "pr": "tracer",
+      "spd": 62,
+      "hit": "dust",
+      "fl": 0.24,
+      "sm": 1,
+      "cas": 1
+    },
+    "sniper": {
+      "snd": "sniper",
+      "pr": "streak",
+      "spd": 0,
+      "hit": "snipe",
+      "fl": 0.2,
+      "sm": 2,
+      "cas": 1
+    },
+    "cannon": {
+      "snd": "cannon",
+      "pr": "shell8",
+      "spd": 36,
+      "hit": "blast",
+      "fl": 0.5,
+      "sm": 7,
+      "cas": 2,
+      "big": 1
+    },
+    "rocket": {
+      "snd": "rocket",
+      "pr": "rocket",
+      "spd": 22,
+      "hit": "blast",
+      "fl": 0.3,
+      "sm": 3,
+      "back": 1,
+      "big": 1
+    },
+    "plasma": {
+      "snd": "plasma",
+      "pr": "orb",
+      "spd": 30,
+      "hit": "splash",
+      "fl": 0.26,
+      "sm": 1,
+      "en": 1
+    },
+    "melta": {
+      "snd": "melta",
+      "pr": "melta",
+      "spd": 0,
+      "hit": "melt",
+      "fl": 0.3,
+      "sm": 2,
+      "en": 1
+    },
+    "beam": {
+      "snd": "beam",
+      "pr": "beam",
+      "spd": 0,
+      "hit": "burn",
+      "fl": 0.22,
+      "sm": 0,
+      "en": 1
+    },
+    "warp": {
+      "snd": "warp",
+      "pr": "orb",
+      "spd": 17,
+      "hit": "warp",
+      "fl": 0.3,
+      "sm": 0,
+      "en": 1,
+      "wp": 1,
+      "m": 1,
+      "tr": "150,255,120",
+      "mhit": "warp"
+    },
+    "chain": {
+      "snd": "chain",
+      "m": 1,
+      "tr": "255,222,170",
+      "mhit": "grind"
+    },
+    "power": {
+      "snd": "power",
+      "m": 1,
+      "tr": "150,205,255",
+      "mhit": "arc",
+      "gl": 1
+    },
+    "hammer": {
+      "snd": "hammer",
+      "m": 1,
+      "tr": "255,236,205",
+      "mhit": "quake",
+      "wide": 1
+    },
+    "claw": {
+      "snd": "claw",
+      "m": 1,
+      "tr": "245,245,255",
+      "mhit": "rake",
+      "thin": 1
+    },
+    "bite": {
+      "snd": "bite",
+      "m": 1,
+      "tr": null,
+      "mhit": "snap"
+    }
+  },
+  "fx_st": {
+    "bolter": [
+      "#FFE7A8",
+      "rgba(255,150,60,0.5)",
+      2.6
+    ],
+    "hbolter": [
+      "#FFE08A",
+      "rgba(255,150,60,0.55)",
+      3.4
+    ],
+    "gatling": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      2.2
+    ],
+    "sniper": [
+      "#F2FBFF",
+      "rgba(160,220,255,0.5)",
+      1.6
+    ],
+    "cannon": [
+      "#FFD27A",
+      "rgba(255,120,40,0.6)",
+      5
+    ],
+    "rocket": [
+      "#FFE0B0",
+      "rgba(255,140,60,0.6)",
+      3
+    ],
+    "plasma": [
+      "#E6F4FF",
+      "rgba(90,170,255,0.7)",
+      4.2
+    ],
+    "melta": [
+      "#FFF4D8",
+      "rgba(255,130,40,0.75)",
+      5
+    ],
+    "beam": [
+      "#FFE8E0",
+      "rgba(255,70,50,0.7)",
+      4
+    ],
+    "warp": [
+      "#F2FFE8",
+      "rgba(120,255,110,0.72)",
+      4.4
+    ]
+  },
+  "fx_gun": {
+    "bolter": "bolter",
+    "stormgun": "bolter",
+    "hmg": "hbolter",
+    "bikegun": "hbolter",
+    "spdgun": "hbolter",
+    "kauto": "hbolter",
+    "rotary": "gatling",
+    "dakka": "gatling",
+    "odakka": "gatling",
+    "kgatling": "gatling",
+    "tgatling": "gatling",
+    "burstc": "gatling",
+    "burstt": "gatling",
+    "splintc": "gatling",
+    "sniper": "sniper",
+    "lrifle": "sniper",
+    "railr": "sniper",
+    "cannon": "cannon",
+    "tankgun": "cannon",
+    "deffgun": "cannon",
+    "kbattle": "cannon",
+    "mekgun": "cannon",
+    "owagon": "cannon",
+    "gunship": "cannon",
+    "krootgun": "cannon",
+    "thunderf": "cannon",
+    "mortar": "cannon",
+    "reaper": "rocket",
+    "orokkit": "rocket",
+    "razorm": "rocket",
+    "plasma": "plasma",
+    "plasmat": "plasma",
+    "tannihil": "plasma",
+    "bioplasma": "plasma",
+    "biocannon": "plasma",
+    "rupture": "plasma",
+    "suitgun": "plasma",
+    "pulse": "plasma",
+    "pblast": "plasma",
+    "pcarb": "plasma",
+    "dronegun": "plasma",
+    "ionh": "plasma",
+    "iont": "plasma",
+    "pulsed": "plasma",
+    "neutron": "plasma",
+    "pdisint": "plasma",
+    "melta": "melta",
+    "fusion": "melta",
+    "fusionh": "melta",
+    "heatray": "melta",
+    "avatar": "melta",
+    "lascan": "beam",
+    "elaser": "beam",
+    "gauss": "beam",
+    "gaussh": "beam",
+    "gaussx": "beam",
+    "doomray": "beam",
+    "whip": "beam",
+    "pylon": "beam",
+    "tbgun": "beam",
+    "railh": "beam",
+    "railt": "beam",
+    "tridrail": "beam",
+    "prism": "beam",
+    "kvolcano": "beam",
+    "tvolcano": "beam",
+    "ctan": "beam",
+    "dlance": "beam",
+    "dlancet": "beam",
+    "blaster": "beam",
+    "voidl": "beam",
+    "reapt": "beam",
+    "staff": "beam",
+    "sun": "beam",
+    "stone": "beam",
+    "tesla": "beam",
+    "psy": "warp",
+    "psyg": "warp",
+    "psyel": "warp",
+    "curse": "warp",
+    "loki": "warp",
+    "waagh": "warp",
+    "shokk": "warp",
+    "dcan": "warp",
+    "wraithc": "warp",
+    "hwraith": "warp",
+    "vect": "warp",
+    "spirit": "warp",
+    "balefire": "warp"
+  },
+  "fx_generic": {
+    "pistol": 1,
+    "carbine": 1,
+    "rifle": 1,
+    "smg": 1,
+    "suitgun": 1,
+    "bio": 1,
+    "slugga": 1,
+    "kroot": 1,
+    "kustom": 1,
+    "snazz": 1,
+    "spistol": 1,
+    "splinter": 1,
+    "shur": 1,
+    "bshur": 1
+  },
+  "mach8": {
+    "mech": 1,
+    "kdread": 1,
+    "kwarsuit": 1,
+    "kthunderf": 1,
+    "odread": 1,
+    "okan": 1,
+    "ogork": 1,
+    "elwknight": 1,
+    "elwlord": 1,
+    "elplat": 1,
+    "tasurge": 1,
+    "tataunar": 1,
+    "taghost": 1,
+    "tariptide": 1,
+    "tahazard": 1,
+    "rbdstalk": 1,
+    "rbtstalk": 1,
+    "rbmono": 1,
+    "rbpylon": 1,
+    "rbbarge": 1,
+    "rbtblade": 1,
+    "detalos": 1,
+    "decronos": 1,
+    "kgarm": 1,
+    "kgwarden": 1,
+    "kgpaladin": 1,
+    "kgcastellan": 1,
+    "ktwarhound": 1,
+    "ktwarlord": 1,
+    "ktimperator": 1,
+    "tagm": 1,
+    "cxd": 1,
+    "cxt": 1
+  },
+  "beast8": {
+    "takox": 1,
+    "taknarloc": 1,
+    "troy": 1
+  }
+}
