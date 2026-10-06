@@ -1,22 +1,28 @@
 extends SceneTree
-## Renders scenes/probe.tscn and saves tests/out/probe.png (Thai) and probe_en.png (after pressing the
+## Renders scenes/probe/probe.tscn and saves tests/out/probe.png (Thai) and probe_en.png (after pressing the
 ## language button). Needs a real display and a GPU or Mesa:
 ##   timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd
 ## Run `<godot> --headless --path godot --import` first so the kits and fonts are imported.
+## TEST_OUT (an absolute folder) in the environment replaces tests/out; tests/run.sh full sets it.
 
-const OUT_DIR := "res://tests/out"
+const SCENE := "res://scenes/probe/probe.tscn"
+const DEFAULT_OUT_DIR := "res://tests/out"
 const FRAMES := 3   # frames to wait before each capture
 
+var _out_dir := DEFAULT_OUT_DIR
 var _frame := 0
 var _probe: Node
 var _english_done := false
 
 
 func _initialize() -> void:
-	var scene: PackedScene = load("res://scenes/probe.tscn")
+	var env := OS.get_environment("TEST_OUT")
+	if env != "" and env.is_absolute_path():
+		_out_dir = env
+	var scene: PackedScene = load(SCENE)
 	if scene == null:
-		print("FAIL  cannot load res://scenes/probe.tscn")
+		print("FAIL  cannot load " + SCENE)
 		quit(1)
 		return
 	_probe = scene.instantiate()
@@ -45,8 +51,8 @@ func _process(_delta: float) -> bool:
 
 func _save(name: String) -> bool:
 	var img := root.get_viewport().get_texture().get_image()
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
-	var path := OUT_DIR + "/" + name
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
+	var path := _out_dir + "/" + name
 	var err := img.save_png(path)
 	if err != OK:
 		print("FAIL  could not save " + path + ": " + error_string(err))

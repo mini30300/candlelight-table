@@ -37,6 +37,29 @@ func assert_ne(a: Variant, b: Variant, msg: String) -> void:
 		print("FAIL  %s: both are %s" % [msg, str(a).left(500)])
 
 
+## |a - b| <= tol (ints convert to float); for rules numbers compare ints with assert_eq instead.
+func assert_within(a: float, b: float, tol: float, msg: String) -> void:
+	if absf(a - b) <= tol:
+		passed += 1
+		print("ok    " + msg)
+	else:
+		failed += 1
+		print("FAIL  %s: expected %s ± %s, got %s" % [msg, str(b), str(tol), str(a)])
+
+
+## Two digest strings must match exactly; on failure prints both and where they first differ.
+func assert_digest(got: String, expected: String, msg: String) -> void:
+	if got == expected:
+		passed += 1
+		print("ok    " + msg)
+		return
+	failed += 1
+	var i := 0
+	while i < got.length() and i < expected.length() and got[i] == expected[i]:
+		i += 1
+	print("FAIL  %s: digest differs at char %d\n      expected %s\n      got      %s" % [msg, i, expected.left(500), got.left(500)])
+
+
 ## Called by the runner; a test script may override it to prepare shared data.
 func setup() -> void:
 	pass

@@ -593,9 +593,8 @@ caps. `build.yml`/`tests.yml` untouched.
   tests, tools and docs.
 - **Tests live in** `godot/tests/`: `unit/test_<core module>.gd` (one per core module, same name), `golden/`,
   `oracle/`, `net/`, `render/`. A test file `extends "res://tests/testing.gd"` and defines `func test_*()`.
-- **Run headless tests** (from the repo root; `GODOT` = the 4.7.1 binary — in this container
-  `/tmp/claude-0/-home-user-candlelight-table/14efda3d-1836-580a-86e4-aead22ae2e85/scratchpad/godot/Godot_v4.7.1-stable_linux.x86_64`,
-  in CI `~/godot-bin/godot`):
+- **Run headless tests** (from the repo root; `GODOT` = the 4.7.1 binary, `~/godot-bin/godot` in CI and after
+  `tools/godot.sh`):
   ```bash
   $GODOT --headless --path godot --import                                   # after a fresh checkout or asset change
   $GODOT --headless --path godot -s tests/run_tests.gd                      # all unit + golden tests

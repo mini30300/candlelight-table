@@ -1,100 +1,114 @@
-# godot/ — the Godot 4 rewrite of Candlelight Table
+# godot/ — โต๊ะเทียนรุ่นใหม่บน Godot 4
 
-The new app (Android + Windows) is being rebuilt in Godot 4.7 here, next to the old HTML pages in `app/`.
-This folder is the seed: a probe scene, the test runner, the export presets and the CI workflow
-(`.github/workflows/godot.yml`). The rules in the repo's `AGENTS.md` apply here too (no Games Workshop /
-Gundam names, Thai UI with an English entry for every string, determinism, weak phones, secrets never in the repo).
+แอปใหม่ (Android + Windows) กำลังถูกสร้างขึ้นใหม่ด้วย Godot 4.7 ในโฟลเดอร์นี้ ข้าง ๆ หน้าเว็บเดิมใน `app/`
+แบบแผนทั้งหมดอยู่ใน `docs/ARCHITECTURE.md` (ออกแบบอย่างไร เพราะอะไร) และ `docs/PLAN.md` (งานเป็นช่วง R0–R6)
+แผนที่โค้ดสำหรับเอเจนต์คือ `../docs/GODOT.md` (อยู่ที่ไหน ใครดูแล ต้องรักษาอะไรไว้) กติกาของ repo ใน `AGENTS.md`
+ใช้ที่นี่ด้วย (ห้ามชื่อ/โลโก้ของค่ายเกมอื่น, ข้อความไทยทุกข้อความต้องมีคู่อังกฤษ, คำนวณกติกาให้ตรงกันทุกเครื่อง,
+มือถืออ่อนต้องลื่น, ความลับไม่เข้า repo)
 
-## Layout
+## โครงสร้าง
 
-| Path | What |
+| ที่ | คืออะไร |
 | --- | --- |
-| `project.godot` | Godot 4.7 project: renderer `gl_compatibility` on desktop and mobile, 1280×720, stretch `canvas_items`/`expand`, landscape, touch emulates the mouse |
-| `scenes/probe.tscn` | main scene: 40×30 m table, sky + sun with shadows, orbit camera, a row of figures, the HUD |
-| `scripts/i18n.gd` | `I18n`: Thai → English dictionary (keys are the Thai strings, like `BT_I18N` in the old page); `I18n.english`, `I18n.t("…")` |
-| `scripts/kit_lineup.gd` | `KitLineup`: pure helpers that list, pick and space the kits (unit-tested) |
-| `scripts/probe.gd`, `orbit_camera.gd`, `hud.gd` | the probe scene's scripts |
-| `assets/fonts/` | Sarabun (SIL OFL, `OFL.txt`); it is the project theme's default font so Thai renders everywhere |
-| `assets/theme/default_theme.tres` | the default Theme (`gui/theme/custom`) |
-| `assets/shaders/table.gdshader` | procedural checker + noise table top (no textures) |
-| `assets/kits/` | **generated, git-ignored**: `godot/tools/export_kits.js` exports every figure kit of the old page as `.glb` (312 files, 48 MB) plus `kits.json`; see below |
-| `tools/` | `export_kits.js` (figures) and `export_data.js` (game data) — Node scripts that read the old page |
-| `data/` | game data exported by `tools/export_data.js` |
-| `tests/` | `run_tests.gd` (runner), `testing.gd` (assertions), `test_*.gd` (tests), `render_probe.gd` (screenshot), `out/` (git-ignored output) |
-| `export_presets.cfg` | "Windows Desktop" (x86_64 .exe) and "Android" (APK, arm64-v8a + armeabi-v7a, min SDK 24 from the prebuilt template; `gradle_build/min_sdk` must stay empty unless Gradle builds are enabled); keystore fields are empty on purpose |
+| `project.godot` | โปรเจกต์ Godot 4.7: เรนเดอร์ `gl_compatibility` ทั้งเดสก์ท็อปและมือถือ, 1280×720 ยืดแบบ `canvas_items`/`expand`, แนวนอน, นิ้วแตะจำลองเป็นเมาส์; autoload ตามลำดับ `App`, `I18n`, `Log`, `Clock` |
+| `app/app.gd` | `App`: ตั้งค่าของแอป (ระดับกราฟิก hi/mid/lo/min, ภาษา th/en, เสียง, URL เซิร์ฟเวอร์) ใน `user://settings.cfg` + ตัวสลับหน้าจอ (`push`/`pop`/`current`) + ปุ่มย้อนกลับ |
+| `app/log.gd` | `Log`: เก็บล็อก 500 บรรทัดล่าสุด (`info`/`warn`/`error`, `dump()` สำหรับปุ่มคัดลอกล็อก) |
+| `app/clock.gd` | `Clock`: นาฬิกาเดียวของตัวจับเวลาฝั่งภาพ (`now_ms()`, `frozen`, `step(ms)`; เทสหยุดเวลาแล้วเดินเองได้) |
+| `ui/i18n.gd` | `I18n`: พจนานุกรมไทย → อังกฤษ (คีย์คือข้อความไทย เหมือน `BT_I18N` ของหน้าเก่า); `I18n.english`, `I18n.t("…")`; ค้นตามลำดับ `EN` ในสคริปต์ → `ui/i18n_extra.json` → `data/i18n_en.json` |
+| `ui/i18n_extra.json` | คำอังกฤษของข้อความไทยที่มีเฉพาะในแอปใหม่ — ข้อความไทยใหม่ทุกข้อความต้องมีคู่ที่นี่ |
+| `ui/theme/default_theme.tres` | ธีมหลัก (`gui/theme/custom`): ฟอนต์ Sarabun |
+| `table/camera_rig.gd` | กล้องวงโคจร: ลากหมุน, ล้อ/สองนิ้วซูม (จะเป็นกล้องร่วมของทั้งสองโต๊ะ) |
+| `table/figures/kit_library.gd` | `KitLibrary`: ฟังก์ชันล้วนที่หารายชื่อ เลือก และจัดแถวชุดโมเดล (มีเทส) |
+| `scenes/probe/` | ฉากทดสอบ (`probe.tscn`, `probe.gd`, `hud.gd`): โต๊ะ 40×30 ม., ท้องฟ้า + แดดมีเงา, แถวฟิกเกอร์, HUD ภาษาไทย |
+| `assets/fonts/` | Sarabun (SIL OFL, `OFL.txt`) เป็นฟอนต์เริ่มต้นของธีม ภาษาไทยจึงแสดงได้ทุกที่ |
+| `assets/shaders/table.gdshader` | พื้นโต๊ะลายหมากรุก + noise (ไม่ใช้เท็กซ์เจอร์) |
+| `assets/kits/` | **สร้างขึ้นเอง ไม่ commit**: `tools/export_kits.js` ส่งออกฟิกเกอร์ทุกชุดจากหน้าเก่าเป็น `.glb` (312 ไฟล์, 48 MB) + `kits.json` (ดูด้านล่าง) |
+| `data/` | ตารางข้อมูลเกมที่ `tools/export_data.js` ส่งออกจากหน้าเก่า (`data/README.md` อธิบายทุกไฟล์) — ห้ามแก้ด้วยมือ |
+| `tools/` | `export_kits.js` (ฟิกเกอร์) และ `export_data.js` (ข้อมูลเกม) — สคริปต์ Node ที่อ่านหน้าเก่า |
+| `tests/` | `run.sh` (คำสั่งเดียวรันทั้งชุด), `run_tests.gd` (ตัวรัน), `testing.gd` (assert), `unit/test_*.gd` (เทส), `render_probe.gd` (ภาพหน้าจอ), `out/` (ผลลัพธ์ ไม่ commit) |
+| `export_presets.cfg` | "Windows Desktop" (.exe x86_64) และ "Android" (APK arm64-v8a + armeabi-v7a, min SDK 24; `gradle_build/min_sdk` ต้องว่างไว้จนกว่าจะเปิดใช้ Gradle); ช่อง keystore เว้นว่างไว้โดยตั้งใจ |
+| `docs/` | `ARCHITECTURE.md` และ `PLAN.md` |
 
-## Setup
+## เตรียมเครื่อง
 
-1. Godot 4.7.1 (the standard editor binary; it also runs headless). CI downloads
-   `Godot_v4.7.1-stable_linux.x86_64.zip` from the Godot GitHub releases. Below, `godot` is that binary.
-2. The figure kits are not committed. Make them once (about 45 s; deterministic):
+1. Godot 4.7.1 (ตัว editor ปกติ รันแบบ headless ได้ด้วย) CI ดาวน์โหลด
+   `Godot_v4.7.1-stable_linux.x86_64.zip` จาก GitHub releases ของ Godot ด้านล่างเรียกไบนารีนั้นว่า `godot`
+   (วางไว้ที่ `~/godot-bin/godot` แล้ว `tests/run.sh` จะหาเจอเอง หรือชี้ด้วยตัวแปร `GODOT`)
+2. ชุดโมเดลไม่ได้ commit ไว้ สร้างครั้งเดียว (ราว 45 วินาที ผลเหมือนกันทุกครั้ง):
    ```bash
-   cd tests && npm ci && npx playwright install chromium && cd ..      # once; the old page's test setup
-   node godot/tools/export_kits.js                                      # writes godot/assets/kits/*.glb + kits.json
+   cd tests && npm ci && npx playwright install chromium && cd ..      # ครั้งเดียว; ชุดเทสของหน้าเก่า
+   node godot/tools/export_kits.js                                      # เขียน godot/assets/kits/*.glb + kits.json
    ```
-   On Claude Code on the web Playwright's Chromium may be missing: prefix the second command with
-   `CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome | head -1)`.
-   Without the kits the probe scene shows 8 coloured boxes instead.
-3. Import the assets (needed after a fresh checkout and whenever `assets/` changes; the editor does it on open):
+   บน Claude Code on the web อาจไม่มี Chromium ของ Playwright: ใส่
+   `CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome | head -1)` หน้าคำสั่งที่สอง
+   ไม่มีชุดโมเดล ฉากทดสอบจะแสดงกล่องสี 8 ใบแทน
+3. นำเข้า asset (ต้องทำหลัง checkout ใหม่และทุกครั้งที่ `assets/` เปลี่ยน; editor ทำให้เองตอนเปิด):
    ```bash
    godot --headless --path godot --import
    ```
 
-All commands run from the repository root.
+ทุกคำสั่งรันจากรากของ repository
 
-## Tests
+## เทส
 
 ```bash
-godot --headless --path godot -s tests/run_tests.gd              # all tests
-godot --headless --path godot -s tests/run_tests.gd -- kit        # only scripts whose file name contains "kit"
+bash godot/tests/run.sh                 # quick: นำเข้า + เทสหน่วย (CI รันชุดนี้ทุก PR)
+bash godot/tests/run.sh full            # quick + เรนเดอร์ฉากทดสอบผ่าน xvfb (ได้ probe.png, probe_en.png)
+bash godot/tests/run.sh i18n            # เฉพาะเทสที่ path มีคำนี้ (เช่น i18n, unit/core)
+GODOT=/path/to/godot TEST_OUT=/tmp/out bash godot/tests/run.sh   # เลือกไบนารีและโฟลเดอร์ผลลัพธ์ (ค่าเริ่มต้น godot/tests/out)
+
+godot --headless --path godot -s tests/run_tests.gd              # ตัวรันโดยตรง: เทสทั้งหมด
+godot --headless --path godot -s tests/run_tests.gd -- kit       # เฉพาะสคริปต์ที่ path มีคำว่า "kit"
 ```
-The runner finds `tests/test_*.gd`; each is a script that `extends "res://tests/testing.gd"` and defines
-`func test_*()` methods using `assert_true`, `assert_false`, `assert_eq`, `assert_ne`. It prints one `ok`/`FAIL` line per
-assertion (like the Playwright suites in `tests/`) and exits with code 1 on any failure. A failing test is a bug to fix,
-never a test to delete or loosen. Add tests for what you build.
+ตัวรันหา `tests/unit/**/test_*.gd` (ทุกโฟลเดอร์ย่อย) และ `tests/golden/test_golden.gd` ถ้ามี; เทสแต่ละไฟล์
+`extends "res://tests/testing.gd"` และมีเมธอด `func test_*()` ที่ใช้ `assert_true`, `assert_false`, `assert_eq`, `assert_ne`,
+`assert_within` (ทศนิยม), `assert_digest` (ข้อความ digest) พิมพ์ `ok`/`FAIL` หนึ่งบรรทัดต่อหนึ่งข้อ (เหมือนชุด Playwright
+ใน `tests/`) และออกด้วยโค้ด 1 เมื่อมีข้อใดพลาด autoload ทั้งสี่ใช้ได้ในเทส (ตัวรันเริ่มเทสที่เฟรมแรก หลัง `_ready()` ของ
+autoload) เทสที่พลาดคือบั๊กที่ต้องแก้ ไม่ใช่เทสที่ต้องลบหรือผ่อน ทำอะไรก็เพิ่มเทสของสิ่งนั้น
 
-## Render probe
+## เรนเดอร์ฉากทดสอบ
 
 ```bash
-timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --rendering-driver opengl3 \
+timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --rendering-driver opengl3 \
   --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd
 ```
-Saves `godot/tests/out/probe.png` (Thai) and `probe_en.png` (after pressing ENGLISH) and prints the GPU name.
-Look at the PNGs: the table, the light, the figures and the Thai text must be visible and the Thai must not be boxes.
-ALSA / V-Sync warnings in the output are harmless. CI uploads the PNGs as the `godot-probe` artifact.
+บันทึก `godot/tests/out/probe.png` (ไทย) และ `probe_en.png` (หลังกดปุ่ม ENGLISH) และพิมพ์ชื่อการ์ดจอ
+(`TEST_OUT` เปลี่ยนโฟลเดอร์ได้) เปิดดูรูปทุกครั้ง: ต้องเห็นโต๊ะ แสง ฟิกเกอร์ และข้อความไทยที่ไม่เป็นกล่องสี่เหลี่ยม
+คำเตือน ALSA / V-Sync ไม่เป็นไร CI อัปโหลดรูปเป็น artifact ชื่อ `godot-probe`
 
-## Exports
+## ส่งออก (export)
 
-Export templates must be installed first: unzip `Godot_v4.7.1-stable_export_templates.tpz` and put the content of its
-`templates/` folder in `~/.local/share/godot/export_templates/4.7.1.stable/`.
+ต้องติดตั้ง export templates ก่อน: แตก `Godot_v4.7.1-stable_export_templates.tpz` แล้ววางเนื้อหาในโฟลเดอร์ `templates/`
+ไว้ที่ `~/.local/share/godot/export_templates/4.7.1.stable/`
 
 ```bash
 godot --headless --path godot --export-release "Windows Desktop" "$PWD/dist-godot/windows/CandlelightTable.exe"
 godot --headless --path godot --export-debug "Android" "$PWD/dist-godot/android/candlelight-godot-debug.apk"
 ```
-`dist-godot/` is git-ignored. Android needs an Android SDK (platform-tools + build-tools), JDK 17 and a debug keystore,
-configured in Godot's editor settings file `~/.config/godot/editor_settings-4.7.tres`
+`dist-godot/` ไม่ commit Android ต้องมี Android SDK (platform-tools + build-tools), JDK 17 และ debug keystore
+ตั้งค่าในไฟล์ editor settings ของ Godot `~/.config/godot/editor_settings-4.7.tres`
 (`export/android/android_sdk_path`, `export/android/java_sdk_path`, `export/android/debug_keystore`,
-`export/android/debug_keystore_user`, `export/android/debug_keystore_pass`); `.github/workflows/godot.yml` shows the
-exact file. Release signing is not wired yet: the preset's `keystore/release*` fields stay empty and Godot then reads
-`GODOT_ANDROID_KEYSTORE_RELEASE_PATH` / `_USER` / `_PASSWORD` from the environment — those will come from GitHub
-secrets, never from the repo.
+`export/android/debug_keystore_user`, `export/android/debug_keystore_pass`); `.github/workflows/godot.yml` แสดงไฟล์จริง
+การเซ็นรุ่นจริงยังไม่ต่อ: ช่อง `keystore/release*` ใน preset ว่างไว้ Godot จึงอ่าน
+`GODOT_ANDROID_KEYSTORE_RELEASE_PATH` / `_USER` / `_PASSWORD` จาก environment แทน — ค่าเหล่านี้มาจาก GitHub secrets
+เท่านั้น ไม่มีวันอยู่ใน repo
 
 ## CI
 
-`.github/workflows/godot.yml` runs on every push and pull request that touches `godot/**` or the workflow:
-`kits` (regenerates the figure kits and shares them as an artifact) → `test` (unit tests + render probe under Xvfb),
-`windows` (release .exe) and `android` (debug APK). The Godot binary and the needed export templates are cached by version.
+`.github/workflows/godot.yml` รันทุก push และ pull request ที่แตะ `godot/**` หรือตัว workflow:
+`kits` (สร้างชุดโมเดลใหม่แล้วส่งต่อเป็น artifact) → `test` (เทสหน่วย + เรนเดอร์ฉากทดสอบผ่าน Xvfb),
+`windows` (.exe รุ่นจริง) และ `android` (APK debug) ไบนารี Godot และ export templates ถูก cache ตามรุ่น
 
-## Conventions
+## ข้อตกลง
 
-- GDScript with static typing (`var x: int`, `:=`, typed arguments and return types).
-- Commit the `.import` and `.uid` files Godot writes next to assets and scripts (CI relies on them); `.godot/`, `tests/out/`
-  and `assets/kits/*.glb` + `kits.json` are git-ignored.
-- Short Thai comments in game code, like the rest of the repo; English is fine in tests, tools and docs.
-- Every Thai UI string goes through `I18n.t()` and has an entry in `scripts/i18n.gd`; `tests/test_i18n.gd` checks that
-  every string the HUD uses has an English entry with no Thai left in it.
-- Rules code must be deterministic (seeded random only; no `randi()` without a seed, no wall-clock time).
-- Keep per-frame work small: the lowest graphics level must stay fast on weak phones (`gl_compatibility`, no extra passes).
-- Kits: the exporter already bakes each kit's `scale` into the mesh (figures stand at their true game height, titans are
-  9–30 m), so instantiate the `.glb` scenes at scale 1 and use `baseR` from `kits.json` for spacing.
+- GDScript แบบระบุชนิด (`var x: int`, `:=`, อาร์กิวเมนต์และค่าคืนมีชนิด) ไม่ใช้ C#
+- commit ไฟล์ `.import` และ `.uid` ที่ Godot เขียนข้าง asset และสคริปต์ (CI พึ่งพามัน); `.godot/`, `tests/out/`
+  และ `assets/kits/*.glb` + `kits.json` ไม่ commit
+- คอมเมนต์ในโค้ดเกมสั้นและเป็นไทยเหมือนส่วนอื่นของ repo; ในเทส เครื่องมือ และเอกสารใช้อังกฤษได้
+- ข้อความไทยบนจอทุกข้อความผ่าน `I18n.t()` และมีคู่อังกฤษใน `ui/i18n_extra.json` (ข้อความของหน้าเก่ามาจาก
+  `data/i18n_en.json`); `tests/unit/test_i18n.gd` ตรวจว่าทุกข้อความที่ HUD ใช้มีคำอังกฤษและไม่มีไทยหลงเหลือ
+- โค้ดกติกาต้องให้ผลเหมือนกันทุกเครื่อง (สุ่มจาก seed เท่านั้น ไม่ใช้ `randi()` ลอย ๆ ไม่ใช้เวลานาฬิกา); `core/` ใช้
+  จำนวนเต็มล้วน (ดู `docs/ARCHITECTURE.md` §4)
+- งานต่อเฟรมต้องน้อย: ระดับกราฟิกต่ำสุดต้องลื่นบนมือถืออ่อน (`gl_compatibility`, ไม่เพิ่ม pass)
+- ชุดโมเดล: exporter อบ `scale` ของแต่ละชุดลงในเมชแล้ว (ฟิกเกอร์สูงเท่าของจริงในเกม ไททัน 9–30 ม.) จึงวางฉาก `.glb`
+  ที่ scale 1 และใช้ `baseR` จาก `kits.json` เว้นระยะ

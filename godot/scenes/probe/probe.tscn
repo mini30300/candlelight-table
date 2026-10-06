@@ -1,8 +1,8 @@
 [gd_scene load_steps=14 format=3]
 
-[ext_resource type="Script" path="res://scripts/probe.gd" id="1_probe"]
-[ext_resource type="Script" path="res://scripts/orbit_camera.gd" id="2_camera"]
-[ext_resource type="Script" path="res://scripts/hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://scenes/probe/probe.gd" id="1_probe"]
+[ext_resource type="Script" path="res://table/camera_rig.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scenes/probe/hud.gd" id="3_hud"]
 [ext_resource type="Shader" path="res://assets/shaders/table.gdshader" id="4_table"]
 [ext_resource type="FontFile" path="res://assets/fonts/Sarabun-Bold.ttf" id="5_bold"]
 

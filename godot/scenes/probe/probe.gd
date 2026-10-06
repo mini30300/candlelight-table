@@ -13,7 +13,7 @@ var from_kits := false
 
 
 func _ready() -> void:
-	var names := KitLineup.pick(KitLineup.list_kits(), KitLineup.PREFERRED, MAX_FIGURES)
+	var names := KitLibrary.pick(KitLibrary.list_kits(), KitLibrary.PREFERRED, MAX_FIGURES)
 	if names.is_empty() or not _place_kits(names):
 		_place_stand_ins()
 	hud.set_figures(figure_count, from_kits)
@@ -21,19 +21,19 @@ func _ready() -> void:
 
 ## วางชุดโมเดลเรียงแถวตามรัศมีฐานใน kits.json; exporter อบ scale ลงในเมชแล้ว จึงวางที่ scale 1
 func _place_kits(names: PackedStringArray) -> bool:
-	var manifest := KitLineup.load_manifest()
+	var manifest := KitLibrary.load_manifest()
 	var scenes: Array[PackedScene] = []
 	var radii := PackedFloat32Array()
 	for name in names:
-		var res: Resource = load(KitLineup.KITS_DIR + "/" + name + ".glb")
+		var res: Resource = load(KitLibrary.KITS_DIR + "/" + name + ".glb")
 		if res is PackedScene:
 			scenes.append(res)
-			radii.append(KitLineup.base_radius(manifest, name))
+			radii.append(KitLibrary.base_radius(manifest, name))
 		else:
 			push_warning("kit not loadable: " + name)
 	if scenes.is_empty():
 		return false
-	var xs := KitLineup.row_positions(radii)
+	var xs := KitLibrary.row_positions(radii)
 	for i in scenes.size():
 		var inst := scenes[i].instantiate()
 		if inst is Node3D:

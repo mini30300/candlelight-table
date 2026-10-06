@@ -1,6 +1,7 @@
-class_name KitLineup
+class_name KitLibrary
 extends RefCounted
-## เลือกและจัดแถวชุดโมเดล (kits) จาก res://assets/kits — ฟังก์ชันล้วน ไม่แตะฉาก ทดสอบง่าย
+## คลังชุดโมเดล (kits) จาก res://assets/kits: หารายชื่อ อ่าน kits.json เลือกและจัดแถว — ฟังก์ชันล้วน ไม่แตะฉาก ทดสอบง่าย
+## (R0-D/R1 เพิ่มการโหลดทีละชุดและ LOD ที่นี่)
 
 const KITS_DIR := "res://assets/kits"
 const MANIFEST := KITS_DIR + "/kits.json"

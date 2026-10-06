@@ -11,9 +11,16 @@ config_version=5
 [application]
 
 config/name="Candlelight Table"
-run/main_scene="res://scenes/probe.tscn"
+run/main_scene="res://scenes/probe/probe.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+App="*res://app/app.gd"
+I18n="*res://ui/i18n.gd"
+Log="*res://app/log.gd"
+Clock="*res://app/clock.gd"
 
 [display]
 
@@ -25,7 +32,7 @@ window/handheld/orientation=0
 
 [gui]
 
-theme/custom="res://assets/theme/default_theme.tres"
+theme/custom="res://ui/theme/default_theme.tres"
 theme/custom_font="res://assets/fonts/Sarabun-Regular.ttf"
 
 [input_devices]
