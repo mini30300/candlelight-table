@@ -16,3 +16,6 @@ node_modules
 
 # the offline battle table is copied into desktop/dist at build time (CI does it); never commit the copy
 desktop/dist/battle-table.html
+
+# Godot exports (godot/export_presets.cfg writes here; CI uploads them as artifacts)
+dist-godot/

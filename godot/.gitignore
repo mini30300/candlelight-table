@@ -1,0 +1,5 @@
+# Godot's import cache and editor state
+.godot/
+# render probe output (tests/render_probe.gd)
+tests/out/
+# exported builds land outside the project (../dist-godot); see export_presets.cfg

@@ -1,0 +1,229 @@
+# แอปใหม่ (Godot 4, โฟลเดอร์ godot/): รันเทส + เรนเดอร์ฉากทดสอบ แล้วสร้าง .exe กับ APK ทดสอบ
+# ทำงานเฉพาะเมื่อ godot/** หรือไฟล์นี้เปลี่ยน · ของที่ได้: godot-probe (รูป), godot-windows (.exe), godot-android (.apk)
+name: Godot
+on:
+  push:
+    paths: [ 'godot/**', '.github/workflows/godot.yml' ]
+  pull_request:
+    paths: [ 'godot/**', '.github/workflows/godot.yml' ]
+  workflow_dispatch:
+
+concurrency:              # a new push on the same PR cancels the older run
+  group: godot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: '4.7.1'
+  GODOT_RELEASE: stable
+  GODOT_URL: https://github.com/godotengine/godot/releases/download
+
+jobs:
+  # The figure kits (godot/assets/kits/*.glb + kits.json, 48 MB) are generated from the old page and never
+  # committed: this job makes them once, the other jobs download the artifact.
+  kits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Install Playwright and Chromium
+        working-directory: tests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Export the figure kits from battle-table.html
+        run: node godot/tools/export_kits.js
+      - name: Check the export
+        run: |
+          test -s godot/assets/kits/kits.json
+          echo "$(ls godot/assets/kits/*.glb | wc -l) kits, $(du -sh godot/assets/kits | cut -f1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets/kits
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    needs: kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets/kits
+      - name: Cache Godot
+        id: godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-x86_64
+      - name: Download Godot
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bin
+          curl -fsSL -o "$RUNNER_TEMP/godot.zip" "$GODOT_URL/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+      - name: Install Xvfb and Mesa (software OpenGL for the render probe)
+        run: |
+          command -v xvfb-run > /dev/null && dpkg -s libgl1-mesa-dri > /dev/null 2>&1 && exit 0
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends xvfb libgl1-mesa-dri libglx-mesa0 libegl-mesa0 \
+            libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 libfontconfig1
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Unit tests
+        run: ~/godot-bin/godot --headless --path godot -s tests/run_tests.gd
+      - name: Render probe
+        run: |
+          timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
+            --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-probe
+          path: godot/tests/out/probe*.png
+          if-no-files-found: error
+
+  windows:
+    needs: kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets/kits
+      - name: Cache Godot
+        id: godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-x86_64
+      - name: Download Godot
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bin
+          curl -fsSL -o "$RUNNER_TEMP/godot.zip" "$GODOT_URL/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+      - name: Cache the Windows export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-x86_64
+      - name: Download the export templates (only the Windows x86_64 ones are kept)
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/templates.tpz" "$GODOT_URL/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}
+          mkdir -p "$dest"
+          unzip -q -j "$RUNNER_TEMP/templates.tpz" 'templates/windows_*x86_64*' 'templates/version.txt' -d "$dest"
+          ls -la "$dest"
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Export Windows Desktop (release)
+        run: |
+          mkdir -p dist-godot/windows
+          ~/godot-bin/godot --headless --path godot --export-release "Windows Desktop" "$GITHUB_WORKSPACE/dist-godot/windows/CandlelightTable.exe"
+          ls -la dist-godot/windows
+          test -s dist-godot/windows/CandlelightTable.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-windows
+          path: dist-godot/windows
+          if-no-files-found: error
+
+  android:
+    needs: kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets/kits
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - name: Android SDK packages (the runner's SDK at $ANDROID_HOME)
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "build-tools;34.0.0" "platforms;android-34" > /dev/null
+          ls "$ANDROID_HOME/build-tools" "$ANDROID_HOME/platform-tools/adb"
+      - name: Cache Godot
+        id: godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-x86_64
+      - name: Download Godot
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bin
+          curl -fsSL -o "$RUNNER_TEMP/godot.zip" "$GODOT_URL/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+      - name: Cache the Android export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-android
+      - name: Download the export templates (only the Android ones are kept)
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/templates.tpz" "$GODOT_URL/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}
+          mkdir -p "$dest"
+          unzip -q -j "$RUNNER_TEMP/templates.tpz" 'templates/android_debug.apk' 'templates/android_release.apk' 'templates/version.txt' -d "$dest"
+          ls -la "$dest"
+      # Godot reads the SDK paths and the debug keystore from its editor settings file
+      # (~/.config/godot/editor_settings-4.7.tres; the keys below are the ones the 4.7 editor writes itself).
+      # The debug keystore is a throwaway made right here, so nothing secret is involved.
+      - name: Godot editor settings for Android + a throwaway debug keystore
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android -keypass android \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          cfg="${XDG_CONFIG_HOME:-$HOME/.config}/godot"
+          mkdir -p "$cfg"
+          cat > "$cfg/editor_settings-${GODOT_VERSION%.*}.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$RUNNER_TEMP/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          cat "$cfg/editor_settings-${GODOT_VERSION%.*}.tres"
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Export Android (debug APK)
+        run: |
+          mkdir -p dist-godot/android
+          ~/godot-bin/godot --headless --path godot --export-debug "Android" "$GITHUB_WORKSPACE/dist-godot/android/candlelight-godot-debug.apk"
+          ls -la dist-godot/android
+          test -s dist-godot/android/candlelight-godot-debug.apk
+        # Release signing comes later. The preset's keystore/release* fields stay empty, so Godot reads these
+        # environment variables instead — set them from GitHub secrets (decode the keystore into $RUNNER_TEMP,
+        # never into the repo) and run --export-release "Android":
+        #   GODOT_ANDROID_KEYSTORE_RELEASE_PATH, GODOT_ANDROID_KEYSTORE_RELEASE_USER, GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-android
+          path: dist-godot/android/candlelight-godot-debug.apk
+          if-no-files-found: error
