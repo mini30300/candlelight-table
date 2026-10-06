@@ -15,13 +15,14 @@ file paths as written. Tracks are the ownership areas of ARCHITECTURE §1; one P
 
 | Milestone | Calendar (4 agents) | Agent sessions | Owner sees |
 | --- | --- | --- | --- |
-| R0 scaffold, CI, look build | weeks 1–2 | 6–8 | a real field with ~400 tinted figures on their phone and PC |
+| R0 scaffold, CI, look build | weeks 1–2 | 6–8 | a real field with ~400 figures and team rings on their phone and PC |
 | R1 rules core v10 (+ look track) | weeks 2–5 | 15–20 | weekly: terrain per theme, walking figures, army picker |
 | R2 first playable vs bots, offline | weeks 5–8 | 15–20 | a full game against bots on the phone, all four graphics levels |
 | R3 online on the existing server, Claude | weeks 8–10 | 8–10 | rooms with friends and Claude; both apps side by side |
 | R4 D&D table: human DM + generated maps | weeks 10–14 | 12–16 | running a session as DM from the phone |
 | R5 roguelike survival + bestiary | weeks 14–20 | 15–25 | a hardcore solo run, 60+ monsters |
 | R6 catch-up, co-op, retire old apps | weeks 20–24 | 6–10 | one app per platform |
+| R7 collection: painter, display boxes, campaign rewards | weeks 24–30 | 10–15 | painting their own models, a shelf of boxes, a campaign that pays for pulls |
 
 Roughly double if one agent works alone.
 
@@ -35,7 +36,7 @@ merges first.
 
 **Deliverables.** `godot/` in the target layout; integer maths + RNG + hash + digest with tests and the purity lint;
 merged-surface kit import with team tint and impostor baking proven on all 312 kits; a look build (terrain, ~400
-tinted figures, pan/pinch, Thai HUD, GPU-check screen) as APK + exe on the `build-N` release; CI with x86 + arm64
+figures with team rings, pan/pinch, Thai HUD, GPU-check screen) as APK + exe on the `build-N` release; CI with x86 + arm64
 tests, Windows smoke, signed APK on main; the oracle recordings from the old page; `docs/GODOT.md`.
 
 **Tasks (parallel).**
@@ -67,21 +68,25 @@ tests, Windows smoke, signed APK on main; the oracle recordings from the old pag
   `softprops/action-gh-release@v2`. Set `package/unique_name = dev.mini.candlelight.table` in `export_presets.cfg`; add
   a step that greps the repo for `keystore/release=` values and `.jks` files. Done when a PR run is green and a main
   run attaches both files.
-- **R0-D · kit import, tint, impostors** (track table/figures). `assets/kits_import/kit_post_import.gd`
+- **R0-D · kit import, paint shader, impostors** (track table/figures). `assets/kits_import/kit_post_import.gd`
   (EditorScenePostImport: merge surfaces → one ArrayMesh surface, `COLOR` = palette colour, `CUSTOM0` = tint flag +
-  palette index, skin kept, indexed where normals agree) applied by a shared import preset; `assets/shaders/
-  figure.gdshader` (team dye per ARCHITECTURE §7; uniform for skinned, `INSTANCE_CUSTOM` for MultiMesh; per-vertex
-  shading define); `tools/bake_impostors.gd` (16 yaw x 2 pitch per kit → `assets/impostors/<kit>.png` + `_m.png`);
-  `assets/kits/CONTRACT.md`; `tests/render/test_lineup.gd` (every kit: 23 joints for skinned kits, every material maps
-  to a palette key with a tint flag, scale sane; one PNG line-up per army; in the line-up scene draw calls == figures).
-  Done when 312 kits import and the test passes under xvfb.
+  palette index, skin kept, indexed where normals agree) applied through `[importer_defaults]`; `assets/shaders/
+  figure.gdshader` (paint table per ARCHITECTURE §7 — no team dye; `paint_row` uniform for skinned, `INSTANCE_CUSTOM.x`
+  for MultiMesh; per-vertex shading define); `tools/bake_impostors.gd` (16 yaw x 2 pitch per kit →
+  `assets/impostors/<kit>.png` + `_m.png`); `assets/kits/CONTRACT.md`; `tests/render/test_lineup.gd` (every kit: 23
+  joints for skinned kits, every material maps to a palette key with a tint flag, scale sane; one PNG line-up per army;
+  one kit drawn twice with a paint row proves the override; in the line-up scene draw calls == figures). Done when 312
+  kits import and the test passes under xvfb.
 - **R0-E · the look build** (track table + ui). `scenes/main.tscn`, `scenes/battle_table.tscn`, `table/table_view.gd`,
   `table/terrain_mesh.gd` (from a provisional heightfield; swaps to `core/field` in R1-V1), `table/props_layer.gd`
-  (placeholder MultiMesh props), `table/figures/figure_pool.gd` v1 (skinned near + rigid MultiMesh far, team tint),
-  `table/camera_rig.gd` touch + mouse, `ui/screens/gpu_check.tscn` (adapter, GL version, fps, draw calls, memory,
-  400-rigid + 100-skinned stress, graphics level picker, Thai LineEdit for the IME check), Thai HUD through `I18n`.
-  `tests/render/test_budgets.gd` skeleton printing counters per level for the 400-figure scene. Done when APK and exe
-  show ~400 tinted figures on a terrain, pan/pinch/orbit work, and counters print in CI.
+  (placeholder MultiMesh props), `table/figures/figure_pool.gd` v1 (skinned near + rigid MultiMesh far, kit colours),
+  `table/rings.gd` (one MultiMesh of ground rings: team colour under every figure, selection/destination/objective
+  later), `table/camera_rig.gd` touch + mouse, `ui/screens/gpu_check.tscn` (adapter, GL version, fps, draw calls,
+  memory, 400-rigid + 100-skinned stress, graphics level picker with render scale and shadows per ARCHITECTURE §6 —
+  the owner's Mali-G52 phone ran the probe at 21 fps with shadows at full resolution, so lo must be the phone default —
+  Thai LineEdit for the IME check), Thai HUD through `I18n`. `tests/render/test_budgets.gd` skeleton printing counters
+  per level for the 400-figure scene. Done when APK and exe show ~400 figures with team rings on a terrain,
+  pan/pinch/orbit work, and counters print in CI.
 - **R0-F · data schemas and lint** (track tools). `data/schema/*.json` (unit, weapon, army, theme, ability, i18n,
   map_layout, monster stub), `data/version.json`, `tools/validate_data.py` (schema, banned names of AGENTS rule 1 over
   `godot/`, Thai→English completeness for `ui/` and `data/`, `types.json` order append-only vs the previous commit, dice
@@ -344,6 +349,29 @@ package-id takeover, the old shells removed from CI.
 app on the owner's phone; all suites green; Thai docs current.
 
 **Effort.** 4–8 agent sessions.
+
+---
+
+## R7 — Collection: model painter, display boxes, campaign rewards (weeks 24–30)
+
+**Goal (owner wishes of 7 Oct).** The owner wants the models to be a collection: paint your own models, decorate them,
+keep them in boxes on a shelf or a table you tap to open, and a campaign mode that earns in-game money spent on random
+model pulls. Design week with the owner (and GPT for opinions) before any code, like R5. Never real money: pulls cost
+campaign coins only, and the odds are shown in Thai on the pull screen.
+
+**Deliverables.** `ui/screens/painter.tscn` (pick a model, tap a palette slot, pick a colour; the paint table of
+ARCHITECTURE §7; undo; save to `user://paint/<kit>.json`; paint travels with the army list as ints so friends see it);
+`ui/screens/shelf.tscn` (boxes per army on a 3D shelf or table, tap a box to open it, turntable preview with the kit's
+real animations); `core/collection.gd` (owned kits, coins, pull tables as JSON in `data/collection/`, seeded pulls from
+a stream so a replayed act log gives the same pull); campaign hooks (coins from won battles and survival runs, R5);
+decorations (banners, bases, trophies as extra palette slots or small attachments on the mount points of
+`kits.json`). Tests: paint round-trip, pull determinism, a shelf render test, i18n of every new string.
+
+**Open questions for the design week.** Which kits are owned from the start (all of them for the battle table, so no
+one is locked out of a fair game; collection affects only looks?); whether the painter edits per model or per squad;
+how much of this is visible to online opponents on v10 rooms (paint as ints is cheap; decorations need a cap).
+
+**Effort.** 10–15 agent sessions after R6, or in parallel with R5 if the owner prefers it earlier.
 
 ---
 

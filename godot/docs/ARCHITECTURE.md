@@ -11,7 +11,7 @@ that answers `BT_MAX_ACTS = 500` (late join / resync) and the one-draw-call-per-
 (x86-64 + arm64 goldens, a mock Worker, no new secret) fits agents working headlessly.
 
 **Grafted from "parity"** (the owner lens and the oracle):
-1. Cadence: a look-only build on the owner's real devices in week 1–2 (terrain, ~400 tinted kits, pan/pinch), then a
+1. Cadence: a look-only build on the owner's real devices in week 1–2 (terrain, ~400 kits with team rings, pan/pinch), then a
    weekly build while the rules port runs headless in parallel. The owner never waits three weeks for a screen.
 2. The old page as a **fidelity oracle**: `tools/record_oracle.js` drives `window.BT` (capture / board / dice / tick) on
    `battle-table.html` and records scenarios; the v10 core replays them with the page's props and deployment injected and
@@ -375,19 +375,27 @@ Per-level budgets, asserted by `tests/render/test_budgets.gd` on a 400-figure / 
   run of slow frames, never up — the page's behaviour.
 - Why tiers are mandatory: 400 figures x median 11 materials = 4,400 draw calls naively; 400 skinned x ~3,200 vertices
   = 1.3M skinned vertices per frame. So: (1) import merges each kit into one surface; (2) near tier: skinned
-  MeshInstance3D, one draw call each, one material per team (8); (3) mid tier: per-kit MultiMeshInstance3D of rigid
-  figures in idle pose, INSTANCE_CUSTOM = team colour (30 kit types in play = 30 draw calls for hundreds of figures);
+  MeshInstance3D, one draw call each, one shared material (a duplicate only for a repainted figure); (3) mid tier:
+  per-kit MultiMeshInstance3D of rigid figures in idle pose, INSTANCE_CUSTOM.x = paint-job row (30 kit types in play =
+  30 draw calls for hundreds of figures);
   (4) far tier: one MultiMesh of billboards from a per-battle atlas built at battle start from the baked impostor strips
   = 1 draw call. Walking squads are promoted to skinned (capped) or slid rigidly.
 - Terrain: one ArrayMesh (~42x30 cells, ~2.5k tris, vertex colours, no textures) + rails; props as MultiMesh per kind
   (~8 draw calls); blob shadows as one MultiMesh of dark quads. Sky: flat gradient; skyline quad on mid/hi.
+- **Team rings** (owner decision 7 Oct): a figure is never dyed in its team colour; the team shows as a coloured ring on
+  the ground under every figure (`table/rings.gd`, one MultiMesh of flat ring quads per table, one draw call on every
+  level, team RGB from `teams.json`). Selection, destination and objective rings reuse the same MultiMesh with other
+  colours and radii. Figures keep their own painted colours so armies look like painted collections.
+- Owner's phone (7 Oct, probe build): Android, Mali-G52 MC2, 2400x1080, 12 skinned figures with 2048 shadows at full
+  resolution = 21 fps. It is a `lo` device: render scale 0.75, no shadow map. The GPU-check screen measures this and picks
+  the level; hi stays opt-in on phones.
 - Memory: flat colours, one ≤ 2048 impostor atlas (≤ 16 MB VRAM), fonts; kits loaded lazily per battle (~100 KB each);
   targets < 350 MB RSS on Android, < 500 MB on a 2 GB PC; APK < 90 MB (CI fails above 120 MB).
 - Battery: fps caps, idle = no redraw, polls only in a room, screen on only during play.
 - Measurement: `tools/perf_scene.gd` prints counters per level in CI (artifact); the in-app GPU-check screen shows
   adapter, GL version, draw calls, fps, memory, so the owner screenshots numbers from the old PC and the phones.
 
-## 7. Assets, tint shader, animation
+## 7. Assets, paint shader, animation
 
 **Kit contract** (`tools/export_kits.js`, PR #27; `assets/kits/CONTRACT.md` restates it): one `.glb` per kit key,
 metres, +Y up, faces +Z, flat shading, scale baked into the mesh (instantiate at scale 1; `baseR` from `kits.json` for
@@ -403,10 +411,14 @@ surfaces into one ArrayMesh surface with `COLOR` = linear palette colour, `CUSTO
 indexed where face normals agree, skin kept; a second LOD exported from the page at `LODK 0.45` (the exporter already
 calls `M.build(kit, Wd, lod)`), importer LOD generation for one more. The NATURAL list comes from `kits.json`.
 
-**Tint shader** (`assets/shaders/figure.gdshader`): `albedo = mix(COLOR.rgb, team_dye(team_rgb, luminance(COLOR.rgb)),
-CUSTOM0.r)` reproducing the page's `teamTint` (grep `teamTint` in the page; `teams.json` has the 8 team RGBs); team
-colour from a per-team material uniform (skinned tier) or `INSTANCE_CUSTOM` (MultiMesh tiers); `#if` define for
-per-vertex shading on lo/min; skins/variants via the palette index.
+**Paint shader** (`assets/shaders/figure.gdshader`; the page's `teamTint` dye is NOT ported — team colour is the ring of
+§6): base colour = `COLOR`; an optional paint table `uniform sampler2D paint_tex` (one row per paint job, column =
+palette index, ≤ 16 columns, nearest filtering, `texelFetch`) overrides the colour of slot `CUSTOM0.g`; the row comes
+from `INSTANCE_CUSTOM.x` (MultiMesh tiers) or a `paint_row` uniform on a duplicated material (skinned tier); row < 0 =
+kit colours. `CUSTOM0.r` (the old tint flag) now only says which slots the painter offers first (armour and cloth; skin,
+wood and metal are marked natural). `#if` define for per-vertex shading on lo/min; skins/variants via the palette index.
+This is the foundation of the owner's **model painter and collection** (R7): a paint job is a per-kit list of ≤ 16 RGBs
+stored in `user://paint/<kit>.json` and sent with the army list as plain ints, so other screens show your paint.
 
 **Impostors** (`tools/bake_impostors.gd`, headless under xvfb, ~2 min for 312 kits): 16 yaw x 2 pitch per kit into
 `assets/impostors/<kit>.png` (RGB) + `<kit>_m.png` (tint mask R8); generated with the kits in CI, cached by the same key.
@@ -538,7 +550,7 @@ skip or loosen; agents add a test for what they build.
 6. **Render** (xvfb + llvmpipe): `test_budgets.gd` (the §6 table), `test_screens.gd` (every screen, Thai and English, four
    resolutions, overflow/overlap, baselines with a perceptual tolerance; baselines are produced by the same llvmpipe in
    CI and regenerated only as an explicit PR step), `test_lineup.gd` (every army's kits in a row; an ID-colour pass
-   counts visible tinted figures), `test_anim_footslide.gd`.
+   counts visible figures and rings), `test_anim_footslide.gd`.
 7. **Export smoke**: the Windows exe runs `--headless -s res://tests/selftest.gd` on `windows-latest`; the APK is checked
    with `aapt dump badging` (id, abis, permissions, size gate).
 8. **Data lint** (Python, no Godot): `tools/validate_data.py` — schema, banned names (AGENTS rule 1) over `godot/`,
