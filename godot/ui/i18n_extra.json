@@ -30,5 +30,14 @@
   "คัดลอกแล้ว": "Copied",
   "ซูมให้พอดีโต๊ะ": "Fit table",
   "ฟิกเกอร์ {n} ตัว (ขยับได้ {s} · แข็ง {r}) · ชุดโมเดล {k} ชุด · วงแหวน {g} วง · อุปกรณ์ {p} ชิ้น": "{n} figures ({s} skinned · {r} rigid) · {k} kits · {g} rings · {p} props",
-  "แตะเพื่อเลือกฟิกเกอร์ · ลากเพื่อเลื่อน · สองนิ้วซูม/หมุน · ล้อเมาส์ซูม · คลิกขวาลากหมุน · WASD เลื่อน": "Tap to select a figure · drag to pan · two fingers to zoom/orbit · wheel to zoom · right-drag to orbit · WASD to pan"
+  "แตะเพื่อเลือกฟิกเกอร์ · ลากเพื่อเลื่อน · สองนิ้วซูม/หมุน · ล้อเมาส์ซูม · คลิกขวาลากหมุน · WASD เลื่อน": "Tap to select a figure · drag to pan · two fingers to zoom/orbit · wheel to zoom · right-drag to orbit · WASD to pan",
+  "ตัวอย่างตึกซากโกธิก (แบบของเราเอง)": "Sample gothic ruin building (our own design)",
+  "ด้านหน้า": "Front",
+  "มุมเฉียง": "Corner",
+  "มองจากบน": "From above",
+  "แบบหยาบ lo สำหรับระยะไกลและเครื่องเล็ก": "Coarse lo version for distance and small devices",
+  "แบบละเอียด hi": "Detailed hi version",
+  "{n} สามเหลี่ยม": "{n} triangles",
+  "รอยเท้าตามกติกา {w} × {d} ม. สูง {h} ม.": "Rules footprint {w} × {d} m, {h} m tall",
+  "ฟิกเกอร์สูงราว 1.7 ม. ไว้เทียบขนาด": "Figures about 1.7 m tall, for scale"
 }
