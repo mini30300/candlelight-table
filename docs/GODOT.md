@@ -20,7 +20,7 @@ creates them, so nobody invents a second place for the same thing.
 
 | Path | What it is | Anchor / entry point | Track |
 | --- | --- | --- | --- |
-| `project.godot` | Godot 4.7 project: `gl_compatibility` on desktop and mobile, 1280×720 `canvas_items`/`expand`, landscape, Sarabun theme, **autoloads in the order App, I18n, Log, Clock** | `[autoload]` · `run/main_scene` (the probe scene for now; `scenes/main.tscn` from R0-E) | tools/tests |
+| `project.godot` | Godot 4.7 project: `gl_compatibility` on desktop and mobile, 1280×720 `canvas_items`/`expand`, landscape, Sarabun theme, **autoloads in the order App, I18n, Log, Clock** | `[autoload]` · `run/main_scene` (`scenes/main.tscn`) · `[importer_defaults]` (the kit post-import) | tools/tests |
 | `export_presets.cfg` | "Windows Desktop" (x86_64) and "Android" (arm64-v8a + armeabi-v7a, min SDK 24); keystore fields EMPTY on purpose — release signing comes from `GODOT_ANDROID_KEYSTORE_RELEASE_*` env vars in CI | `[preset.0]`, `[preset.1]` | CI (R0-C) |
 | `icon.svg`, `README.md` | app icon; the Thai README: setup, tests, render probe, exports | — | tools/tests |
 | `app/app.gd` | **`App`** autoload: settings `gfx` (hi/mid/lo/min), `lang` (th/en), `snd`, `server` in `user://settings.cfg` (ConfigFile, section `app`, defaults when the file is missing or corrupt); the ScreenStack router; Android back button | `func load_settings(`, `func save_settings(`, `func set_lang(`, `func push(`, `func pop(`, `func current(`, `func back(` | ui/ (owner), app/ |
@@ -48,20 +48,34 @@ creates them, so nobody invents a second place for the same thing.
 Outside `godot/`: `.github/workflows/godot.yml` (CI: `kits` → `test` (import, `tests/run_tests.gd`, `tests/render_probe.gd`
 under xvfb), `windows`, `android`; extended in R0-C) and this file.
 
-### 1.2 Planned folders (ARCHITECTURE §1) and who creates them
+### 1.2 Modules added in R0 (search anchors; line numbers drift)
 
-| Folder | Content | Created by |
-| --- | --- | --- |
-| `core/` | the rules core: `version.gd`, `fx.gd`, `rng.gd`, `hash.gd`, `events.gd`, `actlog.gd`, `table.gd`, `data.gd`, `field/`, `battle/`, later `dnd/` — RefCounted only, integer only | R0-B (toolbox), R1 (battle rules), R4+ (`dnd/`) |
-| `data/schema/`, `data/version.json` | JSON schemas (unit, weapon, army, theme, ability, i18n, map_layout, monster), the rules/data version stamp | R0-F |
-| `tools/validate_data.py`, `tools/gen_bt_data.py`, `tools/record_oracle.js`, `tools/kits.sh`, `tools/bake_impostors.gd`, `tools/mock_worker.mjs`, … | data lint, server datasheet file, oracle recorder, kit pipeline | R0-F, R0-G, R0-C, R0-D |
-| `assets/kits_import/`, `assets/shaders/figure.gdshader`, `assets/impostors/` (generated) | merged-surface kit import, team-tint shader, impostor strips | R0-D |
-| `table/table_view.gd`, `terrain_mesh.gd`, `props_layer.gd`, `figures/figure_pool.gd`, … | the 3D presentation of the table | R0-E, R1 |
-| `ui/screens/`, `ui/widgets/` | Control scenes, Thai first (`gpu_check` first) | R0-E, R1+ |
-| `scenes/main.tscn`, `scenes/battle_table.tscn` | root scene (World + UI ScreenStack + Overlay); the battle table scene | R0-E |
-| `net/` | `room_client.gd`, `server.gd`, `json_num.gd`, later `dnd_client.gd` | R3, R4 |
-| `tests/render/`, `tests/golden/`, `tests/oracle/`, `tests/net/`, `tests/selftest.gd` | xvfb render tests (`run_render.gd` entry), golden replays, oracle recordings, net sync, the exported-exe selftest | R0-D/E, R1, R0-G, R3, R0-C |
-| `app/audio.gd`, `app/selftest.gd` | the `Audio` autoload; the in-app Selftest screen | R2, R1 |
+| File | What | Anchors | Track |
+| --- | --- | --- | --- |
+| `core/version.gd` | `Version`: `RULES_V` 10, `APP_VER`, `DATA_HASH` (filled by `tools/validate_data.py --write-version`) | `const RULES_V`, `const DATA_HASH` | core |
+| `core/fx.gd` | `Fx`: milli-inch integer maths with JavaScript semantics where the page had them | `static func idiv(`, `static func imod(`, `static func isqrt(`, `static func norm1000(`, `js_round`, `to_fixed_1`, `stable_sort` | core |
+| `core/rng.gd` | `Rng`: PCG32, one stream per job (terrain, props, objectives, armies, deploy, `bot:<seat>`, `fallback:<seq>:<stage>`), unbiased `bounded`, snapshots | `static func make(`, `func next_u32(`, `func bounded(`, `func d6(`, `func restore(` | core |
+| `core/hash.gd` | `Hash`: 32-bit mixers for noise, FNV-1a 64 for digests | `static func ihash2(`, `static func fnv1a64(`, `static func digest_hex(` | core |
+| `core/events.gd`, `core/actlog.gd`, `core/table.gd` | typed event ids; the ordered act log (ints only, JSON round-trip); the `Table` base (`apply` → events, `advance`, `digest`, `replay`) | `static func id_of(`, `func append(`, `func canon(`, `func apply(`, `func advance(`, `func replay(` | core |
+| `tests/unit/test_core_purity.gd` | the purity lint over `core/**` (forbidden tokens of ARCHITECTURE §2; a planted float fixture must fail) | `fixtures/purity_bad/` | core |
+| `data/schema/*.json`, `data/version.json`, `data/bt2_snapshot.json`, `data/bt_data.json` | JSON schemas of every table, the rules/data stamp, the server's datasheet snapshot and the file the server PR will take | — | tools |
+| `tools/validate_data.py` | the data lint CI runs: schemas, banned names of AGENTS rule 1 over `godot/` (legacy tokens hashed in `data/schema/legacy_tokens.sha1`), Thai→English completeness in `ui/**` and `app/**`, TYPES append-only, dice ≤ 60, secrets guard; `--fixtures`, `--write-version` | `def check_schema(`, `def banned_hits(`, `def thai_display_strings(` | tools |
+| `tools/gen_bt_data.py`, `docs/DATA.md` | datasheet payload for the server; the layout-JSON schema and the DM act vocabulary | — | tools |
+| `tools/record_oracle.js`, `tests/oracle/` | Playwright recorder of the old page (`window.BT`), 20 gzipped recordings, `check_oracle.mjs`, format in `tests/oracle/README.md` | `function writeRecording(`, `function pageActCodes(` | tools |
+| `tools/godot.sh`, `tools/kits.sh`, `tests/selftest.gd` | pinned Godot download with SHA-512 checks; one command for kits + bakes; the self-test the Windows smoke job runs inside the exported exe (`override.cfg` → `run/main_loop_type="SelfTest"`) | `sha512_for()`, `func _run(` | CI |
+| `assets/kits_import/kit_post_import.gd` | EditorScenePostImport applied through `[importer_defaults]`: one merged surface per kit, `COLOR` = kit colour, `CUSTOM0` = (paintable flag, palette index), skin kept; contract in `assets/kits/CONTRACT.md` | `func _post_import(`, `func _merge(`, `func _flatten(` | table/figures |
+| `assets/shaders/figure.gdshader`, `figure_material.tres` | the figure material: kit colours, optional paint table (`paint_tex` rows, `paint_row` or `INSTANCE_CUSTOM.x`), per-vertex shading switch, `mask_out` for the impostor bake; no team dye (team = ring) | `uniform sampler2D paint_tex`, `uniform int paint_row`, `uniform bool per_vertex` | table/figures |
+| `tools/bake_impostors.gd`, `assets/impostors/` (generated) | 16 yaw × 2 pitch per kit into `<kit>.png` + `<kit>_m.png` + `impostors.json` (15 s for 312 kits) | `func _bake_kit(` | table/figures |
+| `scenes/main.tscn` + `main.gd` | the root: World + UI ScreenStack + Overlay; first-run level guess (mobile → lo, ≤ 2 GB → min) | `static func guess_level(` | table + ui |
+| `scenes/battle_table.tscn`, `table/table_view.gd` | the battle table look: camera rig, sun, environment, terrain, props, figures, rings; applies the graphics level | `func build_look(`, `func apply_level(`, `func set_stress(`, `func counts(` | table |
+| `table/terrain_mesh.gd`, `table/props_layer.gd` | provisional heightfield terrain (one ArrayMesh, vertex colours, rails; `core/field` replaces the heightfield in R1); MultiMesh props per kind | `func build(`, `func height_at(`, `func set_simplified(` | table |
+| `table/rings.gd` | ONE MultiMesh of ground rings: the team ring under every figure, selection/destination/objective rings by kind | `func add_ring(`, `func set_colour(`, `func add_kind(` | table |
+| `table/figures/figure_pool.gd` | tiers: skinned kit scenes near, per-kit MultiMesh (merged mesh, white instance colours, custom x = paint row) elsewhere; per-level skinned caps and runtime LODs on lo/min | `static func make(`, `func build(`, `func apply_level(`, `_figure_material` | table/figures |
+| `table/camera_rig.gd` | `CameraRig`: pan / pinch / orbit / wheel / WASD, fit-table, pitch clamps, tap-vs-drag | `class_name CameraRig` | table |
+| `ui/screens/gpu_check.tscn` + `.gd` | the GPU-check screen: adapter, GL version, fps, draw calls, primitives, memory, level picker (render scale + shadows live), stress toggle, Thai LineEdit for the IME, copy button, Thai/English | `func refresh(`, `func _on_level(`, `func _on_copy(` | ui |
+| `tests/render/test_lineup.gd`, `test_budgets.gd`, `test_main_screens.gd` | xvfb suites: every kit imported right + one draw call per figure + paint override; the §6 budgets per level on the 400-figure scene; the main screens in Thai and English (no Thai left in English mode) | `func _render_army(`, `func _check(`, `func _thai_in(` | table + ui |
+
+Still planned (ARCHITECTURE §1): `core/field/`, `core/battle/` (R1), `core/data.gd`, `net/` (R3), `app/audio.gd` (R2), `app/selftest.gd` screen (R1), `tests/golden/`, `tests/net/`, `core/dnd/` (R4+).
 
 ## 2. Autoloads — the only global state
 
@@ -147,6 +161,9 @@ $G --headless --path godot --import                                  # after a c
 $G --headless --path godot -s tests/run_tests.gd [-- <word>]         # the unit + golden runner by itself
 timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" $G --path godot --rendering-driver opengl3 \
   --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd   # the render probe by itself
+... -s tests/render/test_lineup.gd | test_budgets.gd | test_main_screens.gd   # the render suites by themselves
+$G --headless --path godot -s tests/selftest.gd -- --out /tmp/selftest.txt   # what the exported exe runs on windows-latest
+python3 godot/tools/validate_data.py [--fixtures] [--write-version]          # the data lint (no Godot needed)
 ```
 
 - **Discovery.** `tests/run_tests.gd` walks `tests/unit/` recursively for `test_*.gd` (sorted by path) and appends
@@ -160,12 +177,15 @@ timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" $G --path godot --rendering-d
   are live; prefer a fresh instance (`preload("res://app/log.gd").new()`) when a test mutates state, and `free()`
   Node instances. Headless tests must not need the kits: the kit checks in `test_kit_lineup.gd` run only when
   `assets/kits/` is populated (quick set: 94 checks without kits, 98 with).
-- **Render.** `tests/render_probe.gd` (CI's `godot-probe` artifact) needs a display: xvfb + Mesa llvmpipe here and in
-  CI. Look at the PNGs before claiming a visual change works; Thai must not be boxes. ALSA / V-Sync warnings are
-  harmless. R0-D/R0-E add `tests/render/run_render.gd` (budgets, line-up, screens).
-- **CI.** `.github/workflows/godot.yml`: `kits` (export the kits with Playwright) → `test` (import, `tests/run_tests.gd`,
-  `tests/render_probe.gd` under xvfb), `windows` (release .exe), `android` (debug APK). R0-C adds `test-arm`,
-  `windows-smoke`, the signed APK on `main` and the `release` job.
+- **Render.** `tests/render_probe.gd` and the three suites under `tests/render/` need a display: xvfb + Mesa llvmpipe
+  here and in CI (`run.sh full` runs them all; CI's `godot-probe` artifact carries every PNG). Look at the PNGs before
+  claiming a visual change works; Thai must not be boxes. ALSA / V-Sync warnings are harmless. `test_budgets.gd` is
+  the gate of AGENTS rule 6: the §6 draw-call and triangle budgets per level on the 400-figure scene.
+- **CI.** `.github/workflows/godot.yml`: `kits` (export + bakes, cached on the page and `godot/tools`) → `test`
+  (secrets guard, import, unit tests, data lint, self-test, render probe + render suites), `test-arm` (import + unit
+  tests + self-test on arm64), `windows` (release .exe + Thai readme zip) → `windows-smoke` (the self-test inside the
+  exe on windows-latest), `android` (debug APK on PRs; signed release APK on `main` from the existing secrets),
+  `release` (main only: assets on the `build-N` release of the same commit).
 
 ## 6. Intentional v10 differences from v9 (ARCHITECTURE §4)
 

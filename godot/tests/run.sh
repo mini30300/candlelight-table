@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test runner for the Godot app (mirrors tests/run.sh of the old pages). Run from anywhere:
 #   bash godot/tests/run.sh            quick: import + unit tests (what CI runs on every PR)
-#   bash godot/tests/run.sh full       quick + the render probe under xvfb (probe.png / probe_en.png)
+#   bash godot/tests/run.sh full       quick + the render probe and the render tests under xvfb (tests/render/*.gd, PNGs in TEST_OUT)
 #   bash godot/tests/run.sh <word>     only unit scripts whose path contains <word>, e.g. i18n or unit/core
 # Environment:
 #   GODOT     the Godot 4.7.1 binary (default: ~/godot-bin/godot, then `godot` on PATH)
@@ -59,6 +59,18 @@ if [ "$MODE" = full ]; then
     else
       echo "ok    render probe: $TEST_OUT/probe.png, probe_en.png"
     fi
+    echo "== render tests (xvfb + Mesa) =="
+    for suite in render/test_lineup render/test_budgets render/test_main_screens; do
+      name=$(basename "$suite")
+      timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path godot --rendering-driver opengl3 \
+        --resolution 1280x720 --audio-driver Dummy -s "tests/$suite.gd" 2>&1 | grep -v '^$' > "$TEST_OUT/$name.log"
+      rc=${PIPESTATUS[0]}
+      if [ "$rc" -ne 0 ] || ! grep -q '^PASS' "$TEST_OUT/$name.log"; then
+        echo "FAIL  $name (exit $rc; see $TEST_OUT/$name.log)"; grep -E '^FAIL' "$TEST_OUT/$name.log" | head -20; status=1
+      else
+        echo "ok    $name: $(grep -E '^PASS' "$TEST_OUT/$name.log" | tail -1)"
+      fi
+    done
   fi
 fi
 

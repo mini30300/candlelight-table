@@ -17,15 +17,22 @@
 | `ui/i18n.gd` | `I18n`: พจนานุกรมไทย → อังกฤษ (คีย์คือข้อความไทย เหมือน `BT_I18N` ของหน้าเก่า); `I18n.english`, `I18n.t("…")`; ค้นตามลำดับ `EN` ในสคริปต์ → `ui/i18n_extra.json` → `data/i18n_en.json` |
 | `ui/i18n_extra.json` | คำอังกฤษของข้อความไทยที่มีเฉพาะในแอปใหม่ — ข้อความไทยใหม่ทุกข้อความต้องมีคู่ที่นี่ |
 | `ui/theme/default_theme.tres` | ธีมหลัก (`gui/theme/custom`): ฟอนต์ Sarabun |
-| `table/camera_rig.gd` | กล้องวงโคจร: ลากหมุน, ล้อ/สองนิ้วซูม (จะเป็นกล้องร่วมของทั้งสองโต๊ะ) |
+| `core/` | แกนกติกา: เลขคณิตจำนวนเต็ม (`fx.gd`), ตัวสุ่ม PCG32 (`rng.gd`), แฮช (`hash.gd`), บันทึกการกระทำ (`actlog.gd`), โครง `Table` และ `version.gd` — ห้ามมีทศนิยม ตรีโกณ หรือตัวสุ่มของเอนจิน (`tests/unit/test_core_purity.gd` ตรวจ) |
+| `table/camera_rig.gd` | `CameraRig`: ลาก/สองนิ้วหมุนและซูม, ล้อเมาส์, WASD, ปรับให้พอดีโต๊ะ (กล้องร่วมของทั้งสองโต๊ะ) |
+| `table/table_view.gd`, `terrain_mesh.gd`, `props_layer.gd`, `rings.gd`, `figures/figure_pool.gd` | ภาพสามมิติของโต๊ะรบ: พื้นสนาม อุปกรณ์ วงแหวนสีทีมใต้ตัวหมาก และชั้นของฟิกเกอร์ตามระดับกราฟิก (ตัวใกล้ขยับได้ ตัวไกลวาดรวมเป็นชุด) |
+| `scenes/main.tscn` + `main.gd`, `scenes/battle_table.tscn` | ฉากหลักของแอป (โลก + หน้าจอ + ชั้นซ้อน) และฉากโต๊ะรบ; ครั้งแรกเดาระดับกราฟิกจากเครื่อง (มือถือ → lo) |
+| `ui/screens/gpu_check.tscn` | หน้าตรวจเครื่อง: ชื่อการ์ดจอ เฟรม/วิ จำนวนวาด หน่วยความจำ เลือกระดับกราฟิก ทดสอบหนัก พิมพ์ชื่อไทย ปุ่มคัดลอกตัวเลข |
+| `assets/kits_import/kit_post_import.gd`, `assets/shaders/figure.gdshader` | ตอนนำเข้า รวมชุดโมเดลแต่ละตัวเป็นชิ้นเดียว (สี + ช่องสีสำหรับเพ้นท์) และเชดเดอร์ของฟิกเกอร์ (ไม่ย้อมสีทีม สีทีมคือวงแหวน) — กติกาใน `assets/kits/CONTRACT.md` |
+| `assets/impostors/` | **สร้างขึ้นเอง ไม่ commit**: `tools/bake_impostors.gd` อบภาพแทนระยะไกล 16 มุม × 2 ระดับต่อตัว |
 | `table/figures/kit_library.gd` | `KitLibrary`: ฟังก์ชันล้วนที่หารายชื่อ เลือก และจัดแถวชุดโมเดล (มีเทส) |
 | `scenes/probe/` | ฉากทดสอบ (`probe.tscn`, `probe.gd`, `hud.gd`): โต๊ะ 40×30 ม., ท้องฟ้า + แดดมีเงา, แถวฟิกเกอร์, HUD ภาษาไทย |
 | `assets/fonts/` | Sarabun (SIL OFL, `OFL.txt`) เป็นฟอนต์เริ่มต้นของธีม ภาษาไทยจึงแสดงได้ทุกที่ |
 | `assets/shaders/table.gdshader` | พื้นโต๊ะลายหมากรุก + noise (ไม่ใช้เท็กซ์เจอร์) |
 | `assets/kits/` | **สร้างขึ้นเอง ไม่ commit**: `tools/export_kits.js` ส่งออกฟิกเกอร์ทุกชุดจากหน้าเก่าเป็น `.glb` (312 ไฟล์, 48 MB) + `kits.json` (ดูด้านล่าง) |
 | `data/` | ตารางข้อมูลเกมที่ `tools/export_data.js` ส่งออกจากหน้าเก่า (`data/README.md` อธิบายทุกไฟล์) — ห้ามแก้ด้วยมือ |
-| `tools/` | `export_kits.js` (ฟิกเกอร์) และ `export_data.js` (ข้อมูลเกม) — สคริปต์ Node ที่อ่านหน้าเก่า |
-| `tests/` | `run.sh` (คำสั่งเดียวรันทั้งชุด), `run_tests.gd` (ตัวรัน), `testing.gd` (assert), `unit/test_*.gd` (เทส), `render_probe.gd` (ภาพหน้าจอ), `out/` (ผลลัพธ์ ไม่ commit) |
+| `tools/` | `export_kits.js` (ฟิกเกอร์), `export_data.js` (ข้อมูลเกม), `record_oracle.js` (อัดเกมอ้างอิงจากหน้าเก่า), `validate_data.py` (ตรวจข้อมูล ชื่อต้องห้าม คำแปล ลูกเต๋า), `gen_bt_data.py` (ไฟล์ให้เซิร์ฟเวอร์), `godot.sh` (ดาวน์โหลด Godot ตรวจลายเซ็น), `kits.sh` (สร้างชุดโมเดลและอบภาพ), `bake_impostors.gd` |
+| `data/schema/` | JSON schema ของทุกตาราง + `legacy_tokens.sha1`; `data/version.json` ตราข้อมูล |
+| `tests/` | `run.sh` (คำสั่งเดียวรันทั้งชุด), `run_tests.gd` (ตัวรัน), `testing.gd` (assert), `unit/test_*.gd` (เทสหน่วย), `render_probe.gd` + `render/` (เทสภาพผ่าน xvfb), `oracle/` (เกมอ้างอิง 20 เกม), `selftest.gd` (เทสในไฟล์ .exe ที่ส่งออก), `data_fixtures/` (ตัวอย่างสำหรับตัวตรวจข้อมูล), `out/` (ผลลัพธ์ ไม่ commit) |
 | `export_presets.cfg` | "Windows Desktop" (.exe x86_64) และ "Android" (APK arm64-v8a + armeabi-v7a, min SDK 24; `gradle_build/min_sdk` ต้องว่างไว้จนกว่าจะเปิดใช้ Gradle); ช่อง keystore เว้นว่างไว้โดยตั้งใจ |
 | `docs/` | `ARCHITECTURE.md` และ `PLAN.md` |
 
@@ -53,7 +60,8 @@
 
 ```bash
 bash godot/tests/run.sh                 # quick: นำเข้า + เทสหน่วย (CI รันชุดนี้ทุก PR)
-bash godot/tests/run.sh full            # quick + เรนเดอร์ฉากทดสอบผ่าน xvfb (ได้ probe.png, probe_en.png)
+bash godot/tests/run.sh full            # quick + เรนเดอร์ฉากทดสอบและเทสภาพทั้งสามชุดผ่าน xvfb (รูปอยู่ใน tests/out)
+python3 godot/tools/validate_data.py    # ตรวจข้อมูล ชื่อต้องห้าม คำแปลอังกฤษ ลูกเต๋า (CI รันทุก PR)
 bash godot/tests/run.sh i18n            # เฉพาะเทสที่ path มีคำนี้ (เช่น i18n, unit/core)
 GODOT=/path/to/godot TEST_OUT=/tmp/out bash godot/tests/run.sh   # เลือกไบนารีและโฟลเดอร์ผลลัพธ์ (ค่าเริ่มต้น godot/tests/out)
 
@@ -74,7 +82,11 @@ timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --renderin
 ```
 บันทึก `godot/tests/out/probe.png` (ไทย) และ `probe_en.png` (หลังกดปุ่ม ENGLISH) และพิมพ์ชื่อการ์ดจอ
 (`TEST_OUT` เปลี่ยนโฟลเดอร์ได้) เปิดดูรูปทุกครั้ง: ต้องเห็นโต๊ะ แสง ฟิกเกอร์ และข้อความไทยที่ไม่เป็นกล่องสี่เหลี่ยม
-คำเตือน ALSA / V-Sync ไม่เป็นไร CI อัปโหลดรูปเป็น artifact ชื่อ `godot-probe`
+คำเตือน ALSA / V-Sync ไม่เป็นไร CI อัปโหลดรูปทั้งหมดเป็น artifact ชื่อ `godot-probe`
+
+เทสภาพอีกสามชุดรันด้วยคำสั่งเดียวกันโดยเปลี่ยนสคริปต์เป็น `tests/render/test_lineup.gd` (ทุกชุดโมเดลนำเข้าถูก
+และหนึ่งตัวใช้หนึ่งคำสั่งวาด), `tests/render/test_budgets.gd` (งบวาดต่อระดับกราฟิกบนฉาก 400 ตัว — ด่านของกติกาข้อ 6)
+และ `tests/render/test_main_screens.gd` (หน้าหลักและหน้าตรวจเครื่อง ไทย/อังกฤษ) `run.sh full` รันให้ทั้งหมด
 
 ## ส่งออก (export)
 

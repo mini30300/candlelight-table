@@ -132,10 +132,19 @@ jobs:
         run: |
           timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
             --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd
+      - name: Render tests (line-up of every kit, per-level budgets, the main screens in Thai and English)
+        run: |
+          for suite in render/test_lineup render/test_budgets render/test_main_screens; do
+            echo "== $suite"
+            timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
+              --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s "tests/$suite.gd" 2>&1 | grep -v '^$' | tee "$RUNNER_TEMP/$(basename "$suite").log"
+            test "${PIPESTATUS[0]}" -eq 0
+            grep -q '^PASS' "$RUNNER_TEMP/$(basename "$suite").log"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: godot-probe
-          path: godot/tests/out/probe*.png
+          path: godot/tests/out/*.png
           if-no-files-found: error
 
   # The same import and unit tests on arm64 (the cross-architecture determinism check); no display, no render.
