@@ -60,6 +60,7 @@ under xvfb), `windows`, `android`; extended in R0-C) and this file.
 | `core/data.gd` | `GameData`: loads `data/*.json` once into integers only (JSON numbers come back fractional-typed; base radius `r` becomes `r_mi`; any other fraction in the rules tables is a load problem); TYPES order kept as the cross-device contract; hidden units flagged only | `static func load_all(`, `static func ty(`, `static func index_of(`, `static func pool(`, `static func base_r_mi(`, `static func const_int(`, `static func to_mi(` | core |
 | `core/field/noise.gd` | `FieldNoise`: the page's value noise and fbm in Q16 fixed point (ONE = 65536) over `Hash.ihash2`; `ridge` for mountain crests; `at_mi` maps milli-inches to noise coordinates like the page's `x/34 + 3.7`; a pinned grid digest in `tests/unit/test_noise.gd` proves x86-64 and arm64 agree | `static func vnoise(`, `static func fbm(`, `static func ridge(`, `static func fade_q(`, `static func at_mi(` | core/field |
 | `core/field/terrain.gd` | `FieldTerrain`: the page's `buildTerrain` in milli-inches — grid (`cell_for`, `depth_for` as the page sizes the table), relief and roughness per theme from `GameData.theme_mi`, flat/mountain overrides, mountain crests, desert dunes through `Fx.isin_q16`, the ruin road band; bilinear `height_at`; heights are for the view (rules positions stay 2D) | `static func make(`, `func point(`, `func height_at(`, `func digest(` | core/field |
+| `core/field/props.gd` | `FieldProps`: the page's `genProps` in integers — clustered spots, kinds per theme (`THEME_KIND`, `EXTRA_KIND`), density and `PROP_CAP`, spacing (`room_for`), houses only on gentle ground, never crossing (`houses_clear`, separating axes) and clearing what they stand on (`under_house`), woods for the forest terrain, then `level_under` flattens the ground (houses first) | `static func generate(`, `func _place(`, `func _woods(`, `func level_under(`, `func bld_size(`, `func foot_of(` | core/field |
 | `tests/unit/test_core_purity.gd` | the purity lint over `core/**` (forbidden tokens of ARCHITECTURE §2; a planted float fixture must fail) | `fixtures/purity_bad/` | core |
 | `data/schema/*.json`, `data/version.json`, `data/bt2_snapshot.json`, `data/bt_data.json` | JSON schemas of every table, the rules/data stamp, the server's datasheet snapshot and the file the server PR will take | — | tools |
 | `tools/validate_data.py` | the data lint CI runs: schemas, banned names of AGENTS rule 1 over `godot/` (legacy tokens hashed in `data/schema/legacy_tokens.sha1`), Thai→English completeness in `ui/**` and `app/**`, TYPES append-only, dice ≤ 60, secrets guard; `--fixtures`, `--write-version` | `def check_schema(`, `def banned_hits(`, `def thai_display_strings(` | tools |
@@ -197,6 +198,12 @@ correctly: integer formation and search offsets rounded to 0.01"; fixed-point no
 (new terrain and prop shapes per seed); `+1 MI` instead of `+0.05"` range tolerance; the dice fallback rule past 60
 dice; no other maths change. Datasheets, points, phases, stratagems, caps and the act protocol are identical; v9 pages
 and the v10 app never share a room (the server's version gate).
+
+Field generation (R1, `core/field/`): the page skipped the slope, house and overlap checks of `genProps` in its
+default setup (hills, density ×1) to keep old APKs' props; v10 runs every check in every setup. A house pad whose
+level core touches an earlier, already levelled pad takes that pad's height instead of being tilted by it (the page
+let the later house lean). Rotations are Q16 radians through `Fx.isin_q16`; thresholds compare the 16-bit hash
+values exactly (`u * 100 < 62 * 65536`).
 
 ## 7. Design notes
 
