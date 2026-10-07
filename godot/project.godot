@@ -35,6 +35,14 @@ window/handheld/orientation=0
 theme/custom="res://ui/theme/default_theme.tres"
 theme/custom_font="res://assets/fonts/Sarabun-Regular.ttf"
 
+[importer_defaults]
+
+scene={
+"import_script/path": "res://assets/kits_import/kit_post_import.gd",
+"meshes/create_shadow_meshes": false,
+"meshes/generate_lods": false
+}
+
 [input_devices]
 
 pointing/emulate_touch_from_mouse=false
