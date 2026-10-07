@@ -88,6 +88,7 @@ func _check_all_kits() -> void:
 	var bad_bones := PackedStringArray()
 	var bad_scale := PackedStringArray()
 	var skinned_count := 0
+	var mount_rigs := 0
 	var verts := 0
 	var tris := 0
 	for kit in _kits:
@@ -167,9 +168,19 @@ func _check_all_kits() -> void:
 		if skinned:
 			skinned_count += 1
 			var sk: Skeleton3D = skeletons[0] if skeletons.size() == 1 else null
-			if sk == null or sk.get_bone_count() != JOINTS or sk.get_bone_name(0) != "pelvis" or mi.skin == null or mi.skin.get_bind_count() != JOINTS \
+			# พาหนะ: กระดูกของตัวพาหนะต่อท้าย 23 ข้อ ตามลำดับใน kits.json mountRig
+			var mount_bones: Array = (entry.get("mountRig", {}) as Dictionary).get("bones", []) if entry.get("mountRig") is Dictionary else []
+			var want_bones := JOINTS + mount_bones.size()
+			var order_ok := sk != null and sk.get_bone_count() == want_bones
+			if order_ok:
+				for bi in mount_bones.size():
+					if sk.get_bone_name(JOINTS + bi) != String(mount_bones[bi]["name"]):
+						order_ok = false
+			if sk == null or not order_ok or sk.get_bone_name(0) != "pelvis" or mi.skin == null or mi.skin.get_bind_count() != want_bones or int(entry.get("joints", 0)) != want_bones \
 					or not (fmt & Mesh.ARRAY_FORMAT_BONES) or not (fmt & Mesh.ARRAY_FORMAT_WEIGHTS) or mi.get_node_or_null(mi.skeleton) != sk:
-				bad_bones.append("%s (skeletons %d, bones %d, binds %d)" % [kit, skeletons.size(), sk.get_bone_count() if sk else -1, mi.skin.get_bind_count() if mi.skin else -1])
+				bad_bones.append("%s (skeletons %d, bones %d, binds %d, want %d)" % [kit, skeletons.size(), sk.get_bone_count() if sk else -1, mi.skin.get_bind_count() if mi.skin else -1, want_bones])
+			if not mount_bones.is_empty():
+				mount_rigs += 1
 		elif skeletons.size() != 0 or mi.skin != null or (fmt & Mesh.ARRAY_FORMAT_BONES):
 			bad_bones.append("%s (rigid kit with a skeleton or bones)" % kit)
 		# scale: AABB == exporter bbox, height in band
@@ -194,7 +205,7 @@ func _check_all_kits() -> void:
 	_ok(bad_format.is_empty(), "every kit: indexed surface with COLOR and RGBA_FLOAT CUSTOM0", bad_format)
 	_ok(bad_palette.is_empty(), "every kit: meta palette == kits.json materials (keys, colours, paintable flags == not NATURAL)", bad_palette)
 	_ok(bad_vertex.is_empty(), "every vertex: COLOR == its slot's colour, CUSTOM0 == (paintable flag, slot) — %d vertices, %d triangles" % [verts, tris], bad_vertex)
-	_ok(bad_bones.is_empty(), "%d skinned kits have a Skeleton3D with %d bones and a %d-bind skin; rigid kits have none" % [skinned_count, JOINTS, JOINTS], bad_bones)
+	_ok(bad_bones.is_empty(), "%d skinned kits have a Skeleton3D with %d bones and a %d-bind skin (%d mounts with their own bones after them, in mountRig order); rigid kits have none" % [skinned_count, JOINTS, JOINTS, mount_rigs], bad_bones)
 	_ok(bad_scale.is_empty(), "every kit: AABB equals the exporter's bbox and the height is within band of h x scale", bad_scale)
 
 

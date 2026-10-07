@@ -7,8 +7,12 @@
 //   options: --out DIR (default godot/assets/kits)  --only k1,k2  --page FILE  --check (verify existing .glb files only)
 //
 // Coordinates are exported exactly as the page builds them: metres, +Y up, the figure faces +Z, its left is +X.
+// A mount (horse, beast) also gets a bone for each part the page moves with travel (legs, hooves, tail: mount_rig.js),
+// after the 23 joints and under the pelvis, when its legs are rigid chains the animation bake can re-solve
+// (mountRig.gait); kits.json mountRig lists the bones, or says why there are none (mountRig.why).
 'use strict';
 const fs = require('fs'), path = require('path');
+const MR = require('./mount_rig.js');
 const ROOT = path.resolve(__dirname, '..', '..');
 const ARGS = parseArgs(process.argv.slice(2));
 const PAGE = path.resolve(ROOT, ARGS.page || 'app/src/main/assets/battle-table.html');
@@ -243,6 +247,7 @@ async function main(){
   await page.goto('file://' + PAGE);
   await page.waitForFunction(() => window.BT && window.BT.G && window.MINI && window.SKRIG, null, { timeout: 120000 });
   let kits = await page.evaluate(() => Object.keys(window.MINI.KITS));
+  const SPEEDS = await page.evaluate(() => [window.SKRIG.V_WALK, window.SKRIG.V_RUN]);
   if (ARGS.only) kits = ARGS.only.split(',').filter(k => kits.indexOf(k) >= 0);
   const manifest = { exported: 0, failed: 0, skinned: 0, unskinned: 0, bytes: 0, faces: 0, triangles: 0,
     units: 'metres', up: '+Y', front: '+Z', left: '+X', source: 'battle-table.html APP_VER ' + tables.appVer,
@@ -258,6 +263,18 @@ async function main(){
       if (data.mism.length){ entry.skinNote = 'face count changed when moving ' + data.mism.join(', ') + ': exported without skin'; data.owner = null; }
       else if (!data.moved){ entry.skinNote = 'no face follows the humanoid joints: exported without skin'; data.owner = null; }
       else if (data.riderFrames) entry.skinNote = 'skeleton is the rider\'s seated frames (MINI.riderPose); the mount\'s own body is bound to the pelvis';
+      if (data.owner && data.mount){                      // the mount's moving parts: a bone each (mount_rig.js)
+        const cand = []; data.owner.forEach((o, i) => { if (o < 0) cand.push(i); });
+        const smp = MR.unpackSamples(await page.evaluate(MR.pageSampleMount, { kit, speeds: SPEEDS, n: 40, step: 0.125, faces: cand }));
+        const rig = MR.buildRig(smp, { candidates: cand });
+        // bones only where the bake can re-solve the legs (hooves stay put); else the body stays on the pelvis as before
+        if (rig.gait && rig.bones.length){
+          rig.bones.forEach((b, bi) => { data.joints.push(b.name); data.parent.push(b.parent); data.frames[b.name] = { p: b.origin.map(v => v/data.scale), q: [0, 0, 0, 1] };
+            for (const f of b.faces) data.owner[f] = 23 + bi; });
+          entry.skinNote = (entry.skinNote || '') + '; its ' + rig.bones.length + ' moving parts (legs, tail, head) have bones of their own after the 23 (mountRig)';
+        } else { rig.bones = []; rig.legs = []; }
+        entry.mountRig = rig;
+      }
       const g = buildGlb(kit, data, tables), file = path.join(OUT, kit + '.glb');
       fs.writeFileSync(file, g.glb);
       const chk = checkGlb(file);
@@ -274,7 +291,7 @@ async function main(){
       if (!chk.ok) entry.check = chk.errs;
       manifest.exported++; manifest.bytes += g.glb.length; manifest.faces += data.faces.length; manifest.triangles += g.triangles;
       if (entry.skinned) manifest.skinned++; else manifest.unskinned++;
-    } catch (e){ entry.error = String(e && e.message || e).split('\n')[0]; manifest.failed++; console.error('FAIL', kit, entry.error); }
+    } catch (e){ if (process.env.EXPORT_DEBUG) console.error(e); entry.error = String(e && e.message || e).split('\n')[0]; manifest.failed++; console.error('FAIL', kit, entry.error); }
     manifest.kits[kit] = entry;
   }
   await browser.close();

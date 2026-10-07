@@ -17,7 +17,8 @@ node godot/tools/bake_anim.js --check                      # validate clips.json
 ## 1. Conventions
 
 - **Bones**: the 23 joints of the kits (`SKRIG.J`, assets/kits/CONTRACT.md §1), in that order; a quaternion is the
-  bone's rotation relative to its parent, `[x, y, z, w]` — exactly a Godot bone pose rotation.
+  bone's rotation relative to its parent, `[x, y, z, w]` — exactly a Godot bone pose rotation. A ride clip also moves
+  its mount's own bones (`mount_*`, after the 23 in that kit's skeleton, in kits.json `mountRig.bones` order).
 - **Units**: rig metres of an unscaled 1.6 m figure, +Y up, the figure faces +Z, its left is +X. A kit of scale `S`
   (`kits.json` `scale`) plays a clip with `Skeleton3D.motion_scale = S` (position keys are scaled, rotations are not)
   and travels `S` times as fast — the page walks a scaled figure that much further per stride.
@@ -30,9 +31,10 @@ node godot/tools/bake_anim.js --check                      # validate clips.json
 ## 2. `clips.json`
 
 Top level: `format` 1, `fps` 30, `source` (the page's APP_VER), `joints`, `parents`, `offsets` (bone offsets in the
-parent, rig metres), `proofs` (`humanoid`, `walker` = the biggest skinned walker, its scale), `fidelity`
-(locomotion clips measured against the page on the proof kits), `coverage` (with `--fidelity`: every kit walking),
-`notBaked` (what the page has that is not a clip, and why), `holdsSummary`, `clips`, `holds`.
+parent, rig metres), `proofs` (`humanoid`, `walker` = the biggest skinned walker, its scale, `mount` = the first
+mount kit and `mountClip` its ride walk), `fidelity` (locomotion clips measured against the page on the proof kits),
+`coverage` (with `--fidelity`: every kit walking), `notBaked` (what the page has that is not a clip, and why: also
+each mount without a ride clip), `holdsSummary`, `clips`, `holds`.
 
 Per clip:
 
@@ -40,7 +42,7 @@ Per clip:
 | --- | --- |
 | `loop`, `fps`, `frames`, `length` | as §1 |
 | `q[bone]` | `frames` quaternions, every bone, every frame |
-| `t[bone]` | `frames` translations where the bone moves: always the pelvis (its place in the figure: bob, sway, a fall, a turn); chest and shoulders while the idle breathes; a hand whose wrist the gear fit turned |
+| `t[bone]` | `frames` translations where the bone moves: always the pelvis (its place in the figure: bob, sway, a fall, a turn); chest and shoulders while the idle breathes; a hand whose wrist the gear fit turned; every mount bone of a ride clip |
 | `speed`, `travel`, `turn` | §1 |
 | `contact.L / .R` | per frame which part of the foot the page pins to the ground: `heel`, `ball`, `flat` or `null` (in the air); the foot-slide test reads it |
 | `events` | `[{t, kind}]`: `shot` (a shot leaves, an arrow is loosed, a blow lands), `thud` (a fall hits the ground), `raised` / `lower` (a shield is up / comes down); the runtime starts tracers and sounds on them, or holds a shield clip at `raised` until the dice stop |
@@ -51,6 +53,9 @@ Per clip:
 | `gear` | where the gear fit turned a hand or forearm (bones, largest turn, RMS of the gear faces before → after) |
 | `fidelity` | the clip on its kit against the page's own drawing (below) |
 | `loopError`, `seam` | a loop's last→first step; a start's last frame / a stop's first frame against its loop's frame 0 |
+| `bones` | ride clips: the mount bones the clip moves besides the 23 (`mount_*`, kits.json `mountRig.bones` order) |
+| `feet` | ride clips: per hoof `{bone, point, contact}`: the bone it rides on, a point on its sole (rest, rig metres) and per frame whether it is on the ground; the foot-slide test reads it |
+| `gait`, `cycle`, `stance`, `beta`, `crossFade`, `bob`, `keySlideMm` | ride clips: `planted` (legs re-solved), stride and stance length (rig metres), the share of the stride a hoof is down, how many last frames cross-fade into the stride before (§4), how far the body sinks (mm), hoof slide between keys (mm) |
 
 `holds[kit].joints[bone]`, the kit's own pose (MINI.pose: a rifle at the low ready, a shield across the body, a hunch)
 fitted over ~120 sampled base poses: `{C, w}` = `slerp(clip, C, w)`, `{mul}` = `clip * mul`, `{pre}` = `pre * clip`,
@@ -64,8 +69,9 @@ One `AnimationLibrary`, one `Animation` per clip, named as in `clips.json`. Trac
 position track per entry of `t`, paths `Skeleton3D:<bone>` — the kit scene is `<kit>` (Node3D) > `Skeleton3D` >
 `<kit>_mesh`, so an `AnimationPlayer` added as a child of `<kit>` with `root_node = ".."` plays them as they are.
 `loop_mode` LINEAR for loops. Each Animation's metadata: `speed`, `turn`, `travel`, `contact_l`, `contact_r`,
-`events`, `alpha`, `drives`, `hold_mode`, `kit`, `from`, `kind`, `gun`, `hand`, `heavy`, `set`, `note`, `seam`. The
-library's metadata: `holds` (Quaternions), `proofs`, `joints`, `source`. 0.45 MB.
+`events`, `alpha`, `drives`, `hold_mode`, `kit`, `from`, `kind`, `gun`, `hand`, `heavy`, `set`, `note`, `seam`; a ride
+clip also `bones`, `feet` (`[{bone, point: Vector3, contact: PackedByteArray}]`), `gait`, `cycle`. The library's
+metadata: `holds` (Quaternions), `proofs` (`humanoid`, `walker`, `mount`, `mountClip`), `joints`, `source`. 0.6 MB.
 
 ## 4. The library
 
@@ -82,6 +88,18 @@ library's metadata: `holds` (Quaternions), `proofs`, `joints`, `source`. 0.45 MB
 - **Reactions**: `brace`, `brace_hit`, `flinch` (front), `flinch_back`, `flinch_left`, `flinch_right`,
   `flinch_heavy`, `die_back`, `die_fwd`, `die_kneel`, `die_spin`, `die_drop`, `die_blown`, `die_topple`.
 - **Mounted**: `seat_<mount kit>` — the rider in the saddle (MINI.riderPose), one frame; the page draws riders still.
+  `ride_walk_<kit>` / `ride_run_<kit>` (10 clips) for the 5 mounts whose legs are rigid chains (kits.json
+  `mountRig.gait`: the page's horse, which three kits share, the centaur and the eight-legged horse): the rider seated
+  and carried by the mount, `holds: none`. `tools/mount_rig.js` finds the parts the page moves with travel (body, leg
+  segments, hooves, tail, head, wings) in its drawing at 80 travel samples and `export_kits.js` gives each a bone;
+  the bake moves them as the page does, except the legs: the page swings them by angle and its hooves slide 8–80 cm
+  a step, so the bake plans a gait with the page's leg order and phases (a hoof down 60 % of the walk, 45 % of the
+  run; the body sinks up to 7–8 % of a leg so the stride reaches) and re-solves each leg (two-bone IK) so a hoof on
+  the ground stays put. Parts the page does not repeat over its stride (a tail swaying at half the rate, wings with
+  their own beat) cross-fade over the last 30 % of the frames into the stride before, bone by bone in the parent's
+  frame, so the loop closes. The other 11 mounts (legs that bend, wheels, mounts the page redraws with another face
+  count, nothing moving) have no mount bones and no ride clip — `notBaked` says why — and stay still under the rider
+  as before; the runtime moves the whole model.
 - **Gear fit**: the page draws a gun along the line between the hands, a bow upright at the aim, a spear or blade
   along the action's own direction and turns a raised shield to face the blow; the kits bind that geometry rigidly to
   one joint. The bake matches the gear faces of each hand / forearm between the kit's rest build and the page's build
@@ -92,6 +110,9 @@ library's metadata: `holds` (Quaternions), `proofs`, `joints`, `source`. 0.45 MB
 Foot slide while planted (`test_anim_footslide.gd`, 240 samples/s, gate 15 mm): walk 0.20 mm, run 0.76 mm, starts /
 stops ≤ 0.7 mm, turns ≤ 0.06 mm, idle 0.01 mm on the humanoid; walk 0.45 mm / run 1.7 mm on the page's walker
 (scale 2.2); walk 2.6 mm on the biggest walker (scale 13); a 10 % wrong speed slides 57 mm (the gate has teeth).
+Hooves (the horse proof): ride walk 0.15 mm, ride run 0.81 mm; the other 8 ride clips ≤ 0.95 mm; the horse 10 % too
+slow slides 65 mm. Every ride clip loops with its last→first key step inside its own largest step between keys
+(without the cross-fade the wings' seam was 0.55 m).
 
 Against the page's own drawing of the same kit (per-face miss, `fidelity`): locomotion on the rifleman ≤ 1.6 mm RMS;
 `fire*`, `bash*`, `bow`, `lob`, `cast`, the falls and flinches ≤ 1 mm; swings, thrusts, `twin`, `brace` 7–30 mm RMS

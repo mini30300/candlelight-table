@@ -13,7 +13,8 @@ folder mimics the `godot/` layout (`data/`, `ui/`, `app/`) and is linted on its 
 | `ok/data/map_layout_sample.json` | passes `map_layout.json` | an 8×6 dungeon with every section filled (RLE runs add up to 48 cells; see docs/DATA.md) |
 | `ok/data/monster_sample.json` | passes `monster.json` | a bestiary entry in the battle datasheet shape |
 | `fail_anim_clips/clips.json` | **fails** the animation-clip check | a clip at 24 fps and a clip with no `heelR` rotations (every clip must carry all 23 joints at 30 fps) |
-| `ok/anim/clips.json` | passes the animation-clip check | the smallest complete `tools/bake_anim.js` output: a 3-frame loop and a 2-frame clip, all 23 joints, pelvis translation, contact flags, three kinds of hold |
+| `fail_anim_mount/clips.json` | **fails** the animation-clip check | a mount's ride clip whose foot sits on a bone the clip does not move, one contact flag short, and a listed mount bone without rotations |
+| `ok/anim/clips.json` | passes the animation-clip check | the smallest complete `tools/bake_anim.js` output: a 3-frame loop and a 2-frame clip, all 23 joints, pelvis translation, contact flags, three kinds of hold, and a 4-frame ride clip with two mount bones and one foot |
 | `ok/ui/`, `ok/app/` | pass the Thai → English check and the name scan | Thai literals (plain, triple-quoted, with `{n}` and `%d` placeholders, joined fragments) that `ok/ui/i18n_extra.json` covers |
 | `fake_worker.js` + `fake_worker.expected.json` | `gen_bt_data.py --self-test` passes | a tiny Worker with the real anchors (`const BT_RULES = 9;`, `const BT2 = {`, `const BT_ARMY_EN = {`, comma-joined constants), a one-line embedded page that must not win an anchor, bare and quoted keys, single quotes, trailing commas and comments inside the table |
 

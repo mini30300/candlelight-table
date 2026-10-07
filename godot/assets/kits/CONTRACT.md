@@ -19,7 +19,11 @@ One `<kit>.glb` per kit key of the page's `MINI.KITS` plus `kits.json`, the mani
   (`pelvis, spine, chest, neck, head, shoulderL, elbowL, wristL, handL, shoulderR, elbowR, wristR, handR, hipL,
   kneeL, ankleL, toeL, heelL, hipR, kneeR, ankleR, toeR, heelR`), rigid weights (one joint per vertex, weight 1),
   node local rotations = the SKRIG local pose quaternions, so any SKRIG pose drives the bones. A mount carries the
-  rider's seated skeleton (`MINI.riderPose`); the mount body is bound to `pelvis`.
+  rider's seated skeleton (`MINI.riderPose`); the mount body is bound to `pelvis`. A mount whose legs are rigid chains
+  the animation bake can re-solve (5 of the 16, kits.json `mountRig.gait`) also has a bone for every part the page
+  moves with travel (body, leg segments, hooves, tail, head, wings), found by `tools/mount_rig.js`: named `mount_*`,
+  after the 23, parents first under `pelvis`, rest rotation identity in the world; those parts are bound to them.
+  The ride clips move them (assets/anim/CLIPS.md §4).
 - **Rigid kits (52)**: no skin (vehicles, titans, most creatures). They get whole-mesh procedural motion until rigs
   arrive (`fly.json` has altitude/frequency for the flyers).
 
@@ -31,7 +35,8 @@ One `<kit>.glb` per kit key of the page's `MINI.KITS` plus `kits.json`, the mani
 | `h`, `scale`, `kitScale` | the page's standing height before scale (1.75 m default), the kit's own scale and the type scale; the mesh is already scaled |
 | `baseR` | base radius in metres for spacing (0.62 for infantry; from the type's `r`) |
 | `bbox` | measured extent of the exported mesh `[[minx,miny,minz],[maxx,maxy,maxz]]` — the import must reproduce it |
-| `skinned`, `joints` | whether a skin exists; 23 when it does |
+| `skinned`, `joints` | whether a skin exists; 23 when it does, or 23 + the mount bones of a rigged mount |
+| `mountRig` | mounts only: `gait` (the bake can re-solve the legs) or `why` not; `cycle` (the page's stride, metres of travel); `bones[]` `{name, parent, role, origin, worstMm, jointMm, faces}` in skeleton order after the 23 (empty when not `gait`); `legs[]` `{upper, lower, foot, hip, knee, end, contact, l1, l2, phase, amp, pole}` for the gait |
 | `mount`, `hold`, `creature`, `fly` | the page's kit info: mount definition, what the hands hold, creature flag, flyer parameters |
 | `materials[]` | `{key, rgb, tint}` in primitive order — **this order is the palette index** |
 | `palette` | present when a variant borrows its base kit's palette (e.g. `knight_sword` → `knight`) |
@@ -52,8 +57,8 @@ Imported scene (`load("res://assets/kits/<kit>.glb")`):
 
 ```
 <kit>              Node3D   meta "kit" = {key, version, skinned, surfaces, verts_in, verts, tris, palette[], aabb[6]}
-└─ Skeleton3D      (skinned kits only) 23 bones, names as above, rest pose = the exported idle pose
-   └─ <kit>_mesh   MeshInstance3D, skin kept (23 binds), skeleton path "..", mesh = ArrayMesh with ONE surface
+└─ Skeleton3D      (skinned kits only) 23 bones, names as above, rest pose = the exported idle pose (+ a rigged mount's own bones)
+   └─ <kit>_mesh   MeshInstance3D, skin kept (one bind per bone), skeleton path "..", mesh = ArrayMesh with ONE surface
 <kit>_mesh         (rigid kits) directly under the root
 ```
 

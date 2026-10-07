@@ -10,6 +10,12 @@
 //            --only name1,name2  --check [FILE] (validate an existing clips.json and exit)
 //            --fidelity (also measure every skinned kit walking with its holds against the page's drawing, ~1 min)
 //
+// Mounts: kits.json mountRig (tools/mount_rig.js, written by export_kits.js) gives a mount's legs, hooves and tail bones
+// of their own; ride_walk_<kit> / ride_run_<kit> move them with the rider seated. The page swings its horses' legs by
+// angle and the hooves slide; the bake re-solves the legs (two-bone IK) so a hoof on the ground stays put, keeping the
+// page's parts, stride pattern, tail and head. A mount whose legs are not rigid chains has no rig bones and no ride
+// clip (notBaked says why): it stays still under its rider, as before.
+//
 // Then `godot --headless --path godot -s tools/bake_anim.gd` turns clips.json into assets/anim/humanoid.res.
 // Units are the rig's: metres of an unscaled 1.6 m figure, +Y up, the figure faces +Z, its left is +X. A kit drawn at
 // scale S plays the same clip with Skeleton3D.motion_scale = S and moves S times as fast (the page does the same).
@@ -20,6 +26,7 @@ const ARGS = parseArgs(process.argv.slice(2));
 const PAGE = path.resolve(ROOT, ARGS.page || 'app/src/main/assets/battle-table.html');
 const OUT = path.resolve(ROOT, ARGS.out || 'godot/assets/anim/clips.json');
 const KITS_JSON = path.resolve(ROOT, 'godot/assets/kits/kits.json');
+const MR = require('./mount_rig.js');
 const FPS = 30, SUB = 4;                 // 30 frames a second; the rig is stepped 4 times a frame (1/120 s)
 const FORMAT = 1;
 
@@ -93,6 +100,13 @@ const NOT_BAKED = [
   { name: 'rise, down', why: 'whole-figure tilt only (no joint motion): the runtime tilts the node' },
   { name: 'flying poses', why: 'fliers hold one pose (flyPose: idle + legs drawn up) and bob as a whole; not a clip yet' }
 ];
+// a mount's gaits: duty factor (share of the stride a foot is down), how far the body may sink below its standing height
+// to give the legs reach (times the leg length; the stride follows from it), hoof lift (times the leg length)
+const RIDE = [
+  { name: 'walk', speed: 'VW', beta: 0.6, drop: 0.07, lift: 0.10 },
+  { name: 'run', speed: 'VR', beta: 0.45, drop: 0.08, lift: 0.16 }
+];
+const REACH = 0.99;                              // a leg is never stretched past 99 % of its length
 
 // ---------- runs inside the page: the sampler ----------
 function pageLib(opt){
@@ -569,6 +583,96 @@ function pageLib(opt){
   return { joints: J, parents: PAR, offsets: OFF, flat: flat() };
 }
 
+// ---------- node side: a mount's own parts through a walk and a run ----------
+// the max over a window, then the mean over it (periodic): never below the input, no steps
+function smoothUp(a, w){ const n = a.length, m = a.map((x, i) => { let v = -Infinity; for (let j = -w; j <= w; j++) v = Math.max(v, a[((i + j) % n + n) % n]); return v; });
+  return m.map((x, i) => { let v = 0; for (let j = -w; j <= w; j++) v += m[((i + j) % n + n) % n]; return v/(2*w + 1); }); }
+async function rideClips(page, kit, e, seat, V){
+  const rig = e.mountRig, S = e.scale || 1, bones = rig.bones, B = bones.length, idx = new Map(bones.map((b, i) => [b.name, i])), out = {};
+  if (!rig.gait || !B) return { error: 'no ride clip: ' + (rig.why || 'no mount rig') };
+  // a few faces per part are enough for its rigid transform
+  const pick = bones.map(b => { const f = b.faces, n = Math.min(8, f.length), o = []; for (let i = 0; i < n; i++) o.push(f[Math.floor(i*f.length/n)]); return [...new Set(o)]; });
+  const sel = [...new Set(pick.flat())].sort((a, b) => a - b), pos = new Map(sel.map((f, i) => [f, i]));
+  const pts = (fr, b) => { const o = []; for (const f of pick[b]){ const p = fr.faces[pos.get(f)]; if (!p) return null; for (const q of p) o.push(q); } return o; };
+  const rest = (await page.evaluate(MR.pageMountFaces, { kit, faces: sel, at: [{ rest: true }] }))[0], restPts = bones.map((b, i) => pts(rest, i));
+  const pelvisRest = MR.xf(seat.q.pelvis[0], seat.t.pelvis[0].map(v => v*S));          // the rider's seat (kit metres)
+  const legs = rig.legs.map(L => ({ H: L.hip, Kn: L.knee, A: L.end, l: L.l1 + L.l2, phase: L.phase, pole: L.pole, contact: L.contact,
+    up: idx.get(L.upper), lo: idx.get(L.lower), ft: L.foot ? idx.get(L.foot) : -1 }));
+  const onLeg = new Set(); legs.forEach(L => { onLeg.add(L.up); onLeg.add(L.lo); if (L.ft >= 0) onLeg.add(L.ft); });
+  const bodyI = rig.body ? idx.get(rig.body) : -1, lmin = Math.min(...legs.map(L => L.l));
+  // the page's own stride (rig.cycle) is laid over the planned one: its body, tail and head move at the same point of
+  // the stride. A part that does not repeat over that stride (a tail swaying at half its rate, wings with their own
+  // beat) would jump where the loop starts again, so the last XF of the frames cross-fade, bone by bone in the parent's
+  // frame, into the same frames one page stride earlier: the loop closes on frame 0 with no jump, joints stay joined
+  const XF = 0.3, U = rig.cycle || 0;
+  const fits = fr => fr.map(f => bones.map((b, i) => MR.rigidFit(restPts[i], pts(f, i))));
+  // world (kit frame, in place) of every mount bone and of the rider's pelvis at one frame; the legs solved in the
+  // body's own frame onto the planned feet
+  const worldAt = (TFk, Dk, fk, cnt) => { const TBk = bodyI >= 0 ? TFk[bodyI] : MR.XI(), dz = MR.xf([0, 0, 0, 1], [0, -Dk, 0]), BO = MR.xmul(dz, TBk), w = new Array(B);
+    bones.forEach((b, i) => { if (onLeg.has(i)) return; const X = MR.xmul(dz, TFk[i]); w[i] = { q: X.q, p: MR.ap(X, b.origin) }; });
+    legs.forEach((L, li) => { const r = MR.ik2(L.H, L.Kn, L.A, MR.ap(MR.xinv(BO), fk[li].p), L.pole, 0.999);
+      if (r.short && cnt) cnt.short++;
+      w[L.up] = { q: MR.qnorm(MR.qmul(BO.q, r.qUp)), p: MR.ap(BO, L.H) };
+      w[L.lo] = { q: MR.qnorm(MR.qmul(BO.q, r.qLo)), p: MR.ap(BO, r.K) };
+      if (L.ft >= 0) w[L.ft] = { q: [0, 0, 0, 1], p: MR.ap(BO, r.A) }; });         // the hoof keeps its own level
+    const P = MR.xmul(BO, pelvisRest); return { w, pq: P.q, pp: P.t }; };
+  // every bone in its parent's frame (kit metres); the rider's pelvis as it is
+  const localAt = F => ({ pq: F.pq, pp: F.pp, q: bones.map((b, i) => { const par = b.parent === 'pelvis' ? { q: F.pq, p: F.pp } : F.w[idx.get(b.parent)]; return MR.qnorm(MR.qmul(MR.qconj(par.q), F.w[i].q)); }),
+    t: bones.map((b, i) => { const par = b.parent === 'pelvis' ? { q: F.pq, p: F.pp } : F.w[idx.get(b.parent)]; return MR.qrot(MR.qconj(par.q), MR.sub(F.w[i].p, par.p)); }) });
+  // and back (bones are listed parents first)
+  const worldOf = Lk => { const q = [], p = []; bones.forEach((b, i) => { const pi = b.parent === 'pelvis' ? -1 : idx.get(b.parent), pq = pi < 0 ? Lk.pq : q[pi], pp = pi < 0 ? Lk.pp : p[pi];
+    q[i] = MR.qnorm(MR.qmul(pq, Lk.q[i])); p[i] = MR.add(pp, MR.qrot(pq, Lk.t[i])); }); return { q, p }; };
+  for (const g of RIDE){
+    const v = V[g.speed], vt = v*S, name = 'ride_' + g.name + '_' + kit.replace(/[^a-z0-9_]/g, '_');
+    const plan = MR.planGait(legs, { beta: g.beta, drop: g.drop*lmin, reachK: REACH });
+    const C = plan.cycle, T = C/vt, N = Math.floor(T*FPS - 1e-9) + 1, tauK = U ? U/C : 1;
+    const at = []; for (let k = 0; k < N; k++) at.push({ travel: vt*k/FPS*tauK, v });
+    const nX = U ? Math.max(2, Math.round(N*XF)) : 0, k0 = N - nX;
+    const fr = await page.evaluate(MR.pageMountFaces, { kit, faces: sel, at: at.concat(at.slice(k0).map(m => ({ travel: m.travel - U, v }))) });
+    if (fr.some(f => f.count !== rest.count)){ out[name] = { error: 'the page changes the face count while it moves' }; continue; }
+    const TF = fits(fr.slice(0, N)), TP = fits(fr.slice(N));
+    let D = new Array(N).fill(0); const feet = [];
+    for (let k = 0; k < N; k++){ const f = legs.map(L => MR.footAt(plan, L, vt*k/FPS, g.lift*lmin)); feet.push(f);
+      D[k] = MR.dropFor(legs, f.map(x => x.p), p => MR.ap(bodyI >= 0 ? TF[k][bodyI] : MR.XI(), p), REACH); }
+    D = smoothUp(D, 2);
+    const cnt = { short: 0 }, Lc = TF.map((X, k) => localAt(worldAt(X, D[k], feet[k], cnt)));
+    // the cross-fade: per bone, the turn toward the earlier stride taken the same way round from frame to frame
+    const near = new Array(B + 1).fill(null);
+    for (let k = k0; k < N; k++){ let s = (k - k0)/nX; s = s*s*(3 - 2*s);
+      const Lp = localAt(worldAt(TP[k - k0], D[k], feet[k], null)), a = Lc[k];
+      for (let i = 0; i <= B; i++){ const qa = i < B ? a.q[i] : a.pq, qb = i < B ? Lp.q[i] : Lp.pq, r = turnFrom(qa, qb, near[i]); near[i] = r;
+        const qn = MR.qnorm(MR.qmul(qa, qexp(MR.scl(r, s)))), ta = i < B ? a.t[i] : a.pp, tb = i < B ? Lp.t[i] : Lp.pp, tn = [0, 1, 2].map(c => ta[c] + (tb[c] - ta[c])*s);
+        if (i < B){ a.q[i] = qn; a.t[i] = tn; } else { a.pq = qn; a.pp = tn; } } }
+    const short = cnt.short, Wf = Lc.map(worldOf);
+    // local tracks (the parent's frame; positions in rig metres: the kit plays them with motion_scale = S)
+    const q = {}, t = {}, cont = (arr) => { let prev = null; return arr.map(x => { let y = x.slice(); if (prev && dot4(prev, y) < 0) y = y.map(c => -c); prev = y; return y.map(r6); }); };
+    for (const jn of Object.keys(seat.q)) q[jn] = new Array(N).fill(seat.q[jn][0]);
+    for (const jn of Object.keys(seat.t)) t[jn] = new Array(N).fill(seat.t[jn][0]);
+    q.pelvis = cont(Lc.map(x => x.pq)); t.pelvis = Lc.map(x => x.pp.map(c => r5(c/S)));
+    bones.forEach((b, i) => { q[b.name] = cont(Lc.map(x => x.q[i])); t[b.name] = Lc.map(x => x.t[i].map(c => r5(c/S))); });
+    // the feet: which frames each is down, a point on it (rest, rig metres) and how far it slides between keys
+    const fts = legs.map((L, li) => ({ bone: bones[L.ft >= 0 ? L.ft : L.lo].name, point: L.contact.map(c => r5(c/S)), contact: feet.map(f => f[li].stance) }));
+    let slide = 0; legs.forEach((L, li) => { const bi = L.ft >= 0 ? L.ft : L.lo, o = MR.sub(L.contact, bones[bi].origin); let anchor = null;
+      for (let k = 0; k < N; k++){ if (!feet[k][li].stance){ anchor = null; continue; } const c = MR.add(Wf[k].p[bi], MR.qrot(Wf[k].q[bi], o)), wc = [c[0], c[1], c[2] + vt*k/FPS];
+        if (!anchor) anchor = wc; else slide = Math.max(slide, Math.hypot(wc[0] - anchor[0], wc[2] - anchor[2])); } });
+    const drives = ['pelvis'].concat(bones.map(b => b.name));
+    out[name] = { loop: true, fps: FPS, frames: N, length: r6(T), speed: r6(v), set: 'mount', kit, holds: 'none', bones: bones.map(b => b.name), q, t, drives,
+      feet: fts, gait: 'planted', cycle: r5(C/S), stance: r5(plan.stance/S), beta: g.beta, crossFade: nX,
+      bob: { minMm: Math.round(Math.min(...D)*10000/S)/10, maxMm: Math.round(Math.max(...D)*10000/S)/10 }, keySlideMm: Math.round(slide*10000/S)/10, unreachable: short || undefined,
+      note: 'the rider seated (MINI.riderPose) and carried by the mount; its legs re-solved so a hoof on the ground stays put (the page swings them and they slide), ' +
+        'stride ' + (C/S).toFixed(2) + ' m, duty ' + g.beta + '; body, tail and head as the page moves them at the same point of the stride, the last ' + nX +
+        ' frames cross-faded into the stride before so the loop closes' };
+  }
+  return out;
+}
+const dot4 = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+// rotation vectors (axis x angle) of quaternions [x,y,z,w], and back
+const qlogv = q => { let [x, y, z, w] = q; if (w < 0){ x = -x; y = -y; z = -z; w = -w; } const n = Math.hypot(x, y, z), a = 2*Math.atan2(n, w); return n < 1e-12 ? [0, 0, 0] : [x/n*a, y/n*a, z/n*a]; };
+const qexp = r => { const a = Math.hypot(r[0], r[1], r[2]); if (a < 1e-12) return [0, 0, 0, 1]; const k = Math.sin(a/2)/a; return [r[0]*k, r[1]*k, r[2]*k, Math.cos(a/2)]; };
+// the turn from a to b (in a's frame) as a rotation vector, of its two ways round the one nearest `near`
+function turnFrom(a, b, near){ const r = qlogv(MR.qmul(MR.qconj(a), b)), n = Math.hypot(r[0], r[1], r[2]); if (!near || n < 1e-9) return r;
+  const alt = MR.scl(r, 1 - 2*Math.PI/n); return MR.dist(alt, near) < MR.dist(r, near) ? alt : r; }
+
 // ---------- node side: shape the clips ----------
 const r6 = v => Math.round(v*1e6)/1e6, r5 = v => Math.round(v*1e5)/1e5;
 // the page's frames -> per-joint tracks; quaternion signs kept continuous; translations only where they move
@@ -639,14 +743,19 @@ function validate(doc){
     if (!(c.frames >= 1)) e('frames ' + c.frames);
     const span = (c.frames - 1)/FPS;
     if (c.loop ? !(c.length >= span - 1e-6 && c.length <= span + 1/FPS + 1e-6) : Math.abs(c.length - span) > 1e-6) e('length ' + c.length + ' vs ' + c.frames + ' frames');
-    for (const jn of J){ const tr = c.q && c.q[jn];
+    // a mount's clip also moves the mount's own bones (c.bones, kits.json mountRig): named mount_*, not one of the 23
+    const extra = Array.isArray(c.bones) ? c.bones : [], all = J.concat(extra);
+    for (const b of extra) if (!/^mount_[a-z0-9_]+$/.test(b) || J.indexOf(b) >= 0) e('bad mount bone ' + b);
+    for (const jn of all){ const tr = c.q && c.q[jn];
       if (!tr) { e('joint ' + jn + ' missing'); continue; }
       if (tr.length !== c.frames) e(jn + ': ' + tr.length + ' keys for ' + c.frames + ' frames');
       for (const v of tr) if (v.length !== 4 || !v.every(Number.isFinite) || Math.abs(Math.hypot(...v) - 1) > 1e-4){ e(jn + ': bad quaternion ' + JSON.stringify(v)); break; } }
-    for (const jn of Object.keys(c.q || {})) if (J.indexOf(jn) < 0) e('unknown joint ' + jn);
+    for (const jn of Object.keys(c.q || {})) if (all.indexOf(jn) < 0) e('unknown joint ' + jn);
     if (!c.t || !c.t.pelvis) e('pelvis translation missing');
-    for (const jn of Object.keys(c.t || {})){ if (J.indexOf(jn) < 0) e('translation of unknown joint ' + jn);
+    for (const jn of Object.keys(c.t || {})){ if (all.indexOf(jn) < 0) e('translation of unknown joint ' + jn);
       if (c.t[jn].length !== c.frames || !c.t[jn].every(v => v.length === 3 && v.every(Number.isFinite))) e(jn + ': bad translations'); }
+    if (c.feet) for (const f of c.feet){ if (all.indexOf(f.bone) < 0) e('foot on unknown bone ' + f.bone);
+      if (!Array.isArray(f.point) || f.point.length !== 3 || !f.point.every(Number.isFinite)) e('foot point'); if (!Array.isArray(f.contact) || f.contact.length !== c.frames) e('foot contact length'); }
     if (c.contact && (c.contact.L.length !== c.frames || c.contact.R.length !== c.frames)) e('contact length');
     for (const k of ['travel', 'alpha']) if (c[k] && c[k].length !== c.frames) e(k + ' length');
     if (!Number.isFinite(c.speed) || c.speed < 0) e('speed ' + c.speed);
@@ -723,6 +832,23 @@ async function main(){
   // mounted: one still seat per mount kit
   const mounts = await page.evaluate(() => window.__BAKE.mounts());
   if (!ARGS.proofs || (only && only.has('seat'))) for (const k of mounts) put('seat_' + k.replace(/[^a-z0-9_]/g, '_'), await page.evaluate(k => window.__BAKE.seat(k), k), { set: 'mount', kit: k, holds: 'none' });
+  // ridden: the mount's own bones (kits.json mountRig) through a walk and a run; the proof is the first mount (the horse).
+  // A mount without rig bones (its legs are not rigid chains the bake can re-solve) gets no ride clip: notBaked says why
+  const V = await page.evaluate(() => ({ VW: window.__BAKE.VW, VR: window.__BAKE.VR })), ride = [];
+  if (manifest) for (const k of mounts){ const e = manifest.kits[k], nk = k.replace(/[^a-z0-9_]/g, '_');
+    if (ARGS.proofs && k !== mounts[0]) continue;
+    if (!e || !e.mountRig || !e.mountRig.gait || !(e.mountRig.bones || []).length){
+      if (!ARGS.proofs && !only) skipped.push({ name: 'ride_walk_' + nk + ', ride_run_' + nk, why: 'no ride clip, the mount stays still under its rider: ' + ((e && e.mountRig && e.mountRig.why) || 'no mount rig in kits.json') });
+      continue; }
+    const seatClip = toClip(J, OFF, await page.evaluate(k => window.__BAKE.seat(k), k), {});
+    const rc = await rideClips(page, k, e, seatClip, V);
+    for (const [nm, c] of Object.entries(rc)){ if (!want(nm) && !(ARGS.proofs && /^ride_walk_/.test(nm))) continue;
+      if (c.error){ skipped.push({ name: nm, why: c.error }); console.log('skip', nm, c.error); continue; }
+      clips[nm] = c; ride.push(nm);
+      console.log(('  ' + nm).padEnd(18), String(c.frames).padStart(4), 'frames', (c.length.toFixed(3) + ' s').padStart(8), 'loop v ' + c.speed.toFixed(3), c.bones.length + ' mount bones',
+        'stride ' + c.cycle.toFixed(3) + ' m, body sinks ' + c.bob.minMm + '-' + c.bob.maxMm + ' mm, hoof slide at the keys ' + c.keySlideMm + ' mm, last ' + c.crossFade + ' frames cross-faded' +
+        (c.unreachable ? ', ' + c.unreachable + ' unreachable' : '')); } }
+  if (manifest && !ride.length) console.log('  no mount rigs in kits.json (re-export the kits): no ride clips');
   // walker proof: the biggest skinned two-legged kit that walks (not a mount, not a flier)
   let walker = null;
   if (manifest){ for (const [k, e] of Object.entries(manifest.kits)){ if (!e.skinned || e.mount || e.fly || (e.type && e.type.fly) || e.creature) continue;
@@ -748,7 +874,8 @@ async function main(){
     units: 'rig metres (an unscaled 1.6 m figure); a kit of scale S plays a clip with Skeleton3D.motion_scale = S and moves at speed*S',
     axes: '+Y up, the figure faces +Z, its left is +X; quaternions [x,y,z,w] = the bone\'s rotation relative to its parent (Godot bone pose rotation)',
     joints: J, parents: info.parents, offsets: OFF.map(o => o.map(r6)),
-    proofs: { humanoid: 'infantry', walker: walker, walkerScale: walker && manifest ? manifest.kits[walker].scale : null, mount: mounts[0] || null },
+    proofs: { humanoid: 'infantry', walker: walker, walkerScale: walker && manifest ? manifest.kits[walker].scale : null, mount: mounts[0] || null,
+      mountClip: mounts[0] && clips['ride_walk_' + mounts[0]] ? 'ride_walk_' + mounts[0] : null },
     note: 'q = local rotation of every joint per frame; t = local translation where it moves (always the pelvis: its place in the figure; ' +
       'chest and shoulders when the idle breathes). contact = which part of each foot the page pins to the ground (heel, ball, flat, null = in the air). ' +
       'speed = how fast the figure travels while the clip plays (rig m/s, in place); travel = distance covered by each frame (starts and stops); turn = yaw the pelvis ' +

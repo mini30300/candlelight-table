@@ -111,7 +111,7 @@ func _merge(kit: String, mi: MeshInstance3D) -> Dictionary:
 	var bones := PackedInt32Array()
 	var weights := PackedFloat32Array()
 	var idx := PackedInt32Array()
-	var lookup: Dictionary = {}                               # Vector3i(ตำแหน่ง) -> { Vector4i(normal, พื้นผิว*64+กระดูก): ดัชนีใหม่ }
+	var lookup: Dictionary = {}                               # Vector3i(ตำแหน่ง) -> { Vector4i(normal, พื้นผิว*256+กระดูก: กระดูกไม่เกิน 255): ดัชนีใหม่ }
 	var palette: Array = []                                   # ดัชนีจานสี = ลำดับใน kits.json materials[] (glTF อาจขาดพื้นผิวที่หน้าเสื่อมหมด)
 	var slot_of: Dictionary = {}                              # key -> ดัชนีจานสี
 	if _manifest.has(kit):
@@ -162,7 +162,7 @@ func _merge(kit: String, mi: MeshInstance3D) -> Dictionary:
 				var n := sn[o]
 				var bone := sb[o * 4] if skinned else 0
 				var pk := Vector3i(int(roundf(v.x * POS_Q)), int(roundf(v.y * POS_Q)), int(roundf(v.z * POS_Q)))
-				var nk := Vector4i(int(roundf(n.x * NRM_Q)), int(roundf(n.y * NRM_Q)), int(roundf(n.z * NRM_Q)), s * 64 + bone)
+				var nk := Vector4i(int(roundf(n.x * NRM_Q)), int(roundf(n.y * NRM_Q)), int(roundf(n.z * NRM_Q)), s * 256 + bone)
 				var bucket: Dictionary = lookup.get(pk, {})
 				if bucket.has(nk):
 					remap[o] = bucket[nk]

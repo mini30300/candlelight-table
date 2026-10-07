@@ -12,8 +12,11 @@ extends SceneTree
 ## turns by the end), travel (per frame, starts and stops), contact_l / contact_r (heel, ball, flat or "" per frame),
 ## events ([{t, kind}]: shot, thud, raised, lower), alpha (the page's fade, falls), drives (the bones it moves),
 ## hold_mode (all: a kit's holds bend every bone they name · undriven: only bones the clip does not drive · none),
-## kit (seats), from / kind / gun / hand / heavy (which of the page's attacks it is), set, note. The library carries
-## holds (per kit: how its own pose bends the clip's bones, see tools/bake_anim.js), joints, proofs and source.
+## kit (seats), from / kind / gun / hand / heavy (which of the page's attacks it is), set, note. A mount's ride clip
+## (ride_walk_<kit>, ride_run_<kit>) also moves the mount's own bones (`bones`: mount_*, after the 23 in that kit's
+## skeleton) and carries `feet` ([{bone, point (rig metres, rest), contact (1 = on the ground, per frame)}]), gait and
+## cycle. The library carries holds (per kit: how its own pose bends the clip's bones, see tools/bake_anim.js),
+## joints, proofs and source.
 
 const DEFAULT_IN := "res://assets/anim/clips.json"
 const DEFAULT_OUT := "res://assets/anim/humanoid.res"
@@ -115,12 +118,19 @@ static func clip_to_animation(name: String, c: Dictionary, joints: PackedStringA
 		return null
 	var q: Dictionary = c["q"]
 	var t: Dictionary = c["t"]
+	# คลิปของพาหนะ: กระดูกของตัวพาหนะเอง (mount_*) ต่อท้าย 23 ข้อ (kits.json mountRig)
+	var bones := joints.duplicate()
+	for b in c.get("bones", []):
+		if not String(b).begins_with("mount_") or joints.has(String(b)):
+			errors.append("%s: bad mount bone %s" % [name, b])
+			return null
+		bones.append(String(b))
 	var anim := Animation.new()
 	var length := float(c.get("length", 0.0))
 	anim.length = maxf(length, 1.0 / FPS) if frames == 1 else length
 	anim.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 	anim.step = 1.0 / FPS
-	for j in joints:
+	for j in bones:
 		var keys: Variant = q.get(j)
 		if not (keys is Array) or (keys as Array).size() != frames:
 			errors.append("%s: bone %s has %s keys for %d frames" % [name, j, str((keys as Array).size()) if keys is Array else "no", frames])
@@ -138,7 +148,7 @@ static func clip_to_animation(name: String, c: Dictionary, joints: PackedStringA
 		errors.append("%s: no pelvis translation" % name)
 		return null
 	for j in t.keys():
-		if not joints.has(String(j)):
+		if not bones.has(String(j)):
 			errors.append("%s: translation of unknown bone %s" % [name, j])
 			return null
 		var keys: Array = t[j]
@@ -172,6 +182,20 @@ static func clip_to_animation(name: String, c: Dictionary, joints: PackedStringA
 		anim.set_meta("events", ev)
 	if c.get("seam") is Dictionary:
 		anim.set_meta("seam", c["seam"])
+	# เท้าของพาหนะ: กระดูก จุดสัมผัส (rig metres) และเฟรมที่แตะพื้น
+	if c.get("feet") is Array:
+		var feet: Array[Dictionary] = []
+		for f in c["feet"]:
+			var pt: Array = f.get("point", [0, 0, 0])
+			var on := PackedByteArray()
+			for v in f.get("contact", []):
+				on.append(1 if bool(v) else 0)
+			feet.append({"bone": String(f.get("bone", "")), "point": Vector3(float(pt[0]), float(pt[1]), float(pt[2])), "contact": on})
+		anim.set_meta("feet", feet)
+	if bones.size() > joints.size():
+		anim.set_meta("bones", bones.slice(joints.size()))
+		anim.set_meta("gait", String(c.get("gait", "")))
+		anim.set_meta("cycle", float(c.get("cycle", 0.0)))
 	return anim
 
 

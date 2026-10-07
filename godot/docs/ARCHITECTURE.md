@@ -401,8 +401,10 @@ Per-level budgets, asserted by `tests/render/test_budgets.gd` on a 400-figure / 
 metres, +Y up, faces +Z, flat shading, scale baked into the mesh (instantiate at scale 1; `baseR` from `kits.json` for
 spacing), one material per palette key with `extras.tint` (NATURAL keys false), 23-joint SKRIG skeleton for the 260
 skinned kits (joint names = `SKRIG.J`; local quaternions = SKRIG local pose), mounts with the rider's seated skeleton and
-the mount body under the pelvis. **52 kits have zero joints** (all vehicles, titans and 50 of 51 creatures): they get
-whole-mesh procedural motion (bob, hover from `fly.json`, stomp) until creature rigs arrive with the bestiary (R5).
+the mount body under the pelvis (the 5 mounts whose legs are rigid chains add a `mount_*` bone per moving part after
+the 23: `tools/mount_rig.js`, kits.json `mountRig`). **52 kits have zero joints** (all vehicles, titans and 50 of 51
+creatures): they get whole-mesh procedural motion (bob, hover from `fly.json`, stomp) until creature rigs arrive with
+the bestiary (R5).
 `tests/render/test_lineup.gd` loads every kit, fails on a missing joint, a stray material, a missing tint flag or a bad
 scale, and renders one line-up per army.
 
@@ -431,6 +433,8 @@ stored in `user://paint/<kit>.json` and sent with the army list as plain ints, s
    two deaths, mounted seat. `tools/bake_anim.gd` writes one `AnimationLibrary` (`assets/anim/humanoid.res`) shared by
    all 260 skinned kits (same joint names, same convention; no retargeting). Runtime: AnimationPlayer/AnimationTree in
    C++, blend idle/walk/run by actual speed (no sliding), actions as one-shots on tray events (throw start / settle).
+   Mounts: `ride_walk_<kit>` / `ride_run_<kit>` move the rigged mounts' own bones with the rider seated, legs re-solved
+   so the hooves stay planted (assets/anim/CLIPS.md §4).
    **First bake one humanoid walk + one horse + one walker and measure foot slide before baking the library** (the
    page's harness measured 0 mm; `tests/render/test_anim_footslide.gd` allows ≤ 15 mm at Walker speed).
 2. Near-figure polish on mid/hi (R6): `SkeletonIK3D`/`IKModifier3D` foot pins on slopes and `LookAtModifier3D` heads for

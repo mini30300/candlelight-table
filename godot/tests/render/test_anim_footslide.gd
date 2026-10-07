@@ -5,6 +5,11 @@ extends SceneTree
 ## is planted — the old page's harness measure (web/harness.js slideProbe), at 240 samples a second so the slide
 ## between the 30 Hz keys counts too. A kit of scale S plays with Skeleton3D.motion_scale = S and moves S times as
 ## fast, so the walker kits prove the scaled path. Gate: <= MAX_SLIDE_MM on every measured clip.
+## The third proof is a mount (the horse): ride_walk_<kit> / ride_run_<kit> move the mount's own bones (kits.json
+## mountRig, after the 23) and say per frame which hooves are down (`feet` metadata: bone, point, contact); the hoof
+## points are measured the same way, and every other mount's ride clips too (bones in its skeleton, hooves planted).
+## Every ride clip must loop with no jump: the step from its last key to its first, bone by bone, is no bigger than
+## its biggest step between keys.
 ## Then, with a display, renders strips of frames: tests/out/anim_walk_<case>.png (one walk cycle, the ground marked
 ## every 25 cm so planted feet can be seen standing still) and tests/out/anim_actions_<n>.png (a contact sheet of the
 ## action clips). Headless runs measure only.
@@ -64,6 +69,18 @@ func _run() -> void:
 			_measure(c["name"], c["kit"], clip)
 	_control(human)
 	_check_holds(human)
+	# the mount proof: the horse walking and running with its rider, then every other re-solved mount (counted)
+	var mount := String(proofs.get("mount", ""))
+	var mount_clip := String(proofs.get("mountClip", ""))
+	_ok(mount != "" and mount_clip != "" and _lib.has_animation(mount_clip), "the mount proof is baked: %s (kits.json mountRig re-exported?)" % mount_clip)
+	if mount != "" and _lib.has_animation(mount_clip):
+		_check_mount_bones(mount, mount_clip)
+		_measure_mount("horse", mount, mount_clip)
+		_measure_mount("horse", mount, mount_clip.replace("ride_walk_", "ride_run_"))
+		var r := mount_slide(mount, mount_clip, 0.9)
+		_ok(float(r["mm"]) > 3.0 * MAX_SLIDE_MM, "control: %s at 90 %% of its speed slides %.1f mm (the measure sees a wrong speed)" % [mount_clip, r["mm"]])
+		_other_mounts(mount)
+		_ride_loops()
 	if _headless:
 		print("headless: no strips rendered (run under xvfb for tests/out/anim_*.png)")
 	else:
@@ -72,6 +89,8 @@ func _run() -> void:
 		await process_frame
 		for c in cases:
 			await _strip(c["name"], c["kit"], "walk")
+		if mount != "" and _lib.has_animation(mount_clip):
+			await _strip("horse", mount, mount_clip, "anim_walk_horse.png", Vector2i(560, 400))
 		await _contact_sheet()
 	_finish()
 
@@ -271,6 +290,174 @@ func _check_holds(kit: String) -> void:
 	_ok(arms == 4, "kit %s holds both arms (%d shoulder/elbow bones)" % [kit, arms])
 
 
+# ---------- mounts ----------
+
+## Every bone a ride clip moves is in the kit's skeleton, after the 23 joints, in kits.json mountRig order.
+func _check_mount_bones(kit: String, clip: String) -> void:
+	var anim := _lib.get_animation(clip)
+	var ps: PackedScene = load(KITS_DIR + kit + ".glb")
+	var node: Node3D = ps.instantiate()
+	var sk: Skeleton3D = node.get_node("Skeleton3D")
+	var bones: PackedStringArray = anim.get_meta("bones", PackedStringArray())
+	var missing := PackedStringArray()
+	for i in bones.size():
+		if sk.find_bone(bones[i]) != 23 + i:
+			missing.append("%s at %d" % [bones[i], sk.find_bone(bones[i])])
+	var rig: Dictionary = _manifest[kit].get("mountRig", {})
+	_ok(bones.size() > 0 and missing.is_empty() and sk.get_bone_count() == 23 + bones.size() and (rig.get("bones", []) as Array).size() == bones.size(),
+		"%s moves %d mount bones, all in the skeleton of %s after the 23 (%d bones)" % [clip, bones.size(), kit, sk.get_bone_count()], missing)
+	var feet: Array = anim.get_meta("feet", [])
+	_ok(feet.size() >= 2 and String(anim.get_meta("gait", "")) == "planted", "%s: %d feet with contact flags, gait %s" % [clip, feet.size(), anim.get_meta("gait", "")])
+	node.free()
+
+
+func _measure_mount(case_name: String, kit: String, clip: String) -> void:
+	if not _lib.has_animation(clip):
+		_ok(false, "%s: clip %s exists" % [case_name, clip])
+		return
+	var r := mount_slide(kit, clip, 1.0)
+	var msg := "%s %s on %s (scale %.2f, %.3f m/s): hoof slide %.2f mm, height drift %.2f mm while planted (%d plants, %.2f s)" % [
+		case_name, clip, kit, r["scale"], r["speed"], r["mm"], r["mm_y"], r["plants"], r["planted_s"]]
+	if int(r["plants"]) == 0:
+		_ok(false, msg, "no planted hoof at all: feet metadata missing?")
+		return
+	_ok(float(r["mm"]) <= MAX_SLIDE_MM, msg + (" <= %.0f mm" % MAX_SLIDE_MM), "worst " + String(r["where"]))
+
+
+## The other mounts' ride clips: their bones in the kit's skeleton (after the 23, in kits.json mountRig order) and
+## their hooves measured; reported as a count (their kit names stay out of the log).
+func _other_mounts(proof: String) -> void:
+	var n := 0
+	var worst := 0.0
+	var bad := 0
+	var bad_bones := 0
+	for a in _lib.get_animation_list():
+		var nm := String(a)
+		if not nm.begins_with("ride_") or nm.ends_with("_" + proof):
+			continue
+		var anim := _lib.get_animation(nm)
+		var kit := String(anim.get_meta("kit", ""))
+		if not _manifest.has(kit):
+			bad += 1
+			continue
+		if not _mount_bones_ok(kit, anim):
+			bad_bones += 1
+			continue
+		var r := mount_slide(kit, nm, 1.0)
+		n += 1
+		worst = maxf(worst, float(r["mm"]))
+		if float(r["mm"]) > MAX_SLIDE_MM or int(r["plants"]) == 0:
+			bad += 1
+	_ok(n > 0 and bad == 0 and bad_bones == 0, "%d more ride clips: bones in their kits' skeletons, worst hoof slide %.2f mm <= %.0f mm (%d over, %d with bones missing)" % [
+		n, worst, MAX_SLIDE_MM, bad, bad_bones])
+
+
+## The bones a ride clip moves sit in the kit's skeleton after the 23 joints, in kits.json mountRig order, and its
+## feet are on them.
+func _mount_bones_ok(kit: String, anim: Animation) -> bool:
+	var ps: PackedScene = load(KITS_DIR + kit + ".glb")
+	var node: Node3D = ps.instantiate()
+	var sk: Skeleton3D = node.get_node("Skeleton3D")
+	var bones: PackedStringArray = anim.get_meta("bones", PackedStringArray())
+	var rig: Array = (_manifest[kit].get("mountRig", {}) as Dictionary).get("bones", [])
+	var ok := bones.size() > 0 and sk.get_bone_count() == 23 + bones.size() and rig.size() == bones.size()
+	for i in bones.size():
+		ok = ok and sk.find_bone(bones[i]) == 23 + i and String(rig[i]["name"]) == bones[i]
+	for ft in anim.get_meta("feet", []):
+		ok = ok and bones.has(String(ft["bone"]))
+	node.free()
+	return ok
+
+
+## Every ride clip loops with no jump: per bone track, the step from the last key to the first (angle, distance) is
+## no bigger than the clip's own biggest step between two keys.
+func _ride_loops() -> void:
+	var n := 0
+	var bad := PackedStringArray()
+	for a in _lib.get_animation_list():
+		var nm := String(a)
+		if not nm.begins_with("ride_"):
+			continue
+		n += 1
+		var anim := _lib.get_animation(nm)
+		for ti in anim.get_track_count():
+			var typ := anim.track_get_type(ti)
+			var kc := anim.track_get_key_count(ti)
+			if kc < 3 or (typ != Animation.TYPE_ROTATION_3D and typ != Animation.TYPE_POSITION_3D):
+				continue
+			var step := 0.0
+			for k in range(1, kc):
+				step = maxf(step, _key_step(anim, ti, k - 1, k))
+			var wrap := _key_step(anim, ti, kc - 1, 0)
+			if wrap > step + (0.5 if typ == Animation.TYPE_ROTATION_3D else 0.0005):
+				bad.append("%s: %.3f > %.3f" % [anim.track_get_path(ti), wrap, step])
+	_ok(n > 0 and bad.is_empty(), "%d ride clips loop with no jump (last key -> first key within each bone's biggest step)" % n, bad)
+
+
+## The change between two keys of a track: degrees for a rotation, rig metres for a position.
+static func _key_step(anim: Animation, ti: int, k0: int, k1: int) -> float:
+	if anim.track_get_type(ti) == Animation.TYPE_ROTATION_3D:
+		var q0: Quaternion = anim.track_get_key_value(ti, k0)
+		var q1: Quaternion = anim.track_get_key_value(ti, k1)
+		return rad_to_deg(q0.angle_to(q1))
+	var p0: Vector3 = anim.track_get_key_value(ti, k0)
+	var p1: Vector3 = anim.track_get_key_value(ti, k1)
+	return p0.distance_to(p1)
+
+
+## Ground slide of the hooves of a ride clip (CYCLES times round) with the figure moving at speed_k times the clip's
+## speed: the foot point (rest, rig metres x scale) carried by its bone, planted where the contact flags say so.
+func mount_slide(kit: String, clip: String, speed_k: float) -> Dictionary:
+	var anim := _lib.get_animation(clip)
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var f := _figure(kit, stage)
+	var sk: Skeleton3D = f["sk"]
+	var scale := float(f["scale"])
+	var feet: Array = anim.get_meta("feet", [])
+	var bone := PackedInt32Array()
+	var local: Array[Vector3] = []
+	for ft in feet:
+		var b := sk.find_bone(String(ft["bone"]))
+		bone.append(b)
+		local.append(sk.get_bone_global_rest(b).affine_inverse() * ((ft["point"] as Vector3) * scale) if b >= 0 else Vector3.ZERO)
+	var span := anim.length * CYCLES
+	var n := int(ceil(span * RATE))
+	var anchor := {}
+	var worst := 0.0
+	var worst_y := 0.0
+	var plants := 0
+	var planted_s := 0.0
+	var where := ""
+	for i in n + 1:
+		var t := minf(float(i) / RATE, span)
+		var tc := fmod(t, anim.length)
+		_pose_at(f, anim, clip, tc)
+		(f["node"] as Node3D).position.z = float(anim.get_meta("speed", 0.0)) * t * scale * speed_k
+		for fi in feet.size():
+			var on: PackedByteArray = feet[fi]["contact"]
+			var k0 := posmod(int(floor(tc * 30.0 + 1e-6)), on.size())
+			var k1 := posmod(k0 + 1, on.size())
+			if bone[fi] < 0 or on[k0] == 0 or on[k1] == 0:
+				anchor.erase(fi)
+				continue
+			var p := sk.global_transform * (sk.get_bone_global_pose(bone[fi]) * local[fi])
+			if not anchor.has(fi):
+				anchor[fi] = p
+				plants += 1
+				continue
+			var a: Vector3 = anchor[fi]
+			var d := Vector2(p.x - a.x, p.z - a.z).length()
+			planted_s += 1.0 / RATE / float(feet.size())
+			if d > worst:
+				worst = d
+				where = "%s at %.3f s" % [String(feet[fi]["bone"]), tc]
+			worst_y = maxf(worst_y, absf(p.y - a.y))
+	stage.queue_free()
+	return {"mm": worst * 1000.0, "mm_y": worst_y * 1000.0, "plants": plants, "planted_s": planted_s, "where": where,
+		"scale": scale, "speed": float(anim.get_meta("speed", 0.0)) * scale * speed_k}
+
+
 # ---------- pictures ----------
 
 func _camera(parent: Node, target: Vector3, height: float) -> Camera3D:
@@ -313,30 +500,32 @@ func _ground(parent: Node, scale: float, length: float) -> void:
 		k += 1
 
 
-func _grab_cell(cam: Camera3D, at: Vector3, height: float) -> Image:
+func _grab_cell(cam: Camera3D, at: Vector3, height: float, cell_size := CELL) -> Image:
 	var img := root.get_viewport().get_texture().get_image()
 	var c := cam.unproject_position(at + Vector3(0.0, height * 0.5, 0.0))
 	var top := cam.unproject_position(at + Vector3(0.0, height * 1.15, 0.0))
 	var bottom := cam.unproject_position(at + Vector3(0.0, -height * 0.12, 0.0))
 	var h := maxf(bottom.y - top.y, 40.0)
-	var w := h * float(CELL.x) / float(CELL.y)
+	var w := h * float(cell_size.x) / float(cell_size.y)
 	var r := Rect2i(int(c.x - w * 0.5), int(top.y), int(w), int(h))
 	r = r.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
 	var cell := img.get_region(r)
-	cell.resize(CELL.x, CELL.y, Image.INTERPOLATE_BILINEAR)
+	cell.resize(cell_size.x, cell_size.y, Image.INTERPOLATE_BILINEAR)
 	return cell
 
 
 ## One cycle of `clip` in STRIP_FRAMES frames side by side, the camera following the figure.
-func _strip(case_name: String, kit: String, clip: String) -> void:
+func _strip(case_name: String, kit: String, clip: String, file_name := "", cell_size := CELL) -> void:
 	var anim := _lib.get_animation(clip)
 	var stage := Node3D.new()
 	root.add_child(stage)
 	var f := _figure(kit, stage)
 	var scale := float(f["scale"])
 	var height := 1.75 * scale
+	if _manifest[kit].get("mount") != null:
+		height = float(_manifest[kit]["bbox"][1][1])
 	_ground(stage, scale, anim.length * float(anim.get_meta("speed", 0.0)) * scale)
-	var strip := Image.create(CELL.x * STRIP_FRAMES, CELL.y, false, Image.FORMAT_RGBA8)
+	var strip := Image.create(cell_size.x * STRIP_FRAMES, cell_size.y, false, Image.FORMAT_RGBA8)
 	var cam: Camera3D = null
 	for i in STRIP_FRAMES:
 		var t := anim.length * float(i) / float(STRIP_FRAMES)
@@ -347,9 +536,9 @@ func _strip(case_name: String, kit: String, clip: String) -> void:
 		cam = _camera(stage, at, height)
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw
-		var cell := _grab_cell(cam, at, height)
-		strip.blit_rect(cell, Rect2i(Vector2i.ZERO, cell.get_size()), Vector2i(i * CELL.x, 0))
-	var file := "anim_%s_%s.png" % [clip, case_name]
+		var cell := _grab_cell(cam, at, height, cell_size)
+		strip.blit_rect(cell, Rect2i(Vector2i.ZERO, cell.get_size()), Vector2i(i * cell_size.x, 0))
+	var file := file_name if file_name != "" else "anim_%s_%s.png" % [clip, case_name]
 	var err := strip.save_png(_out_dir.path_join(file))
 	_ok(err == OK, "strip of %s on %s (%d frames over %.2f s) -> %s" % [clip, kit, STRIP_FRAMES, anim.length, file])
 	stage.queue_free()
