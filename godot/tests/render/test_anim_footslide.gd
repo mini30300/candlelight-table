@@ -4,7 +4,9 @@ extends SceneTree
 ## far each planted foot point (heel / ball bones, planted as the clip's contact flags say) moves on the ground while it
 ## is planted — the old page's harness measure (web/harness.js slideProbe), at 240 samples a second so the slide
 ## between the 30 Hz keys counts too. A kit of scale S plays with Skeleton3D.motion_scale = S and moves S times as
-## fast, so the walker kits prove the scaled path. Gate: <= MAX_SLIDE_MM on every measured clip.
+## fast, so the walker kits prove the scaled path. Gate: <= MAX_SLIDE_MM on every measured clip, and the walk / run
+## loops and ride clips keep their feet down often enough (MIN_PLANTED, MIN_PLANTED_HOOF: empty contact flags would
+## pass the slide gate trivially).
 ## The third proof is a mount (the horse): ride_walk_<kit> / ride_run_<kit> move the mount's own bones (kits.json
 ## mountRig, after the 23) and say per frame which hooves are down (`feet` metadata: bone, point, contact); the hoof
 ## points are measured the same way, and every other mount's ride clips too (bones in its skeleton, hooves planted).
@@ -22,6 +24,8 @@ const KITS_DIR := "res://assets/kits/"
 const MANIFEST := KITS_DIR + "kits.json"
 const DEFAULT_OUT_DIR := "res://tests/out"
 const MAX_SLIDE_MM := 15.0
+const MIN_PLANTED := 0.15           # a walk / run loop: each foot point down at least this share of the time (on average)
+const MIN_PLANTED_HOOF := 0.25      # a ride clip: each hoof down at least this share of the time (duty 0.45-0.6)
 const RATE := 240.0                 # samples per second of the measurement
 const CYCLES := 3                   # loops measured this many times round
 const WALKER_KIT := "mech"          # the page's walker: a heavy scaled up 2.2 times
@@ -63,7 +67,7 @@ func _run() -> void:
 		cases.append({"name": "titan", "kit": titan, "clips": ["walk"]})
 	for c in cases:
 		if not _manifest.has(c["kit"]) or not bool(_manifest[c["kit"]].get("skinned", false)):
-			_ok(false, "%s: kit %s is in kits.json and skinned" % [c["name"], c["kit"]])
+			_ok(false, "%s: kit %s is in kits.json and skinned" % [c["name"], _label(c["name"], c["kit"])])
 			continue
 		for clip in c["clips"]:
 			_measure(c["name"], c["kit"], clip)
@@ -218,11 +222,20 @@ func _measure(case_name: String, kit: String, clip: String) -> void:
 		return
 	var r := slide(kit, clip, 1.0)
 	var msg := "%s %s on %s (scale %.2f, %.3f m/s): foot slide %.2f mm, height drift %.2f mm while planted (%d plants, %.2f s)" % [
-		case_name, clip, kit, r["scale"], r["speed"], r["mm"], r["mm_y"], r["plants"], r["planted_s"]]
+		case_name, clip, _label(case_name, kit), r["scale"], r["speed"], r["mm"], r["mm_y"], r["plants"], r["planted_s"]]
 	if int(r["plants"]) == 0 and clip != "idle":
 		_ok(false, msg, "no planted foot at all: contact flags missing?")
 		return
 	_ok(float(r["mm"]) <= MAX_SLIDE_MM, msg + (" <= %.0f mm" % MAX_SLIDE_MM), "worst " + String(r["where"]))
+	# contact flags that are (nearly) empty would pass the slide gate trivially: a loop's feet must be down often enough
+	if clip == "walk" or clip == "run":
+		var share := float(r["planted_s"]) / float(r["span"])
+		_ok(share >= MIN_PLANTED, "%s %s: feet down %.0f %% of the time >= %.0f %%" % [case_name, clip, share * 100.0, MIN_PLANTED * 100.0])
+
+
+## The kit key of a proof as the log shows it: the biggest walker's old internal key stays out of the log.
+static func _label(case_name: String, kit: String) -> String:
+	return "the biggest walker" if case_name == "titan" else kit
 
 
 ## The gate has teeth: the same walk with the figure travelling 10 % too slow must slide well past the limit.
@@ -275,7 +288,7 @@ func slide(kit: String, clip: String, speed_k: float) -> Dictionary:
 					where = "%s at %.3f s" % [key, tc]
 				worst_y = maxf(worst_y, absf(p.y - a.y))
 	stage.queue_free()
-	return {"mm": worst * 1000.0, "mm_y": worst_y * 1000.0, "plants": plants, "planted_s": planted_s, "where": where,
+	return {"mm": worst * 1000.0, "mm_y": worst_y * 1000.0, "plants": plants, "planted_s": planted_s, "where": where, "span": span,
 		"scale": float(f["scale"]), "speed": float(anim.get_meta("speed", 0.0)) * float(f["scale"]) * speed_k}
 
 
@@ -322,6 +335,8 @@ func _measure_mount(case_name: String, kit: String, clip: String) -> void:
 		_ok(false, msg, "no planted hoof at all: feet metadata missing?")
 		return
 	_ok(float(r["mm"]) <= MAX_SLIDE_MM, msg + (" <= %.0f mm" % MAX_SLIDE_MM), "worst " + String(r["where"]))
+	var share := float(r["planted_s"]) / float(r["span"])
+	_ok(share >= MIN_PLANTED_HOOF, "%s %s: hooves down %.0f %% of the time >= %.0f %%" % [case_name, clip, share * 100.0, MIN_PLANTED_HOOF * 100.0])
 
 
 ## The other mounts' ride clips: their bones in the kit's skeleton (after the 23, in kits.json mountRig order) and
@@ -346,10 +361,10 @@ func _other_mounts(proof: String) -> void:
 		var r := mount_slide(kit, nm, 1.0)
 		n += 1
 		worst = maxf(worst, float(r["mm"]))
-		if float(r["mm"]) > MAX_SLIDE_MM or int(r["plants"]) == 0:
+		if float(r["mm"]) > MAX_SLIDE_MM or int(r["plants"]) == 0 or float(r["planted_s"]) / float(r["span"]) < MIN_PLANTED_HOOF:
 			bad += 1
-	_ok(n > 0 and bad == 0 and bad_bones == 0, "%d more ride clips: bones in their kits' skeletons, worst hoof slide %.2f mm <= %.0f mm (%d over, %d with bones missing)" % [
-		n, worst, MAX_SLIDE_MM, bad, bad_bones])
+	_ok(n > 0 and bad == 0 and bad_bones == 0, "%d more ride clips: bones in their kits' skeletons, worst hoof slide %.2f mm <= %.0f mm, hooves down >= %.0f %% (%d failing, %d with bones missing)" % [
+		n, worst, MAX_SLIDE_MM, MIN_PLANTED_HOOF * 100.0, bad, bad_bones])
 
 
 ## The bones a ride clip moves sit in the kit's skeleton after the 23 joints, in kits.json mountRig order, and its
@@ -454,7 +469,7 @@ func mount_slide(kit: String, clip: String, speed_k: float) -> Dictionary:
 				where = "%s at %.3f s" % [String(feet[fi]["bone"]), tc]
 			worst_y = maxf(worst_y, absf(p.y - a.y))
 	stage.queue_free()
-	return {"mm": worst * 1000.0, "mm_y": worst_y * 1000.0, "plants": plants, "planted_s": planted_s, "where": where,
+	return {"mm": worst * 1000.0, "mm_y": worst_y * 1000.0, "plants": plants, "planted_s": planted_s, "where": where, "span": span,
 		"scale": scale, "speed": float(anim.get_meta("speed", 0.0)) * scale * speed_k}
 
 
@@ -540,7 +555,7 @@ func _strip(case_name: String, kit: String, clip: String, file_name := "", cell_
 		strip.blit_rect(cell, Rect2i(Vector2i.ZERO, cell.get_size()), Vector2i(i * cell_size.x, 0))
 	var file := file_name if file_name != "" else "anim_%s_%s.png" % [clip, case_name]
 	var err := strip.save_png(_out_dir.path_join(file))
-	_ok(err == OK, "strip of %s on %s (%d frames over %.2f s) -> %s" % [clip, kit, STRIP_FRAMES, anim.length, file])
+	_ok(err == OK, "strip of %s on %s (%d frames over %.2f s) -> %s" % [clip, _label(case_name, kit), STRIP_FRAMES, anim.length, file])
 	stage.queue_free()
 	await process_frame
 
