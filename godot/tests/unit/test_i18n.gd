@@ -11,7 +11,12 @@ var thai_re := RegEx.create_from_string("[฀-๿]")
 
 func test_autoload_is_live() -> void:
 	assert_true(I18n != null and I18n.is_inside_tree(), "the I18n autoload is in the tree under the runner")
-	assert_false(I18n.english, "Thai is the default language")
+	# the live autoload may carry a saved "en" from user://settings.cfg (the render probe toggles it), so the
+	# default is checked on a fresh instance and on App's default setting
+	var fresh: Node = I18nScript.new()
+	assert_false(fresh.english, "Thai is the default language of a fresh I18n")
+	fresh.free()
+	assert_eq(App.DEFAULT_LANG, "th", "App's default language setting is Thai")
 	assert_true(I18n.page.size() >= 1500, "data/i18n_en.json loaded: %d pairs" % I18n.page.size())
 	assert_true(I18n.extra.size() >= I18nScript.EN.size(), "ui/i18n_extra.json loaded: %d pairs" % I18n.extra.size())
 
