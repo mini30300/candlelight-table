@@ -241,3 +241,67 @@ func test_clampi_and_sign() -> void:
 	assert_eq(Fx.sign(0), 0, "sign zero")
 	assert_eq(Fx.sign(4), 1, "sign positive")
 	assert_eq(Fx.MI, 1000, "1 inch = 1000 MI")
+
+
+func test_cdiv() -> void:
+	var bad := []
+	for a: int in range(-30, 31):
+		for b: int in range(-7, 8):
+			if b == 0:
+				continue
+			var q := Fx.cdiv(a, b)
+			var want := ceili(float(a) / float(b))
+			var r := a - q * b
+			var in_range := (b > 0 and r <= 0 and r > -b) or (b < 0 and r >= 0 and r < -b)
+			if q != want or not in_range:
+				if bad.size() < 5:
+					bad.append([a, b, q, want])
+	assert_true(bad.is_empty(), "cdiv(a, b) is the ceiling of a / b for a in -30..30, b in -7..7", bad)
+	assert_eq(Fx.cdiv(7, 2), 4, "cdiv(7, 2)")
+	assert_eq(Fx.cdiv(-7, 2), -3, "cdiv(-7, 2) rounds up towards +inf (GDScript / gives -3 too, idiv -4)")
+	assert_eq(Fx.cdiv(7, -2), -3, "cdiv(7, -2)")
+	assert_eq(Fx.cdiv(-7, -2), 4, "cdiv(-7, -2)")
+	assert_eq(Fx.cdiv(6, 3), 2, "exact division")
+	assert_eq(Fx.cdiv(-6, 3), -2, "exact negative division")
+	assert_eq(Fx.cdiv(0, 5), 0, "zero")
+	assert_eq(Fx.cdiv(1, 1250), 1, "any positive remainder rounds up")
+	assert_eq(Fx.cdiv(60000, 1250), 48, "the 48 x 36 table: 60 in / 1.25 in = 48 rings exactly")
+	assert_eq(Fx.cdiv(5, 0), 0, "cdiv by zero gives 0 (like idiv)")
+	var rng := Rng.make("test:cdiv", 3)
+	var bad2 := 0
+	for i: int in 2000:
+		var a2: int = ((rng.next_u32() << 20) ^ rng.next_u32()) - (1 << 51)
+		var b2: int = rng.bounded(100000) + 1
+		var q2 := Fx.cdiv(a2, b2)
+		if q2 * b2 < a2 or (q2 - 1) * b2 >= a2 or q2 != Fx.idiv(a2, b2) + (0 if Fx.imod(a2, b2) == 0 else 1):
+			bad2 += 1
+	assert_eq(bad2, 0, "q*b >= a > (q-1)*b for 2000 seeded big values (+-2^51, b up to 10^5)")
+
+
+func test_isqrt_ceil() -> void:
+	var bad := []
+	for n: int in 5001:
+		var r := Fx.isqrt_ceil(n)
+		var ok := r * r >= n and (r == 0 or (r - 1) * (r - 1) < n)
+		if not ok and bad.size() < 5:
+			bad.append([n, r])
+	assert_true(bad.is_empty(), "(r-1)^2 < n <= r^2 for n = 0..5000", bad)
+	assert_eq(Fx.isqrt_ceil(0), 0, "isqrt_ceil(0)")
+	assert_eq(Fx.isqrt_ceil(1), 1, "isqrt_ceil(1)")
+	assert_eq(Fx.isqrt_ceil(2), 2, "isqrt_ceil(2)")
+	assert_eq(Fx.isqrt_ceil(4), 2, "a perfect square stays exact")
+	assert_eq(Fx.isqrt_ceil(5), 3, "isqrt_ceil(5)")
+	assert_eq(Fx.isqrt_ceil(3600000000), 60000, "the 48 x 36 diagonal in MI is exact (60 in)")
+	assert_eq(Fx.isqrt_ceil(3600000001), 60001, "one more MI^2 rounds up")
+	assert_eq(Fx.isqrt_ceil(-9), 0, "negative input gives 0")
+	assert_eq(Fx.isqrt_ceil(9223372036854775807), 3037000500, "isqrt_ceil(int64 max) without overflow")
+	assert_eq(Fx.isqrt_ceil(9223372030926249001), 3037000499, "the largest int64 perfect square")
+	var rng := Rng.make("test:isqrt_ceil", 13)
+	var bad2 := 0
+	for i: int in 3000:
+		var n2: int = (rng.next_u32() << 30) ^ rng.next_u32()
+		var r2 := Fx.isqrt_ceil(n2)
+		var f := Fx.isqrt(n2)
+		if not ((f * f == n2 and r2 == f) or (f * f < n2 and r2 == f + 1)):
+			bad2 += 1
+	assert_eq(bad2, 0, "isqrt_ceil = isqrt, plus one unless n is a perfect square, for 3000 seeded values up to 2^62")

@@ -21,6 +21,11 @@ static func idiv(a: int, b: int) -> int:
 	return q
 
 
+## หารปัดขึ้น (ceil) = -idiv(-a, b); b == 0 ให้ 0
+static func cdiv(a: int, b: int) -> int:
+	return -idiv(-a, b)
+
+
 ## เศษจากการหารที่มีเครื่องหมายตามตัวหาร (b > 0 ให้ผล 0..b-1); b == 0 ให้ 0
 static func imod(a: int, b: int) -> int:
 	if b == 0:
@@ -48,6 +53,12 @@ static func isqrt(n: int) -> int:
 			return x
 		x = y
 	return x
+
+
+## รากที่สองปัดขึ้น ⌈√n⌉ ตรงเป๊ะทุกค่า 0..2^63-1; n < 0 ให้ 0
+static func isqrt_ceil(n: int) -> int:
+	var r := isqrt(n)
+	return r + 1 if r * r < n else r
 
 
 ## ระยะกำลังสอง (MI^2) ระหว่างสองจุด
