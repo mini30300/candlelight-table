@@ -181,3 +181,21 @@ static func sign(v: int) -> int:
 	if v < 0:
 		return -1
 	return 1 if v > 0 else 0
+
+
+## ไซน์แบบจำนวนเต็ม: มุมเป็นเรเดียนแบบ Q16 (65536 = 1 เรเดียน) คืนค่า Q16 (-65536..65536)
+## พับมุมเข้าช่วง -pi/2..pi/2 แล้วใช้อนุกรมเทย์เลอร์ถึงพจน์กำลังเก้า (คลาดไม่เกินราวสี่หน่วย Q16)
+const PI_Q16 := 205887
+const HALF_PI_Q16 := 102944
+static func isin_q16(theta: int) -> int:
+	var x := imod(theta + PI_Q16, 2 * PI_Q16) - PI_Q16
+	if x > HALF_PI_Q16:
+		x = PI_Q16 - x
+	elif x < -HALF_PI_Q16:
+		x = -PI_Q16 - x
+	var x2 := (x * x) >> 16
+	var t := 65536 - idiv(x2, 72)
+	t = 65536 - idiv((x2 * t) >> 16, 42)
+	t = 65536 - idiv((x2 * t) >> 16, 20)
+	t = 65536 - idiv((x2 * t) >> 16, 6)
+	return (x * t) >> 16

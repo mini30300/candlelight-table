@@ -57,6 +57,11 @@ static func ridge(x: int, y: int, oct: int, salt: int) -> int:
 	return (r * r) >> 16
 
 
+## พิกัด MI -> พิกัดนอยส์ Q16 ของ x / สเกล + ออฟเซ็ต (สเกลเป็น MI เช่น 4500 = 4 นิ้วครึ่ง, ออฟเซ็ตเป็นส่วนพัน)
+static func at(mi: int, scale_mi: int, offset_milli: int) -> int:
+	return Fx.idiv((mi * 1000 + offset_milli * scale_mi) * ONE, scale_mi * 1000)
+
+
 ## พิกัดนิ้วแบบ MI -> พิกัดนอยส์ Q16 ที่สเกล 1/scale_in (เช่น scale_in 34 = x/34 ของหน้าเก่า) บวกออฟเซ็ตเป็น MI
 static func at_mi(mi: int, scale_in: int, offset_mi: int) -> int:
 	return Fx.idiv((mi + offset_mi * scale_in) * ONE, scale_in * Fx.MI)

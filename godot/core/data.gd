@@ -17,6 +17,8 @@ static var _index: Dictionary = {}          # k -> ตำแหน่งใน T
 static var _facs: Array[Dictionary] = []
 static var _pools: Dictionary = {}          # รหัสกองทัพ -> PackedStringArray
 static var _consts: Dictionary = {}         # ค่าคงที่ที่เป็นจำนวนเต็ม (ค่าเศษเป็นของฝั่งภาพ ไม่เก็บ)
+static var _themes: Dictionary = {}         # ชื่อฉาก -> {relief_mi, rough_mi} (ความสูงเนินของฉาก)
+static var _terrains := PackedStringArray()  # ชนิดพื้น: flat, hills, mountain, forest
 static var _problems := PackedStringArray()
 
 
@@ -29,6 +31,8 @@ static func load_all(force: bool = false) -> bool:
 	_facs.clear()
 	_pools.clear()
 	_consts.clear()
+	_themes.clear()
+	_terrains = PackedStringArray()
 	_problems = PackedStringArray()
 	var raw_types: Variant = _read("types.json")
 	if raw_types is Array:
@@ -60,6 +64,18 @@ static func load_all(force: bool = false) -> bool:
 			var v: Variant = _intify(raw_consts[name], "", false)
 			if v != null:
 				_consts[str(name)] = v
+	var raw_themes: Variant = _read("themes.json")
+	if raw_themes is Dictionary:
+		for name: Variant in raw_themes:
+			var th: Variant = raw_themes[name]
+			if th is Dictionary and (th as Dictionary).has("relief") and (th as Dictionary).has("rough"):
+				_themes[str(name)] = {"relief_mi": to_mi(th["relief"]), "rough_mi": to_mi(th["rough"])}
+			else:
+				_problems.append("themes.json: " + str(name) + " has no relief/rough")
+	var raw_terrains: Variant = _read("terrains.json")
+	if raw_terrains is Dictionary:
+		for name: Variant in raw_terrains:
+			_terrains.append(str(name))
 	_loaded = true
 	return _problems.is_empty()
 
@@ -140,6 +156,22 @@ static func const_int(name: String, fallback: int = 0) -> int:
 	load_all()
 	var v: Variant = _consts.get(name, null)
 	return int(v) if typeof(v) == TYPE_INT else fallback
+
+
+## ความสูงเนินของฉาก (MI): {relief_mi, rough_mi}; ไม่รู้จักคืน {}
+static func theme_mi(name: String) -> Dictionary:
+	load_all()
+	return _themes.get(name, {})
+
+
+static func theme_names() -> PackedStringArray:
+	load_all()
+	return PackedStringArray(_themes.keys())
+
+
+static func terrain_names() -> PackedStringArray:
+	load_all()
+	return _terrains
 
 
 ## รุ่นกติกาของหน้าเก่าที่ข้อมูลนี้มาจาก (แอปใหม่ใช้ Version.RULES_V)
