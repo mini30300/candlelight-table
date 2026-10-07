@@ -185,20 +185,42 @@ func test_every_thai_literal_of_the_screen_is_a_whole_key() -> void:
 	var missing := []
 	var n := 0
 	for path in SCRIPTS:
-		var src := FileAccess.get_file_as_string(path)
-		assert_true(src != "", "read " + path)
-		for line in src.split("\n"):
-			if line.strip_edges().begins_with("#"):
-				continue
-			for m in lit_re.search_all(line):
-				var lit := m.get_string(1).replace("\\\"", "\"")
-				if thai_re.search(lit) == null or LANG_NAMES.has(lit):
+		var lits := PackedStringArray()
+		if path.ends_with(".tscn"):
+			lits = _scene_strings(path)
+			assert_true(not lits.is_empty(), "read " + path)
+		else:
+			var src := FileAccess.get_file_as_string(path)
+			assert_true(src != "", "read " + path)
+			for line in src.split("\n"):
+				if line.strip_edges().begins_with("#"):
 					continue
-				n += 1
-				if not I18n.has_key(lit):
-					missing.append(path.get_file() + ": " + lit)
+				for m in lit_re.search_all(line):
+					lits.append(m.get_string(1).replace("\\\"", "\""))
+		for lit in lits:
+			if thai_re.search(lit) == null or LANG_NAMES.has(lit):
+				continue
+			n += 1
+			if not I18n.has_key(lit):
+				missing.append(path.get_file() + ": " + lit)
 	assert_true(n >= 60, "found %d Thai literals in the army screen files" % n)
 	assert_eq(missing, [], "every Thai literal is a whole key of the dictionaries")
+
+
+## Every String property stored in a scene, read through its SceneState: an exported game keeps scenes in binary
+## form, so the .tscn text is not there to scan (the self-test inside the .exe runs this too).
+func _scene_strings(path: String) -> PackedStringArray:
+	var out := PackedStringArray()
+	var ps := load(path) as PackedScene
+	if ps == null:
+		return out
+	var st := ps.get_state()
+	for i in st.get_node_count():
+		for j in st.get_node_property_count(i):
+			var v: Variant = st.get_node_property_value(i, j)
+			if v is String:
+				out.append(v)
+	return out
 
 
 func test_kit_library_helpers() -> void:
