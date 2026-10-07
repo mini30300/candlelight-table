@@ -19,6 +19,7 @@ const SKIP_DIRS: Array[String] = ["out", "oracle", "fixtures"]   # outputs, reco
 
 var _lines := PackedStringArray()
 var _out_path := "user://selftest.txt"
+var _ran := false
 
 
 func _initialize() -> void:
@@ -26,6 +27,19 @@ func _initialize() -> void:
 	for i: int in args.size():
 		if args[i] == "--out" and i + 1 < args.size():
 			_out_path = args[i + 1]
+
+
+## The tests run on the first frame, after every autoload's _ready() (in _initialize() the autoloads exist but
+## are not in the tree yet, and tests/unit/test_app.gd and friends check for that).
+func _process(_delta: float) -> bool:
+	if _ran:
+		return true
+	_ran = true
+	_run()
+	return true
+
+
+func _run() -> void:
 	_say("engine: " + str(Engine.get_version_info().get("string", "?")))
 	_say("platform: " + OS.get_name() + " " + OS.get_version() + " " + Engine.get_architecture_name() + (" (exported build)" if not OS.has_feature("editor") else " (editor binary)"))
 	_say("renderer: " + _renderer())
