@@ -165,6 +165,16 @@ army picker screen — four builds on `build-N`.
   walking in a loop. V3 `figure_pool.gd` three tiers + `impostors.gd` per-battle atlas + `walker.gd` → build.
   V4 `ui/screens/army.tscn` (roster from `data/types.json`, datasheets, random, preview turntable) in Thai/English with
   `ui/i18n_extra.json` entries → build.
+  V5 **gothic ruin set for the ruin theme** (owner wish, 7 Oct, with reference photos of tabletop ruins): our own
+  modular low-poly kit in `assets/props/ruin/` — wall panels with pointed-arch and rose windows, fluted pillars with
+  bands, broken jagged tops, upper floor plates on beams, buttresses, stairs, rubble piles with fallen pillar drums,
+  robed guardian statues, rust-red industrial panels and pipes; weathered stone, verdigris and brass palette. Each
+  rules kind keeps its footprint (`building` = two- or three-storey ruin, `wall` = broken wall run, `tower` = ruined
+  spire, `rubble`, `barricade` = broken balustrade, `pipe`), pieces merge into one mesh per kind (MultiMesh), and lo/min
+  get simpler variants inside the §6 budgets. **No emblems, logos, skulls-with-wings or other marks of any game
+  company** (AGENTS rule 1); the reference photos are not copied into the repo. Standing on upper floors is a rules
+  change for later (needs a design note and a rules-version bump), not part of V5. One sample building goes to the
+  owner as a screenshot before the full set.
 
 **Acceptance tests.** `godot --headless` plays complete bot games of all 15 armies in seconds; `tests/golden` digests
 identical on ubuntu-latest, ubuntu-24.04-arm and the Windows exe; `test_oracle` passes all 20 recordings with only
