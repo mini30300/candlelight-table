@@ -7,6 +7,6 @@ const RULES_V := 10
 ## รุ่นแอปที่ผู้เล่นเห็น: ขยับทุกครั้งที่ออกรุ่นใหม่
 const APP_VER := "ใหม่ 0.1"
 ## แฮชของ data/*.json (เครื่องมือ lint ข้อมูลเป็นคนเติม)
-const DATA_HASH := "bacf8be98354401b77f7f6b88515ea35fd4a2d54cadfd94b571d4e4a1c4e72c0"
+const DATA_HASH := "5a98df1ca41da395ec3fe8def45b250ec5c708015b18531f22c7c5e5a6e4c42a"
 ## ชื่อโปรโตคอลบนสาย
 const PROTO := "bt"

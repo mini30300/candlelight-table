@@ -426,6 +426,7 @@
       },
       "d": "ทน ยิงแม่น ตีก็ได้",
       "d_en": "Tough and accurate, and can fight too.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -464,6 +465,7 @@
       },
       "d": "ถูก คนเยอะ ใกล้ครึ่งระยะยิงเพิ่ม คุมจุดเก่ง",
       "d_en": "Cheap and numerous; extra shots at half range; good at holding objectives.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -492,6 +494,7 @@
       },
       "d": "หอกกับโล่ คุมจุดเก่ง ต้องบุกเข้าประชิด",
       "d_en": "Spear and shield; good at holding objectives; must charge into melee.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -531,6 +534,7 @@
       },
       "d": "บินกระโดดไกล ยิงใกล้แล้วบุก",
       "d_en": "Long jump-pack leaps; shoot up close, then charge.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -569,6 +573,7 @@
       },
       "d": "ยิงไกล ยืนนิ่งแม่นขึ้น เกราะบาง",
       "d_en": "Long range; more accurate when stationary; light armour.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -607,6 +612,7 @@
       },
       "d": "วิ่งเร็ว ขว้างได้แม้วิ่งมา แล้วบุก",
       "d_en": "Fast; can throw even after advancing, then charge.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -637,6 +643,7 @@
       },
       "d": "ตีแรงที่สุด เกราะพิเศษ 5+ ไม่เคยถอย",
       "d_en": "The hardest hitters; 5+ invulnerable save; never fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test"
       ],
@@ -671,6 +678,7 @@
       },
       "d": "เร็วมาก บุกเข้ามาตานั้นแทงเจาะง่ายขึ้น",
       "d_en": "Very fast; +1 to wound on the turn they charge.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -709,6 +717,7 @@
       },
       "d": "ยิงไกลที่สุด แม่น ดาเมจสูง",
       "d_en": "The longest range, accurate, high damage.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -748,6 +757,7 @@
       },
       "d": "รัวทีละห้านัด ยืนนิ่งแม่นขึ้น ได้ 6 เข้าเพิ่ม",
       "d_en": "Fires five shots at a time; more accurate when stationary; a hit roll of 6 scores an extra hit.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -787,6 +797,7 @@
       },
       "d": "แทนการยิง: รักษาหน่วยเพื่อนในระยะ 3\" (คืนแผล หรือชุบตัวที่ล้ม)",
       "d_en": "Instead of shooting: heal a friendly unit within 3\" (restore wounds or revive a fallen model)",
+      "inf": 1,
       "abilities": [
         "heals a friendly squad within 3\" instead of shooting"
       ],
@@ -829,6 +840,7 @@
       },
       "d": "ตัวใหญ่ ทนมาก ยิงหนัก ตีหนัก",
       "d_en": "Huge and very tough; shoots hard and hits hard.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -867,6 +879,7 @@
       },
       "d": "แกนกองทัพ เกราะหนา ยิงแม่น",
       "d_en": "The backbone of the army: thick armour, accurate shots.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -903,6 +916,7 @@
       },
       "d": "ดาบกับโล่ บุกเข้าฟัน โล่กันได้ 5++",
       "d_en": "Sword and shield; they charge in and cut; the shield gives a 5++ invulnerable save.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -948,6 +962,7 @@
       },
       "d": "ยิงไกล แรง เจาะเกราะ ยืนนิ่งแม่นขึ้น",
       "d_en": "Long range, powerful and armour-piercing; more accurate when stationary.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -995,6 +1010,7 @@
       },
       "d": "เกราะหนาที่สุด 2+ กับ 4++ หมัดพลังทุบรถได้",
       "d_en": "The thickest armour, 2+ and 4++; energy fists smash vehicles.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -1043,6 +1059,7 @@
       },
       "d": "ตัวเอก หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. Friendly units within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "armour of faith: incoming AP is 1 lower",
@@ -1092,6 +1109,7 @@
       },
       "d": "หุ่นเดินได้ ยิงรัว ต่อยหนัก",
       "d_en": "A walking machine: rapid fire and heavy punches.",
+      "inf": 0,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -1136,6 +1154,7 @@
       },
       "d": "ฝูงละสิบตัว ถูก วิ่งไปยิงไป",
       "d_en": "Broods of ten, cheap; can shoot after advancing.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -1165,6 +1184,7 @@
       },
       "d": "เร็วมาก วิ่งแล้วยังบุกได้",
       "d_en": "Very fast; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing"
       ],
@@ -1208,6 +1228,7 @@
       },
       "d": "ผู้นำฝูง ฝูงรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Swarm leader: the swarm within 6\" is immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "leader: friendly squads within 6\" pass the nerve test"
       ],
@@ -1250,6 +1271,7 @@
       },
       "d": "พ่นกรดใส่ โดนอัตโนมัติ",
       "d_en": "Sprays acid: hits automatically.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -1289,6 +1311,7 @@
       },
       "d": "บินเร็ว ถอยแล้วยังยิงได้",
       "d_en": "Fast flyers; can shoot after falling back.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -1333,6 +1356,7 @@
       },
       "d": "ตัวยักษ์ วิ่งแล้วบุกได้ บุกเข้าตีเพิ่ม",
       "d_en": "Giant; can charge after advancing; extra attacks on the charge.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged",
         "may charge after advancing"
@@ -1379,6 +1403,7 @@
       },
       "d": "ล้มแล้วลุกได้ ยิงได้ 6 เจาะเลย",
       "d_en": "They get back up after falling; a hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [
         "reanimates: in its command phase each fallen model stands up on a 5+"
       ],
@@ -1422,6 +1447,7 @@
       },
       "d": "เกราะดี ยิงแม่น ล้มแล้วลุกได้",
       "d_en": "Good armour, accurate; they get back up after falling.",
+      "inf": 1,
       "abilities": [
         "reanimates: in its command phase each fallen model stands up on a 5+"
       ],
@@ -1455,6 +1481,7 @@
       },
       "d": "เคียวสองมือ ฟันหนัก ล้มแล้วลุกได้",
       "d_en": "Two-handed scythes that hit hard; they get back up after falling.",
+      "inf": 1,
       "abilities": [
         "reanimates: in its command phase each fallen model stands up on a 5+"
       ],
@@ -1489,6 +1516,7 @@
       },
       "d": "ฝูงแมลงเหล็ก ถูก เร็ว คอยขวางทาง",
       "d_en": "A swarm of iron insects: cheap, fast, used to block the way.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -1533,6 +1561,7 @@
       },
       "d": "ตัวเอก หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. Friendly units within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit"
@@ -1578,6 +1607,7 @@
       },
       "d": "แทนการยิง: ซ่อมหน่วยเพื่อนในระยะ 6\"",
       "d_en": "Instead of shooting: repair a friendly unit within 6\"",
+      "inf": 0,
       "abilities": [
         "heals a friendly squad within 6\" instead of shooting"
       ],
@@ -1621,6 +1651,7 @@
       },
       "d": "ฝูงละสิบ ทนทาน บุกเข้าไปตีเพิ่ม",
       "d_en": "Mobs of ten, tough; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -1664,6 +1695,7 @@
       },
       "d": "ปืนใหญ่ปล้นมา ยิงไกล แรง แต่ไม่ค่อยแม่น",
       "d_en": "Looted cannons: long range, powerful, but not very accurate.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -1707,6 +1739,7 @@
       },
       "d": "ตัวโต ก้ามพลังบีบเกราะแตก",
       "d_en": "Big; crusher claws crack armour.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -1752,6 +1785,7 @@
       },
       "d": "ตัวเอก พวกรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Hero. Allies within 6\" are immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" pass the nerve test",
@@ -1797,6 +1831,7 @@
       },
       "d": "ถูกที่สุด ตัวเล็ก ไม่มีเกราะ เอาไว้ยึดจุด",
       "d_en": "The cheapest: tiny, no armour, good for holding objectives.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -1837,6 +1872,7 @@
       },
       "d": "กระป๋องเดินได้ ก้ามเลื่อยฉีกเกราะ",
       "d_en": "A walking tin can; saw claws rip armour.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -1874,6 +1910,7 @@
       },
       "d": "ทหารห้าคนซ่อนในท้อง ออกมารอบ 2 หรือตอนม้าพัง",
       "d_en": "Five soldiers hide inside; they come out in round 2 or when the horse breaks.",
+      "inf": 0,
       "abilities": [
         "carries 5 Hoplites that come out in round 2 or when it is destroyed"
       ],
@@ -1920,6 +1957,7 @@
       },
       "d": "เกือบอมตะ 3++ แต่ทอยเจาะได้ 6 ใส่ส้นเท้า ตายทันที",
       "d_en": "Almost immortal (3++), but a wound roll of 6 strikes his heel and slays him outright.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -1968,6 +2006,7 @@
       },
       "d": "ตัวเอก หนังสิงห์ กระบองยักษ์ พวกรอบตัวเข้าเป้า +1",
       "d_en": "Hero. Lion skin and giant club; nearby allies get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit"
@@ -2012,6 +2051,7 @@
       },
       "d": "ยักษ์ตาเดียว ขว้างหินก้อนเท่าบ้าน",
       "d_en": "A one-eyed giant who hurls boulders the size of a house.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2043,6 +2083,7 @@
       },
       "d": "หัววัว ขวานสองคม บุกเข้ามาแรงมาก",
       "d_en": "Bull-headed with a double axe; hits very hard on the charge.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -2086,6 +2127,7 @@
       },
       "d": "สบตากลายเป็นหิน เจาะได้ 6 เป็นแผลตรง",
       "d_en": "Meet her gaze and turn to stone. A wound roll of 6 deals a mortal wound.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2125,6 +2167,7 @@
       },
       "d": "ครึ่งคนครึ่งม้า วิ่งไปยิงธนูไป",
       "d_en": "Half man, half horse: can advance and still shoot their bows.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2156,6 +2199,7 @@
       },
       "d": "ม้ามีปีก บินเร็วที่สุด บุกแล้วแทงแรง",
       "d_en": "Winged horses, the fastest flyers; strike hard on the charge.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -2198,6 +2242,7 @@
       },
       "d": "พ่นไฟ โดนอัตโนมัติ ไม่ต้องทอยเข้า",
       "d_en": "Sprays fire: hits automatically, no hit roll needed.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2236,6 +2281,7 @@
       },
       "d": "ยิงโค้งไกลสุดโต๊ะ ยืนนิ่งแม่นขึ้น",
       "d_en": "Arcing fire across the whole table; more accurate when stationary.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2274,6 +2320,7 @@
       },
       "d": "ทนที่สุด ปืนใหญ่ยิงไกลสุดโต๊ะ",
       "d_en": "The toughest unit; its cannon reaches across the table.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2315,6 +2362,7 @@
       },
       "d": "ตัวเอก สั่งการ หน่วยในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. Gives orders: units within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit"
@@ -2350,6 +2398,7 @@
       },
       "d": "ดาบคู่ เร็ว บุกเข้าไปฟันเพิ่ม",
       "d_en": "A sword in each hand, fast; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -2392,6 +2441,7 @@
       },
       "d": "ปืนโบราณ ยิงแรง ยืนนิ่งแม่นขึ้น",
       "d_en": "Old firearms that hit hard; more accurate when stationary.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2422,6 +2472,7 @@
       },
       "d": "ยุทธหัตถี ช้างใหญ่ บุกเข้าไปแทงแรงมาก",
       "d_en": "Built for elephant duels: a huge elephant that hits very hard on the charge.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2451,6 +2502,7 @@
       },
       "d": "ยักษ์เฝ้าวัด ตัวใหญ่ กระบองฟาดหนัก",
       "d_en": "A huge temple guardian giant whose club hits hard.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2484,6 +2536,7 @@
       },
       "d": "ตัวเอก ลิงเผือกเหาะได้ พวกรอบตัวเข้าเป้า +1 ลูกพระพาย ตายแล้วลมพัดมาชุบชีวิต",
       "d_en": "Hero. The flying white monkey; nearby allies get +1 to hit. Son of the Wind: when slain, the wind blows him back to life.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -2533,6 +2586,7 @@
       },
       "d": "งูยักษ์ พ่นพิษโดนอัตโนมัติ รัดแน่น",
       "d_en": "Giant serpent; its venom spray hits automatically, and its coils crush tight.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2562,6 +2616,7 @@
       },
       "d": "ดาบคม เข้าได้ 6 เจาะเลย",
       "d_en": "Razor-sharp blades: a hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2601,6 +2656,7 @@
       },
       "d": "พรางตัว โดนยิงยากขึ้น 1",
       "d_en": "Stealthy: enemy shooting is −1 to hit.",
+      "inf": 1,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks"
       ],
@@ -2644,6 +2700,7 @@
       },
       "d": "ไวกิ้งทั่วไป ขวานกับโล่กลม ขว้างขวานแล้วบุกเข้าไปตีเพิ่ม",
       "d_en": "Ordinary Vikings with axes and round shields; throw axes, then charge in for extra attacks.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -2677,6 +2734,7 @@
       },
       "d": "ช้า ทน ล้มแล้วลุกขึ้นมาใหม่",
       "d_en": "Slow and tough; they get back up after falling.",
+      "inf": 1,
       "abilities": [
         "reanimates: in its command phase each fallen model stands up on a 5+"
       ],
@@ -2722,6 +2780,7 @@
       },
       "d": "ตัวเอก เทพเจ้าสายฟ้า ค้อนหนักที่สุด พวกรอบตัวไม่เสียขวัญ",
       "d_en": "Hero. God of thunder with the heaviest hammer; nearby allies are immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -2770,6 +2829,7 @@
       },
       "d": "บินได้ พ่นไฟโดนอัตโนมัติ",
       "d_en": "Flies; its fire breath hits automatically.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -2812,6 +2872,7 @@
       },
       "d": "ธนูยาวญี่ปุ่น ยิงไกล ยืนนิ่งแม่นขึ้น",
       "d_en": "Japanese longbows with long range; more accurate when stationary.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2852,6 +2913,7 @@
       },
       "d": "ยิงธนูได้แม้ควบม้า แล้วบุกฟันด้วยดาบคาตานะ",
       "d_en": "Can shoot even at a gallop, then charge in with katanas.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -2881,6 +2943,7 @@
       },
       "d": "ดาบยาวสองมือ ฟันหนัก เข้าได้ 6 เจาะเลย",
       "d_en": "Two-handed great swords that cut deep; a hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2910,6 +2973,7 @@
       },
       "d": "ง้าวด้ามยาว บุกเข้ามาตานั้นเจาะง่ายขึ้น",
       "d_en": "Long-hafted glaives: +1 to wound on the turn they charge.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -2942,6 +3006,7 @@
       },
       "d": "ตัวเอก นักดาบในตำนาน ใช้ดาบสองเล่ม เจาะได้ 6 เป็นแผลตรง",
       "d_en": "Hero. The legendary swordsman fights with two swords; a wound roll of 6 deals a mortal wound.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test"
@@ -2978,6 +3043,7 @@
       },
       "d": "นักรบคลั่ง ขวานสองมือ ไม่เคยถอย บุกเข้าไปฟันเพิ่ม",
       "d_en": "Berserkers with an axe in each hand; never fall back, extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "+1 attack per model in melee on the turn it charged"
@@ -3012,6 +3078,7 @@
       },
       "d": "ดาบกับโล่กลม เสื้อเกราะโซ่ ตั้งกำแพงโล่",
       "d_en": "Sword, round shield and chainmail; they form a shield wall.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -3041,6 +3108,7 @@
       },
       "d": "ขวานด้ามยาวสองมือ ฟันเกราะแตก",
       "d_en": "Two-handed long-hafted axes that split armour.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -3076,6 +3144,7 @@
       },
       "d": "นางฟ้าสงครามมีปีก บินได้ บุกแล้วแทงแรง",
       "d_en": "Winged war maidens; they fly and strike hard on the charge.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -3118,6 +3187,7 @@
       },
       "d": "ยักษ์จากดินแดนน้ำแข็งสองตน ขว้างก้อนน้ำแข็ง ตีหนัก",
       "d_en": "Two giants from the frozen lands; they hurl ice and hit hard.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -3158,6 +3228,7 @@
       },
       "d": "ตัวเอก เทพเจ้าเล่ห์ พรางตัว โดนยิงยากขึ้น ร่ายไฟมายา",
       "d_en": "Hero. The trickster god: stealthy, harder to hit with shooting, casts illusion fire.",
+      "inf": 1,
       "abilities": [
         "character",
         "stealth: -1 to hit it with ranged attacks"
@@ -3207,6 +3278,7 @@
       },
       "d": "ตัวเอก ราชาแห่งทวยเทพ ขี่ม้าแปดขา หอกขว้างไม่เคยพลาด พวกรอบตัวเข้าเป้า +1",
       "d_en": "Hero. King of the gods on an eight-legged horse; his thrown spear never misses; nearby allies get +1 to hit.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -3244,6 +3316,7 @@
       },
       "d": "องครักษ์ของอานูบิส ดาบโคเปชกับโล่ ไม่เคยถอย",
       "d_en": "Anubis's bodyguards with khopesh and shield; they never fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test"
       ],
@@ -3277,6 +3350,7 @@
       },
       "d": "สิงโตหัวคนเฝ้าพีระมิด ตัวใหญ่ ทนมาก",
       "d_en": "A human-headed lion guarding the pyramids; huge and very tough.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -3317,6 +3391,7 @@
       },
       "d": "ตัวเอก เทพแห่งความตาย หน่วยที่ลุกขึ้นใหม่ได้ในระยะ 6\" ลุกได้ตั้งแต่ 4+",
       "d_en": "Hero. God of death: units within 6\" that can get back up do so on a 4+.",
+      "inf": 1,
       "abilities": [
         "character",
         "god of the dead: friendly squads within 6\" that reanimate stand up on a 4+"
@@ -3363,6 +3438,7 @@
       },
       "d": "ตัวเอก เทพแห่งดวงอาทิตย์ ยิงแสงสุริยะจากจานบนหัว พวกรอบตัวเข้าเป้า +1",
       "d_en": "Hero. God of the sun; fires sun beams from the disc on his head; nearby allies get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit"
@@ -3401,6 +3477,7 @@
       },
       "d": "ตัวเอก เทพเหยี่ยวมีปีก บินเร็ว บุกแล้วแทงแรง",
       "d_en": "Hero. The winged falcon god: flies fast and strikes hard on the charge.",
+      "inf": 1,
       "abilities": [
         "character",
         "flies: may shoot and charge after falling back"
@@ -3447,6 +3524,7 @@
       },
       "d": "ตัวเอก เทพแห่งทะเลทราย ปล่อยพายุทราย โดนอัตโนมัติ",
       "d_en": "Hero. God of the desert; unleashes a sandstorm that hits automatically.",
+      "inf": 1,
       "abilities": [
         "character"
       ],
@@ -3482,6 +3560,7 @@
       },
       "d": "ตัวเอก เทพจระเข้ ตัวใหญ่ บุกเข้าไปตีเพิ่ม",
       "d_en": "Hero. The huge crocodile god; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "character",
         "+1 attack per model in melee on the turn it charged"
@@ -3520,6 +3599,7 @@
       },
       "d": "ตัวเอก เทพีแมว ว่องไว พรางตัว วิ่งแล้วบุกได้",
       "d_en": "Hero. The nimble cat goddess: stealthy, can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "character",
         "may charge after advancing",
@@ -3556,6 +3636,7 @@
       },
       "d": "ทหารชาวบ้าน ไม่มีเกราะ ถูก คนเยอะ เอาไว้ยึดจุด",
       "d_en": "Peasant levy: no armour, cheap and numerous; good for holding objectives.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -3594,6 +3675,7 @@
       },
       "d": "ธนูยาวยิงไกล ทะลุเกราะ ยืนนิ่งแม่นขึ้น",
       "d_en": "Long-range longbows that pierce armour; more accurate when stationary.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -3632,6 +3714,7 @@
       },
       "d": "หน้าไม้แรง เจาะเกราะดี ยืนนิ่งแม่นขึ้น",
       "d_en": "Powerful crossbows with good armour piercing; more accurate when stationary.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -3660,6 +3743,7 @@
       },
       "d": "ถือหอกยาว ง้าวฮัลเบิร์ด และง้าวขอ ตามแบบในบันทึก คุมจุดเก่ง",
       "d_en": "Long spears, halberds and bills, as recorded in the chronicles; good at holding objectives.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -3688,6 +3772,7 @@
       },
       "d": "เกราะเหล็กทั้งตัว แต่ละคนถืออาวุธต่างกัน: ดาบยาว กระบอง ค้อนศึก ขวาน ลูกตุ้มหนาม",
       "d_en": "Full plate armour, each carrying a different weapon: longsword, mace, war hammer, axe, flail.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -3718,6 +3803,7 @@
       },
       "d": "ม้าศึกหุ้มเกราะ หอกทวนยาว บุกเข้ามาแทงแรงมาก",
       "d_en": "Armoured warhorses and long lances; hit very hard on the charge.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -3758,6 +3844,7 @@
       },
       "d": "หน้าไม้ยักษ์บนแท่น ยิงทะลุตัวใหญ่ ยืนนิ่งแม่นขึ้น",
       "d_en": "A giant crossbow on a mount that punches through big targets; more accurate when stationary.",
+      "inf": 0,
       "abilities": [
         "vehicle"
       ],
@@ -3802,6 +3889,7 @@
       },
       "d": "เหวี่ยงหินโค้งไกลสุดโต๊ะ ยืนนิ่งแม่นขึ้น",
       "d_en": "Hurls stones in an arc across the whole table; more accurate when stationary.",
+      "inf": 0,
       "abilities": [
         "vehicle"
       ],
@@ -3838,6 +3926,7 @@
       },
       "d": "อัศวินศักดิ์สิทธิ์ได้พรจากพระเจ้า: เซฟพิเศษ 4++ ไม่เคยเสียขวัญ พวกเดียวกันในระยะ 6\" ได้เซฟพิเศษ 5++",
       "d_en": "Holy knights blessed by God: 4++ invulnerable save, never battle-shocked; allies within 6\" get a 5++ invulnerable save.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "blessing: friendly squads within 6\" get a 5++ invulnerable save"
@@ -3884,6 +3973,7 @@
       },
       "d": "ดาบเลื่อยยนต์กับปืนพก บุกเข้ามาตีเพิ่ม",
       "d_en": "Chainswords and pistols; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "+1 attack per model in melee on the turn it charged",
@@ -3933,6 +4023,7 @@
       },
       "d": "เป้จรวดบินข้ามสนาม ถอยแล้วยังบุกได้ บุกเข้ามาตีเพิ่ม",
       "d_en": "Jump packs carry them across the battlefield; can charge after falling back; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "+1 attack per model in melee on the turn it charged",
@@ -3983,6 +4074,7 @@
       },
       "d": "พรางตัว โดนยิงยากขึ้น วิ่งไปยิงไป",
       "d_en": "Stealthy, harder to hit with shooting; can shoot after advancing.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "stealth: -1 to hit it with ranged attacks",
@@ -4032,6 +4124,7 @@
       },
       "d": "พลซุ่มยิงชุดพราง ยิงไกลแม่นมาก ยืนนิ่งแม่นขึ้น",
       "d_en": "Camouflaged snipers, very accurate at long range; more accurate when stationary.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "stealth: -1 to hit it with ranged attacks",
@@ -4078,6 +4171,7 @@
       },
       "d": "ปืนความร้อนระยะสั้น หลอมรถถังกับหุ่นยักษ์",
       "d_en": "Short-range heat guns that melt tanks and giant walkers.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4123,6 +4217,7 @@
       },
       "d": "หน่วยเบา เกราะบาง พรางตัวเก่ง บางคนถือไรเฟิลซุ่มยิง",
       "d_en": "Light troops in light armour, good at hiding; some carry sniper rifles.",
+      "inf": 1,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4170,6 +4265,7 @@
       },
       "d": "ตัวเอก ผู้ใช้พลังจิต ยิงสายฟ้าจิต ทอยเจาะได้ 6 ทะลุทุกเกราะ",
       "d_en": "Hero. A psychic who hurls psychic lightning; a wound roll of 6 ignores all armour.",
+      "inf": 1,
       "abilities": [
         "character",
         "armour of faith: incoming AP is 1 lower",
@@ -4221,6 +4317,7 @@
       },
       "d": "ตัวเอก นักบวชชุดเกราะดำ สวดปลุกใจ หน่วยพวกเดียวกันในระยะ 6\" ไม่เสียขวัญ",
       "d_en": "Hero. A black-armoured priest whose prayers rally the troops; friendly units within 6\" are immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -4276,6 +4373,7 @@
       },
       "d": "ตัวเอก แม่ทัพในเกราะยักษ์ หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. A general in heavy armour; friendly units within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "armour of faith: incoming AP is 1 lower",
@@ -4327,6 +4425,7 @@
       },
       "d": "ตัวเอก ช่างเครื่องมีแขนกลบนหลัง แทนการยิง: ซ่อมหน่วยเพื่อนในระยะ 3\"",
       "d_en": "Hero. An engineer with mechanical arms on his back. Instead of shooting: repair a friendly unit within 3\"",
+      "inf": 1,
       "abilities": [
         "character",
         "armour of faith: incoming AP is 1 lower",
@@ -4372,6 +4471,7 @@
       },
       "d": "ตัวเอกระดับตำนาน ร่างสูงกว่าอัศวินทั้งกอง ดาบกับโล่ทอง หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Legendary hero. Towers over every knight in the army, with a golden sword and shield; friendly units within 6\" get +1 to hit.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -4424,6 +4524,7 @@
       },
       "d": "มอเตอร์ไซค์หุ้มเกราะ เร็วมาก วิ่งไปยิงไป",
       "d_en": "Armoured motorbikes, very fast; can shoot after advancing.",
+      "inf": 0,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4470,6 +4571,7 @@
       },
       "d": "มอเตอร์ไซค์มีรถพ่วงข้าง พลปืนยิงปืนกลหนัก 6 = เข้าเพิ่ม",
       "d_en": "Motorbikes with sidecars; the gunner fires a heavy machine gun, and a hit roll of 6 scores an extra hit.",
+      "inf": 0,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4515,6 +4617,7 @@
       },
       "d": "ยานลอยเหนือพื้น เร็วที่สุดในกอง ถอยแล้วยังยิงได้",
       "d_en": "Hovers above the ground, the fastest in the army; can shoot after falling back.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4560,6 +4663,7 @@
       },
       "d": "รถถังของอัศวิน ปืนเลเซอร์ยิงทะลุรถถังกับหุ่นยักษ์",
       "d_en": "The knights' tank; its laser cannons punch through tanks and giant walkers.",
+      "inf": 0,
       "abilities": [
         "five chapters (power-armour knights): units list under their chapter heading"
       ],
@@ -4604,6 +4708,7 @@
       },
       "d": "รถถังลอยตัวใหญ่ ปืนพลาสมาระเบิดวงกว้าง ยิงฝูงได้นัดเพิ่ม",
       "d_en": "A large hover tank; its plasma cannon has blast, with extra shots against hordes.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4651,6 +4756,7 @@
       },
       "d": "ปืนครกสี่ลำกล้องบนตีนตะขาบ ช่างเครื่องคุม ยิงโค้งไกล ระเบิดวงกว้าง",
       "d_en": "A tracked four-barrel mortar crewed by engineers; long-range arcing fire with blast.",
+      "inf": 0,
       "abilities": [
         "vehicle",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4697,6 +4803,7 @@
       },
       "d": "ยานรบลำยักษ์ บินเร็วที่สุด ปืนใหญ่ยิงไกลสุดโต๊ะ",
       "d_en": "A huge gunship, the fastest flyer; its cannons reach across the table.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4742,6 +4849,7 @@
       },
       "d": "หุ่นรบมีคนขับนั่งข้างใน ลอบเข้าใกล้ได้ พรางตัว",
       "d_en": "A war mech with a pilot inside; it can sneak up close; stealthy.",
+      "inf": 0,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4787,6 +4895,7 @@
       },
       "d": "หุ่นอัศวินยักษ์ตัวเล็ก โล่พลังงาน 5++ ปืนใหญ่อัตโนมัติกับใบเลื่อยยักษ์",
       "d_en": "A small giant knight walker: 5++ energy shield, autocannons and a giant chainblade.",
+      "inf": 0,
       "abilities": [
         "five chapters (power-armour knights): units list under their chapter heading"
       ],
@@ -4831,6 +4940,7 @@
       },
       "d": "อัศวินยักษ์ ปืนใหญ่หมุนยิงรัว กำปั้นยักษ์บดรถถัง ร่างมหึมา ติดประชิดก็ยังยิงได้",
       "d_en": "Giant knight: a rapid-firing rotary cannon and a giant fist that crushes tanks. Colossal: can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4878,6 +4988,7 @@
       },
       "d": "อัศวินยักษ์ ปืนใหญ่ระเบิดวงกว้างยิงไกลสุดโต๊ะ ดาบเลื่อยยักษ์ฟันขาด",
       "d_en": "Giant knight: a blast cannon that reaches across the table and a giant chainsword that cuts anything in two.",
+      "inf": 0,
       "abilities": [
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4924,6 +5035,7 @@
       },
       "d": "อัศวินยักษ์ตัวหนักที่สุด หอกภูเขาไฟยิงทะลุไททัน ร่างมหึมา ติดประชิดก็ยังยิงได้",
       "d_en": "The heaviest giant knight: its volcano lance punches through titans. Colossal: can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
         "five chapters (power-armour knights): units list under their chapter heading"
@@ -4971,6 +5083,7 @@
       },
       "d": "ไททันตัวเล็กที่สุด เร็ว ยิงรัวหนัก โล่พลังงาน 2 ชั้น แต่ละชั้นกันได้ทั้งนัด",
       "d_en": "The smallest titan: fast, heavy rapid fire, 2 layers of energy shield, each blocking a whole shot.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
@@ -5023,6 +5136,7 @@
       },
       "d": "ไททันรบสูงเท่าตึก ปืนใหญ่ภูเขาไฟยิงทะลุทุกอย่าง โล่พลังงาน 4 ชั้น",
       "d_en": "A battle titan as tall as a building; its volcano cannon punches through anything. 4 layers of energy shield.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
@@ -5076,6 +5190,7 @@
       },
       "d": "ไททันใหญ่ที่สุด ป้อมปราการเดินได้ มีวิหารบนหลัง โล่พลังงาน 8 ชั้น หน่วยพวกเดียวกันในระยะ 6\" ไม่เสียขวัญ",
       "d_en": "The largest titan, a walking fortress with a cathedral on its back. 8 layers of energy shield; friendly units within 6\" are immune to battle-shock.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "leader: friendly squads within 6\" pass the nerve test",
@@ -5119,6 +5234,7 @@
       },
       "d": "สี่แขน เร็วมาก วิ่งแล้วบุกได้ เข้าเป้าได้ 6 เจาะเลย",
       "d_en": "Four arms, very fast; can charge after advancing; a hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing"
       ],
@@ -5155,6 +5271,7 @@
       },
       "d": "นักล่าตัวสูง ซ่อนตัวเก่ง โดนยิงยาก เคียวคู่ฟันแม่น",
       "d_en": "Tall hunters, good at hiding and hard to hit; their twin scythes strike true.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "stealth: -1 to hit it with ranged attacks"
@@ -5190,6 +5307,7 @@
       },
       "d": "ฝูงหนอนตัวเล็กเต็มฐาน ถูกมาก คอยขวางทาง",
       "d_en": "Bases full of tiny worms; very cheap, used to block the way.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -5220,6 +5338,7 @@
       },
       "d": "กระโดดไกล ซ่อนตัวตามซอก วิ่งแล้วบุกได้",
       "d_en": "Leap far and hide in crevices; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "stealth: -1 to hit it with ranged attacks"
@@ -5256,6 +5375,7 @@
       },
       "d": "องครักษ์เกราะหนา ช้า ทนมาก ไม่เคยเสียขวัญ",
       "d_en": "Heavily armoured bodyguards: slow, very tough, never battle-shocked.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test"
       ],
@@ -5299,6 +5419,7 @@
       },
       "d": "ยามแบกปืนชีวะหนัก ยิงไกลแรง ยืนนิ่งแม่นขึ้น",
       "d_en": "Guards carrying heavy bio-guns, long-ranged and hard-hitting; more accurate when stationary.",
+      "inf": 1,
       "abilities": [],
       "abilities_th": []
     },
@@ -5339,6 +5460,7 @@
       },
       "d": "สมองยักษ์ลอยตัว ยิงลำแสงจิต ทอยเจาะได้ 6 ทะลุทุกเกราะ",
       "d_en": "Giant floating brains firing psychic beams; a wound roll of 6 ignores all armour.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -5375,6 +5497,7 @@
       },
       "d": "ลอยตัว ปล่อยหมอกพิษ หน่วยพวกเดียวกันในระยะ 6\" โดนยิงยากขึ้น",
       "d_en": "Floats and releases toxic mist; friendly units within 6\" are harder to hit with shooting.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "stealth: -1 to hit it with ranged attacks",
@@ -5423,6 +5546,7 @@
       },
       "d": "สัตว์หกขาแบกปืนใหญ่ชีวะบนหลัง ยิงระเบิดวงกว้าง",
       "d_en": "A six-legged beast with a bio-cannon on its back; fires blast shots.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -5461,6 +5585,7 @@
       },
       "d": "สัตว์เกราะหนาที่สุด ปืนกรดยิงทะลุรถถัง",
       "d_en": "The most heavily armoured beast; its acid gun punches through tanks.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -5492,6 +5617,7 @@
       },
       "d": "มุดดินโผล่ขึ้นมางับ วิ่งแล้วบุกได้ บุกเข้ามาตีเพิ่ม",
       "d_en": "Burrows underground and bursts up to bite; can charge after advancing; extra attacks on the charge.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged",
         "may charge after advancing"
@@ -5540,6 +5666,7 @@
       },
       "d": "ตัวเอก จอมฝูงสี่แขน ดาบกระดูกสองเล่ม ฝูงรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Hero. Four-armed swarm master with two bone swords; the swarm within 6\" is immune to battle-shock.",
+      "inf": 0,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" pass the nerve test"
@@ -5588,6 +5715,7 @@
       },
       "d": "ตัวเอก บินได้ ปีกใหญ่ หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. Flies on great wings; friendly units within 6\" get +1 to hit.",
+      "inf": 0,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -5637,6 +5765,7 @@
       },
       "d": "ตัวเอก อสูรเกราะหนาตาเดียวที่ไม่เคยตาย ฆ่าได้แล้วฟื้นแผล บุกเข้ามาตีเพิ่ม",
       "d_en": "Hero. A one-eyed Armoured Behemoth that never dies: heals wounds when it kills; extra attacks on the charge.",
+      "inf": 0,
       "abilities": [
         "character",
         "+1 attack per model in melee on the turn it charged",
@@ -5686,6 +5815,7 @@
       },
       "d": "สัตว์ร่างมหึมาเท่าไททัน ขายาวสี่ขา ปืนชีวะยักษ์ ติดประชิดก็ยังยิงได้",
       "d_en": "A titan-sized beast on four long legs with a giant bio-cannon; can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge"
@@ -5733,6 +5863,7 @@
       },
       "d": "พลซุ่มยิงหุ่นเหล็ก โผล่มาจากเงา ล้มแล้วลุกได้",
       "d_en": "Metal robot snipers that emerge from the shadows; they get back up after falling.",
+      "inf": 1,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks",
         "reanimates: in its command phase each fallen model stands up on a 5+"
@@ -5769,6 +5900,7 @@
       },
       "d": "หุ่นเหล็กหลังค่อม แขนเป็นใบมีด วิ่งแล้วบุกได้ ล้มแล้วลุกได้",
       "d_en": "Hunched metal robots with blades for arms; can charge after advancing; they get back up after falling.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "reanimates: in its command phase each fallen model stands up on a 5+"
@@ -5814,6 +5946,7 @@
       },
       "d": "ครึ่งบนเป็นหุ่น ครึ่งล่างลอยเหนือพื้น ยิงเกาส์ทะลวงเกราะ",
       "d_en": "Robot upper body over a hovering lower half; fires armour-piercing gauss.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "reanimates: in its command phase each fallen model stands up on a 5+"
@@ -5860,6 +5993,7 @@
       },
       "d": "หุ่นลอยแบกปืนเกาส์ยาวเท่าตัว ยิงทะลุรถถังนัดเดียว",
       "d_en": "Hovering robots carrying gauss cannons as long as their bodies; a single shot punches through a tank.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "reanimates: in its command phase each fallen model stands up on a 5+"
@@ -5896,6 +6030,7 @@
       },
       "d": "หุ่นงูเหล็กหลายขา ร่างโปร่งแสงได้ ทะลุการโจมตี 4++",
       "d_en": "Many-legged iron serpent robots that can turn translucent and let attacks pass through them: 4++ invulnerable save.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -5936,6 +6071,7 @@
       },
       "d": "องครักษ์เหาะได้ ถือหอกลำแสง บินข้ามสนาม",
       "d_en": "Royal guards who can fly, armed with beam spears; they soar across the battlefield.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "reanimates: in its command phase each fallen model stands up on a 5+"
@@ -5982,6 +6118,7 @@
       },
       "d": "ตัวเอก นักเวทแห่งเวลา หน่วยพวกเดียวกันในระยะ 6\" ลุกขึ้นใหม่ได้ 4+",
       "d_en": "Hero. A mage of time: friendly units within 6\" get back up on a 4+.",
+      "inf": 1,
       "abilities": [
         "character",
         "god of the dead: friendly squads within 6\" that reanimate stand up on a 4+"
@@ -6019,6 +6156,7 @@
       },
       "d": "ตัวเอก ผู้นำหุ่นใบมีด หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. Leader of the blade robots; friendly units within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit"
@@ -6069,6 +6207,7 @@
       },
       "d": "ตัวเอก เทพโบราณในร่างเหล็กลอยตัว ความเสียหายที่โดนลดครึ่ง",
       "d_en": "Hero. An ancient god in a floating metal body; damage taken is halved.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -6119,6 +6258,7 @@
       },
       "d": "หุ่นหกขาแบกปืนลำแสงยักษ์ ยืนนิ่งแม่นขึ้น",
       "d_en": "A six-legged robot carrying a giant beam cannon; more accurate when stationary.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -6158,6 +6298,7 @@
       },
       "d": "หุ่นสามขามีคนขับยืนบนหลัง ยิงลำแสงความร้อนหลอมเกราะ",
       "d_en": "A three-legged robot with a pilot standing on its back; fires an armour-melting heat beam.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -6199,6 +6340,7 @@
       },
       "d": "เรือลอยเหนือพื้น ปืนสายฟ้ายิงรัว 6 = เข้าเพิ่ม",
       "d_en": "Hovers above the ground; rapid-firing lightning guns: a hit roll of 6 scores an extra hit.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back"
       ],
@@ -6245,6 +6387,7 @@
       },
       "d": "ปิรามิดเหล็กลอยตัว ป้อมปราการเคลื่อนที่ แส้อนุภาคระเบิดวงกว้าง ติดประชิดก็ยังยิงได้",
       "d_en": "A floating iron pyramid, a mobile fortress; its particle whips have blast; can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge"
@@ -6293,6 +6436,7 @@
       },
       "d": "เสาเหล็กลอยตัวสูงตระหง่าน ปืนเกาส์ยิงไกลทะลุทุกอย่าง",
       "d_en": "A towering floating iron column; its gauss cannon shoots far and pierces everything.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge"
@@ -6340,6 +6484,7 @@
       },
       "d": "หุ่นขี่ยานลอยเร็ว วิ่งไปยิงไป ล้มแล้วลุกได้",
       "d_en": "Robots riding fast skimmers; can shoot after advancing; they get back up after falling.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "reanimates: in its command phase each fallen model stands up on a 5+"
@@ -6389,6 +6534,7 @@
       },
       "d": "ตัวเอก ราชาหุ่นเหล็กบนบัลลังก์ลอยได้ มีแผ่นศิลาลอยคุ้มกันสองแผ่น หน่วยพวกเดียวกันในระยะ 6\" เข้าเป้า +1",
       "d_en": "Hero. The robot king on a floating throne, guarded by two floating stone slabs; friendly units within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -6443,6 +6589,7 @@
       },
       "d": "ตัวลับ นักรบนรกในเกราะหนา ขว้างโล่ฟันเลื่อยแล้วโล่กลับมาหา กระบองหนามบดทุกอย่าง ความเสียหายที่โดนลดครึ่ง ฆ่าได้แล้วฟื้นแผล",
       "d_en": "Secret hero. A hell warrior in heavy armour: his thrown saw-edged shield flies back to him and his spiked flail crushes everything. Damage taken is halved; heals wounds when he kills.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -6498,6 +6645,7 @@
       },
       "d": "ตัวเอกระดับตำนาน ออร์คตัวใหญ่ที่สุดในเกราะหนักทั้งตัว ไม่เคยถอย พวกรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Legendary hero. The biggest orc of all, in full heavy armour; never falls back; allies within 6\" are immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -6551,6 +6699,7 @@
       },
       "d": "ตัวเอก หัวหน้านักล่าสัตว์ ขวานยักษ์บุกมาเจาะง่ายขึ้น พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. Chief of the beast hunters; his giant axe gets +1 to wound on the charge; allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -6591,6 +6740,7 @@
       },
       "d": "ตัวเอก บอสออร์คขี่ไดโนเขี้ยวตัวยักษ์ ปากกว้างงับทุกอย่าง บุกเข้ามาตีเพิ่ม",
       "d_en": "Hero. An orc boss riding a giant fanged dino whose huge maw chomps everything; extra attacks on the charge.",
+      "inf": 0,
       "abilities": [
         "character",
         "+1 attack per model in melee on the turn it charged"
@@ -6637,6 +6787,7 @@
       },
       "d": "ตัวเอก ช่างใหญ่แบกปืนช็อกมิติที่ประกอบเอง ยิงไกล แรง ระเบิดวงกว้าง แต่ไม่ค่อยแม่น",
       "d_en": "Hero. A master mechanic lugging a home-made dimension-shock cannon: long range, powerful, blast, but not very accurate.",
+      "inf": 1,
       "abilities": [
         "character"
       ],
@@ -6672,6 +6823,7 @@
       },
       "d": "ตัวเอก หมอออร์คแขนกลเข็มฉีดยา แทนการยิง: รักษาหน่วยเพื่อนในระยะ 3\" (ชุบตัวที่ล้มได้)",
       "d_en": "Hero. An orc doc with a mechanical syringe arm. Instead of shooting: heal a friendly unit within 3\" (can revive fallen models)",
+      "inf": 1,
       "abilities": [
         "character",
         "+1 attack per model in melee on the turn it charged",
@@ -6719,6 +6871,7 @@
       },
       "d": "ตัวเอก ช่างออร์คกับก็อบลินผู้ช่วย แทนการยิง: ซ่อมหน่วยเพื่อนในระยะ 3\"",
       "d_en": "Hero. An orc mechanic with a goblin assistant. Instead of shooting: repair a friendly unit within 3\"",
+      "inf": 1,
       "abilities": [
         "character",
         "heals a friendly squad within 3\" instead of shooting"
@@ -6765,6 +6918,7 @@
       },
       "d": "ตัวเอก หัวเต็มไปด้วยพลังของฝูง ยิงลำแสงเขียวจากหัว ทอยเจาะได้ 6 เป็นแผลตรง",
       "d_en": "Hero. His head brims with the power of the horde; fires a green beam from his head. A wound roll of 6 deals a mortal wound.",
+      "inf": 1,
       "abilities": [
         "character"
       ],
@@ -6808,6 +6962,7 @@
       },
       "d": "ออร์คนักล่าผิวหนา ตีแรงกว่าพลทหาร บุกเข้าไปตีเพิ่ม",
       "d_en": "Thick-skinned orc hunters who hit harder than the grunts; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -6852,6 +7007,7 @@
       },
       "d": "จรวดติดหลังบินข้ามสนาม ถอยแล้วยังบุกได้ บุกเข้ามาตีเพิ่ม",
       "d_en": "Rockets strapped to their backs carry them across the battlefield; can charge after falling back; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged",
         "flies: may shoot and charge after falling back"
@@ -6896,6 +7052,7 @@
       },
       "d": "พ่นไฟใส่ โดนอัตโนมัติ ไม่ต้องทอยเข้า",
       "d_en": "Sprays fire: hits automatically, no hit roll needed.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -6941,6 +7098,7 @@
       },
       "d": "ออร์คขี่สัตว์ฟันแหลมตัวอ้วน ขว้างหอกระเบิดแล้วบุก บุกมาเจาะง่ายขึ้น",
       "d_en": "Orcs riding fat, sharp-toothed beasts; they hurl explosive spears, then charge; +1 to wound on the charge.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -6985,6 +7143,7 @@
       },
       "d": "ปืนใหญ่ที่ช่างออร์คประกอบเอง ก็อบลินเข็น ยิงไกล ระเบิดวงกว้าง",
       "d_en": "A cannon assembled by orc mechanics and pushed by goblins; long range, blast.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -7025,6 +7184,7 @@
       },
       "d": "มอเตอร์ไซค์ควันโขมง เร็วมาก วิ่งไปยิงไป บุกเข้ามาตีเพิ่ม",
       "d_en": "Smoke-belching motorbikes, very fast; can shoot after advancing; extra attacks on the charge.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -7067,6 +7227,7 @@
       },
       "d": "ออร์คกระเป๋าหนัก ปืนแต่งสวย ยิงแม่นที่สุดในหมู่ออร์ค",
       "d_en": "Orcs with deep pockets and prettied-up guns; the best shots among the orcs.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -7109,6 +7270,7 @@
       },
       "d": "หัวโจกในเกราะหนักทั้งตัว เดินช้าแต่ทนมาก ก้ามพลังบีบรถถัง",
       "d_en": "Ringleaders in full heavy armour: slow but very tough; their crusher claws crumple tanks.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -7152,6 +7314,7 @@
       },
       "d": "หุ่นกระป๋องเล็ก ก็อบลินขับ ยิงแม่นกว่าออร์ค ก้ามบีบเกราะ",
       "d_en": "Small tin-can walkers driven by goblins; better shots than orcs; their claws crush armour.",
+      "inf": 0,
       "abilities": [
         "vehicle"
       ],
@@ -7195,6 +7358,7 @@
       },
       "d": "ป้อมเหล็กติดตีนตะขาบ ทนมาก ปืนใหญ่ระเบิดวงกว้าง ลูกกลิ้งหนามบดทุกอย่าง",
       "d_en": "A tracked iron fortress: very tough, a cannon with blast, and a spiked roller that crushes everything.",
+      "inf": 0,
       "abilities": [],
       "abilities_th": []
     },
@@ -7236,6 +7400,7 @@
       },
       "d": "หุ่นยักษ์รูปเทพออร์ค ปืนกลเต็มตัว ก้ามยักษ์บดรถถัง ร่างมหึมา ติดประชิดก็ยังยิงได้",
       "d_en": "A giant walker shaped like an orc god, bristling with machine guns; its giant claw crushes tanks. Colossal: can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge"
@@ -7281,6 +7446,7 @@
       },
       "d": "รถล่าสัตว์ติดกะโหลกยักษ์ ยิงจรวดหนาม บุกชนแหลกตีเพิ่ม",
       "d_en": "A hunting truck decked with a giant skull; fires spiked rockets and rams home on the charge for extra attacks.",
+      "inf": 0,
       "abilities": [
         "+1 attack per model in melee on the turn it charged"
       ],
@@ -7322,6 +7488,7 @@
       },
       "d": "ทหารอาสาของยานโลก ปืนยิงจานคมรัว คนเยอะ",
       "d_en": "Militia of the world-ship: disc rifles that fire rapid bursts; lots of them.",
+      "inf": 1,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7364,6 +7531,7 @@
       },
       "d": "องครักษ์ถือดาบกับปืนพก วิ่งเร็ว บุกเข้าประชิด",
       "d_en": "Guards with swords and pistols; fast-moving, they charge into melee.",
+      "inf": 1,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7408,6 +7576,7 @@
       },
       "d": "พรานคลุมผ้าพราง ซ่อนตัวเก่ง ยิงไกล เข้าเป้าได้ 6 เจาะเลย",
       "d_en": "Rangers in camouflage cloaks: good at hiding, long range; a hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks",
         "battle focus (space elves): may shoot after advancing"
@@ -7451,6 +7620,7 @@
       },
       "d": "นักรบอาชีพชุดน้ำเงิน ยิงแม่นมาก จานคมเจาะเกราะดีกว่าองครักษ์",
       "d_en": "Professional warriors in blue: very accurate; their discs pierce armour better than the guards'.",
+      "inf": 1,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7495,6 +7665,7 @@
       },
       "d": "นักรบหญิงหน้ากากกรีดร้อง วิ่งแล้วบุกได้ ดาบพลังฟันแม่น",
       "d_en": "Warrior women in screaming masks: can charge after advancing; their energy swords strike true.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "battle focus (space elves): may shoot after advancing"
@@ -7538,6 +7709,7 @@
       },
       "d": "นักรบชุดดำหมวกหน้ากากกะโหลก ยิงจรวดไกลสุดโต๊ะ แม่นมาก",
       "d_en": "Warriors in black with skull-masked helmets; they fire missiles across the whole table, very accurately.",
+      "inf": 1,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7582,6 +7754,7 @@
       },
       "d": "ปืนใหญ่ลอยบนแท่นกับลูกเรือสองคน ยิงหลุมดำเล็ก ๆ ทะลุทุกเกราะ ระเบิดวงกว้าง",
       "d_en": "A cannon floating on a platform with two crew; it fires tiny black holes that pierce any armour, with blast.",
+      "inf": 0,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7624,6 +7797,7 @@
       },
       "d": "ร่างหุ่นที่มีวิญญาณนักรบข้างใน ทนมาก ไม่เคยถอย ปืนบิดมิติระยะสั้นทำลายรถถัง",
       "d_en": "Robot bodies with a warrior's spirit inside: very tough, never fall back; short-range space-warping cannons destroy tanks.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "battle focus (space elves): may shoot after advancing"
@@ -7660,6 +7834,7 @@
       },
       "d": "ทหารวิญญาณถือดาบผีสองมือ ทนมาก ไม่เคยถอย ต้องบุกเข้าประชิด",
       "d_en": "Spirit soldiers with a ghost sword in each hand: very tough, never fall back; must charge into melee.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "battle focus (space elves): may shoot after advancing"
@@ -7703,6 +7878,7 @@
       },
       "d": "นักรบชุดส้มหมวกมังกร ปืนความร้อนระยะสั้น หลอมรถถังกับหุ่นยักษ์",
       "d_en": "Warriors in orange with dragon helmets; short-range heat guns melt tanks and giant walkers.",
+      "inf": 1,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7745,6 +7921,7 @@
       },
       "d": "เป้วาร์ปพากระโดดหายวับไปโผล่อีกที่ ถอยแล้วยังยิงได้ ปืนพ่นใยเหล็ก",
       "d_en": "Teleport packs let them leap, vanish and reappear elsewhere; can shoot after falling back; guns that spray steel webs.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "battle focus (space elves): may shoot after advancing"
@@ -7790,6 +7967,7 @@
       },
       "d": "นักเวทสามคนร่ายพายุพลังจิตพร้อมกัน ทอยเจาะได้ 6 เป็นแผลตรง",
       "d_en": "Three mages cast a psychic storm together; a wound roll of 6 deals a mortal wound.",
+      "inf": 1,
       "abilities": [
         "battle focus (space elves): may shoot after advancing"
       ],
@@ -7835,6 +8013,7 @@
       },
       "d": "ตัวเอกระดับตำนาน ผู้หยั่งรู้ที่เห็นอนาคต พวกรอบตัว 6\" เข้าเป้า +1 สายฟ้าความคิดทะลุเกราะ",
       "d_en": "Legendary hero. A seer who sees the future; allies within 6\" get +1 to hit; mind lightning pierces armour.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -7883,6 +8062,7 @@
       },
       "d": "ตัวเอก นักบวชกับแมวผี แทนการยิง: ปลุกเพื่อนที่ล้มในระยะ 6\" ให้ลุกขึ้นมาใหม่",
       "d_en": "Hero. A priest with a ghost cat. Instead of shooting: raise fallen allies within 6\" back to their feet",
+      "inf": 1,
       "abilities": [
         "character",
         "heals a friendly squad within 6\" instead of shooting",
@@ -7932,6 +8112,7 @@
       },
       "d": "ตัวเอก แม่ทัพผู้เคยเดินมาทุกเส้นทางนักรบ พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. A general who has walked every warrior path; allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -7981,6 +8162,7 @@
       },
       "d": "ตัวเอก ผู้หยั่งรู้ขี่เจ็ทไบค์ลอยเหนือพื้น เร็วมาก ถอยแล้วยังยิงได้",
       "d_en": "Hero. A seer on a jetbike skimming above the ground: very fast; can shoot after falling back.",
+      "inf": 0,
       "abilities": [
         "character",
         "flies: may shoot and charge after falling back",
@@ -8029,6 +8211,7 @@
       },
       "d": "ตัวเอก ผู้คุยกับวิญญาณ แทนการยิง: ซ่อมทหารวิญญาณหรือเพื่อนในระยะ 3\"",
       "d_en": "Hero. One who speaks with spirits. Instead of shooting: repair spirit soldiers or another friendly unit within 3\"",
+      "inf": 1,
       "abilities": [
         "character",
         "heals a friendly squad within 3\" instead of shooting",
@@ -8076,6 +8259,7 @@
       },
       "d": "หุ่นวิญญาณสูงสองเท่าคน ทนมาก ไม่เคยถอย ยิงรัวและฟันแรง",
       "d_en": "A spirit walker twice a man's height: very tough, never falls back; fires rapidly and strikes hard.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "battle focus (space elves): may shoot after advancing"
@@ -8121,6 +8305,7 @@
       },
       "d": "รถถังลอยตัวเพรียว ปืนแสงผ่านปริซึมยิงไกลสุดโต๊ะ เจาะทุกเกราะ",
       "d_en": "A sleek hover tank; its prism light cannon reaches across the whole table and pierces any armour.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "battle focus (space elves): may shoot after advancing"
@@ -8166,6 +8351,7 @@
       },
       "d": "เครื่องบินขับไล่ปีกโค้ง บินเร็วที่สุด ล่ายานและเครื่องบินข้าศึก",
       "d_en": "A curved-wing fighter, the fastest flyer; hunts enemy vehicles and aircraft.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "battle focus (space elves): may shoot after advancing"
@@ -8211,6 +8397,7 @@
       },
       "d": "ยานเหาะสองที่นั่ง เร็วมาก ยิงรัวแล้วหลบ ถอยแล้วยังยิงได้",
       "d_en": "A two-seat skimmer: very fast, fires a burst and darts away; can shoot after falling back.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "battle focus (space elves): may shoot after advancing"
@@ -8258,6 +8445,7 @@
       },
       "d": "หุ่นวิญญาณยักษ์สูงเท่าตึก ปืนใหญ่บิดมิติทำลายไททัน ร่างมหึมา ติดประชิดก็ยังยิงได้",
       "d_en": "A giant spirit walker as tall as a building; space-warping cannons that destroy titans. Colossal: can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
@@ -8309,6 +8497,7 @@
       },
       "d": "ตัวเอกระดับตำนาน ร่างเหล็กหลอมลุกเป็นไฟของเทพสงคราม พวกรอบตัว 6\" ไม่เสียขวัญ ดาบฟันขาดทุกอย่าง",
       "d_en": "Legendary hero. The war god's molten iron body, wreathed in flame; allies within 6\" are immune to battle-shock; the sword cuts through anything.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -8361,6 +8550,7 @@
       },
       "d": "นักรบเต้นรำชุดลายหลากสี เข็มขัดแสงหลอกตา โดนยิงยาก วิ่งแล้วบุกได้",
       "d_en": "Dancing warriors in multicoloured motley; illusion belts make them hard to hit with shooting; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "stealth: -1 to hit it with ranged attacks",
@@ -8407,6 +8597,7 @@
       },
       "d": "ทหารโจรสลัดเงามืด ไรเฟิลเข็มพิษ เจาะทหารเดินเท้าได้ 3+ เสมอ",
       "d_en": "Shadow pirate soldiers with poison needle rifles: always wound infantry on a 3+.",
+      "inf": 1,
       "abilities": [
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
       ],
@@ -8451,6 +8642,7 @@
       },
       "d": "นักสู้หญิงจากสังเวียน ว่องไว หลบเก่ง 4++ ตีรัว",
       "d_en": "Female arena fighters: agile, great at dodging (4++ invulnerable save), rapid strikes.",
+      "inf": 1,
       "abilities": [
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
       ],
@@ -8494,6 +8686,7 @@
       },
       "d": "ร่างคนที่หมอทรมานตัดต่อ ช้าแต่ทน พ่นกรดใส่ โดนอัตโนมัติ",
       "d_en": "Bodies stitched together by the torture doctor: slow but tough; they spray acid that hits automatically.",
+      "inf": 1,
       "abilities": [
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
       ],
@@ -8539,6 +8732,7 @@
       },
       "d": "แก๊งขี่กระดานบินโฉบไปมา เร็วมาก วิ่งแล้วบุกได้ แต่บอบบาง",
       "d_en": "A gang swooping about on flying boards: very fast, can charge after advancing, but fragile.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "flies: may shoot and charge after falling back",
@@ -8585,6 +8779,7 @@
       },
       "d": "นักรบผ่าตัดใส่ปีก บินเร็ว ย้ายที่ง่าย ปืนหอกมืดเจาะเกราะหนา",
       "d_en": "Warriors surgically fitted with wings: fast flyers, easy to redeploy; dark lances pierce heavy armour.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -8632,6 +8827,7 @@
       },
       "d": "ปีศาจที่ออกมาจากเงา ซ่อนตัวเก่ง วิ่งแล้วบุกได้",
       "d_en": "Daemons that step out of the shadows: good at hiding; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "stealth: -1 to hit it with ranged attacks",
@@ -8681,6 +8877,7 @@
       },
       "d": "นักแข่งเจ็ทไบค์ใบมีด เร็วที่สุดในกอง ตัดผ่านศัตรูไปมา",
       "d_en": "Bladed jetbike racers, the fastest in the army; they slice back and forth through the enemy.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -8727,6 +8924,7 @@
       },
       "d": "เครื่องจักรลอยตัวหนวดใบมีด ดูดวิญญาณศัตรู ทอยเจาะได้ 6 เป็นแผลตรง",
       "d_en": "A floating machine with bladed tendrils that drains enemy souls; a wound roll of 6 deals a mortal wound.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -8763,6 +8961,7 @@
       },
       "d": "ยักษ์กล้ามโตที่หมอทรมานสร้าง ทนมาก ไม่เคยถอย ต้องบุกเข้าประชิด",
       "d_en": "Hulking brutes built by the torture doctor: very tough, never fall back; must charge into melee.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -8798,6 +8997,7 @@
       },
       "d": "นักดาบรับจ้างชุดเกราะดำ ฟันแม่นที่สุด เข้าเป้าได้ 6 เจาะเลย ต้องบุกเข้าประชิด",
       "d_en": "Mercenary swordsmen in black armour, the most accurate blades; a hit roll of 6 wounds automatically; must charge into melee.",
+      "inf": 1,
       "abilities": [
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
       ],
@@ -8842,6 +9042,7 @@
       },
       "d": "หุ่นทรมานลอยตัว แขนมีดผ่าตัดหลายแขน ทนมาก",
       "d_en": "A floating torture engine with many surgical blade arms; very tough.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -8889,6 +9090,7 @@
       },
       "d": "นักสู้สังเวียนชั้นยอด ตีแม่นกว่า วิ่งแล้วบุกได้",
       "d_en": "Elite arena fighters: strike more accurately; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "may charge after advancing",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -8932,6 +9134,7 @@
       },
       "d": "ทหารชั้นสูงของเจ้าเมือง อาวุธดีกว่า ยิงแม่นกว่า น้อยตัว",
       "d_en": "The lord's elite soldiers: better weapons, better shots, but few in number.",
+      "inf": 1,
       "abilities": [
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
       ],
@@ -8978,6 +9181,7 @@
       },
       "d": "ตัวเอก เจ้าเมืองโจรสลัดในโล่เงา 3++ พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. A pirate lord inside a shadow shield (3++ invulnerable save); allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -9028,6 +9232,7 @@
       },
       "d": "ตัวเอก แชมป์สังเวียน ตีรัวเจ็ดครั้ง วิ่งแล้วบุกได้",
       "d_en": "Hero. Arena champion: a flurry of seven attacks; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "character",
         "may charge after advancing",
@@ -9078,6 +9283,7 @@
       },
       "d": "ตัวเอก หมอทรมานผู้สร้างร่างตัดต่อ แทนการยิง: ซ่อมร่างเพื่อนในระยะ 3\"",
       "d_en": "Hero. The torture doctor who builds the Stitched Horrors. Instead of shooting: repair a friendly unit within 3\"",
+      "inf": 1,
       "abilities": [
         "character",
         "heals a friendly squad within 3\" instead of shooting",
@@ -9128,6 +9334,7 @@
       },
       "d": "ตัวเอก นายกองของเจ้าเมือง พวกรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Hero. The lord's captain; allies within 6\" are immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" pass the nerve test",
@@ -9168,6 +9375,7 @@
       },
       "d": "ตัวเอก นักดวลดาบคู่ เข้าเป้าได้ 6 เจาะเลย วิ่งแล้วบุกได้",
       "d_en": "Hero. A twin-blade duellist: a hit roll of 6 wounds automatically; can charge after advancing.",
+      "inf": 1,
       "abilities": [
         "character",
         "may charge after advancing",
@@ -9218,6 +9426,7 @@
       },
       "d": "ตัวเอก ยืนบนกระดานบินกับสัตว์ร้ายรอบตัว บินเร็ว",
       "d_en": "Hero. Rides a flying board surrounded by savage beasts; fast flyer.",
+      "inf": 1,
       "abilities": [
         "character",
         "flies: may shoot and charge after falling back",
@@ -9269,6 +9478,7 @@
       },
       "d": "ตัวเอกระดับตำนาน จอมราชาบนบัลลังก์บินลำใหญ่ พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Legendary hero. The high king on a great flying throne; allies within 6\" get +1 to hit.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -9313,6 +9523,7 @@
       },
       "d": "ตัวเอกระดับตำนาน นักดาบชุดดำไร้หน้า ฟันแม่นที่สุดในกอง ไม่เคยถอย",
       "d_en": "Legendary hero. A faceless swordsman in black, the most accurate blade in the army; never falls back.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -9361,6 +9572,7 @@
       },
       "d": "เรือเหาะติดปืนหอกมืดสามกระบอก ล่ารถถัง เร็วมาก",
       "d_en": "A skyship armed with three dark lances; hunts tanks; very fast.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -9408,6 +9620,7 @@
       },
       "d": "เครื่องบินขับไล่ปีกใบมีด บินเร็วมาก ไล่ยิงทหารเดินเท้า",
       "d_en": "A fighter with bladed wings: very fast; hunts down infantry.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -9455,6 +9668,7 @@
       },
       "d": "เครื่องบินทิ้งระเบิดรูปนกยักษ์ ยิงทะลุทุกอย่าง ระเบิดวงกว้าง",
       "d_en": "A bomber shaped like a giant bird; its shots pierce everything, with blast.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -9501,6 +9715,7 @@
       },
       "d": "เรือล่าจากสังเวียน ปืนพายุคลื่นทำลายรถถัง",
       "d_en": "A hunting skiff from the arena; its wrecking storm gun destroys tanks.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
@@ -9549,6 +9764,7 @@
       },
       "d": "เรือรบลำใหญ่ที่สุดของเอลฟ์มืด ใบเลื่อยหมุนหน้าเรือ ร่างมหึมา ติดประชิดก็ยังยิงได้",
       "d_en": "The dark elves' largest warship, with spinning saws at the prow. Colossal: can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
@@ -9595,6 +9811,7 @@
       },
       "d": "โจรสลัดรับจ้าง อาวุธไม่เหมือนกันสักคน วิ่งไปยิงไป",
       "d_en": "Pirates for hire, no two armed alike; can shoot after advancing.",
+      "inf": 1,
       "abilities": [
         "pain (dark elves): from round 3 it hits +1 in melee and may charge after advancing"
       ],
@@ -9637,6 +9854,7 @@
       },
       "d": "ทหารราบหมวกเกราะ ไรเฟิลพัลส์ยิงไกลกว่าใคร แต่ตีประชิดอ่อน",
       "d_en": "Helmeted infantry: pulse rifles outrange everyone, but weak in melee.",
+      "inf": 1,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -9679,6 +9897,7 @@
       },
       "d": "ทหารบุกระยะใกล้ ปืนระเบิดพัลส์ยิงใกล้แรงมาก",
       "d_en": "Close-range assault troops: pulse blasters hit very hard up close.",
+      "inf": 1,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -9723,6 +9942,7 @@
       },
       "d": "หน่วยลาดตระเวนพราง ยิงโดนแล้วพวกเดียวกันยิงเป้านั้นเข้าง่ายขึ้นจนจบตา",
       "d_en": "Camouflaged scouts: once they hit a target, allies get +1 to hit it until the end of the turn.",
+      "inf": 1,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -9766,6 +9986,7 @@
       },
       "d": "นักรบเผ่าขนนกหัวนก ถูก คนเยอะ ตีประชิดเก่งกว่าพวกผิวฟ้า",
       "d_en": "Bird-headed, feathered tribal warriors: cheap, numerous, and better in melee than the blue-skins.",
+      "inf": 1,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -9799,6 +10020,7 @@
       },
       "d": "หมาล่าปากจะงอย เร็วมาก วิ่งแล้วบุกได้ แต่บอบบาง",
       "d_en": "Beaked hunting hounds: very fast and can charge after advancing, but fragile.",
+      "inf": 0,
       "abilities": [
         "may charge after advancing",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -9844,6 +10066,7 @@
       },
       "d": "จานบินโดรนสามลูก ถูก ยิงไม่แม่นแต่ชี้เป้าให้พวกได้",
       "d_en": "Three flying-disc drones: cheap and poor shots, but they mark targets for their allies.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -9889,6 +10112,7 @@
       },
       "d": "ชุดรบติดไอพ่น บินกระโดดข้ามสนาม อาวุธหนักติดแขน ถอยแล้วยังยิงได้",
       "d_en": "Jet-powered battlesuits that leap across the battlefield with heavy arm-mounted weapons; can shoot after falling back.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -9934,6 +10158,7 @@
       },
       "d": "ชุดรบหนักแบกปืนรางยาว ช้าแต่ทน ยิงทะลุรถถังจากไกลสุดโต๊ะ",
       "d_en": "Heavy battlesuits carrying long railguns; slow but tough, they punch through tanks from across the table.",
+      "inf": 0,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -9978,6 +10203,7 @@
       },
       "d": "นักล่าขนนกชั้นยอด ซ่อนตัวเก่ง ยิงแม่น เข้าเป้าได้ 6 เจาะเลย",
       "d_en": "Elite feathered hunters: masters of concealment and accurate shots; a hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [
         "stealth: -1 to hit it with ranged attacks",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10022,6 +10248,7 @@
       },
       "d": "ทหารแมลงมีปีก บินเร็ว ปืนคริสตัลเจาะเกราะหนา",
       "d_en": "Winged insect soldiers: fast flyers whose crystal guns pierce heavy armour.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10067,6 +10294,7 @@
       },
       "d": "นักล่าขนนกขี่วัวภูเขากล้ามโต ปืนใหญ่บนหลัง ยิงแล้วต่อยต่อ",
       "d_en": "Feathered hunters riding brawny mountain oxen with cannons on their backs; they shoot, then punch.",
+      "inf": 0,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -10111,6 +10339,7 @@
       },
       "d": "ชุดรบพรางแสงหายตัวได้ โดนยิงยาก วิ่งไปยิงไป",
       "d_en": "Light-bending camouflage battlesuits that can turn invisible; hard to hit, can shoot after advancing.",
+      "inf": 1,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "stealth: -1 to hit it with ranged attacks",
@@ -10159,6 +10388,7 @@
       },
       "d": "ชุดรบยักษ์ล่องหนกับโดรนพรางคู่ โดนยิงยาก ปืนหลอมทำลายรถถัง",
       "d_en": "A giant stealth battlesuit with a pair of stealth drones; hard to hit, and its fusion guns destroy tanks.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "stealth: -1 to hit it with ranged attacks",
@@ -10208,6 +10438,7 @@
       },
       "d": "ชุดรบยักษ์ติดไอพ่น โล่พลัง 5++ ปืนไอออนระเบิดวงกว้าง",
       "d_en": "A jet-powered giant battlesuit with a 5++ energy shield; its ion cannon fires blast shots.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10252,6 +10483,7 @@
       },
       "d": "ชุดรบหนักรุ่นทดลอง อาวุธพลังสูงติดแขน ยิงแรงกว่าชุดรบบิน",
       "d_en": "Experimental heavy battlesuits with high-power arm weapons; they hit harder than flying battlesuits.",
+      "inf": 0,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -10294,6 +10526,7 @@
       },
       "d": "ไดโนเสาร์จะงอยปากตัวยักษ์ นักล่าขนนกขี่หลังยิงหน้าไม้ยักษ์",
       "d_en": "A giant beaked dinosaur; feathered hunters ride on its back and fire a giant crossbow.",
+      "inf": 0,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -10337,6 +10570,7 @@
       },
       "d": "ยานเหาะเล็กสองที่นั่ง เร็วมาก ไล่ยิงก่อกวน",
       "d_en": "A small two-seat skimmer: very fast, harasses the enemy with fire.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10383,6 +10617,7 @@
       },
       "d": "รถถังลอยตัว ป้อมปืนรางยักษ์ยิงไกลสุดโต๊ะ ทะลุทุกอย่าง",
       "d_en": "A hover tank whose giant railgun turret fires across the whole table and punches through anything.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10429,6 +10664,7 @@
       },
       "d": "เครื่องบินหัวฉลาม บินเร็วมาก ยิงปืนไอออนระเบิดวงกว้าง",
       "d_en": "A shark-nosed aircraft: flies very fast and fires blast shots from its ion cannon.",
+      "inf": 0,
       "abilities": [
         "flies: may shoot and charge after falling back",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10477,6 +10713,7 @@
       },
       "d": "ป้อมปืนเดินได้ ขาตั้งยึดพื้นแล้วยิงแม่นขึ้น ร่างมหึมา ติดประชิดก็ยังยิงได้",
       "d_en": "A walking gun turret that anchors its legs to the ground to shoot more accurately. Colossal: can still shoot while locked in melee.",
+      "inf": 0,
       "abilities": [
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
@@ -10525,6 +10762,7 @@
       },
       "d": "ชุดรบใหญ่ที่สุด สี่ขาเท่าไททัน ปืนรางสามลำกล้อง โล่พลังงาน 2 ชั้น",
       "d_en": "The largest battlesuit: titan-sized on four legs, with a triple-barrelled railgun and 2 layers of energy shield.",
+      "inf": 0,
       "abilities": [
         "titanic: can shoot while in melee, and can fall back and still shoot and charge",
         "void shields: 2 layers, each swallows one whole failed save's damage; they all come back at its side's command phase",
@@ -10575,6 +10813,7 @@
       },
       "d": "ตัวเอก ผู้บัญชาการในชุดรบบิน อาวุธหลายชนิด พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. A commander in a flying battlesuit with many kinds of weapons; allies within 6\" get +1 to hit.",
+      "inf": 0,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -10617,6 +10856,7 @@
       },
       "d": "ตัวเอก ผู้นำทางจิตวิญญาณกับโดรนคุ้มกัน ไม่เคยถอย พวกรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Hero. A spiritual leader with guardian drones; never falls back, and allies within 6\" are immune to battle-shock.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -10669,6 +10909,7 @@
       },
       "d": "ตัวเอกระดับตำนาน แม่ทัพหญิงในชุดรบล่องหน โดนยิงยาก พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Legendary hero. A woman general in a stealth battlesuit; hard to hit, and allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -10724,6 +10965,7 @@
       },
       "d": "ตัวเอกระดับตำนาน แม่ทัพชุดรบแดงถือดาบโบราณ คนเดียวในกองที่ฟันเก่ง ไม่เคยถอย",
       "d_en": "Legendary hero. A general in a red battlesuit wielding an ancient blade, the only one in the army who is good in melee; never falls back.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -10774,6 +11016,7 @@
       },
       "d": "ตัวเอก ครูฝึกทหารราบ พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. An infantry drill instructor; allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -10824,6 +11067,7 @@
       },
       "d": "ตัวเอก พลซุ่มยิงกับโดรนชี้เป้า ยิงไกลแม่น ยิงโดนแล้วพวกเดียวกันยิงเป้านั้นเข้าง่ายขึ้น",
       "d_en": "Hero. A sniper with a marker drone; long-ranged and accurate. Once it hits a target, allies get +1 to hit that target.",
+      "inf": 1,
       "abilities": [
         "character",
         "stealth: -1 to hit it with ranged attacks",
@@ -10871,6 +11115,7 @@
       },
       "d": "ตัวเอก หัวหน้าเผ่านักล่าขนนก พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. Chief of the feathered hunter tribe; allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -10916,6 +11161,7 @@
       },
       "d": "ทหารมนุษย์ที่มาเข้ากับจักรวรรดิ ถูก คนเยอะ ใช้ปืนพัลส์",
       "d_en": "Human soldiers who joined the empire: cheap and numerous, armed with pulse guns.",
+      "inf": 1,
       "abilities": [
         "designators (blue-skinned empire): marking weapons give friendly shooting +1 to hit on that target"
       ],
@@ -10958,6 +11204,7 @@
       },
       "d": "อัศวินเกราะพลังที่ทรยศไปรับใช้ปีศาจ เกราะดำหม่นขอบทองเก่า ยิงไรเฟิลระเบิดแล้วบุกฟันด้วยดาบปลายปืนใบพร้า",
       "d_en": "Power-armour knights who turned traitor to serve daemons, in dull black armour with tarnished gold trim; they fire explosive-round rifles, then charge in with cleaver bayonets.",
+      "inf": 1,
       "abilities": [
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
       ],
@@ -10993,6 +11240,7 @@
       },
       "d": "นักรบเกราะแดงเข้มขอบทองเหลือง ขวานเลื่อยในมือ ไม่มีปืน ต้องบุกเข้าประชิด บุกมาตีเพิ่ม ไม่เคยถอย",
       "d_en": "Warriors in deep-red armour with brass trim, chain axes in hand. No guns: must charge into melee; extra attacks on the charge; they never fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "+1 attack per model in melee on the turn it charged",
@@ -11041,6 +11289,7 @@
       },
       "d": "อัศวินเกราะเขียวขี้ม้าขึ้นสนิม ตัวบวมอืด เดินช้าแต่ทนมาก ปืนพกกับมีดพร้าพิษ เจาะทหารเดินเท้าได้ 3+ เสมอ",
       "d_en": "Knights in rusted olive-drab armour, bloated and swollen; slow but very tough. Pistols and poison cleavers that always wound infantry on a 3+.",
+      "inf": 1,
       "abilities": [
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
       ],
@@ -11076,6 +11325,7 @@
       },
       "d": "อัศวินทรยศติดเป้บินครีบปีกค้างคาว ร่อนข้ามสนามลงมาฉีกด้วยกรงเล็บพลัง ต้องบุกเข้าประชิด บุกมาตีเพิ่ม",
       "d_en": "Fallen knights with bat-winged jump packs who glide across the battlefield to tear foes apart with energy claws. Must charge into melee; extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged",
         "flies: may shoot and charge after falling back",
@@ -11123,6 +11373,7 @@
       },
       "d": "อัศวินทรยศแบกปืนใหญ่อัตโนมัติกับเครื่องยิงจรวด ยิงไกลสุดโต๊ะ แรง ยืนนิ่งแม่นขึ้น",
       "d_en": "Fallen knights carrying autocannons and missile launchers; hard-hitting shots from across the table; more accurate when stationary.",
+      "inf": 1,
       "abilities": [
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
       ],
@@ -11164,6 +11415,7 @@
       },
       "d": "คนธรรมดาที่หลงบูชาปีศาจ คลุมผ้าขาดวิ่น ปืนเถื่อนกับมีด ถูก คนเยอะ คุมจุดได้",
       "d_en": "Ordinary people led astray into daemon worship, in tattered robes with crude guns and knives; cheap, numerous, can hold objectives.",
+      "inf": 1,
       "abilities": [
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
       ],
@@ -11211,6 +11463,7 @@
       },
       "d": "ตัวเอก จอมทัพอัศวินทรยศ หมวกเขายาว ผ้าคลุมดำ ดาบต้องสาปเรืองแดง พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Hero. Warmaster of the fallen knights, with a long-horned helm, a black cloak and a red-glowing cursed sword; allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "leader: friendly squads within 6\" get +1 to hit",
@@ -11260,6 +11513,7 @@
       },
       "d": "ตัวเอก พ่อมดชุดม่วงขอบทอง หมวกคลุมมีเขา ปล่อยไฟวาร์ปสีเขียวทะลุเกราะ ทอยเจาะได้ 6 เป็นแผลตรง",
       "d_en": "Hero. A sorcerer in purple robes with gold trim and a horned hood who unleashes armour-piercing green warp fire. A wound roll of 6 deals a mortal wound.",
+      "inf": 1,
       "abilities": [
         "character",
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
@@ -11306,6 +11560,7 @@
       },
       "d": "รถถังหุ้มหนาม พันโซ่ แขวนของที่ริบมาจากศัตรู ปืนใหญ่ยิงไกล ทนมาก",
       "d_en": "A spike-clad tank wrapped in chains and hung with trophies taken from the enemy; long-range cannon, very tough.",
+      "inf": 0,
       "abilities": [
         "vehicle",
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
@@ -11355,6 +11610,7 @@
       },
       "d": "จักรกลหกขาตัวเหมือนปู ปากเป็นเตาไฟ มีปีศาจสิงอยู่ข้างใน ยิงปืนใหญ่ระเบิดวงกว้าง ก้ามยักษ์บดรถถัง เซฟพิเศษ 5++",
       "d_en": "A six-legged, crab-like engine with a furnace for a mouth and a daemon bound inside. Its cannon fires blast shots and its giant claws crush tanks. 5++ invulnerable save.",
+      "inf": 0,
       "abilities": [
         "vehicle",
         "dark pact (fallen knights and daemons): in melee each unmodified 6 to hit scores one extra hit"
@@ -11393,6 +11649,7 @@
       },
       "d": "ปีศาจผิวแดงมีเขา ถือดาบดำยาว วิ่งเร็ว วิ่งแล้วบุกได้ ไม่มีเกราะแต่มีเซฟพิเศษ 5++ ไม่เคยถอย",
       "d_en": "Red-skinned, horned daemons wielding long black blades; fast, can charge after advancing. No armour, but a 5++ invulnerable save; they never fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "may charge after advancing",
@@ -11433,6 +11690,7 @@
       },
       "d": "ปีศาจตัวบวมสีเขียวซีด เขาเดียว ตาเดียว ฝูงแมลงวันบินรอบตัวจนยิงยาก ดาบสนิมมีพิษ เดินช้าแต่ทน",
       "d_en": "Bloated, pale-green daemons with one horn and one eye; swarms of flies buzz around them, making them hard to shoot. Poisoned rusty swords; slow but tough.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "stealth: -1 to hit it with ranged attacks",
@@ -11482,6 +11740,7 @@
       },
       "d": "ภูตไฟลอยได้ ร่างเป็นเปลวไฟสีชมพูกับฟ้า ขว้างไฟวาร์ปใส่ โดนอัตโนมัติ ไม่ต้องทอยเข้า",
       "d_en": "Floating fire sprites with bodies of pink and blue flame; they hurl warp fire that hits automatically, with no hit roll needed.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "flies: may shoot and charge after falling back",
@@ -11523,6 +11782,7 @@
       },
       "d": "ปีศาจผอมเพรียวสีม่วงอมเทา แขนเป็นก้ามหนีบ เร็วมาก วิ่งแล้วบุกได้ ก้ามเข้าได้ 6 เจาะเลย",
       "d_en": "Lithe, greyish-purple daemons with pincers for arms; very fast, can charge after advancing. A pincer hit roll of 6 wounds automatically.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "may charge after advancing",
@@ -11564,6 +11824,7 @@
       },
       "d": "สุนัขนรกเกล็ดแดงใส่ปลอกคอทองเหลือง วิ่งเร็วมาก วิ่งแล้วบุกได้ ไล่ล่าไม่หยุด",
       "d_en": "Red-scaled hellhounds in brass collars; very fast, can charge after advancing, relentless hunters.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "may charge after advancing",
@@ -11618,6 +11879,7 @@
       },
       "d": "ตัวเอกระดับตำนาน ปีศาจยักษ์ผิวแดงมีปีก ถือขวานกับแส้ บินได้ ฆ่าได้แล้วฟื้นแผล พวกรอบตัว 6\" ไม่เสียขวัญ",
       "d_en": "Legendary hero. A giant, winged, red-skinned daemon with axe and whip; flies, heals wounds when it kills, and allies within 6\" are immune to battle-shock.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -11676,6 +11938,7 @@
       },
       "d": "ตัวเอก อัศวินทรยศที่กลายร่างเป็นปีศาจ มีเขา ปีกค้างคาว ดาบยักษ์ต้องสาป บินได้ ไม่เคยถอย",
       "d_en": "Hero. A fallen knight transformed into a daemon, with horns, bat wings and a cursed greatsword; flies, never falls back.",
+      "inf": 0,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -11729,6 +11992,7 @@
       },
       "d": "กองเกียรติยศของภาคีฟ้าคราม เกราะน้ำเงินขอบทอง ผ้าคลุม หอกพลังกับขวานพลัง ไม่เคยถอย",
       "d_en": "The honour guard of the Azure Chapter, in blue armour with gold trim and cloaks, wielding energy spears and energy axes; they never fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "armour of faith: incoming AP is 1 lower",
@@ -11784,6 +12048,7 @@
       },
       "d": "ตัวเอกระดับตำนาน จอมทัพภาคีฟ้าคราม เกราะวิจิตรน้ำเงินทอง มงกุฎใบลอเรล ผ้าคลุม พวกรอบตัว 6\" เข้าเป้า +1",
       "d_en": "Legendary hero. Warmaster of the Azure Chapter in ornate blue-and-gold armour, with a laurel crown and cloak; allies within 6\" get +1 to hit.",
+      "inf": 1,
       "abilities": [
         "character",
         "never fails the nerve test",
@@ -11843,6 +12108,7 @@
       },
       "d": "อัศวินเกราะดำกากบาทแดงของภาคีปีกโลหิต ติดเป้บิน คลั่งรบ บุกมาตีเพิ่ม ไม่เคยถอย",
       "d_en": "Black-armoured knights of the Blood Wing Chapter marked with a red saltire, wearing jump packs; battle-frenzied, extra attacks on the charge, never fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "armour of faith: incoming AP is 1 lower",
@@ -11901,6 +12167,7 @@
       },
       "d": "องครักษ์เกราะทอง ปีกขนนกสีขาว บินได้ ง้าวทองพลังบุกมาเจาะง่ายขึ้น",
       "d_en": "Bodyguards in golden armour with white feathered wings; they fly, and their golden energy glaives get +1 to wound on the charge.",
+      "inf": 1,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "flies: may shoot and charge after falling back",
@@ -11945,6 +12212,7 @@
       },
       "d": "อัศวินเกราะหนักสีกระดูก คลุมเสื้อคลุมเขียวเข้ม โล่กับค้อนพลัง ทนมาก ไม่เคยถอย ต้องบุกเข้าประชิด",
       "d_en": "Heavily armoured, bone-coloured knights in dark green robes, with shields and energy hammers; very tough, never fall back, must charge into melee.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "armour of faith: incoming AP is 1 lower",
@@ -11999,6 +12267,7 @@
       },
       "d": "ทหารเกราะดำขี่มอเตอร์ไซค์ของภาคีเงาเขียว เร็วมาก วิ่งไปยิงไป บุกมาเจาะง่ายขึ้น",
       "d_en": "Black-armoured bikers of the Green Shadow Chapter; very fast, can shoot after advancing, +1 to wound on the charge.",
+      "inf": 0,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "chapter: Green Shadow Chapter",
@@ -12041,6 +12310,7 @@
       },
       "d": "อัศวินเกราะเทาพายุห่มหนังสัตว์ ขี่หมาป่ายักษ์ ถือค้อนกับโล่ เร็ว บุกมาตีเพิ่ม",
       "d_en": "Knights in storm-grey armour draped in furs, riding giant wolves, with hammer and shield; fast, extra attacks on the charge.",
+      "inf": 0,
       "abilities": [
         "armour of faith: incoming AP is 1 lower",
         "+1 attack per model in melee on the turn it charged",
@@ -12083,6 +12353,7 @@
       },
       "d": "หมาป่าสีเทาตัวยักษ์ของภาคีหมาป่า วิ่งเร็ว วิ่งแล้วบุกได้ ต้องบุกเข้าประชิด",
       "d_en": "Giant grey wolves of the Wolf Chapter; fast, can charge after advancing, must charge into melee.",
+      "inf": 0,
       "abilities": [
         "may charge after advancing",
         "chapter: Wolf Chapter",
@@ -12134,6 +12405,7 @@
       },
       "d": "อัศวินเกราะดำ เสื้อคลุมทับสีขาวคาดแถบดำ ของภาคีกางเขนดำ ดาบพลังฟันแม่น สาบานว่าไม่ถอย",
       "d_en": "Black-armoured knights of the Black Cross Chapter in white surcoats with a black band; accurate energy-sword strikes, sworn never to fall back.",
+      "inf": 1,
       "abilities": [
         "never fails the nerve test",
         "armour of faith: incoming AP is 1 lower",
@@ -12186,6 +12458,7 @@
       },
       "d": "อัศวินฝึกหัดในเกราะเบาของภาคีกางเขนดำ ถือดาบเลื่อย คนเยอะ บุกมาตีเพิ่ม",
       "d_en": "Knight novices of the Black Cross Chapter in light armour, wielding chainswords; numerous, extra attacks on the charge.",
+      "inf": 1,
       "abilities": [
         "+1 attack per model in melee on the turn it charged",
         "chapter: Black Cross Chapter",
@@ -12243,6 +12516,7 @@
       },
       "d": "หน่วยลับ หุ่นรบยักษ์สูง 16 เมตร ยิงปืนลำแสงไกลสุดสนาม เข้าประชิดแล้วเก็บปืนชักดาบลำแสงจากเป้หลัง โล่ใหญ่ บินได้ ความเสียหายที่โดนลดครึ่ง ฆ่าได้แล้วฟื้นแผล",
       "d_en": "Hidden unit. A 16-metre giant war mech that fires its beam rifle across the whole battlefield; in melee it stows the gun and draws a beam sword from its backpack. Large shield, flies, damage taken is halved, heals wounds when it kills.",
+      "inf": 0,
       "abilities": [
         "never fails the nerve test",
         "flies: may shoot and charge after falling back",

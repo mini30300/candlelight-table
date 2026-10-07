@@ -1,7 +1,23 @@
 extends "res://tests/testing.gd"
 ## core/data.gd (GameData): every table loads as integers only, TYPES keeps the page order (the cross-device
 ## contract), datasheets read right, base radii become milli-inches, pools and factions line up, the hidden
-## units stay opaque and outside the bot pools, constants come through as ints.
+## units stay opaque and outside the bot pools, constants come through as ints, every datasheet carries the page's
+## INF(k) as `inf`, and the committed data still hashes to Version.DATA_HASH.
+
+## The page's own INF(k) for a sample of types, read on the page with Playwright (an instrumented copy of
+## battle-table.html that calls the real function; it also agreed with BT.kitInfo + veh for all 274): foot soldiers,
+## kits of scale 1.3, 1.4 and 1.45 (still below 1.5), mounts, creatures (one of scale 0.85), a vehicle, a scale 2.2
+## kit and a kit of exactly scale 1.5 (the page's test is `kitScale(k) < 1.5`).
+const INF_SAMPLE := {
+	"heavy": true, "hoplite": true, "archer": true, "sniper": true, "medic": true,
+	"sobek": true, "boss": true, "ogwar": true,
+	"cavalry": false, "obike": false, "rscarab": false, "dmh": false, "ballista": false, "mech": false, "mino": false,
+}
+## The first 274 datasheets (the page at export time; later ones may only be appended): INF counts and the FNV-1a 64
+## digest of their inf bits in TYPES order, computed from the same page sample.
+const INF_FIRST := 274
+const INF_FOOT := 166
+const INF_DIGEST := "c4e6a1c3a50f6d45"
 
 
 func setup() -> void:
@@ -129,3 +145,120 @@ func test_reload_is_identical() -> void:
 	GameData.load_all(true)
 	var b := Hash.fnv1a64_str(JSON.stringify(GameData.types(), "", false))
 	assert_eq(a, b, "loading twice gives the same tables")
+
+
+func test_inf_matches_the_page() -> void:
+	var bad := []
+	for k: String in INF_SAMPLE:
+		assert_true(GameData.index_of(k) >= 0, "sample type %s exists" % k)
+		if GameData.is_inf(k) != bool(INF_SAMPLE[k]):
+			bad.append(k)
+	assert_eq(bad, [], "is_inf equals the page's INF(k) for every sampled type")
+	assert_true(GameData.is_inf("hoplite"), "a hoplite is a foot soldier")
+	assert_false(GameData.is_inf("cavalry"), "a mounted squad is not (beast rule)")
+	assert_false(GameData.is_inf("ballista"), "a vehicle is not")
+	assert_false(GameData.is_inf("mech"), "a big kit is not")
+	assert_true(GameData.is_inf("ogwar"), "kit scale 1.45 is still below 1.5: foot soldier")
+	assert_false(GameData.is_inf("mino"), "kit scale exactly 1.5 is not below 1.5: not a foot soldier")
+	assert_false(GameData.is_inf("dmh"), "a small creature is still a beast: not a foot soldier")
+	assert_false(GameData.is_inf("no-such-unit"), "an unknown key is not a foot soldier")
+
+
+func test_inf_set_is_pinned() -> void:
+	assert_true(GameData.count() >= INF_FIRST, "the first %d datasheets are there" % INF_FIRST)
+	var bits := PackedInt64Array()
+	var foot := 0
+	for i: int in INF_FIRST:
+		var on := GameData.is_inf(GameData.key_at(i))
+		bits.append(1 if on else 0)
+		foot += 1 if on else 0
+	assert_eq([foot, INF_FIRST - foot], [INF_FOOT, INF_FIRST - INF_FOOT], "166 foot soldiers, 108 not (R1 spec §7 #15)")
+	assert_digest(Hash.digest_hex(bits), INF_DIGEST, "the inf bits of the first 274 datasheets equal the page's INF")
+
+
+func test_every_datasheet_carries_inf() -> void:
+	var raw: Array = _raw("types.json")
+	var missing := []
+	var differ := []
+	var vehicles := 0
+	for e: Dictionary in raw:
+		var k := str(e["k"])
+		if not e.has("inf") or (e["inf"] != 0 and e["inf"] != 1):
+			missing.append(k)
+		elif GameData.is_inf(k) != (e["inf"] == 1):
+			differ.append(k)
+		if e.has("veh"):
+			vehicles += 1
+			if GameData.is_inf(k):
+				differ.append(k + " (vehicle)")
+	assert_eq(missing, [], "every datasheet in types.json has inf 0 or 1")
+	assert_eq(differ, [], "is_inf reads the inf field, and no vehicle is a foot soldier")
+	assert_true(vehicles > 0, "the vehicle check saw %d vehicles" % vehicles)
+	var not_int := []
+	for t: Dictionary in GameData.types():
+		if typeof(t.get("inf")) != TYPE_INT:
+			not_int.append(t["k"])
+	assert_eq(not_int, [], "inf loads as an int for every datasheet")
+	var bt: Dictionary = _raw("bt_data.json")
+	var bt_types: Array = bt["types"]
+	assert_eq(bt_types.size(), raw.size(), "bt_data.json has every datasheet")
+	var stale := []
+	for i: int in mini(raw.size(), bt_types.size()):
+		if (bt_types[i] as Dictionary).get("inf", -1) != (raw[i] as Dictionary).get("inf", -2):
+			stale.append(raw[i]["k"])
+	assert_eq(stale, [], "bt_data.json carries the same inf (gen_bt_data.py --snapshot was re-run)")
+
+
+func test_inf_problem() -> void:
+	assert_eq(GameData.inf_problem("x", {"inf": 1}), "", "inf 1 is fine")
+	assert_eq(GameData.inf_problem("x", {"inf": 0}), "", "inf 0 is fine")
+	assert_ne(GameData.inf_problem("x", {}), "", "a missing inf is a problem")
+	assert_ne(GameData.inf_problem("x", {"inf": 2}), "", "inf 2 is a problem")
+	assert_ne(GameData.inf_problem("x", {"inf": -1}), "", "inf -1 is a problem")
+	assert_ne(GameData.inf_problem("x", {"inf": true}), "", "a bool inf is a problem (the data says 1/0)")
+	assert_ne(GameData.inf_problem("x", {"inf": "1"}), "", "a string inf is a problem")
+	assert_true(GameData.inf_problem("sample9", {}).contains("sample9"), "the problem names the type")
+
+
+func test_new_rules_constants() -> void:
+	assert_eq(GameData.const_int("GREN_R", -1), 8, "grenade range 8 (page var GREN_R)")
+	assert_eq(GameData.const_int("HEAL_ON", -1), 3, "heal succeeds on 3+ (page var HEAL_ON)")
+	assert_eq(GameData.const_int("PAIN_ROUND", -1), 3, "dark-elf pain from round 3 (page var PAIN_ROUND)")
+	var raw: Dictionary = _raw("constants.json")
+	for name: String in ["GREN_R", "HEAL_ON", "PAIN_ROUND"]:
+		assert_true(raw.has(name), "constants.json has " + name)
+	var full := {}
+	var unset := []
+	for name: String in GameData.RULES_CONSTS:
+		full[name] = GameData.const_int(name, -1)
+		if full[name] == -1:
+			unset.append(name)
+	assert_eq(unset, [], "every rules constant is in constants.json as a whole number")
+	assert_eq(GameData.const_problems(full), PackedStringArray(), "a full table has no problem")
+	var short := full.duplicate()
+	short.erase("GREN_R")
+	var p := GameData.const_problems(short)
+	assert_eq(p.size(), 1, "a missing rules constant is one problem")
+	assert_true(p.size() == 1 and p[0].contains("GREN_R"), "the problem names it", p)
+	var wrong := full.duplicate()
+	wrong["HEAL_ON"] = "3"
+	assert_eq(GameData.const_problems(wrong).size(), 1, "a rules constant that is not an int is a problem")
+
+
+## Drift: the committed data/*.json still hashes to Version.DATA_HASH and data/version.json (validate_data.py
+## computes the same: sha256 over every data/*.json except version.json, in sorted file-name order).
+func test_data_files_match_the_version_hash() -> void:
+	var names := PackedStringArray()
+	for f: String in DirAccess.get_files_at("res://data"):
+		if f.ends_with(".json") and f != "version.json":
+			names.append(f)
+	names.sort()
+	assert_true(names.has("types.json") and names.has("constants.json"), "the data folder lists %d tables" % names.size())
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	for f: String in names:
+		ctx.update(FileAccess.get_file_as_bytes("res://data/" + f))
+	var got := ctx.finish().hex_encode()
+	assert_eq(got, Version.DATA_HASH, "sha256 of data/*.json equals Version.DATA_HASH (run validate_data.py --write-version)")
+	var v: Dictionary = _raw("version.json")
+	assert_eq(str(v.get("data_hash", "")), Version.DATA_HASH, "data/version.json agrees with Version.DATA_HASH")

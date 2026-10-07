@@ -915,6 +915,9 @@
         "PROP_CAP",
         "RULES_V",
         "APP_VER",
+        "GREN_R",
+        "HEAL_ON",
+        "PAIN_ROUND",
         "VP_PER",
         "VP_CAP",
         "MAX_ROUND",
@@ -981,6 +984,24 @@
           "type": "string",
           "pattern": "^\\d+\\.\\d+$",
           "description": "the page's APP_VER the export came from"
+        },
+        "GREN_R": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48,
+          "description": "grenade range in inches, centre to centre between the closest models of the two squads"
+        },
+        "HEAL_ON": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6,
+          "description": "a heal roll succeeds on HEAL_ON+ (one d6)"
+        },
+        "PAIN_ROUND": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "from this round on the dark elves (de) get +1 to hit in melee and may charge after advancing"
         },
         "VP_PER": {
           "type": "integer",
@@ -2312,6 +2333,14 @@
                 "type": "string",
                 "minLength": 1,
                 "description": "opaque hidden-unit flag"
+              },
+              "inf": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "foot soldier, 1 or 0: the page's INF(k) (not a vehicle, not a beast or mount, figure kit scale below 1.5), derived by tools/export_data.js; poison po wounds it, it may throw grenades and go to ground. Every exported datasheet carries it"
               },
               "en": {
                 "type": "string",

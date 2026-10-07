@@ -4,12 +4,16 @@ extends RefCounted
 ## ลำดับใน TYPES คือสัญญาข้ามเครื่อง (รายชื่อกองทัพส่งเป็นจำนวนหมู่ตามตำแหน่งนี้) ห้ามสลับ เพิ่มได้แค่ท้าย
 ## รัศมีฐาน r เป็นเศษนิ้ว จึงเก็บเป็น r_mi (หนึ่งในพันนิ้ว); เลขเศษที่อื่นในตารางกติกาถือว่าผิด (ดู problems())
 ## หน่วยลับ: ช่อง sec / lk เก็บไว้ตามเดิมแบบทึบ บอกได้แค่ว่าเป็นหน่วยลับ (is_hidden)
+## ช่อง inf (ทหารเดินเท้า 1/0) ไม่มีในหน้าเก่า: export_data.js เรียก INF(k) ของหน้าเก่าแล้วเติมให้ทุกหน่วย
 
 const DIR := "res://data"
 ## รัศมีฐานเมื่อไม่มี r (800 MI ตามหน้าเก่า)
 const BASE_R_MI := 800
 ## ช่องที่เป็นระยะเศษนิ้ว: ชื่อเดิม -> ชื่อใหม่ที่เก็บเป็น MI
 const MI_FIELDS := {"r": "r_mi"}
+## ค่าคงที่ที่กติกาใช้: ต้องมีใน constants.json และเป็นจำนวนเต็ม ไม่งั้นเป็นปัญหา (ไม่ปล่อยให้ได้ค่า fallback เงียบ ๆ)
+const RULES_CONSTS := ["ENGAGE", "CHARGE_R", "AURA_R", "OBJ_R", "VP_PER", "VP_CAP", "MAX_ROUND", "KILL_ROUNDS",
+	"DEP_FOE", "DEP_MATE", "BLESS_INV", "REZ_AURA", "SLOT_MAX", "SPEC_TOTAL", "GREN_R", "HEAL_ON", "PAIN_ROUND"]
 
 static var _loaded := false
 static var _types: Array[Dictionary] = []
@@ -20,6 +24,23 @@ static var _consts: Dictionary = {}         # ค่าคงที่ที่�
 static var _themes: Dictionary = {}         # ชื่อฉาก -> {relief_mi, rough_mi} (ความสูงเนินของฉาก)
 static var _terrains := PackedStringArray()  # ชนิดพื้น: flat, hills, mountain, forest
 static var _problems := PackedStringArray()
+
+
+## ปัญหาของช่อง inf ในหน่วยหนึ่ง ("" = ไม่มีปัญหา): ต้องเป็นจำนวนเต็ม 0 หรือ 1
+static func inf_problem(k: String, t: Dictionary) -> String:
+	var v: Variant = t.get("inf", null)
+	if typeof(v) == TYPE_INT and (v == 0 or v == 1):
+		return ""
+	return "types: " + k + " has no inf 0/1 (re-run tools/export_data.js)"
+
+
+## ค่าคงที่ของกติกา (RULES_CONSTS) ที่หายหรือไม่ใช่จำนวนเต็ม ในตารางค่าคงที่ที่แปลงแล้ว
+static func const_problems(consts: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	for name: String in RULES_CONSTS:
+		if typeof(consts.get(name, null)) != TYPE_INT:
+			out.append("constants.json: " + name + " is missing or not a whole number")
+	return out
 
 
 ## โหลดครั้งเดียว (force = โหลดใหม่); คืน true เมื่อไม่มีปัญหา
@@ -45,6 +66,9 @@ static func load_all(force: bool = false) -> bool:
 			if _index.has(k):
 				_problems.append("types: duplicate key " + k)
 				continue
+			var bad_inf := inf_problem(k, e as Dictionary)
+			if bad_inf != "":
+				_problems.append(bad_inf)
 			_index[k] = _types.size()
 			_types.append(e)
 	else:
@@ -64,6 +88,7 @@ static func load_all(force: bool = false) -> bool:
 			var v: Variant = _intify(raw_consts[name], "", false)
 			if v != null:
 				_consts[str(name)] = v
+	_problems.append_array(const_problems(_consts))
 	var raw_themes: Variant = _read("themes.json")
 	if raw_themes is Dictionary:
 		for name: Variant in raw_themes:
@@ -144,6 +169,12 @@ static func pool(fac: String) -> PackedStringArray:
 static func is_hidden(k: String) -> bool:
 	var t := ty(k)
 	return t.has("sec") or t.has("lk")
+
+
+## ทหารเดินเท้า = INF(k) ของหน้าเก่า (ไม่ใช่พาหนะ ไม่ใช่สัตว์หรือตัวขี่ ตัวไม่ใหญ่): โดนพิษได้ ปาระเบิดได้ หมอบหลบได้
+## อ่านจากช่อง inf ที่ส่งออกมา; คีย์ที่ไม่รู้จักคืน false (กติกาไม่รับคีย์แปลกตั้งแต่ตอนจัดทัพ)
+static func is_inf(k: String) -> bool:
+	return int(ty(k).get("inf", 0)) == 1
 
 
 ## รัศมีฐานเป็น MI

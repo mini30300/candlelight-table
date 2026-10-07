@@ -276,6 +276,14 @@
       "type": "string",
       "minLength": 1,
       "description": "opaque hidden-unit flag"
+    },
+    "inf": {
+      "type": "integer",
+      "enum": [
+        0,
+        1
+      ],
+      "description": "foot soldier, 1 or 0: the page's INF(k) (not a vehicle, not a beast or mount, figure kit scale below 1.5), derived by tools/export_data.js; poison po wounds it, it may throw grenades and go to ground. Every exported datasheet carries it"
     }
   },
   "$defs": {

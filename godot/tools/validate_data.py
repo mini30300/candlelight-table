@@ -10,7 +10,8 @@
 Checks, each printed as one `ok`/`FAIL` line:
   schema    every godot/data/*.json validates against its schema in data/schema/ (a small JSON-Schema 2020-12 validator
             lives below: no pip here), then cross-table checks: keys exist, every Thai display string is a key of
-            data/i18n_en.json, no float where the rules want an integer (a JSON 2.0 is NOT an integer here).
+            data/i18n_en.json, no float where the rules want an integer (a JSON 2.0 is NOT an integer here), every
+            datasheet carries the derived inf (foot soldier) field.
   names     the banned names of AGENTS.md rule 1 over every text file and file name under godot/ (case-insensitive;
             distinctive names as substrings, common words whole-word). A few old unit keys carry such words: their
             SHA-1 hashes are the committed baseline data/schema/legacy_tokens.sha1 and they are allowed only inside
@@ -374,6 +375,10 @@ def cross_checks(d):
             errs.append("types %s: lk %r is not an army code" % (t["k"], t["lk"]))
         if "ch" in t and chapters and t["ch"] not in chapters:
             errs.append("types %s: ch %r is not a key of chapters.json" % (t["k"], t["ch"]))
+        if "inf" not in t:                         # derived by export_data.js from the page's INF(k); rules read it
+            errs.append("types %s: no inf (foot soldier 1/0): re-run tools/export_data.js" % t["k"])
+        elif t.get("veh") and t["inf"]:
+            errs.append("types %s: a vehicle cannot be a foot soldier (inf 1 with veh)" % t["k"])
         for w in ("gun", "mel"):
             if isinstance(t.get(w), dict) and "fx" in t[w] and fx_kinds and t[w]["fx"] not in fx_kinds:
                 errs.append("types %s: %s.fx %r is not a kind of fx.json" % (t["k"], w, t[w]["fx"]))

@@ -1,17 +1,26 @@
 #!/usr/bin/env node
 // export_data.js — pull the battle table's data tables out of battle-table.html into godot/data/*.json
 // for the Godot 4 port. Read-only on the page. Run:  node godot/tools/export_data.js
+//   --check                   export into a temporary folder and compare byte for byte with godot/data (exit 1 on drift)
+//   --out <dir>               write somewhere else
 //   PAGE=<battle-table.html>  another copy of the page (default app/src/main/assets/battle-table.html)
 //   CHROMIUM_PATH=<chrome>    the browser Playwright should use (BT.TYPES is read from the live page)
 // Two sources: `window.BT.TYPES` from the running page (Playwright), and the literals of the tables that live
 // inside the game IIFE, cut from the source text and evaluated in a `vm` sandbox (unknown helpers are stubbed).
+// Each datasheet in types.json also gets `inf` (1/0): the page's own INF(k), "foot soldier", called on a temporary
+// copy of the page that hands the function to window (see pageInf); the page file itself is never written.
 'use strict';
-const fs = require('fs'), path = require('path'), vm = require('vm');
+const fs = require('fs'), path = require('path'), vm = require('vm'), os = require('os');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PAGE = path.resolve(process.env.PAGE || path.join(ROOT, 'app/src/main/assets/battle-table.html'));
-const OUT = path.join(ROOT, 'godot/data');
-const { chromium } = require(path.join(ROOT, 'tests/node_modules/playwright'));
+const DATA = path.join(ROOT, 'godot/data');
+const ARGS = process.argv.slice(2), CHECK = ARGS.includes('--check'), OUT_AT = ARGS.indexOf('--out');
+ARGS.forEach((a, i) => { if (a !== '--check' && a !== '--out' && ARGS[i - 1] !== '--out'){ console.error('unknown argument ' + a); process.exit(2); } });
+if (OUT_AT >= 0 && !ARGS[OUT_AT + 1]){ console.error('--out needs a folder'); process.exit(2); }
+const OUT = CHECK ? fs.mkdtempSync(path.join(os.tmpdir(), 'bt-export-check-')) : OUT_AT >= 0 ? path.resolve(ARGS[OUT_AT + 1]) : DATA;
+// playwright from NODE_PATH (a git worktree has no tests/node_modules of its own), else this checkout's tests/
+const { chromium } = (function(){ try { return require('playwright'); } catch (e){ return require(path.join(ROOT, 'tests/node_modules/playwright')); } })();
 
 const src = fs.readFileSync(PAGE, 'utf8');
 const lines = src.split('\n');
@@ -98,6 +107,30 @@ async function pageTypes(){
   } finally { await b.close(); }
 }
 
+// ---------- INF(k) from the page's own function ----------
+// INF ("foot soldier": not a vehicle, not a beast or mount, figure kit scale below 1.5) lives inside the game IIFE and
+// is not on window.BT; the rules port needs it as data (R1 spec §7 #15). A temporary copy of the page gets one line
+// after the declaration that hands the function to window; the copy is loaded, INF is called for every type key in
+// BT.TYPES order, and the copy is deleted.
+const INF_ANCHOR = 'function INF(k){';
+async function pageInf(){
+  const i = at(INF_ANCHOR), eol = src.indexOf('\n', i);
+  if (i > 0 && src[i - 1] !== '\n') throw new Error('INF is not declared at the start of a line');
+  if (eol < 0 || src.indexOf(INF_ANCHOR, i + 1) >= 0) throw new Error('INF must be declared exactly once, on one line');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-export-inf-')), copy = path.join(dir, 'battle-table.html');
+  try {
+    fs.writeFileSync(copy, src.slice(0, eol + 1) + 'window.__exportINF = INF;\n' + src.slice(eol + 1));
+    const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
+    try {
+      const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+      p.on('pageerror', e => console.error('page error (INF copy):', e.message));
+      await p.goto('file://' + copy);
+      await p.waitForFunction('window.BT && window.BT.G && window.__exportINF');
+      return await p.evaluate(() => window.BT.TYPES.map(T => ({ k: T.k, inf: window.__exportINF(T.k) })));
+    } finally { await b.close(); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
 (async function main(){
   fs.mkdirSync(OUT, { recursive: true });
   const game = at('var TAU = Math.PI*2, DEG = Math.PI/180;');            // start of the game IIFE: every anchor is after it
@@ -109,6 +142,13 @@ async function pageTypes(){
   const diff = [];
   pg.types.forEach((T, i) => { if (JSON.stringify(T) !== JSON.stringify(tyLit.v[i])) diff.push(T.k); });
   if (diff.length) report.notes.push('TYPES entries changed at runtime (page differs from the literal): ' + diff.join(', '));
+  // -- inf per datasheet (appended as the last field; the page has no field of that name)
+  const infs = await pageInf();
+  if (infs.length !== pg.n || infs.some((x, i) => x.k !== pg.types[i].k)) throw new Error('the INF copy of the page has other TYPES');
+  pg.types.forEach((T, i) => {
+    if ('inf' in T) throw new Error('TYPES ' + T.k + ' already has an inf field: export_data.js must learn what it means');
+    if (typeof infs[i].inf !== 'boolean') throw new Error('INF(' + T.k + ') is not a boolean: ' + infs[i].inf);
+    T.inf = infs[i].inf ? 1 : 0; });
   write('types.json', pg.types);
 
   // -- the IIFE tables
@@ -144,7 +184,8 @@ async function pageTypes(){
   // -- constants: the ones asked for, plus the siblings declared on the same lines (optional ones only warn)
   const C = {};
   const need = [['ENGAGE', 'var ENGAGE = '], ['CHARGE_R', 'var CHARGE_R = '], ['AURA_R', 'var AURA_R = '], ['OBJ_R', 'var OBJ = [], OBJ_R = '],
-    ['SLOT_MAX', 'var SLOT_MAX = '], ['SPEC_TOTAL', 'var SPEC_TOTAL = '], ['PROP_CAP', 'var PROP_CAP = '], ['RULES_V', 'var RULES_V = '], ['APP_VER', 'var APP_VER = ']];
+    ['SLOT_MAX', 'var SLOT_MAX = '], ['SPEC_TOTAL', 'var SPEC_TOTAL = '], ['PROP_CAP', 'var PROP_CAP = '], ['RULES_V', 'var RULES_V = '], ['APP_VER', 'var APP_VER = '],
+    ['GREN_R', 'var GREN_R = '], ['HEAL_ON', 'var HEAL_ON = '], ['PAIN_ROUND', 'var PAIN_ROUND = ']];      // grenade range, heal roll n+, dark-elf pain round
   for (const [n, a] of need) C[n] = lit(a, n, game).v;
   const extra = [['VP_PER', 'var OBJ = [], OBJ_R = '], ['VP_CAP', 'var OBJ = [], OBJ_R = '], ['MAX_ROUND', 'var MAX_ROUND = '], ['KILL_ROUNDS', 'var MAX_ROUND = '],
     ['DEP_FOE', 'var DEP_FOE = '], ['DEP_MATE', 'var DEP_FOE = '], ['BLESS_INV', 'var BLESS_INV = '], ['REZ_AURA', 'var BLESS_INV = '],
@@ -183,7 +224,7 @@ async function pageTypes(){
     CORE[f].forEach(k => { if (!keys.has(k)) problems.push('CORE ' + f + ': unknown unit ' + k); }); }
   if (problems.length) throw new Error('validation failed:\n  ' + problems.join('\n  '));
   const hidden = T.filter(t => t.sec || t.lk);
-  const counts = { types: T.length, armies: FACS.length, hidden: hidden.length, hiddenKeys: hidden.map(t => t.k + (t.sec ? ' (sec)' : '') + (t.lk ? ' (lk:' + t.lk + ')' : '')),
+  const counts = { types: T.length, inf: T.filter(t => t.inf).length, armies: FACS.length, hidden: hidden.length, hiddenKeys: hidden.map(t => t.k + (t.sec ? ' (sec)' : '') + (t.lk ? ' (lk:' + t.lk + ')' : '')),
     strings: Object.keys(EN).length, core_units: Object.values(CORE).reduce((a, l) => a + l.length, 0), budgets: BUDGETS.length,
     app_ver: C.APP_VER, rules_v: C.RULES_V, page_ver: pg.ver.trim() };
   const perArmy = {}; T.forEach(t => { perArmy[t.fac] = (perArmy[t.fac] || 0) + 1; });
@@ -197,5 +238,12 @@ async function pageTypes(){
   console.log('== helpers stubbed while evaluating literals', JSON.stringify(report.stubs));
   if (report.missing.length) console.log('== optional constants not found\n  ' + report.missing.join('\n  '));
   if (report.notes.length) console.log('== notes\n  ' + report.notes.join('\n  '));
+  if (CHECK){                                                             // drift: the committed data vs this export
+    const bad = report.files.filter(f => { const a = path.join(OUT, f.name), c = path.join(DATA, f.name);
+      return !fs.existsSync(c) || !fs.readFileSync(a).equals(fs.readFileSync(c)); }).map(f => f.name);
+    fs.rmSync(OUT, { recursive: true, force: true });
+    if (bad.length){ console.log('DRIFT: godot/data differs from a fresh export in ' + bad.join(', ') + ' (re-run without --check, then validate_data.py --write-version)'); process.exit(1); }
+    console.log('== check: godot/data equals a fresh export (' + report.files.length + ' files)');
+  }
   console.log('OK');
-})().catch(e => { console.error(e.stack || e); process.exit(1); });
+})().catch(e => { console.error(e.stack || e); if (CHECK) fs.rmSync(OUT, { recursive: true, force: true }); process.exit(1); });
