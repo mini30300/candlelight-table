@@ -208,13 +208,15 @@ func test_formation_matches_page() -> void:
 				axes += 1
 				var v: int = got[i][ax]
 				if _i(e[1]) == 1:
+					# the page's double sits on a half step; the exact offset is a half (its numerator is a multiple of
+					# 1/20000 MI), so the spec's js_round takes the step above, whichever way the page's double fell
 					ties += 1
-					if v != _i(e[2]) and v != _i(e[2]) + 10:
+					if v != _i(e[2]) + 10:
 						bad.append([c["n"], c["f"], c["r"], i, ax, v, e])
 				elif v != _i(e[0]):
 					bad.append([c["n"], c["f"], c["r"], i, ax, v, e])
 	assert_true(cases.size() >= 90, "%d formation cases from the page (n 0..12 and 20, seven facings, six radii)" % cases.size())
-	assert_true(bad.is_empty(), "every slot equals the page's slot on the 10 MI grid (%d axes, %d on a half step)" % [axes, ties], bad.slice(0, 5))
+	assert_true(bad.is_empty(), "every slot equals the page's slot on the 10 MI grid (%d axes, %d on a half step, all rounded up)" % [axes, ties], bad.slice(0, 5))
 
 
 # ------------------------------------------------------------------ hand cases
