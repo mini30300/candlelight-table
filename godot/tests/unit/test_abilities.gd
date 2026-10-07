@@ -12,9 +12,9 @@ const SELF := "res://tests/unit/test_abilities.gd"
 const PINNED_DIGEST := "01e902182e89e173"
 ## modules the registry may point to (R1_PORT_SPEC §1)
 const MODULES := ["BtCombat", "BtAbilities", "BtSquads", "BtArmy", "BtPend", "BtTurn"]
-## handlers that a later or parallel wave writes (wave number): they may be missing until then
+## handlers that a later or parallel wave writes (wave number): they may be missing until then. Wave 2 (BtArmy) is
+## integrated, so its handlers must exist.
 const LATER := {
-	"BtArmy.fit_list": 2, "BtArmy.fac_of": 2, "BtArmy.pts_of": 2, "BtArmy.slot_max": 2, "BtArmy.deploy": 2,
 	"BtAbilities.glory_heal": 3, "BtAbilities.spawn_from": 3, "BtAbilities.after_kills": 3,
 	"BtAbilities.refill_shields": 3, "BtAbilities.wind_turn": 3,
 	"BtPend.finish_atk": 3, "BtPend.deal_damage": 3, "BtPend.apply_wnd": 3, "BtPend.apply_rez": 3,
@@ -509,45 +509,37 @@ func test_flag_lk() -> void:
 
 
 ## The hidden-type rules of BtArmy (spec §1 army) named in fns: one per list (fit_list, slot_max outside spectator mode),
-## free of points (pts_of), and a sec type never sets the army (fac_of). Calls go by name: army.gd is written by a
-## parallel wave and may not exist in this checkout.
+## free of points (pts_of), and a sec type never sets the army (fac_of). Static calls: a renamed or re-typed BtArmy
+## function fails this script at load instead of skipping the check.
 func _hidden_army_checks(hid: int, fns: Array) -> void:
 	var open := _ti("infantry")
-	var army := _module("BtArmy")
-	if army == null:
-		print("info  BtArmy is not written yet: its hidden-type rules are checked once it exists")
-		return
-	if fns.has("fit_list") and _has("BtArmy", "fit_list"):
+	if fns.has("fit_list"):
 		var raw: Array = []
 		raw.resize(GameData.count())
 		raw.fill(0)
 		raw[hid] = 5
 		raw[open] = 5
-		var got: PackedInt32Array = army.call("fit_list", raw)
+		var got: PackedInt32Array = BtArmy.fit_list(raw)
 		assert_eq([got[hid], got[open]], [1, 5], "fit_list: a hidden type is clamped to one, an open one is not")
-	if fns.has("fac_of") and _has("BtArmy", "fac_of"):
+	if fns.has("fac_of"):
 		var list := PackedInt32Array()
 		list.resize(GameData.count())
 		list[hid] = 1
-		assert_eq(str(army.call("fac_of", list, "gr")), "gr", "fac_of skips a sec type")
-	if fns.has("pts_of") and _has("BtArmy", "pts_of"):
+		assert_eq(BtArmy.fac_of(list, "gr"), "gr", "fac_of skips a sec type")
+	if fns.has("pts_of"):
 		var st := BattleState.make({"seed": 4, "w": 60, "teams": 2})
 		var p := st.add_seat(0, "A", false, false, "")
 		p.list[hid] = 1
 		p.list[open] = 2
-		assert_eq(int(army.call("pts_of", st, 0)), 2 * int(GameData.ty("infantry")["pts"]), "pts_of: a hidden type is free of points")
-	if fns.has("slot_max") and _has("BtArmy", "slot_max"):
+		assert_eq(BtArmy.pts_of(st, 0), 2 * int(GameData.ty("infantry")["pts"]), "pts_of: a hidden type is free of points")
+	if fns.has("slot_max"):
 		var st := BattleState.make({"seed": 4, "w": 60, "teams": 2, "mode": "pvp"})
-		assert_eq([int(army.call("slot_max", st, hid)), int(army.call("slot_max", st, open))], [1, GameData.const_int("SLOT_MAX")], "slot_max: one hidden squad per player")
+		assert_eq([BtArmy.slot_max(st, hid), BtArmy.slot_max(st, open)], [1, GameData.const_int("SLOT_MAX")], "slot_max: one hidden squad per player")
 
 
 func test_flag_vsh() -> void:
 	var vsh := _ti(_find(func(q: Dictionary) -> bool: return q.has("vsh")))
 	assert_true(vsh >= 0 and BtAbilities.num(vsh, "vsh") > 0, "a datasheet with shield layers")
-	if not _has("BtArmy", "deploy"):
-		print("info  BtArmy.deploy is not written yet: the starting shield layers are checked once it exists")
-		return
-	var army := _module("BtArmy")
 	var st := BattleState.make({"seed": 4, "w": 60, "teams": 2})
 	var p := st.add_seat(0, "A", false, false, "")
 	p.list[vsh] = 1
@@ -556,7 +548,7 @@ func test_flag_vsh() -> void:
 	p.dep_x = 0
 	p.dep_z = -20000
 	var out: Array[Dictionary] = []
-	army.call("deploy", st, out)
+	BtArmy.deploy(st, out)
 	var got := {}
 	for s: BattleState.Squad in st.squads:
 		got[s.k] = s.vs
