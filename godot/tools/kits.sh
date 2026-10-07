@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # kits.sh — one command that regenerates everything derived from the old page's figure kits (CI job `kits`, or locally):
 #   1. node godot/tools/export_kits.js   → godot/assets/kits/*.glb + kits.json   (Playwright + Chromium, ~45 s)
-#   2. godot/tools/bake_impostors.gd     → godot/assets/impostors/              (under xvfb; lands with R0-D)
-#   3. godot/tools/bake_anim.gd          → godot/assets/anim/                   (headless; lands with R1-V2)
+#   2. godot/tools/bake_impostors.gd     → godot/assets/impostors/              (under xvfb)
+#   3. node godot/tools/bake_anim.js     → godot/assets/anim/clips.json         (Playwright: the page's rig sampled, ~20 s)
+#      godot/tools/bake_anim.gd          → godot/assets/anim/humanoid.res       (headless: the AnimationLibrary)
 # A bake tool that does not exist yet is skipped with a note, so the command already works before those tracks land.
 #
 #   bash godot/tools/kits.sh [options passed on to export_kits.js, e.g. --only heavy,archer]
 # Env: CHROMIUM_PATH (Playwright's browser; found under /opt/pw-browsers when unset), GODOT (the editor binary for
-#      the bakes; default ~/godot-bin/godot, then `godot` on PATH), KITS_SKIP_EXPORT=1 (run only the bakes).
+#      the bakes; default ~/godot-bin/godot, then `godot` on PATH), KITS_SKIP_EXPORT=1 (run only the bakes; the clip
+#      bake still needs Playwright, else an existing clips.json is kept).
 set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT"
@@ -15,14 +17,14 @@ say() { echo "kits.sh: $*"; }
 die() { say "ERROR: $*"; exit 1; }
 
 # 1. the kits
+if [ -z "${CHROMIUM_PATH:-}" ]; then
+  found=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome 2> /dev/null | head -n 1 || true)
+  [ -z "$found" ] || export CHROMIUM_PATH="$found"
+fi
 if [ "${KITS_SKIP_EXPORT:-0}" = 1 ]; then
   say "kit export skipped (KITS_SKIP_EXPORT=1)"
 else
   [ -d tests/node_modules/playwright ] || die "tests/node_modules/playwright is missing: run 'cd tests && npm ci && npx playwright install chromium' first"
-  if [ -z "${CHROMIUM_PATH:-}" ]; then
-    found=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome 2> /dev/null | head -n 1 || true)
-    [ -z "$found" ] || export CHROMIUM_PATH="$found"
-  fi
   say "exporting the kits from app/src/main/assets/battle-table.html${CHROMIUM_PATH:+ with CHROMIUM_PATH=$CHROMIUM_PATH}"
   node godot/tools/export_kits.js "$@"
 fi
@@ -54,9 +56,18 @@ if [ -f godot/tools/bake_impostors.gd ]; then
   say "impostors: $(ls godot/assets/impostors | wc -l) files"
 fi
 if [ -f godot/tools/bake_anim.gd ]; then
-  say "baking animation clips"
+  if [ -f godot/tools/bake_anim.js ] && [ -d tests/node_modules/playwright ]; then
+    say "sampling the page's rig into clips (bake_anim.js)"
+    node godot/tools/bake_anim.js
+  elif [ -s godot/assets/anim/clips.json ]; then
+    say "no Playwright here: keeping the existing godot/assets/anim/clips.json"
+  else
+    die "bake_anim.js needs Playwright (tests/node_modules/playwright) and there is no clips.json to keep"
+  fi
+  node godot/tools/bake_anim.js --check || die "clips.json does not validate"
+  say "building the animation library (bake_anim.gd)"
   timeout 900 "$G" --headless --path godot -s tools/bake_anim.gd
-  [ -n "$(ls -A godot/assets/anim 2> /dev/null)" ] || die "bake_anim.gd wrote nothing to godot/assets/anim"
-  say "anim: $(ls godot/assets/anim | wc -l) files"
+  [ -s godot/assets/anim/humanoid.res ] || die "bake_anim.gd wrote no godot/assets/anim/humanoid.res"
+  say "anim: $(ls godot/assets/anim | wc -l) files, $(du -sh godot/assets/anim | cut -f1)"
 fi
 say "done"
