@@ -432,6 +432,13 @@ func test_crowded_hand_cases() -> void:
 	var st := _state(48, 34, [], [["hoplite", 0, 0], ["cavalry", 5000, 0], ["mech", -6000, -6000]])
 	assert_eq([BtBlocking.unit_rad(st.units[0]), BtBlocking.unit_rad(st.units[1]), BtBlocking.unit_rad(st.units[2])], [800, 1100, 1500],
 		"base radii: no r = 800, cavalry 1.1 in, mech 1.5 in")
+	var off: Array = []
+	var u := BattleState.Unit.new()
+	for ti: int in GameData.count():
+		u.ti = ti
+		if BtBlocking.unit_rad(u) != BtSquads.radius_of(ti):
+			off.append([GameData.key_at(ti), BtBlocking.unit_rad(u), BtSquads.radius_of(ti)])
+	assert_true(off.is_empty(), "unit_rad's cache equals BtSquads.radius_of for all %d types" % GameData.count(), off)
 	assert_true(BtBlocking.crowded(st, 1599, 0, null, -1), "default 0.8 in base 1599 MI from a 0.8 in base overlaps")
 	assert_false(BtBlocking.crowded(st, 1600, 0, null, -1), "touching exactly is not overlapping (strict <)")
 	assert_true(BtBlocking.crowded(st, -1599, 0, null, -1) and BtBlocking.crowded(st, 0, -1599, null, -1), "negative side too")

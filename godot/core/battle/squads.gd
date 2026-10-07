@@ -156,8 +156,7 @@ static func formation(n: int, cx: int, cz: int, fx: int, fz: int, r: int) -> Arr
 		return out
 	var gap := maxi(1700, 2 * r + 350)
 	var per := n if n <= 3 else (2 if n == 4 else 3)
-	# ปัดขึ้น (n, per เป็นบวก)
-	var rows := (n + per - 1) / per
+	var rows := Fx.cdiv(n, per)
 	for i: int in n:
 		# i, per เป็นบวก หารตัดเศษ = ปัดลง
 		var row := i / per

@@ -209,14 +209,13 @@ static func _grid(st: BattleState) -> void:
 	_g_idx = idx
 
 
-## รัศมีฐานตามตำแหน่งใน TYPES
+## รัศมีฐานตามตำแหน่งใน TYPES (ค่าจาก BtSquads.radius_of ที่เดียว เก็บไว้ให้ crowded เร็ว)
 static func _radii() -> PackedInt64Array:
-	if _rad_ti.size() != GameData.count():
-		var t := GameData.types()
-		_rad_ti.resize(t.size())
-		for i: int in t.size():
-			var r := int(t[i].get("r_mi", BASE_R))
-			_rad_ti[i] = r if r > 0 else BASE_R
+	var n := GameData.count()
+	if _rad_ti.size() != n:
+		_rad_ti.resize(n)
+		for i: int in n:
+			_rad_ti[i] = BtSquads.radius_of(i)
 	return _rad_ti
 
 
