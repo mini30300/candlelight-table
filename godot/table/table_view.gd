@@ -1,7 +1,8 @@
 class_name TableView
 extends Node3D
 ## รากของโต๊ะ 3 มิติ: กล้อง แดด สภาพแวดล้อม พื้น อุปกรณ์ ฟิกเกอร์ วงแหวน · ใช้ระดับกราฟิกจาก App (apply_level)
-## ภาพทดลอง R0-E: ฟิกเกอร์ ~400 ตัว 8 ทีมจาก data/facs.json + core.json + types.json บนพื้นสุ่ม; R1 ต่อกับ core (Battle)
+## สนามจากกติกา (R1-V1): FieldTerrain + FieldProps ของ core/field ตามค่าตั้ง (seed ขนาดโต๊ะ ฉาก ภูมิประเทศ สิ่งก่อสร้าง
+## ความหนาแน่น) ค่าเริ่มต้น DEFAULT_SETUP; rebuild(setup) สร้างใหม่ · ฟิกเกอร์ ~400 ตัว 8 ทีมยังเป็นภาพทดลอง R0-E
 ## งานต่อเฟรม: ไม่มีในสคริปต์นี้ (วาดใหม่เมื่อมีอะไรเปลี่ยน; lo/min เปิด low_processor_usage_mode)
 
 const THEMES_PATH := "res://data/themes.json"
@@ -10,8 +11,12 @@ const TEAMS_PATH := "res://data/teams.json"
 const FACS_PATH := "res://data/facs.json"
 const CORE_PATH := "res://data/core.json"
 const TYPES_PATH := "res://data/types.json"
-const TABLE_W := 48.0
+const TABLE_W := 48.0           # ขนาดโต๊ะของค่าเริ่มต้น (เมตร = นิ้วเกม); โต๊ะจริงอยู่ที่ table_w / table_d
 const TABLE_D := 34.0
+## ค่าตั้งสนามเริ่มต้น: seed 1 โต๊ะ 48 นิ้ว เมืองพัง เนิน มีสิ่งก่อสร้าง ความหนาแน่น x1 (ส่วนพัน)
+const DEFAULT_SETUP := {"seed": 1, "w": 48, "theme": "ruin", "terrain": "hills", "buildings": true, "density": 1000}
+const THEME_NAMES: PackedStringArray = ["ruin", "forest", "desert", "ice"]
+const TERRAIN_NAMES: PackedStringArray = ["flat", "hills", "mountain", "forest"]
 const RING_EXTRA := 64          # ที่ว่างสำหรับวงเลือก/ปลายทาง/วัตถุประสงค์
 const SELECT_REACH := 1.5       # แตะใกล้ฟิกเกอร์แค่ไหนถึงเลือก (เมตร)
 const MAX_KITS_PER_TEAM := 10   # กองทัพจริงซ้ำหน่วยเดิม ไม่ใช่หน่วยละตัว (และ = draw call ต่อทีมบน MultiMesh)
@@ -30,9 +35,12 @@ const LEVELS := {
 
 @export var auto_build := true
 @export var seed_value := 1
+@export var table_in := 48             # ความกว้างโต๊ะ (นิ้ว) ความลึกตาม FieldTerrain.depth_for
 @export var theme_name := "ruin"
+@export var terrain_name := "hills"
+@export var buildings := true
+@export var density_pm := 1000         # ความหนาแน่นสิ่งก่อสร้าง ส่วนพัน (1000 = x1)
 @export var figure_count := 400
-@export var prop_count := 480
 @export var team_count := 8
 
 @onready var camera_rig: CameraRig = $CameraRig
@@ -47,13 +55,17 @@ var level := "mid"
 var teams: Array = DEFAULT_TEAMS
 var theme: Dictionary = {}
 var sky: Dictionary = {}
+var field: FieldTerrain          # สนามของกติกา (ความสูงหลังปรับพื้นใต้ของแล้ว)
+var field_props: FieldProps      # ของบนสนามของกติกา
+var table_w := TABLE_W
+var table_d := TABLE_D
+var table_sky := TableSky.new()
 var measuring := false          # หน้าตรวจการ์ดจอเปิดอยู่: ต้องวาดทุกเฟรมเพื่อวัด
 var selected := -1
 var built := false
 
 var _select_ring := -1
 var _env: Environment
-var _sky_mat: ProceduralSkyMaterial
 
 
 func _ready() -> void:
@@ -70,7 +82,8 @@ func _ready() -> void:
 	apply_level(level)
 
 
-## สร้างภาพทดลองทั้งโต๊ะ: พื้น อุปกรณ์ ฟิกเกอร์ 8 ทีม วงแหวนทีม แล้วซูมให้พอดีโต๊ะ
+## สร้างทั้งโต๊ะ: สนามจากกติกา (ของก่อน เพราะ FieldProps ปรับพื้นใต้ของ แล้วจึงทำเมชพื้น) ฟิกเกอร์ 8 ทีม วงแหวนทีม
+## ท้องฟ้าตามฉาก แล้วซูมให้พอดีโต๊ะ
 func build_look() -> void:
 	var t0 := Time.get_ticks_msec()
 	var themes: Variant = _load_json(THEMES_PATH)
@@ -78,11 +91,16 @@ func build_look() -> void:
 	theme = themes.get(theme_name, {}) if themes is Dictionary else {}
 	sky = skies.get(theme_name, {}) if skies is Dictionary else {}
 	var cfg: Dictionary = LEVELS[level]
-	terrain.build(seed_value, theme, TABLE_W, TABLE_D, int(cfg["grid"]))
-	props.build(seed_value, prop_count, terrain, theme, bool(cfg["props_simple"]))
+	field = FieldTerrain.make(table_in, FieldTerrain.depth_for(table_in), theme_name, terrain_name, seed_value)
+	field_props = FieldProps.generate(field, buildings, density_pm)
+	table_w = float(field.w_in)
+	table_d = float(field.d_in)
+	terrain.build(field, theme, int(cfg["grid"]))
+	props.build(field_props, terrain, theme, bool(cfg["props_simple"]))
+	table_sky.setup(theme_name, seed_value)
 	var list := _compose_figures()
 	figures.set_figures(list)
-	camera_rig.fit_table(TABLE_W, TABLE_D)
+	camera_rig.fit_table(table_w, table_d)
 	figures.build(level, camera_pos())
 	rings.setup(list.size() + RING_EXTRA)
 	for f in list:
@@ -92,8 +110,30 @@ func build_look() -> void:
 	_apply_environment()
 	built = true
 	var c := figures.counts()
-	Log.info("table: %d figures (%d skinned, %d kits), %d props, %d rings, theme %s, level %s in %d ms" % [
-		int(c["figures"]), int(c["skinned"]), int(c["kits"]), props.count(), rings.count(), theme_name, level, Time.get_ticks_msec() - t0])
+	Log.info("table: %d figures (%d skinned, %d kits), %d props in %d kinds, %d rings, seed %d %dx%d %s %s buildings %s x%d, level %s in %d ms" % [
+		int(c["figures"]), int(c["skinned"]), int(c["kits"]), props.count(), props.draw_calls(), rings.count(), seed_value,
+		field.w_in, field.d_in, theme_name, terrain_name, str(buildings), density_pm, level, Time.get_ticks_msec() - t0])
+
+
+## ค่าตั้งสนามตอนนี้ (คีย์เดียวกับ DEFAULT_SETUP)
+func setup() -> Dictionary:
+	return {"seed": seed_value, "w": table_in, "theme": theme_name, "terrain": terrain_name, "buildings": buildings,
+		"density": density_pm}
+
+
+## สร้างโต๊ะใหม่ด้วยค่าตั้งอื่น: คีย์ seed, w (นิ้ว 24..180 เลขคู่), theme, terrain, buildings, density (ส่วนพัน 0..2500)
+## คีย์ที่ไม่ใส่คงค่าเดิม; ค่าที่ไม่รู้จักใช้ค่าเริ่มต้น; ระดับกราฟิกเดิม
+func rebuild(new_setup: Dictionary) -> void:
+	seed_value = int(new_setup.get("seed", seed_value))
+	table_in = clampi(int(new_setup.get("w", table_in)), 24, 180) / 2 * 2
+	var th := str(new_setup.get("theme", theme_name))
+	theme_name = th if THEME_NAMES.has(th) else str(DEFAULT_SETUP["theme"])
+	var terr := str(new_setup.get("terrain", terrain_name))
+	terrain_name = terr if TERRAIN_NAMES.has(terr) else str(DEFAULT_SETUP["terrain"])
+	buildings = bool(new_setup.get("buildings", buildings))
+	density_pm = clampi(int(new_setup.get("density", density_pm)), 0, 2500)
+	build_look()
+	apply_level(level)
 
 
 ## ใช้ระดับกราฟิก hi/mid/lo/min กับทุกส่วนทันที (render scale, เงา, fps, เมชลดรูป, การวาดตอนนิ่ง)
@@ -135,7 +175,7 @@ func set_measuring(on: bool) -> void:
 
 
 func set_stress(on: bool) -> void:
-	figures.set_stress(on, camera_pos(), TABLE_W * 0.5 - 1.0, TABLE_D * 0.5 - 1.0)
+	figures.set_stress(on, camera_pos(), table_w * 0.5 - 1.0, table_d * 0.5 - 1.0)
 
 
 func camera_pos() -> Vector3:
@@ -153,6 +193,8 @@ func team_colour(team: int) -> Color:
 func counts() -> Dictionary:
 	var c := figures.counts()
 	c["props"] = props.count()
+	c["prop_kinds"] = props.draw_calls()
+	c["field_props"] = field_props.items.size() if field_props != null else 0
 	c["rings"] = rings.count()
 	c["terrain_tris"] = terrain.triangle_count()
 	c["props_tris"] = props.triangle_count()
@@ -212,37 +254,19 @@ func _update_idle() -> void:
 	OS.low_processor_usage_mode = bool(cfg["idle"]) and not measuring
 
 
-## ท้องฟ้าไล่สีตามธีม (sky.json top/hor); บน min เป็นสีเรียบ ไม่มี glow/SSAO/หมอก ทุกระดับ
+## ท้องฟ้าตามฉาก (table/sky.gd จาก sky.json; เส้นขอบฟ้าเฉพาะ mid/hi; min สีเรียบ) ไม่มี glow/SSAO/หมอก ทุกระดับ
 func _apply_environment() -> void:
 	if _env == null:
 		_env = Environment.new()
 		_env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		world_env.environment = _env
-	var top := _html(sky.get("top", "#242331"))
 	var hor := _html(sky.get("hor", "#6A4A55"))
 	_env.ambient_light_color = hor.lerp(Color.WHITE, 0.45)
-	_env.ambient_light_energy = 0.85
+	_env.ambient_light_energy = 0.3   # พื้นสีจริงของฉาก (ทราย หิมะ) ไม่สว่างจ้าจนเห็นเนินไม่ชัด; ฟิกเกอร์ใช้แค่สีแสงรอบ
 	# ฟิกเกอร์ใช้แสงของ figure.gdshader เอง (ไม่รับแสง/เงาของเครื่องยนต์): ทิศเดียวกับ Sun, สีจากแดดและแสงรอบ
 	figures.set_lighting(sun.global_transform.basis.z, sun.light_color * (0.5 * sun.light_energy), _env.ambient_light_color * 0.5)
-	if level == "min":
-		_env.background_mode = Environment.BG_COLOR
-		_env.background_color = hor.lerp(top, 0.35)
-		_env.sky = null
-	else:
-		if _sky_mat == null:
-			_sky_mat = ProceduralSkyMaterial.new()
-			_sky_mat.sun_angle_max = 0.0
-		if _env.sky == null:
-			var s := Sky.new()
-			s.sky_material = _sky_mat
-			_env.sky = s
-		_sky_mat.sky_top_color = top
-		_sky_mat.sky_horizon_color = hor
-		var ground := TerrainMesh._rgb(theme.get("ground2", [68, 64, 62]))
-		_sky_mat.ground_horizon_color = hor.lerp(ground, 0.5)
-		_sky_mat.ground_bottom_color = ground * 0.6
-		_env.background_mode = Environment.BG_SKY
+	table_sky.apply(_env, level)
 
 
 static func _html(code: Variant) -> Color:
@@ -257,6 +281,26 @@ static func _load_json(path: String) -> Variant:
 
 
 # ---- จัดทัพภาพทดลอง ----
+
+## ที่ว่างใกล้ (x, z) ที่สุดที่ไม่ทับของบนสนาม (วนออกทีละวง 0.8 ม. ถึง 14 ม. ในโต๊ะ); ไม่เจอคืนจุดเดิม
+func _free_spot(x: float, z: float, r: float) -> Vector2:
+	var need := r + PROP_CLEARANCE
+	if not props.blocked_at(x, z, need):
+		return Vector2(x, z)
+	var lim_x := table_w * 0.5 - 1.0
+	var lim_z := table_d * 0.5 - 1.0
+	var rr := 0.8
+	while rr <= 14.0:
+		var n := maxi(8, int(rr * 6.0))
+		for k in n:
+			var a := k * TAU / n
+			var px := x + cos(a) * rr
+			var pz := z + sin(a) * rr
+			if absf(px) <= lim_x and absf(pz) <= lim_z and not props.blocked_at(px, pz, need):
+				return Vector2(px, pz)
+		rr += 0.8
+	return Vector2(x, z)
+
 
 ## 8 ทีม × ~50 ตัว: ทีมละกองทัพจาก facs.json เดินตามพูลบอท core.json (หน่วยที่มีชุดโมเดลจริง) วางเป็นบล็อกสองแถวริมโต๊ะ
 func _compose_figures() -> Array[FigurePool.Figure]:
@@ -304,18 +348,18 @@ func _compose_figures() -> Array[FigurePool.Figure]:
 func _place_team(team: int, squads: Array, manifest: Dictionary, rng: RandomNumberGenerator, out: Array[FigurePool.Figure]) -> void:
 	var col := team % 4
 	var row := team / 4
-	var zone_w := TABLE_W / 4.0
-	var x0 := -TABLE_W * 0.5 + col * zone_w + 1.0
+	var zone_w := table_w / 4.0
+	var x0 := -table_w * 0.5 + col * zone_w + 1.0
 	var x1 := x0 + zone_w - 2.0
 	var dir := 1.0 if row == 0 else -1.0
-	var z_edge := (-TABLE_D * 0.5 + 1.4) if row == 0 else (TABLE_D * 0.5 - 1.4)
+	var z_edge := (-table_d * 0.5 + 1.4) if row == 0 else (table_d * 0.5 - 1.4)
 	var z_end := 1.0   # ความลึกสุดของเขต: ถึง |z| = z_end ก่อนกลางโต๊ะ
 	var face := 0.0 if row == 0 else PI
 	var footprint := 0.0
 	for sq in squads:
 		var rr := KitLibrary.base_radius(manifest, sq[0])
 		footprint += int(sq[1]) * (2.0 * rr + 0.3) * (2.0 * rr + 0.3)
-	var zone_area := (x1 - x0) * (TABLE_D * 0.5 - 1.4 - z_end)
+	var zone_area := (x1 - x0) * (table_d * 0.5 - 1.4 - z_end)
 	var scale := minf(1.0, sqrt(zone_area * 0.72 / maxf(footprint, 1.0)))
 	var x := x0
 	var z := z_edge
@@ -339,13 +383,16 @@ func _place_team(team: int, squads: Array, manifest: Dictionary, rng: RandomNumb
 				cx = x + r * scale
 				cz = z + dir * r * scale
 				# หลบอุปกรณ์เฉพาะตอนเขตยังเหลือที่ (ครึ่งแรก); ที่เหลือวางเลย
-				if tries < 40 and dir * z < -TABLE_D * 0.25 and props.blocked_at(cx, cz, r + PROP_CLEARANCE):
+				if tries < 40 and dir * z < -table_d * 0.25 and props.blocked_at(cx, cz, r + PROP_CLEARANCE):
 					tries += 1
 					x += 0.5
 					continue
 				break
-			cx = clampf(cx, -TABLE_W * 0.5 + 1.0, TABLE_W * 0.5 - 1.0)
-			cz = clampf(cz, -TABLE_D * 0.5 + 1.0, TABLE_D * 0.5 - 1.0)
+			cx = clampf(cx, -table_w * 0.5 + 1.0, table_w * 0.5 - 1.0)
+			cz = clampf(cz, -table_d * 0.5 + 1.0, table_d * 0.5 - 1.0)
+			var spot := _free_spot(cx, cz, r)
+			cx = spot.x
+			cz = spot.y
 			var pos := Vector3(cx, terrain.height_at(cx, cz), cz)
 			out.append(FigurePool.make(kit, team, pos, face + rng.randf_range(-0.25, 0.25), r))
 			x += w

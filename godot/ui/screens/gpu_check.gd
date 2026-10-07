@@ -136,7 +136,7 @@ func _on_copy() -> void:
 
 func _on_fit() -> void:
 	if table != null:
-		table.camera_rig.fit_table(TableView.TABLE_W, TableView.TABLE_D)
+		table.camera_rig.fit_table(table.table_w, table.table_d)
 
 
 func _on_lang() -> void:

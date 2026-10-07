@@ -60,7 +60,7 @@
 
 ```bash
 bash godot/tests/run.sh                 # quick: นำเข้า + เทสหน่วย (CI รันชุดนี้ทุก PR)
-bash godot/tests/run.sh full            # quick + เรนเดอร์ฉากทดสอบและเทสภาพทั้งสามชุดผ่าน xvfb (รูปอยู่ใน tests/out)
+bash godot/tests/run.sh full            # quick + เรนเดอร์ฉากทดสอบและเทสภาพทั้งสี่ชุดผ่าน xvfb (รูปอยู่ใน tests/out)
 python3 godot/tools/validate_data.py    # ตรวจข้อมูล ชื่อต้องห้าม คำแปลอังกฤษ ลูกเต๋า (CI รันทุก PR)
 bash godot/tests/run.sh i18n            # เฉพาะเทสที่ path มีคำนี้ (เช่น i18n, unit/core)
 GODOT=/path/to/godot TEST_OUT=/tmp/out bash godot/tests/run.sh   # เลือกไบนารีและโฟลเดอร์ผลลัพธ์ (ค่าเริ่มต้น godot/tests/out)
@@ -84,9 +84,11 @@ timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --renderin
 (`TEST_OUT` เปลี่ยนโฟลเดอร์ได้) เปิดดูรูปทุกครั้ง: ต้องเห็นโต๊ะ แสง ฟิกเกอร์ และข้อความไทยที่ไม่เป็นกล่องสี่เหลี่ยม
 คำเตือน ALSA / V-Sync ไม่เป็นไร CI อัปโหลดรูปทั้งหมดเป็น artifact ชื่อ `godot-probe`
 
-เทสภาพอีกสามชุดรันด้วยคำสั่งเดียวกันโดยเปลี่ยนสคริปต์เป็น `tests/render/test_lineup.gd` (ทุกชุดโมเดลนำเข้าถูก
-และหนึ่งตัวใช้หนึ่งคำสั่งวาด), `tests/render/test_budgets.gd` (งบวาดต่อระดับกราฟิกบนฉาก 400 ตัว — ด่านของกติกาข้อ 6)
-และ `tests/render/test_main_screens.gd` (หน้าหลักและหน้าตรวจเครื่อง ไทย/อังกฤษ) `run.sh full` รันให้ทั้งหมด
+เทสภาพอีกสี่ชุดรันด้วยคำสั่งเดียวกันโดยเปลี่ยนสคริปต์เป็น `tests/render/test_lineup.gd` (ทุกชุดโมเดลนำเข้าถูก
+และหนึ่งตัวใช้หนึ่งคำสั่งวาด), `tests/render/test_budgets.gd` (งบวาดต่อระดับกราฟิกบนฉาก 400 ตัว ทั้งสนามเริ่มต้นและสนามที่ของ
+เต็มเพดาน 480 ชิ้น — ด่านของกติกาข้อ 6), `tests/render/test_main_screens.gd` (หน้าหลักและหน้าตรวจเครื่อง ไทย/อังกฤษ)
+และ `tests/render/test_field_look.gd` (สนามจากกติกาทุกฉาก x ภูมิประเทศ 16 รูป `field_<ฉาก>_<ภูมิประเทศ>.png` + ท้องฟ้า
+ต่อฉาก: ของที่วาดครบตามกติกา ความสูงพื้นตรงกับกติกา) `run.sh full` รันให้ทั้งหมด
 
 ## ส่งออก (export)
 

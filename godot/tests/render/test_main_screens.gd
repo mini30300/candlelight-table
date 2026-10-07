@@ -55,7 +55,9 @@ func _process(_delta: float) -> bool:
 			print("scene: " + str(c))
 			_check(int(c["figures"]) == 400, "400 figures (%d)" % int(c["figures"]))
 			_check(int(c["rings"]) == 400, "400 team rings (%d)" % int(c["rings"]))
-			_check(int(c["props"]) == 480, "480 props (%d)" % int(c["props"]))
+			# the props come from the rules field of the default setup (core/field), every one of them drawn
+			_check(int(c["props"]) == int(c["field_props"]) and int(c["props"]) > 0,
+				"every prop of the rules field is drawn (%d of %d)" % [int(c["props"]), int(c["field_props"])])
 		_check(_thai_re.search(str(screen.get_node("%Title").get("text"))) != null, "Thai mode: the title is Thai")
 		_check(_thai_in(screen, []).size() > 0, "Thai mode: Thai text on screen")
 		var en_names := str(screen.get_node("%LangButton").get("text"))

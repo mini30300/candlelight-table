@@ -60,7 +60,7 @@ if [ "$MODE" = full ]; then
       echo "ok    render probe: $TEST_OUT/probe.png, probe_en.png"
     fi
     echo "== render tests (xvfb + Mesa) =="
-    for suite in render/test_lineup render/test_budgets render/test_main_screens; do
+    for suite in render/test_lineup render/test_budgets render/test_main_screens render/test_field_look; do
       name=$(basename "$suite")
       timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path godot --rendering-driver opengl3 \
         --resolution 1280x720 --audio-driver Dummy -s "tests/$suite.gd" 2>&1 | grep -v '^$' > "$TEST_OUT/$name.log"
