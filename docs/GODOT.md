@@ -57,6 +57,7 @@ under xvfb), `windows`, `android`; extended in R0-C) and this file.
 | `core/rng.gd` | `Rng`: PCG32, one stream per job (terrain, props, objectives, armies, deploy, `bot:<seat>`, `fallback:<seq>:<stage>`), unbiased `bounded`, snapshots | `static func make(`, `func next_u32(`, `func bounded(`, `func d6(`, `func restore(` | core |
 | `core/hash.gd` | `Hash`: 32-bit mixers for noise, FNV-1a 64 for digests | `static func ihash2(`, `static func fnv1a64(`, `static func digest_hex(` | core |
 | `core/events.gd`, `core/actlog.gd`, `core/table.gd` | typed event ids; the ordered act log (ints only, JSON round-trip); the `Table` base (`apply` → events, `advance`, `digest`, `replay`) | `static func id_of(`, `func append(`, `func canon(`, `func apply(`, `func advance(`, `func replay(` | core |
+| `core/data.gd` | `GameData`: loads `data/*.json` once into integers only (JSON numbers come back fractional-typed; base radius `r` becomes `r_mi`; any other fraction in the rules tables is a load problem); TYPES order kept as the cross-device contract; hidden units flagged only | `static func load_all(`, `static func ty(`, `static func index_of(`, `static func pool(`, `static func base_r_mi(`, `static func const_int(`, `static func to_mi(` | core |
 | `tests/unit/test_core_purity.gd` | the purity lint over `core/**` (forbidden tokens of ARCHITECTURE §2; a planted float fixture must fail) | `fixtures/purity_bad/` | core |
 | `data/schema/*.json`, `data/version.json`, `data/bt2_snapshot.json`, `data/bt_data.json` | JSON schemas of every table, the rules/data stamp, the server's datasheet snapshot and the file the server PR will take | — | tools |
 | `tools/validate_data.py` | the data lint CI runs: schemas, banned names of AGENTS rule 1 over `godot/` (legacy tokens hashed in `data/schema/legacy_tokens.sha1`), Thai→English completeness in `ui/**` and `app/**`, TYPES append-only, dice ≤ 60, secrets guard; `--fixtures`, `--write-version` | `def check_schema(`, `def banned_hits(`, `def thai_display_strings(` | tools |
@@ -75,7 +76,7 @@ under xvfb), `windows`, `android`; extended in R0-C) and this file.
 | `ui/screens/gpu_check.tscn` + `.gd` | the GPU-check screen: adapter, GL version, fps, draw calls, primitives, memory, level picker (render scale + shadows live), stress toggle, Thai LineEdit for the IME, copy button, Thai/English | `func refresh(`, `func _on_level(`, `func _on_copy(` | ui |
 | `tests/render/test_lineup.gd`, `test_budgets.gd`, `test_main_screens.gd` | xvfb suites: every kit imported right + one draw call per figure + paint override; the §6 budgets per level on the 400-figure scene; the main screens in Thai and English (no Thai left in English mode) | `func _render_army(`, `func _check(`, `func _thai_in(` | table + ui |
 
-Still planned (ARCHITECTURE §1): `core/field/`, `core/battle/` (R1), `core/data.gd`, `net/` (R3), `app/audio.gd` (R2), `app/selftest.gd` screen (R1), `tests/golden/`, `tests/net/`, `core/dnd/` (R4+).
+Still planned (ARCHITECTURE §1): `core/field/`, `core/battle/` (R1), `net/` (R3), `app/audio.gd` (R2), `app/selftest.gd` screen (R1), `tests/golden/`, `tests/net/`, `core/dnd/` (R4+).
 
 ## 2. Autoloads — the only global state
 
