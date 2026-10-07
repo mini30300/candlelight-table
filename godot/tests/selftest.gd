@@ -1,7 +1,7 @@
 extends SceneTree
 class_name SelfTest
 ## Self-test of a build, for the Windows smoke job in CI and for anyone holding the exported game: prints the engine
-## version, the platform and the renderer, runs every res://tests/**/test_*.gd the way tests/run_tests.gd does,
+## version, the platform and the renderer, runs the unit tests exactly as tests/run_tests.gd discovers them,
 ## writes the same lines to a report file and quits with exit code 0 (all passed) or 1. Two ways to start it:
 ##   <godot> --headless --path godot -s tests/selftest.gd -- --out /tmp/selftest.txt      (the editor binary)
 ##   an exported game: the official 4.7 templates are built without path overrides and ignore -s, so put an
@@ -15,7 +15,9 @@ class_name SelfTest
 ## The report (default user://selftest.txt) is what CI reads on Windows, where a release build has no console.
 
 const TESTS_DIR := "res://tests"
-const SKIP_DIRS: Array[String] = ["out", "oracle", "fixtures"]   # outputs, recordings and planted fixtures hold no test scripts
+## The same discovery as tests/run_tests.gd (tests/unit/** and tests/golden); the render and net suites need a
+## display or a mock server and are not unit tests.
+const RunTests := preload("res://tests/run_tests.gd")
 
 var _lines := PackedStringArray()
 var _out_path := "user://selftest.txt"
@@ -44,8 +46,8 @@ func _run() -> void:
 	_say("platform: " + OS.get_name() + " " + OS.get_version() + " " + Engine.get_architecture_name() + (" (exported build)" if not OS.has_feature("editor") else " (editor binary)"))
 	_say("renderer: " + _renderer())
 	_say("app: " + str(ProjectSettings.get_setting("application/config/name", "?")) + " " + _app_version())
-	var scripts := _discover(TESTS_DIR)
-	_say("tests: %d scripts under %s" % [scripts.size(), TESTS_DIR])
+	var scripts: PackedStringArray = RunTests.discover("")
+	_say("tests: %d scripts under %s/unit" % [scripts.size(), TESTS_DIR])
 	var passed := 0
 	var failed := 0
 	var started := Time.get_ticks_msec()
@@ -75,30 +77,6 @@ func _run() -> void:
 	_say("%s  %d passed, %d failed in %d scripts (%.1fs)" % ["PASS " if ok else "FAIL ", passed, failed, scripts.size(), secs])
 	_write_report()
 	quit(0 if ok else 1)
-
-
-## Test scripts under dir_path, recursively. In an exported game the listing shows "test_x.gdc" and
-## "test_x.gd.remap"; both are reported as "test_x.gd", which the loader resolves through the remap.
-func _discover(dir_path: String) -> PackedStringArray:
-	var out := PackedStringArray()
-	var dir := DirAccess.open(dir_path)
-	if dir == null:
-		return out
-	for d: String in dir.get_directories():
-		if not SKIP_DIRS.has(d):
-			out.append_array(_discover(dir_path + "/" + d))
-	for f: String in dir.get_files():
-		var name := f
-		if name.ends_with(".remap"):
-			name = name.trim_suffix(".remap")
-		elif name.ends_with(".gdc"):
-			name = name.trim_suffix(".gdc") + ".gd"
-		if name.begins_with("test_") and name.ends_with(".gd"):
-			var path := dir_path + "/" + name
-			if not out.has(path):
-				out.append(path)
-	out.sort()
-	return out
 
 
 func _renderer() -> String:
