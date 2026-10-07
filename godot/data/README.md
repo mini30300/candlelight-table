@@ -29,6 +29,10 @@ save), `r` 115 (base radius in inches; default 0.8 when absent), `hero` 63, `fly
 command phase), `sec` 1 and `lk` 1. Weapon objects have `nm`, `a` (attacks per model), `s`, `ap`, `d` and either `rng` +
 `bs` (ranged) or `ws` (melee); optional weapon keywords seen: `rf`, `as`, `pi`, `hv`, `su`, `tr`, `lh`, `dw`, `bl`, `po`,
 `mk`, `la`, `fx` (effect kind in `fx.json`), `trail`. The Thai legend for all of these is in `rules_summary.md`.
+**`inf`** (last field of every datasheet, 1 or 0; 166 / 108 at export time) is not a page field: it is the page's own
+`INF(k)` (foot soldier: not a vehicle, mount or creature and scale below 1.5), which the exporter calls on a temporary
+copy of the page and writes for every type. The rules core reads it through `GameData.is_inf(k)`; the lint requires it
+on every datasheet and forbids `inf: 1` on a vehicle.
 **Hidden units**: the page marks them with `sec:1` (one type, `doom`, `fac:'*'`) or `lk:'<army>'` (one type, `tagm`,
 locked to army `ta`). Both are free of the points budget (`ptsOf` skips them), limited to one per player outside
 spectator mode (`slotMax`, `fitList`) and filtered out of the roster screen (`paintRoster`). How they are unlocked is
@@ -156,7 +160,9 @@ points per objective per turn and the cap), `MAX_ROUND` 5 (default of 3–10) an
 `DEP_FOE` 20 / `DEP_MATE` 5 (deployment distances), `BLESS_INV` 5 (the `bless` aura's invulnerable save), `REZ_AURA` 4
 (the `rez` aura's repair roll), `SLOT_MAX` 99 (squads of one type per player; hidden units 1), `SPEC_TOTAL` 3000
 (models on the table in spectator mode; otherwise `baseCap()` = min(250, 500 / players)), `PROP_CAP` 480 (scatter
-props), `RULES_V` 9 (the rules version the server gates on; bump it with any rules change), `APP_VER` "9.4". Also the
+props), `RULES_V` 9 (the rules version the server gates on; bump it with any rules change), `APP_VER` "9.4",
+`GREN_R` 8 (grenade range), `HEAL_ON` 3 (the heal roll, n+), `PAIN_ROUND` 3 (first round of the dark elves' pain
+rule); the rules core treats every rules constant as a whole number and a missing one as a load problem. Also the
 page defaults `SEED` 1, `theme`, `terrain`, `buildings`, `density`, `table` `{w:48, d:34}` (metres; `d` is derived
 from `w` when the table grows), renderer `LODS` and `PANO_N`, flight `FLY_V` / `FLY_A` (m/s), and `BUDGETS`: the 99
 values of the points slider that the IIFE builds (200–2,000 by 50, 2,000–10,000 by 250, 10,000–40,000 by 1,000),

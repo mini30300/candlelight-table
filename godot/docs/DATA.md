@@ -7,7 +7,7 @@ is R0-F of `docs/PLAN.md`; ARCHITECTURE §4 (data), §9 (D&D side) and §13 (har
 
 | Path | What | Written by |
 | --- | --- | --- |
-| `data/*.json`, `data/rules_summary.md` | the battle table's tables, cut out of `battle-table.html` | `tools/export_data.js` (never by hand) |
+| `data/*.json`, `data/rules_summary.md` | the battle table's tables, cut out of `battle-table.html`; `types.json` also carries `inf` (the page's `INF(k)`) on every datasheet | `tools/export_data.js` (never by hand); `node godot/tools/export_data.js --check` compares a fresh export with `data/` byte for byte (local only: needs Node, Playwright and Chromium) |
 | `data/schema/*.json` | one JSON Schema (draft 2020-12 vocabulary) per table shape: `unit.json`, `weapon.json`, `army.json` (+ `$defs/core`), `theme.json` (+ `$defs/table`), `ability.json`, `i18n.json`, `map_layout.json`, `monster.json`, `tables.json` (every other table, `version`, `bt2_snapshot`, `bt_data`) | by hand; every field a table carries must be in its schema (`additionalProperties: false` everywhere) |
 | `data/schema/legacy_tokens.sha1` | SHA-1 baseline of the old identifiers that carry a word of AGENTS.md rule 1 | `validate_data.py --write-legacy`, in a dedicated PR only |
 | `data/version.json` | `rules_ver` 10 (the new app), the page's `APP_VER`/`RULES_V` the export came from, `data_hash` = sha256 of every `data/*.json` except itself, concatenated in sorted file-name order | `validate_data.py --write-version` |
@@ -54,7 +54,7 @@ The Worker's tables are JavaScript literals (bare keys, single quotes, trailing 
 a small literal parser; anchors are matched only at the start of a declaration line and outside strings, because the
 Worker also embeds the whole web pages as one-line string constants. `BT2` is compared with `types.json` field by
 field (`--strict` turns differences into errors); the Worker does not carry the page-only fields `veh`, `ch`, `sec`,
-`lk`, which are skipped. After a datasheet change the order is: page → `export_data.js` → `--write-version` → server
+`lk`, nor the exporter's derived `inf`, which are skipped. After a datasheet change the order is: page → `export_data.js` → `--write-version` → server
 PR (`BT2`, `BT_RULES`) → `gen_bt_data.py --worker` → commit the snapshot; **candlelight-server merges first**.
 
 `bt_data.json` is what a future server endpoint would serve the new app (R3): `armies[]` (English names from
