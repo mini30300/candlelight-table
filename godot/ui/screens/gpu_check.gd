@@ -150,8 +150,9 @@ func _on_lang() -> void:
 	set_language(not I18n.english)
 
 
-## กลับมาจากหน้าอื่น (อาจสลับภาษาไว้): วาดข้อความใหม่
+## กลับมาจากหน้าอื่น (อาจสลับภาษาไว้): วาดข้อความใหม่ · ถูกหน้าอื่นบังอยู่ก็หยุดนับตัวเลข
 func _on_visibility() -> void:
+	timer.paused = not visible
 	if visible:
 		refresh()
 

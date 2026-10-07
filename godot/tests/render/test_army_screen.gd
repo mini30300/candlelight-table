@@ -76,6 +76,8 @@ func _run() -> void:
 		_finish()
 		return
 	_check(not (gpu as CanvasItem).visible, "the GPU-check screen is hidden under it")
+	_check((gpu.get_node("%Timer") as Timer).paused, "the hidden GPU-check screen stops its counter timer")
+	_check(int(screen.get("random_seed")) >= 1, "the random seed starts at a positive number (%d)" % int(screen.get("random_seed")))
 	var table := _main.get_node_or_null(^"World/BattleTable") as Node3D
 	_check(table != null and not table.visible, "the 3D table is hidden while the opaque army screen is open")
 	_check(str(screen.get("roster").get("fac")) == "mod", "the default army is the soldiers (the page's facOf)")
@@ -92,6 +94,7 @@ func _run() -> void:
 	await _frames(2)
 	_check(_app().call("current") == gpu, "the back button returns to the GPU-check screen")
 	_check((gpu as CanvasItem).visible, "the GPU-check screen is shown again")
+	_check(not (gpu.get_node("%Timer") as Timer).paused, "its counter timer runs again")
 	_check(table == null or table.visible, "the 3D table is shown again")
 	_check(_thai_re.search(str(gpu.get_node("%Title").get("text"))) != null, "the GPU-check screen redraws in Thai after the round trip")
 	_finish()
@@ -316,6 +319,15 @@ func _check_targets_and_layout(screen: Node) -> void:
 			outside.append("%s %s" % [c.name, str(r)]))
 	_check(small.is_empty(), "every button is at least 44x44", str(small.slice(0, 8)))
 	_check(outside.is_empty(), "nothing sticks out of the %dx%d canvas sideways" % [int(vis.x), int(vis.y)], str(outside.slice(0, 8)))
+	# the weapon table keeps its own width (numbers next to the names) and stays inside its card on wide canvases
+	var wide := PackedStringArray()
+	for k in screen.call("listed_units"):
+		var card: Control = screen.call("card", k)
+		for g in card.find_children("*", "GridContainer", true, false):
+			var grid := g as GridContainer
+			if grid.size.x > grid.get_combined_minimum_size().x + 1.0 or grid.get_global_rect().end.x > card.get_global_rect().end.x + 1.0:
+				wide.append("%s %.0f/%.0f" % [k, grid.size.x, grid.get_combined_minimum_size().x])
+	_check(wide.is_empty(), "every weapon table keeps its own width inside its card", str(wide.slice(0, 8)))
 	for n in ["TopBar", "PreviewPanel"]:
 		var c := screen.find_child(n, true, false) as Control
 		var r := c.get_global_rect()

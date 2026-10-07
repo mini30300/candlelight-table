@@ -11,6 +11,7 @@ const CHAPTERS_PATH := "res://data/chapters.json"
 const BOLD := preload("res://assets/fonts/Sarabun-Bold.ttf")
 const TAP_SLOP := 12.0          # ขยับนิ้วไม่เกินนี้ (px) ถือว่าแตะการ์ด ไม่ใช่เลื่อน
 const TARGET := 48.0            # ปุ่มแตะ ≥ 44 px
+const WEAPON_NAME_W := 220.0    # ช่องชื่ออาวุธ: ตารางไม่ยืดตามจอกว้าง ตัวเลขจะได้อยู่ใกล้ชื่อ
 
 const CREAM := Color(1.0, 0.96, 0.88)
 const INK := Color(0.95, 0.95, 0.93)
@@ -48,7 +49,7 @@ const ARMY_BG := Color(0.13, 0.12, 0.155)
 
 var roster: ArmyRoster
 var selected := ""               # หน่วยที่ดูหน้าตาอยู่
-var random_seed := 1             # seed ของการกดสุ่มครั้งถัดไป (เพิ่มทีละหนึ่ง)
+var random_seed := 1             # seed ของการกดสุ่มครั้งถัดไป (เพิ่มทีละหนึ่ง; เริ่มจากนาฬิกา เปิดหน้าใหม่ได้กองใหม่)
 
 var _manifest: Dictionary = {}
 var _chapters: Dictionary = {}
@@ -71,7 +72,8 @@ func _ready() -> void:
 	var ch: Variant = JSON.parse_string(FileAccess.get_file_as_string(CHAPTERS_PATH)) if FileAccess.file_exists(CHAPTERS_PATH) else null
 	_chapters = ch if ch is Dictionary else {}
 	roster = ArmyRoster.new()
-	random_seed = maxi(1, GameData.const_int("SEED", 1))
+	# แค่หน้าจอ ไม่ใช่กติกา: กองที่สุ่มได้ส่งขึ้นห้องเป็นรายชื่อ ทุกเครื่องจึงยังเห็นกองเดียวกัน
+	random_seed = maxi(1, int(Time.get_unix_time_from_system()) % 1000000 * 1000 + Time.get_ticks_msec() % 1000)
 	preview.manifest = _manifest
 	preview.set_level(App.gfx)
 	back_button.pressed.connect(_on_back)
@@ -319,6 +321,7 @@ func _make_card(k: String, t: Dictionary) -> PanelContainer:
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 2)
 	grid.mouse_filter = Control.MOUSE_FILTER_PASS
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	for h in DatasheetText.weapon_head():
 		var hl := _label(h.to_upper(), 12, DIM, true)
 		if grid.get_child_count() == 0:
@@ -336,7 +339,7 @@ func _make_card(k: String, t: Dictionary) -> PanelContainer:
 			var cell := _label(row[i], 15, INK if i > 0 else CREAM, i == 0)
 			if i == 0:
 				cell.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-				cell.custom_minimum_size = Vector2(120.0, 0.0)
+				cell.custom_minimum_size = Vector2(WEAPON_NAME_W, 0.0)
 				cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			else:
 				cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
