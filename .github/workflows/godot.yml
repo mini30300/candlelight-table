@@ -3,7 +3,8 @@
 # แนบไว้ใน release build-N อันเดียวกับแอปเก่า · ของที่ได้: godot-kits, godot-probe (รูป), godot-windows (zip), godot-android (apk)
 name: Godot
 on:
-  push:
+  push:                   # main only: a PR branch gets its run from the pull_request event (one run per push, not two)
+    branches: [ main ]
     paths: [ 'godot/**', '.github/workflows/godot.yml' ]
   pull_request:
     paths: [ 'godot/**', '.github/workflows/godot.yml' ]
