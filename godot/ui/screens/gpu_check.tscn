@@ -1,0 +1,122 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/gpu_check.gd" id="1_gpu"]
+[ext_resource type="FontFile" path="res://assets/fonts/Sarabun-Bold.ttf" id="2_bold"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 12.0
+bg_color = Color(0.06, 0.05, 0.07, 0.72)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="GpuCheck" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_gpu")
+
+[node name="Timer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.5
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 472.0
+offset_bottom = 12.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Column" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.88, 1)
+theme_override_fonts/font = ExtResource("2_bold")
+theme_override_font_sizes/font_size = 26
+text = "ตรวจการ์ดจอ"
+
+[node name="Info" type="Label" parent="Panel/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.93, 1)
+theme_override_font_sizes/font_size = 17
+text = "…"
+autowrap_mode = 3
+
+[node name="LevelRow" type="HBoxContainer" parent="Panel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LevelLabel" type="Label" parent="Panel/Column/LevelRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ระดับกราฟิก"
+
+[node name="LevelPicker" type="OptionButton" parent="Panel/Column/LevelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StressToggle" type="CheckButton" parent="Panel/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "ทดสอบหนัก: +400 แข็ง +100 ขยับได้"
+
+[node name="NameLabel" type="Label" parent="Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "พิมพ์ชื่อไทยที่นี่ (ทดสอบแป้นพิมพ์)"
+
+[node name="NameEdit" type="LineEdit" parent="Panel/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+placeholder_text = "ชื่อของคุณ"
+
+[node name="Buttons" type="HBoxContainer" parent="Panel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CopyButton" type="Button" parent="Panel/Column/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "คัดลอกตัวเลข"
+
+[node name="FitButton" type="Button" parent="Panel/Column/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "ซูมให้พอดีโต๊ะ"
+
+[node name="LangButton" type="Button" parent="Panel/Column/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "ENGLISH"
+
+[node name="Hint" type="Label" parent="Panel/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.87, 0.78, 1)
+theme_override_font_sizes/font_size = 15
+text = "…"
+autowrap_mode = 3
