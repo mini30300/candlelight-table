@@ -15,7 +15,11 @@ func test_autoload_is_live() -> void:
 	assert_true(AppScript.GFX_LEVELS.has(App.gfx), "gfx level is one of hi/mid/lo/min: " + App.gfx)
 	assert_true(AppScript.LANGS.has(App.lang), "lang is th or en: " + App.lang)
 	assert_true(App.server.begins_with("http"), "server URL is set: " + App.server)
-	assert_eq(App.current(), null, "no screen is pushed at start")
+	# the live App may already show a screen (inside the exported game main.tscn pushes the GPU check),
+	# so the empty start state is checked on a fresh instance
+	var fresh: Node = AppScript.new()
+	assert_eq(fresh.current(), null, "a fresh App has no screen pushed")
+	fresh.free()
 
 
 func test_settings_round_trip() -> void:
