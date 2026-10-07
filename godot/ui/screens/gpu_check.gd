@@ -3,6 +3,9 @@ extends Control
 ## ปุ่มทดสอบหนัก (+400 แข็ง +100 ขยับได้), ตัวเลือกระดับกราฟิก (ปรับ render scale/เงาทันที แล้วบันทึก), ช่องพิมพ์ไทย
 ## (ทดสอบแป้นพิมพ์), สลับไทย/อังกฤษ, คัดลอกตัวเลข · ตัวเลขอัปเดตทุก 0.5 วิด้วย Timer (ไม่มี _process)
 ## แผงอยู่ซ้ายบน ส่วนที่เหลือของจอทะลุไปโต๊ะ (mouse_filter = ignore) กล้องจึงลาก/หนีบได้
+## ปุ่ม "จัดกองทัพ ›" ส่งสัญญาณ army_requested ให้ main.gd เปิดหน้าจัดกองทัพ (กลับมาแล้ววาดข้อความใหม่ตามภาษา)
+
+signal army_requested
 
 const TITLE := "ตรวจการ์ดจอ"
 const HINT := "แตะเพื่อเลือกฟิกเกอร์ · ลากเพื่อเลื่อน · สองนิ้วซูม/หมุน · ล้อเมาส์ซูม · คลิกขวาลากหมุน · WASD เลื่อน"
@@ -23,6 +26,7 @@ const COPIED_MS := 2000
 @onready var copy_button: Button = %CopyButton
 @onready var fit_button: Button = %FitButton
 @onready var lang_button: Button = %LangButton
+@onready var army_button: Button = %ArmyButton
 @onready var hint: Label = %Hint
 @onready var timer: Timer = %Timer
 
@@ -42,6 +46,8 @@ func _ready() -> void:
 	copy_button.pressed.connect(_on_copy)
 	fit_button.pressed.connect(_on_fit)
 	lang_button.pressed.connect(_on_lang)
+	army_button.pressed.connect(func() -> void: army_requested.emit())
+	visibility_changed.connect(_on_visibility)
 	timer.wait_time = INFO_EVERY
 	timer.timeout.connect(_update_info)
 	timer.start()
@@ -70,6 +76,7 @@ func refresh() -> void:
 	copy_button.text = I18n.t("คัดลอกตัวเลข")
 	fit_button.text = I18n.t("ซูมให้พอดีโต๊ะ")
 	lang_button.text = BUTTON_TO_THAI if I18n.english else BUTTON_TO_ENGLISH
+	army_button.text = I18n.t("จัดกองทัพ ›")
 	hint.text = I18n.t(HINT)
 	_update_info()
 
@@ -141,6 +148,12 @@ func _on_fit() -> void:
 
 func _on_lang() -> void:
 	set_language(not I18n.english)
+
+
+## กลับมาจากหน้าอื่น (อาจสลับภาษาไว้): วาดข้อความใหม่
+func _on_visibility() -> void:
+	if visible:
+		refresh()
 
 
 static func _mb(bytes: int) -> String:

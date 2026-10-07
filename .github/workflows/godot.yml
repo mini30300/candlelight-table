@@ -132,9 +132,9 @@ jobs:
         run: |
           timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
             --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd
-      - name: Render tests (line-up of every kit, per-level budgets, the main screens in Thai and English, the field look)
+      - name: Render tests (line-up of every kit, per-level budgets, the main screens and the army picker in Thai and English, the field look)
         run: |
-          for suite in render/test_lineup render/test_budgets render/test_main_screens render/test_field_look; do
+          for suite in render/test_lineup render/test_budgets render/test_main_screens render/test_field_look render/test_army_screen; do
             echo "== $suite"
             timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
               --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s "tests/$suite.gd" 2>&1 | grep -v '^$' | tee "$RUNNER_TEMP/$(basename "$suite").log"

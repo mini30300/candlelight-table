@@ -69,6 +69,56 @@ static func base_radius(manifest: Dictionary, name: String) -> float:
 	return DEFAULT_BASE_R
 
 
+## ที่อยู่ไฟล์ของชุด (โหลดด้วย load(); ในแอปที่ export แล้วก็ใช้ชื่อเดิม)
+static func kit_path(name: String) -> String:
+	return KITS_DIR + "/" + name + ".glb"
+
+
+static func has_kit(name: String) -> bool:
+	return name != "" and ResourceLoader.exists(kit_path(name))
+
+
+## กล่องขอบเขตของเมช (เมตร) จาก bbox ใน kits.json; ไม่มีก็คืน AABB ว่าง (size = 0)
+static func bounds(manifest: Dictionary, name: String) -> AABB:
+	var kit: Variant = manifest.get(name)
+	if not (kit is Dictionary) or not (kit.get("bbox") is Array) or (kit["bbox"] as Array).size() != 2:
+		return AABB()
+	var lo: Variant = kit["bbox"][0]
+	var hi: Variant = kit["bbox"][1]
+	if not (lo is Array and hi is Array and (lo as Array).size() == 3 and (hi as Array).size() == 3):
+		return AABB()
+	var a := Vector3(float(lo[0]), float(lo[1]), float(lo[2]))
+	var b := Vector3(float(hi[0]), float(hi[1]), float(hi[2]))
+	return AABB(a, b - a).abs()
+
+
+## สีหลักสองสีของชุด (ป้ายสีบนการ์ดหน่วย): ชิ้น plate/trim ก่อน แล้วชิ้นที่ทาสีได้ตัวแรก ๆ ตามลำดับใน kits.json
+static func kit_colours(manifest: Dictionary, name: String) -> Array[Color]:
+	var out: Array[Color] = []
+	var kit: Variant = manifest.get(name)
+	if not (kit is Dictionary) or not (kit.get("materials") is Array):
+		return out
+	var mats: Array = kit["materials"]
+	var order: Array = []
+	for want in ["plate", "trim"]:
+		for m in mats:
+			if m is Dictionary and str(m.get("key", "")) == want:
+				order.append(m)
+	for m in mats:
+		if m is Dictionary and bool(m.get("tint", false)) and not order.has(m):
+			order.append(m)
+	for m in mats:
+		if m is Dictionary and not order.has(m):
+			order.append(m)
+	for m in order:
+		var rgb: Variant = (m as Dictionary).get("rgb")
+		if rgb is Array and (rgb as Array).size() == 3:
+			out.append(Color8(int(rgb[0]), int(rgb[1]), int(rgb[2])))
+		if out.size() == 2:
+			break
+	return out
+
+
 ## ตำแหน่ง x ของแต่ละตัวในแถว (กึ่งกลางแถวอยู่ที่ 0) จากรัศมีฐาน
 static func row_positions(radii: PackedFloat32Array, gap: float = GAP) -> PackedFloat32Array:
 	var xs := PackedFloat32Array()
