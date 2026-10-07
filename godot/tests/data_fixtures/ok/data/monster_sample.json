@@ -1,0 +1,25 @@
+{
+  "k": "skeleton",
+  "nm": {"th": "โครงกระดูกเดินได้", "en": "Walking skeleton"},
+  "d": {"th": "ซากนักรบที่ลุกขึ้นมาอีกครั้ง ช้าแต่ไม่รู้จักกลัว", "en": "A fallen warrior up again: slow, and it knows no fear"},
+  "kit": "mummy",
+  "scale": 100,
+  "palette": {"bone": [226, 220, 200], "steel": [120, 124, 130]},
+  "stats": {
+    "n": 1,
+    "mv": 5,
+    "T": 3,
+    "sv": 6,
+    "w": 2,
+    "ld": 12,
+    "oc": 1,
+    "brave": 1,
+    "rez": 5,
+    "gun": null,
+    "mel": {"nm": "ดาบขึ้นสนิม", "a": 2, "ws": 4, "s": 3, "ap": 0, "d": 1}
+  },
+  "tags": ["undead", "humanoid"],
+  "ai": "brute",
+  "cr": 1,
+  "loot": "bones"
+}

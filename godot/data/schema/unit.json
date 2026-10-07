@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "unit.json",
+  "title": "Battle-table unit datasheet (one entry of data/types.json)",
+  "description": "The array order of types.json is the cross-device protocol: an army list is an array of squad counts indexed by this position. Append only, never insert, reorder or delete (tools/validate_data.py checks it against the previous commit). Every stat is an integer except r. Thai strings (nm, d, weapon nm, ch) must be keys of data/i18n_en.json. sec and lk are opaque hidden-unit flags carried as-is.",
+  "type": "object",
+  "required": [
+    "k",
+    "fac",
+    "nm",
+    "d",
+    "n",
+    "pts",
+    "mv",
+    "T",
+    "sv",
+    "w",
+    "ld",
+    "oc",
+    "gun",
+    "mel"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "k": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*$",
+      "description": "unique key; also the figure kit key and the server's datasheet key"
+    },
+    "fac": {
+      "type": "string",
+      "pattern": "^(\\*|[a-z]{2,3})$",
+      "description": "army code from facs.json, or '*' = every army"
+    },
+    "nm": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "Thai unit name; must be a key of data/i18n_en.json"
+    },
+    "d": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "Thai description; must be a key of data/i18n_en.json"
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30,
+      "description": "models per squad"
+    },
+    "pts": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000,
+      "description": "points per squad"
+    },
+    "mv": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 40,
+      "description": "move in inches"
+    },
+    "T": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30,
+      "description": "toughness"
+    },
+    "sv": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 7,
+      "description": "armour save n+ (7 = none)"
+    },
+    "inv": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 6,
+      "description": "invulnerable save n++ (AP does not apply)"
+    },
+    "w": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 999,
+      "description": "wounds per model"
+    },
+    "ld": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 12,
+      "description": "leadership: nerve test passes on 2d6 >= ld"
+    },
+    "oc": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "objective control per model"
+    },
+    "r": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 20,
+      "description": "base radius in inches (default 0.8 when absent). The one non-integer field in a datasheet; core converts it once to MI (r*1000) and never uses the float"
+    },
+    "gun": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "weapon.json#/$defs/ranged"
+        }
+      ],
+      "description": "ranged weapon, or null = must charge"
+    },
+    "mel": {
+      "$ref": "weapon.json#/$defs/melee",
+      "description": "melee weapon"
+    },
+    "hero": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "character"
+    },
+    "brave": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "always passes the nerve test"
+    },
+    "aoc": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "armour of faith: incoming AP is 1 lower"
+    },
+    "aura": {
+      "enum": [
+        "hit",
+        "ld",
+        "bless",
+        "rez",
+        "veil"
+      ],
+      "description": "aura within AURA_R (6\"): hit +1 / pass nerve / 5++ save / reanimate on REZ_AURA+ / -1 to be hit by shooting"
+    },
+    "ca": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "+1 attack per model in melee on the turn it charged"
+    },
+    "ac": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "may charge after advancing"
+    },
+    "fly": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "flies: may shoot and charge after falling back (flight height is visual, fly.json)"
+    },
+    "st": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "stealth: -1 to hit it with ranged attacks"
+    },
+    "rez": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 6,
+      "description": "reanimates: fallen models stand up on rez+ in the command phase"
+    },
+    "heel": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "an unmodified 6 to wound slays him"
+    },
+    "wind": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 6,
+      "description": "stands up at the next command phase; first time for sure, later on wind+"
+    },
+    "spawn": {
+      "type": "object",
+      "description": "a squad carried inside, comes out from round 2 or when destroyed",
+      "required": [
+        "k",
+        "n"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$",
+          "description": "unit key carried inside"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "models that come out"
+        }
+      }
+    },
+    "heal": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "description": "heals a friendly squad within heal\" instead of shooting"
+    },
+    "ttn": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "titanic: shoots while engaged, acts after falling back"
+    },
+    "veh": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "vehicle"
+    },
+    "vsh": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "description": "void shield layers; each swallows one failed save's damage, all return at the command phase"
+    },
+    "gk": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "glory: every model it slays in melee heals it one wound"
+    },
+    "hd": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "takes half damage, rounded up"
+    },
+    "ch": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "chapter heading (power-armour knights): a key of chapters.json"
+    },
+    "sec": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "opaque hidden-unit flag"
+    },
+    "lk": {
+      "type": "string",
+      "minLength": 1,
+      "description": "opaque hidden-unit flag"
+    }
+  },
+  "$defs": {
+    "flag": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "thai": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]"
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*$"
+    },
+    "stats": {
+      "type": "object",
+      "description": "the stats block shared with monster.json: a datasheet without key, army, names and points",
+      "required": [
+        "n",
+        "mv",
+        "T",
+        "sv",
+        "w",
+        "ld",
+        "oc",
+        "gun",
+        "mel"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "$ref": "#/properties/n"
+        },
+        "mv": {
+          "$ref": "#/properties/mv"
+        },
+        "T": {
+          "$ref": "#/properties/T"
+        },
+        "sv": {
+          "$ref": "#/properties/sv"
+        },
+        "inv": {
+          "$ref": "#/properties/inv"
+        },
+        "w": {
+          "$ref": "#/properties/w"
+        },
+        "ld": {
+          "$ref": "#/properties/ld"
+        },
+        "oc": {
+          "$ref": "#/properties/oc"
+        },
+        "r": {
+          "$ref": "#/properties/r"
+        },
+        "gun": {
+          "$ref": "#/properties/gun"
+        },
+        "mel": {
+          "$ref": "#/properties/mel"
+        },
+        "hero": {
+          "$ref": "#/properties/hero"
+        },
+        "brave": {
+          "$ref": "#/properties/brave"
+        },
+        "aoc": {
+          "$ref": "#/properties/aoc"
+        },
+        "aura": {
+          "$ref": "#/properties/aura"
+        },
+        "ca": {
+          "$ref": "#/properties/ca"
+        },
+        "ac": {
+          "$ref": "#/properties/ac"
+        },
+        "fly": {
+          "$ref": "#/properties/fly"
+        },
+        "st": {
+          "$ref": "#/properties/st"
+        },
+        "rez": {
+          "$ref": "#/properties/rez"
+        },
+        "heal": {
+          "$ref": "#/properties/heal"
+        },
+        "ttn": {
+          "$ref": "#/properties/ttn"
+        },
+        "vsh": {
+          "$ref": "#/properties/vsh"
+        },
+        "gk": {
+          "$ref": "#/properties/gk"
+        },
+        "hd": {
+          "$ref": "#/properties/hd"
+        }
+      }
+    }
+  }
+}
