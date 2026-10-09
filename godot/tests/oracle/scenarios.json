@@ -138,6 +138,30 @@
       "mode": "pvp", "teams": 2, "perTeam": 1, "budget": 400, "goal": "obj", "rounds": 3, "clock": 25, "auto": true,
       "human": { "seat": 0, "policy": "idle" },
       "seats": [ { "list": [["levy", 1], ["xbow", 1], ["mknight", 1]], "dep": "auto" },
-                 { "list": [["gaunt", 1], ["warrior", 1], ["brute", 1]], "dep": "auto" } ] }
+                 { "list": [["gaunt", 1], ["warrior", 1], ["brute", 1]], "dep": "auto" } ] },
+
+    { "name": "two_human_charge_keep_manual_dice_norse_vs_greek_kill_forest_flat_44", "seed": 2121, "size": 44, "theme": "forest", "terrain": "flat", "buildings": true, "density": 1,
+      "mode": "pvp", "teams": 2, "perTeam": 1, "budget": 500, "goal": "kill", "rounds": 5, "auto": false,
+      "human": { "seat": 0, "policy": "scripted", "odds": { "chrr": 0, "rr": 0, "gtg": 0, "brave": 0, "ow": 0, "gren": 0, "shoot": 0 } },
+      "seats": [ { "list": [["viking", 2], ["berserk", 1], ["valkyrie", 1]], "dep": "auto" },
+                 { "list": [["hoplite", 2], ["archer", 1], ["cavalry", 1]], "dep": "auto" } ] },
+
+    { "name": "two_human_claude_form_moves_soldiers_vs_orcs_obj_ruin_hills_50", "seed": 2222, "size": 50, "theme": "ruin", "terrain": "hills", "buildings": true, "density": 1,
+      "mode": "pvp", "teams": 2, "perTeam": 1, "budget": 500, "goal": "obj", "rounds": 3, "auto": true,
+      "human": { "seat": 0, "policy": "scripted", "odds": { "claude": 1, "shoot": 0.7 } },
+      "seats": [ { "list": [["infantry", 2], ["heavy", 1], ["tank", 1]], "dep": "auto" },
+                 { "list": [["boy", 2], ["nob", 1], ["loota", 1]], "dep": "auto" } ] },
+
+    { "name": "two_human_staged_shots_manual_dice_medieval_vs_swarm_obj_desert_hills_54", "seed": 2323, "size": 54, "theme": "desert", "terrain": "hills", "buildings": true, "density": 1,
+      "mode": "pvp", "teams": 2, "perTeam": 1, "budget": 500, "goal": "obj", "rounds": 3, "auto": false,
+      "human": { "seat": 0, "policy": "scripted", "odds": { "shoot": 0, "gren": 0 } },
+      "seats": [ { "list": [["lbow", 1], ["xbow", 1], ["ballista", 1], ["maa", 1]], "dep": "auto" },
+                 { "list": [["gaunt", 2], ["warrior", 1], ["spitter", 1]], "dep": "auto" } ] },
+
+    { "name": "two_human_heal_grenade_knights_vs_orcs_kill_ice_flat_30", "seed": 2424, "size": 30, "theme": "ice", "terrain": "flat", "buildings": true, "density": 1,
+      "mode": "pvp", "teams": 2, "perTeam": 1, "budget": 500, "goal": "kill", "rounds": 5, "auto": true,
+      "human": { "seat": 0, "policy": "scripted", "odds": { "gren": 0.7, "shoot": 0, "adv": 0, "hold": 0, "rr": 0, "gtg": 0, "brave": 0, "ow": 0, "chrr": 0 } },
+      "seats": [ { "list": [["knight", 2], ["ktech", 2]], "dep": "auto" },
+                 { "list": [["loota", 2], ["boy", 1]], "dep": "auto" } ] }
   ]
 }

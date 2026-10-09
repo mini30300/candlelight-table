@@ -8,6 +8,7 @@
 //   node godot/tools/record_oracle.js --only a,b      only these scenarios (repeatable)
 //   node godot/tools/record_oracle.js --check         re-record into a temp folder and diff byte for byte (determinism)
 //   node godot/tools/record_oracle.js --histogram     count act codes over the recordings; fail unless every code occurs
+//   node godot/tools/record_oracle.js --hash-samples  sample the page's hash2/hash3 in Node into godot/tests/oracle/page_hash.json
 //   --gzip / --plain   write .json.gz (default when scenarios.json says "gzip": true) or plain .json
 //   --out <dir>        write somewhere else (the check uses this)      --cap <n>  step cap override
 // Environment: PAGE=<battle-table.html>  CHROMIUM_PATH=<chrome>  (as tests/run.sh);  NODE_PATH or tests/node_modules for playwright.
@@ -31,13 +32,14 @@ function loadPlaywright(){
 }
 
 // ---------- command line ----------
-const argv = process.argv.slice(2), opt = { only: [], check: false, histogram: false, gzip: null, out: null, cap: null };
+const argv = process.argv.slice(2), opt = { only: [], check: false, histogram: false, hashSamples: false, gzip: null, out: null, cap: null };
 for (let i = 0; i < argv.length; i++){
   const a = argv[i];
   if (a === '--only') opt.only.push(...String(argv[++i] || '').split(',').filter(Boolean));
   else if (a.startsWith('--only=')) opt.only.push(...a.slice(7).split(',').filter(Boolean));
   else if (a === '--check') opt.check = true;
   else if (a === '--histogram') opt.histogram = true;
+  else if (a === '--hash-samples') opt.hashSamples = true;
   else if (a === '--gzip') opt.gzip = true;
   else if (a === '--plain') opt.gzip = false;
   else if (a === '--out') opt.out = path.resolve(argv[++i]);
@@ -51,7 +53,7 @@ function readRecording(file){
   return JSON.parse((file.endsWith('.gz') ? zlib.gunzipSync(buf) : buf).toString('utf8'));
 }
 function listRecordings(dir){
-  return fs.readdirSync(dir).filter(f => /\.json(\.gz)?$/.test(f) && f !== 'scenarios.json' && f !== 'allowlist.json').sort()
+  return fs.readdirSync(dir).filter(f => /\.json(\.gz)?$/.test(f) && f !== 'scenarios.json' && f !== 'allowlist.json' && f !== 'page_hash.json').sort()
     .map(f => path.join(dir, f));
 }
 // one element per line for the long arrays, so a diff reads act by act; key order is insertion order (fixed)
@@ -108,6 +110,9 @@ function pageLib(){
       l[idx] += n; });
     return l; };
   O.keysOf = function(list){ var out = [], i; for (i = 0; i < list.length; i++) if (list[i]) out.push([BT.TYPES[i].k, list[i]]); return out; };
+  // the scripted human's odds (scenario human.odds overrides each): stratagems, grenade/whole-shot share, Claude-form moves
+  O.ODDS = { rr: 0.6, gtg: 0.7, brave: 0.7, ow: 0.85, chrr: 0.8, hold: 0.5, adv: 0.35, gren: 0.15, shoot: 0.3, claude: 0 };
+  O.inj = [];
   O.setup = function(sc, role, deps){
     var G = BT.G, h = sc.human ? sc.human.seat : -1, i;
     BT.clock(false); BT.quit();
@@ -125,7 +130,9 @@ function pageLib(){
     if (net && role === 'A') BT.setServer('http://127.0.0.1:9');
     G.mePl = role === 'A' ? h : -1;
     BT.setAuto(sc.auto !== false);
-    O.H = h >= 0 ? { seat: h, policy: (sc.human && sc.human.policy) || 'scripted', tries: {} } : null;
+    var odds = {}, ok; for (ok in O.ODDS) odds[ok] = O.ODDS[ok];
+    if (sc.human && sc.human.odds) for (ok in sc.human.odds) odds[ok] = +sc.human.odds[ok];
+    O.H = h >= 0 ? { seat: h, policy: (sc.human && sc.human.policy) || 'scripted', tries: {}, odds: odds } : null; O.inj = [];
     O.rngD = xs((sc.seed * 2654435761) ^ 0x9E3779B9); O.rngH = xs(((sc.seed + 1) * 40503) ^ 0x7F4A7C15);
     // deployment points: given (B gets A's), explicit, or the page's own autoDep in seat order
     var out = [];
@@ -135,11 +142,13 @@ function pageLib(){
     BT.capture(true); BT.start(); var leak = BT.capture(true);
     if (leak.length) throw new Error('start() sent acts: ' + JSON.stringify(leak).slice(0, 200));
     var skins = {}; BT.units.forEach(function(u){ if (u.skn) skins[u.id] = u.skn; });
+    // the raw deployed positions (rules position, unrounded) and the facing the page gave each model
+    var units0 = BT.units.map(function(u){ return { id: u.id, x: u.gx != null ? u.gx : u.x, z: u.gz != null ? u.gz : u.z, rot: u.rot || 0 }; });
     var setup = BT.curSetup(); setup.d = BT.table.d;
     var ptsOf = function(L){ var p = 0, q; for (q = 0; q < L.length; q++) if (L[q] && !BT.TYPES[q].sec && !BT.TYPES[q].lk) p += BT.TYPES[q].pts * L[q]; return p; };
     return { setup: setup, deps: out, lists: ps.map(function(P){ return O.keysOf(P.list); }),
       seats: ps.map(function(P){ return { team: P.team, bot: !!P.bot, fac: P.fac, pts: ptsOf(P.list) }; }),
-      skins: skins, props: BT.props(), obj: BT.obj().map(function(o){ return { n: o.n, x: o.x, z: o.z }; }), board0: BT.board() };
+      skins: skins, units0: units0, props: BT.props(), obj: BT.obj().map(function(o){ return { n: o.n, x: o.x, z: o.z }; }), board0: BT.board() };
   };
   O.center = function(s){ var ms = BT.sqModels(s), x = 0, z = 0; ms.forEach(function(m){ x += m.gx != null ? m.gx : m.x; z += m.gz != null ? m.gz : m.z; });
     return { x: x / (ms.length || 1), z: z / (ms.length || 1) }; };
@@ -149,12 +158,12 @@ function pageLib(){
   O.clickEnd = function(){ document.getElementById('btEnd').click(); };
   // the human seat's choices on the tray (manual dice path): stratagems when the seat can pay for them
   O.humanOpts = function(r){
-    var seat = O.H.seat, p = O.rnd();
-    if (r === 'wound:human'){ if (p < 0.6 && BT.stratOk('rr', seat)) O.clickTray('rr'); return {}; }
-    if (r === 'save:human') return { gtg: p < 0.7 && BT.stratOk('gtg', seat) };
-    if (r === 'shock.shock:human') return { brave: p < 0.7 && BT.stratOk('brave', seat) };
-    if (r === 'chg.ow:human') return { yes: p < 0.85 && BT.stratOk('ow', seat) };
-    if (r === 'chg.chrr:human') return { yes: p < 0.8 && BT.stratOk('rr', seat) };
+    var seat = O.H.seat, p = O.rnd(), q = O.H.odds;
+    if (r === 'wound:human'){ if (p < q.rr && BT.stratOk('rr', seat)) O.clickTray('rr'); return {}; }
+    if (r === 'save:human') return { gtg: p < q.gtg && BT.stratOk('gtg', seat) };
+    if (r === 'shock.shock:human') return { brave: p < q.brave && BT.stratOk('brave', seat) };
+    if (r === 'chg.ow:human') return { yes: p < q.ow && BT.stratOk('ow', seat) };
+    if (r === 'chg.chrr:human') return { yes: p < q.chrr && BT.stratOk('rr', seat) };
     return {};
   };
   // roll everything that waits, in the page's own order: the human's with the policy's choices, the bots' with botChoice
@@ -176,10 +185,19 @@ function pageLib(){
         if (O.rnd() < 0.5){ var L = d || 1, ax = clampX(c.x + (c.x - f.x) / L * T.mv), az = clampZ(c.z + (c.z - f.z) / L * T.mv);
           BT.act('fb'); if (BT.move(s.id, ax, az)) return 'fb'; }
         BT.select(s.id); O.clickAct('stay'); return 'stay'; }
-      if (T.gun && d <= T.gun.rng * 0.7 && O.rnd() < 0.5){ BT.select(s.id); O.clickAct('stay'); return 'stay'; }
+      if (T.gun && d <= T.gun.rng * 0.7 && O.rnd() < O.H.odds.hold){ BT.select(s.id); O.clickAct('stay'); return 'stay'; }
+      var gap = 2.5;
+      if (T.heal){ var mates = BT.squads().filter(function(q){ return q.side === s.side && q.id !== s.id && !O.typeOf(q.k).heal; });   // a healer keeps near a friend
+        mates.sort(function(a, b){ return O.dist(s, a) - O.dist(s, b); });
+        if (mates.length){ f = O.center(mates[0]); d = Math.hypot(f.x - c.x, f.z - c.z); gap = 1.5; } }
       BT.select(s.id);
-      if (O.rnd() < 0.35) O.clickAct('adv');                     // advance: the page rolls the die and sends 'adv'
-      var R = T.mv + (s.adv ? s.advR : 0), want = Math.max(0, d - 2.5), step = Math.min(R, want), L2 = d || 1;
+      if (O.rnd() < O.H.odds.adv) O.clickAct('adv');           // advance: the page rolls the die and sends 'adv'
+      var R = T.mv + (s.adv ? s.advR : 0), want = Math.max(0, d - gap), step = Math.min(R, want), L2 = d || 1;
+      // as Claude moves through the Worker (bt_move): only the centre point, at 0.1", applied on every device with planMove
+      if (step > 0.5 && O.rnd() < O.H.odds.claude){
+        var cx = Math.round(clampX(c.x + (f.x - c.x) / L2 * step) * 10) / 10, cz = Math.round(clampZ(c.z + (f.z - c.z) / L2 * step) * 10) / 10;
+        O.inject({ a: 'smove', u: s.id, x: cx, z: cz, how: s.adv ? 'adv' : 'move' });
+        if (BT.sq(s.id).moved) return 'claude-move'; }
       var k; for (k = 1; k >= 0.25; k /= 2){ var tx = clampX(c.x + (f.x - c.x) / L2 * step * k), tz = clampZ(c.z + (f.z - c.z) / L2 * step * k);
         if (step * k > 0.5 && BT.move(s.id, tx, tz)) return s.adv ? 'adv-move' : 'move'; }
       var px = clampX(c.x + (f.z - c.z) / L2 * Math.min(R, 4)), pz = clampZ(c.z - (f.x - c.x) / L2 * Math.min(R, 4));
@@ -187,31 +205,37 @@ function pageLib(){
       BT.select(s.id); O.clickAct('stay'); return 'stay';
     }
     if (G.phase === 'shoot'){
-      if (T.heal){ var pat = BT.squads().filter(function(q){ return q.side === s.side && q.id !== s.id && !BT.why('heal', s.id, q.id); })[0];
-        if (pat){ BT.aim(s.id, pat.id, 'heal'); BT.roll({}); return 'heal'; } }
+      if (T.heal){ var pat = BT.squads().filter(function(q){ return q.side === s.side && !BT.why('heal', s.id, q.id); })[0];   // itself included, as the page's bots
+        if (pat && BT.aim(BT.sq(s.id), BT.sq(pat.id), 'heal')){ BT.roll({}); return 'heal'; } }
+      // BT.aim takes squads (not ids): the staged paths (aim, then roll) for heal, grenade and shots
       var tg = foes.filter(function(q){ return !BT.why('shoot', s.id, q.id); });
-      if (tg.length && O.rnd() < 0.15 && foes.length && BT.aim(s.id, foes[0].id, 'gren')){ BT.roll({}); return 'gren'; }
-      if (!tg.length){ if (foes.length && BT.aim(s.id, foes[0].id, 'gren')){ BT.roll({}); return 'gren'; }
+      var gren = function(){ return foes.some(function(q){ return BT.aim(BT.sq(s.id), BT.sq(q.id), 'gren'); }); };   // the nearest foe in reach
+      if (tg.length && O.rnd() < O.H.odds.gren && gren()){ BT.roll({}); return 'gren'; }
+      if (!tg.length){ if (gren()){ BT.roll({}); return 'gren'; }
         BT.select(s.id); O.clickAct('skip'); return 'skip'; }
       var t = tg[Math.floor(O.rnd() * Math.min(2, tg.length))];
-      if (O.rnd() < 0.3){ if (BT.shootAt(s.id, t.id, undefined, 'shoot')) return 'shoot'; }
-      if (BT.aim(s.id, t.id, 'atk')){ BT.roll({}); return 'atk'; }
+      if (O.rnd() < O.H.odds.shoot){ if (BT.shootAt(s.id, t.id, undefined, 'shoot')) return 'shoot'; }
+      if (BT.aim(BT.sq(s.id), BT.sq(t.id), 'atk')){ BT.roll({}); return 'atk'; }
       BT.select(s.id); O.clickAct('skip'); return 'skip';
     }
     if (G.phase === 'charge'){
-      var ct = foes.filter(function(q){ return !BT.why('chg', s.id, q.id); })[0];
+      var ct = T.heal ? null : foes.filter(function(q){ return !BT.why('chg', s.id, q.id); })[0];   // healers stay out of melee
       if (ct && BT.charge(s.id, ct.id) === '') return 'charge';
       BT.select(s.id); O.clickAct('skip'); return 'skip';
     }
     return null;
   };
+  // an act made outside the page (Claude through the Worker): applied on A as a room act, recorded in send order
+  O.inject = function(a){ O.inj.push.apply(O.inj, BT.capture(true)); O.inj.push(a);
+    var b = {}, k; for (k in a) b[k] = a[k]; b.pid = 'C'; BT.applyAct(b); };
   // one step of page A: fill the dice queue, act, let the simulation run, hand over what was sent
   O.stepA = function(sc){
     var G = BT.G, did = null;
     BT.dice(O.dice(sc.diceBatch || 1200));
     if (!O.H){ did = BT.botStep(); BT.tick(1 / 30, sc.stepTicks || 4); }
     else { O.drain(); if (O.H.policy === 'scripted' && O.myTurn()) did = O.humanOrder(); BT.tick(1 / 30, sc.stepTicks || 15); }
-    return { sent: BT.capture(true), over: !!G.over, diceLeft: BT.diceLeft(), did: did, round: G.round, turn: G.turn, phase: G.phase, log: BT.log() };
+    var sent = O.inj.concat(BT.capture(true)); O.inj = [];
+    return { sent: sent, over: !!G.over, diceLeft: BT.diceLeft(), did: did, round: G.round, turn: G.turn, phase: G.phase, log: BT.log() };
   };
   // page B: apply the acts one by one, the board after each, and who sent each (read before applying): the seat that
   // rolled or decided — the defender for saves and the overwatch decision, the human for 'done', nobody for 'endph'
@@ -268,9 +292,10 @@ async function record(browser, sc){
     const sb = await B.evaluate(([s, d]) => ORACLE.setup(s, 'B', d), [sc, sa.deps]);
     if (norm(sa.board0) !== norm(sb.board0)) throw new Error('A and B deploy differently:\n    ' + firstDiff(sa.board0, sb.board0));
     if (JSON.stringify(sa.skins) !== JSON.stringify(sb.skins) || JSON.stringify(sa.props) !== JSON.stringify(sb.props)) throw new Error('A and B differ in skins or props');
+    if (JSON.stringify(sa.units0) !== JSON.stringify(sb.units0)) throw new Error('A and B differ in the deployed positions (units0)');
     if (sc.seats.some(S => S.skin) && !Object.keys(sa.skins).length) throw new Error('the scenario asks for a skin but no unit carries one');
-    const rec = { format: 1, page: { app_ver: APP_VER, rules_v: RULES_V }, scenario: sc.name, scenario_def: sc, setup: sa.setup, seats: sa.seats,
-      lists: sa.lists, deps: sa.deps, skins: sa.skins, props: sa.props, obj: sa.obj, board0: sa.board0, acts: [], acts_meta: [], boards: [], log: [], final: null };
+    const rec = { format: 2, page: { app_ver: APP_VER, rules_v: RULES_V }, scenario: sc.name, scenario_def: sc, setup: sa.setup, seats: sa.seats,
+      lists: sa.lists, deps: sa.deps, skins: sa.skins, props: sa.props, obj: sa.obj, units0: sa.units0, board0: sa.board0, acts: [], acts_meta: [], boards: [], log: [], final: null };
     const cap = opt.cap || sc.maxSteps || 15000, stall = sc.stallSteps || 1500, hist = {};
     let steps = 0, idle = 0, prevLog = [], over = false, lastDid = null;
     while (steps < cap){
@@ -335,7 +360,53 @@ function histogram(dir, print){
   return { counts, missing, need, worker, perFile };
 }
 
+// ---------- the page's hash2/hash3 (terrain, props, building depth), sampled in Node for godot/tests/oracle/page_hash.gd ----------
+// The two functions are taken from the page source verbatim and run with the page's SEED; Node's V8 is the page's engine,
+// so the doubles (the product of the second multiply rounds to 53 bits above 2^53) are exactly the page's.
+function pageHashFns(seed){
+  const src = ['hash2', 'hash3'].map(n => { const m = pageSrc.match(new RegExp('^function ' + n + '\\(.*$', 'm')); if (!m) throw new Error('no ' + n + ' in the page'); return m[0]; }).join('\n');
+  return new Function('SEED', src + '\nreturn { hash2: hash2, hash3: hash3 };')(seed);
+}
+// the same hash with exact integers (no double rounding): the samples count where the page differs from it
+function exactHash2(seed, ix, iy){
+  const M = 1n << 32n, i32 = v => { v = ((v % M) + M) % M; return v >= 1n << 31n ? v - M : v; }, u32 = v => ((v % M) + M) % M;
+  let h = BigInt(ix | 0) * 374761393n + BigInt(iy | 0) * 668265263n + BigInt(seed) * 1274126177n;
+  h = i32(i32(h) ^ (u32(h) >> 13n)) * 1274126177n; h = i32(i32(h) ^ (u32(h) >> 16n));
+  return Number(u32(h) % 65536n);
+}
+function hashSamples(){
+  let x = 0x2545F491; const nx = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x; };
+  const seeds = [1, 2, 101, 909, 1414, 2020, 99999, 0, -1, -7, 31337, 123456789, -123456789, 2147483647, -2147483648, 4294967295, 7000000, 7100000];
+  const edge = [0, 1, -1, 2, -2, 7, 61, 130, 131, 1000, -1000, 65535, 65536, 16777215, 16777217, -16777217, 2147483647, -2147483648, 2147483648, 4294967295, -4294967296];
+  const h2 = [], h3 = [];
+  let differs2 = 0, differs3 = 0;
+  for (const seed of seeds){
+    const F = pageHashFns(seed);
+    const pairs = [];
+    for (const a of edge) for (const b of [0, 1, -1, 61, 2147483647, -2147483648]) pairs.push([a, b]);
+    for (let i = 0; i < 40; i++) pairs.push([(nx() | 0) >> (nx() % 32), (nx() | 0) >> (nx() % 32)]);
+    for (let i = 0; i < 20; i++) pairs.push([nx() % 200 - 100, nx() % 200 - 100]);
+    for (const [a, b] of pairs){ const q = F.hash2(a, b) * 65536; if (q !== Math.floor(q)) throw new Error('hash2 not a multiple of 1/65536');
+      if (q !== exactHash2(seed, a, b)) differs2++; h2.push([seed, a, b, q]); }
+    // hash3 as bldSize calls it (h·131|0, 2, 61) for every h step, plus a few other k
+    for (let ih = 0; ih <= 131; ih++){ const q = F.hash3(ih, 2, 61) * 65536; h3.push([seed, ih, 2, 61, q]); if (q !== exactHash2(seed, ih * 3 + 61 * 7919, 2 * 5 - 61 * 104729)) differs3++; }
+    for (let i = 0; i < 12; i++){ const a = nx() % 2000 - 1000, b = nx() % 2000 - 1000, k = nx() % 300 - 150; h3.push([seed, a, b, k, F.hash3(a, b, k) * 65536]); }
+  }
+  // the building depths of the recorded props (bldSize's second value, inches · 1000 rounded half up)
+  const bld = [];
+  for (const f of listRecordings(ORACLE_DIR)){ const rec = readRecording(f), F = pageHashFns(rec.setup.seed);
+    for (const o of rec.props) if (o.kind === 'building'){ const bd = (4.5 + F.hash3(o.h * 131 | 0, 2, 61) * 6) * o.s; bld.push([rec.setup.seed, o.h, o.s, Math.round(bd * 1000)]); } }
+  const out = { _doc: 'page hash2/hash3 sampled in Node by godot/tools/record_oracle.js --hash-samples; q = value * 65536 (exact). ' +
+      'hash2: [seed, ix, iy, q]; hash3: [seed, ix, iy, k, q]; bld: [seed, h, s, round(bldSize depth * 1000)] for the recorded buildings. ' +
+      'differs: samples where the page differs from exact integer arithmetic (its double rounding).',
+    page: { app_ver: APP_VER, rules_v: RULES_V }, differs: { hash2: differs2, hash3_bld: differs3 }, hash2: h2, hash3: h3, bld: bld };
+  const file = path.join(ORACLE_DIR, 'page_hash.json');
+  fs.writeFileSync(file, '{\n' + Object.keys(out).map(k => JSON.stringify(k) + ': ' + (Array.isArray(out[k]) ? '[\n' + out[k].map(r => JSON.stringify(r)).join(',\n') + '\n]' : JSON.stringify(out[k]))).join(',\n') + '\n}\n');
+  console.log('wrote ' + file + ': ' + h2.length + ' hash2, ' + h3.length + ' hash3, ' + bld.length + ' building depths; page differs from exact integers in ' + differs2 + ' hash2 and ' + differs3 + ' bldSize samples');
+}
+
 (async () => {
+  if (opt.hashSamples){ hashSamples(); process.exit(0); }
   // --histogram on its own counts what is already recorded; together with --only it records first, then counts
   if (opt.histogram && !opt.check && !opt.only.length){
     const h = histogram(opt.out || ORACLE_DIR, true); process.exit(h.missing.length ? 1 : 0); }

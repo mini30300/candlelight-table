@@ -1,7 +1,8 @@
 #!/bin/bash
 # Test runner for the Godot app (mirrors tests/run.sh of the old pages). Run from anywhere:
 #   bash godot/tests/run.sh            quick: import + unit tests (what CI runs on every PR)
-#   bash godot/tests/run.sh full       quick + the render probe and the render tests under xvfb (tests/render/*.gd, PNGs in TEST_OUT)
+#   bash godot/tests/run.sh full       quick + the oracle replay of every recording (ORACLE=all) + the render probe and the
+#                                      render tests under xvfb (tests/render/*.gd, PNGs in TEST_OUT)
 #   bash godot/tests/run.sh <word>     only unit scripts whose path contains <word>, e.g. i18n or unit/core
 # Environment:
 #   GODOT     the Godot 4.7.1 binary (default: ~/godot-bin/godot, then `godot` on PATH)
@@ -44,6 +45,13 @@ esac
 timeout 900 "$GODOT" --headless --path godot -s tests/run_tests.gd "${FILTER[@]}" 2>&1 | tee "$TEST_OUT/unit.log"
 rc=${PIPESTATUS[0]}
 if [ "$rc" -ne 0 ]; then echo "FAIL  unit tests (exit $rc)"; status=1; fi
+
+if [ "$MODE" = full ]; then
+  echo "== oracle (every recording) =="
+  ORACLE=all timeout 3600 "$GODOT" --headless --path godot -s tests/run_tests.gd -- oracle/test_oracle 2>&1 | tee "$TEST_OUT/oracle.log"
+  rc=${PIPESTATUS[0]}
+  if [ "$rc" -ne 0 ]; then echo "FAIL  oracle (exit $rc; see $TEST_OUT/oracle.log)"; status=1; fi
+fi
 
 if [ "$MODE" = full ]; then
   echo "== render probe (xvfb + Mesa) =="

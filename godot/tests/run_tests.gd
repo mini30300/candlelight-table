@@ -1,5 +1,6 @@
 extends SceneTree
-## Test runner with no addons. Discovers res://tests/unit/**/test_*.gd (recursively) and
+## Test runner with no addons. Discovers res://tests/unit/**/test_*.gd (recursively),
+## res://tests/oracle/test_*.gd (the page oracle; ORACLE=all replays every recording, see test_oracle.gd) and
 ## res://tests/golden/test_golden.gd (when present), runs every `test_*` method and quits with
 ## exit code 1 on any failure.
 ##   <godot> --headless --path godot -s tests/run_tests.gd
@@ -10,6 +11,7 @@ extends SceneTree
 
 const TESTS_DIR := "res://tests"
 const UNIT_DIR := "res://tests/unit"
+const ORACLE_DIR := "res://tests/oracle"
 const GOLDEN := "res://tests/golden/test_golden.gd"
 
 var _filter := ""
@@ -64,12 +66,16 @@ func _run() -> int:
 	return 1 if failed > 0 else 0
 
 
-## Every tests/unit/**/test_*.gd (sorted by path) plus tests/golden/test_golden.gd; the filter matches the
-## path relative to res://tests ("unit/core/test_fx.gd"), so both a file name and a folder work.
+## Every tests/unit/**/test_*.gd (sorted by path), tests/oracle/test_*.gd, plus tests/golden/test_golden.gd; the
+## filter matches the path relative to res://tests ("unit/core/test_fx.gd"), so both a file name and a folder work.
 static func discover(filter: String) -> PackedStringArray:
 	var out := PackedStringArray()
 	_walk(UNIT_DIR, out)
 	out.sort()
+	var oracle := PackedStringArray()
+	_walk(ORACLE_DIR, oracle)
+	oracle.sort()
+	out.append_array(oracle)
 	if FileAccess.file_exists(GOLDEN) or ResourceLoader.exists(GOLDEN):
 		out.append(GOLDEN)
 	if filter == "":
