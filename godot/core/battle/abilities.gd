@@ -176,5 +176,176 @@ static func _int(v: Variant) -> int:
 	return 0
 
 
-# ---------------------------------------------------------------- ตัวจัดการที่ต้องใช้ pend (wave 3 เขียนต่อตรงนี้)
-# glory_heal, revive_one, wind_fall, wind_up, wind_gone, wind_turn, spawn_from, after_kills, refill_shields
+# ---------------------------------------------------------------- ตัวจัดการ (ฟื้น ลม ม้าไม้ โล่)
+## ระยะที่ตัวชุบลงข้างตัวแรกที่ยังอยู่ (1800 MI)
+const REVIVE_DX := 1800
+## ระยะจากม้าไม้ถึงจุดกลางของหน่วยที่ออกมา (2600 MI)
+const SPAWN_OUT := 2600
+
+
+static func _say(st: BattleState, out: Array[Dictionary], key: String, args: Array) -> void:
+	st.say(key, args)
+	out.append(Events.make(Events.Id.LOG_LINE, {"key": key, "args": args.duplicate()}))
+
+
+## gloryHeal: ฆ่าได้ n ตัว ฟื้นแผลทีละหนึ่ง ให้ตัวที่แผลเหลือน้อยสุดก่อน (ตัวแรกเมื่อเท่ากัน) ไม่เกินแผลเต็ม คืนแผลที่ฟื้น
+static func glory_heal(st: BattleState, s: BattleState.Squad, n: int, out: Array[Dictionary]) -> int:
+	if s == null:
+		return 0
+	var w := num(s.ti, "w")
+	var got := 0
+	var left := n
+	while left > 0:
+		var m: BattleState.Unit = null
+		for q: BattleState.Unit in s.models:
+			if q.hp < w and (m == null or q.hp < m.hp):
+				m = q
+		if m == null:
+			break
+		m.hp += 1
+		left -= 1
+		got += 1
+		out.append(Events.make(Events.Id.HEAL, {"uid": m.id, "hp": m.hp}))
+	if got != 0:
+		_say(st, out, "glory_heal", [s.id, got])
+	return got
+
+
+## reviveOne: ชุบตัวแรกที่หายไป (เลข i < n0 ที่ไม่มี <t>.<i> ยังอยู่) แผล 1 ต่อท้าย units ข้างตัวแรกที่ยังอยู่ (+1800 MI แกน x
+## แล้ว free_spot) ไม่มีใครเหลือเลยคืน null; ร่างรอลมที่เลขเดียวกันหายไปด้วย (หน้าเก่าเอาออกจาก FALLEN)
+static func revive_one(st: BattleState, t: BattleState.Squad, out: Array[Dictionary]) -> BattleState.Unit:
+	if t == null or t.models.is_empty():
+		return null
+	var near: BattleState.Unit = t.models[0]
+	for i: int in t.n0:
+		var id := "%s.%d" % [t.id, i]
+		if st.unit(id) != null:
+			continue
+		var sp := BtBlocking.free_spot(st, near.x + REVIVE_DX, near.z, null, PackedInt64Array(), 0, BtSquads.radius(t))
+		var m := st.add_unit(id, t, 1, sp[0], sp[1])
+		for b: BattleState.Unit in st.bodies:
+			if b.id == id:
+				st.take_body(b)
+				break
+		out.append(Events.make(Events.Id.REZ, {"uid": id}))
+		return m
+	return null
+
+
+## windFall: ลูกพระพายล้ม นับครั้งที่ล้มแล้วนอนรอลม (ต้อง remove_unit แล้ว)
+static func wind_fall(st: BattleState, m: BattleState.Unit) -> void:
+	var s := st.squad(m.sq)
+	if s == null:
+		return
+	s.wind_n += 1
+	st.add_body(m)
+
+
+## windUp: ร่างที่รอลมลุกขึ้นแผลเต็ม ที่ว่างใกล้ตำแหน่งกติกาตอนล้ม ต่อท้าย units; ไม่มีร่างคืน null
+static func wind_up(st: BattleState, s: BattleState.Squad, out: Array[Dictionary]) -> BattleState.Unit:
+	if s == null:
+		return null
+	var b := st.body_of(s.id)
+	if b == null:
+		return null
+	st.take_body(b)
+	var sp := BtBlocking.free_spot(st, b.x, b.z, null, PackedInt64Array(), 0, BtSquads.radius(s))
+	var m := st.add_unit(b.id, s, num(s.ti, "w"), sp[0], sp[1])
+	out.append(Events.make(Events.Id.REZ, {"uid": b.id}))
+	return m
+
+
+## windGone: ลมไม่มา ร่างหายไปจริง
+static func wind_gone(st: BattleState, s: BattleState.Squad, out: Array[Dictionary]) -> void:
+	if s == null:
+		return
+	var b := st.body_of(s.id)
+	if b == null:
+		return
+	st.take_body(b)
+	out.append(Events.make(Events.Id.DEATH, {"uid": b.id}))
+
+
+## windTurn: ต้นเฟสคำสั่งของทีม ทุกหมู่ตามลำดับที่สร้าง (รวมหมู่ที่ตายหมด) ของทีมในตา ที่เป็นลูกพระพายและมีร่างรอ:
+## ล้มครั้งแรกลุกเลย ครั้งต่อไปรอทอย rez ลูกเดียว ต้องได้ wind
+static func wind_turn(st: BattleState, out: Array[Dictionary]) -> void:
+	for s: BattleState.Squad in st.squads:
+		if s.side != st.turn or not flag(s.ti, "wind") or st.body_of(s.id) == null:
+			continue
+		if s.wind_n <= 1:
+			if wind_up(st, s, out) != null:
+				_say(st, out, "wind_up", [s.id])
+		else:
+			var p := BattleState.Pend.new()
+			p.kind = BattleState.K_REZ
+			p.stage = BattleState.S_REZ
+			p.u = s.id
+			p.att = s.pl
+			p.need = num(s.ti, "wind")
+			p.n = 1
+			p.wind = true
+			# ต่อท้ายคิวตรง ๆ (mkPend): abilities อยู่ซ้ายของ pend จึงไม่เรียก BtPend
+			st.pend.append(p)
+
+
+## spawnFrom: เปิดท้องม้า (ครั้งเดียว) หมู่ใหม่ <s>x ชนิด spawn.k จำนวน spawn.n (ไม่มีใช้ n ของชนิด) ไม่มีโล่
+## ม้ายังอยู่: ฐานคือตัวแรกที่ยังอยู่ หันตามทิศของหมู่ · ม้าพังแล้ว: ฐาน (x, z) ตำแหน่งกติกาที่ล้ม หัน (0, 1000)
+## จุดกลาง = ฐาน + ทิศ x 2600 MI แล้ววางแถว formation + free_spot แผลเต็ม ต่อท้าย; ไม่มี spawn หรือเปิดแล้วคืน null
+static func spawn_from(st: BattleState, s: BattleState.Squad, x: int, z: int, out: Array[Dictionary]) -> BattleState.Squad:
+	if s == null or s.opened:
+		return null
+	var h: Variant = ty(s.ti).get("spawn", null)
+	if not (h is Dictionary):
+		return null
+	var hd: Dictionary = h
+	var k := str(hd.get("k", ""))
+	var ti := GameData.index_of(k)
+	if ti < 0:
+		return null
+	s.opened = true
+	var n := _int(hd.get("n", null))
+	if n == 0:
+		n = num(ti, "n")
+	var bx := x
+	var bz := z
+	var fx := 0
+	var fz := 1000
+	if not s.models.is_empty():
+		bx = s.models[0].x
+		bz = s.models[0].z
+		fx = s.fx
+		fz = s.fz
+	var q := st.add_squad(s.id + "x", k, s.side, s.pl, n, 0)
+	if q == null:
+		return null
+	q.fx = fx
+	q.fz = fz
+	var r := BtSquads.radius(q)
+	var cx := bx + Fx.js_round(fx * SPAWN_OUT, 1000)
+	var cz := bz + Fx.js_round(fz * SPAWN_OUT, 1000)
+	var slots := BtSquads.formation(n, cx, cz, fx, fz, r)
+	var w := num(ti, "w")
+	for j: int in n:
+		var sp := BtBlocking.free_spot(st, slots[j][0], slots[j][1], null, PackedInt64Array(), 0, r)
+		st.add_unit("%s.%d" % [q.id, j], q, w, sp[0], sp[1])
+	_say(st, out, "spawn_open", [s.id, q.id, n])
+	return q
+
+
+## afterKills: ม้าไม้ที่พังก่อนเปิด ทหารข้างในออกมาจากตำแหน่งกติกาของตัวที่ล้ม
+static func after_kills(st: BattleState, killed: Array[BattleState.Unit], out: Array[Dictionary]) -> void:
+	for m: BattleState.Unit in killed:
+		var q := st.squad(m.sq)
+		if q != null and flag(q.ti, "spawn") and not q.opened:
+			spawn_from(st, q, m.x, m.z, out)
+
+
+## โล่พลังงานกลับมาครบ vsh ชั้น ต้นเทิร์น: หมู่ที่ยังอยู่ของทีมในตาที่ชั้นเหลือน้อยกว่า vsh
+static func refill_shields(st: BattleState, out: Array[Dictionary]) -> void:
+	for s: BattleState.Squad in st.alive_squads():
+		var v := num(s.ti, "vsh")
+		if s.side != st.turn or v == 0 or s.vs >= v:
+			continue
+		s.vs = v
+		_say(st, out, "shields_up", [s.id, v])
+

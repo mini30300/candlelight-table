@@ -3,8 +3,8 @@ extends "res://tests/testing.gd"
 ## cover every field of types.json, every aura kind and every army; every handler names a real module function or one
 ## that a later (or parallel) wave writes (LATER); every handler that exists has a behavioural test in this file named
 ## test_<group>_<name> whose body calls it; the accessors read the data with the page's JavaScript truthiness.
-## The wave-3 handlers (glory_heal, revive_one, wind_*, spawn_from, after_kills, refill_shields) are not written yet:
-## once one exists, test_existing_handlers_have_behaviour_tests asks for its test here.
+## The wave-3 handlers (BtPend appliers, glory_heal, revive_one, wind_*, spawn_from, after_kills, refill_shields) exist
+## and are checked here through the flag that uses them; BtTurn.start_turn (wave 4) is still LATER.
 
 const TYPES_JSON := "res://data/types.json"
 const SELF := "res://tests/unit/test_abilities.gd"
@@ -12,13 +12,9 @@ const SELF := "res://tests/unit/test_abilities.gd"
 const PINNED_DIGEST := "01e902182e89e173"
 ## modules the registry may point to (R1_PORT_SPEC §1)
 const MODULES := ["BtCombat", "BtAbilities", "BtSquads", "BtArmy", "BtPend", "BtTurn"]
-## handlers that a later or parallel wave writes (wave number): they may be missing until then. Wave 2 (BtArmy) is
-## integrated, so its handlers must exist.
+## handlers that a later or parallel wave writes (wave number): they may be missing until then. Waves 2 and 3 are
+## integrated, so their handlers must exist.
 const LATER := {
-	"BtAbilities.glory_heal": 3, "BtAbilities.spawn_from": 3, "BtAbilities.after_kills": 3,
-	"BtAbilities.refill_shields": 3, "BtAbilities.wind_turn": 3,
-	"BtPend.finish_atk": 3, "BtPend.deal_damage": 3, "BtPend.apply_wnd": 3, "BtPend.apply_rez": 3,
-	"BtPend.count_hits": 3, "BtPend.apply_hit": 3, "BtPend.apply_reroll": 3, "BtPend.mark_hit": 3,
 	"BtTurn.start_turn": 4,
 }
 const SHOOT := BattleState.HOW_SHOOT
@@ -62,6 +58,27 @@ func _find(pred: Callable, hidden: bool = false) -> String:
 
 func _ti(k: String) -> int:
 	return GameData.index_of(k)
+
+
+## A bare attack entry (not queued) for the count/apply checks.
+func _atk(u: String, t: String, shots: int, need: int, wneed: int, sv: int) -> BattleState.Pend:
+	var p := BattleState.Pend.new()
+	p.kind = BattleState.K_ATK
+	p.stage = BattleState.S_HIT
+	p.u = u
+	p.t = t
+	p.shots = shots
+	p.need = need
+	p.wneed = wneed
+	p.sv = sv
+	return p
+
+
+func _ids(st: BattleState) -> Array:
+	var out: Array = []
+	for u: BattleState.Unit in st.units:
+		out.append([u.id, u.hp])
+	return out
 
 
 func _key(d: Dictionary) -> String:
@@ -437,6 +454,22 @@ func test_flag_heel() -> void:
 	var heel := _find(func(q: Dictionary) -> bool: return q.has("heel"))
 	assert_true(BtCombat.atk_math(st, s, _sq(st, "1:0", heel, 1, [[0, 5000]]), SHOOT)["heel"], "a heel target: the attack carries heel")
 	assert_false(BtCombat.atk_math(st, s, _sq(st, "1:1", "heavy", 1, [[5000, 0]]), FIGHT)["heel"], "others do not")
+	# a wound 6 on the heel: one slay (no save, 999 damage) and the rest are normal wounds
+	var out: Array[Dictionary] = []
+	var a := _sq(st, "0:1", "sniper", 0, [[0, -3000]])
+	var hero := st.squad("1:0")
+	var p := _atk(a.id, hero.id, 3, 2, 2, 7)
+	p.heel = true
+	p.stage = BattleState.S_WOUND
+	p.hits = 3
+	BtPend.apply_wnd(st, p, [6, 6, 3], out)
+	assert_eq([p.wounds, p.slay, p.mortal], [3, 1, 0], "heel: two sixes slay once, three wounds")
+	assert_eq([p.stage, st.squad_alive(hero)], [BattleState.S_DONE, 0], "no save possible: finished, the hero falls to the slay")
+	var p2 := _atk(a.id, "1:1", 2, 2, 2, 3)
+	p2.stage = BattleState.S_WOUND
+	p2.hits = 2
+	BtPend.apply_wnd(st, p2, [6, 6], out)
+	assert_eq([p2.slay, p2.stage], [0, BattleState.S_SAVE], "without heel a six is a plain wound (save next)")
 
 
 func test_flag_inf() -> void:
@@ -553,6 +586,214 @@ func test_flag_vsh() -> void:
 	for s: BattleState.Squad in st.squads:
 		got[s.k] = s.vs
 	assert_eq([got.get(GameData.key_at(vsh), -1), got.get("infantry", -1)], [BtAbilities.num(vsh, "vsh"), 0], "deploy: squads start with vsh layers (0 without)")
+	# refill at the start of the owner's turn only, alive squads only, never above vsh
+	var v := BtAbilities.num(vsh, "vsh")
+	var st2 := _st()
+	var mine := _sq(st2, "0:0", GameData.key_at(vsh), 0, [[0, 0]])
+	var theirs := _sq(st2, "1:0", GameData.key_at(vsh), 1, [[20000, 0]])
+	var gone := _sq(st2, "0:1", GameData.key_at(vsh), 0, [[-20000, 0]])
+	var plain := _sq(st2, "0:2", "infantry", 0, [[0, 20000]])
+	st2.remove_unit(gone.models[0])
+	mine.vs = 0
+	theirs.vs = 0
+	gone.vs = 0
+	st2.turn = 0
+	BtAbilities.refill_shields(st2, out)
+	assert_eq([mine.vs, theirs.vs, gone.vs, plain.vs], [v, 0, 0, 0], "refill_shields: own side, alive, vsh types only")
+	mine.vs = v + 3
+	BtAbilities.refill_shields(st2, out)
+	assert_eq(mine.vs, v + 3, "a squad at or above vsh is left alone")
+	# one layer stops one whole hit, however big
+	mine.vs = 1
+	var hp0 := mine.models[0].hp
+	BtPend.deal_damage(st2, mine, plain, 2, 30, false, out)
+	assert_eq([mine.vs, mine.models[0].hp], [0, hp0 - 30], "the first hit is stopped by the last layer, the second lands")
+
+
+func test_flag_gk() -> void:
+	var st := _st()
+	var out: Array[Dictionary] = []
+	var gk := _find(func(q: Dictionary) -> bool: return q.has("gk") and int(q["n"]) == 1)
+	var w := int(GameData.ty(gk)["w"])
+	var s := _sq(st, "0:0", gk, 0, [[0, 0]], w - 3)
+	var t := _sq(st, "1:0", "infantry", 1, [[0, 3000], [1700, 3000], [-1700, 3000], [3400, 3000], [-3400, 3000]])
+	var p := BtPend.mk_atk(st, s, t, FIGHT)
+	var six: Array = []
+	for i: int in p.shots:
+		six.append(6)
+	BtPend.apply_hit(st, p, six, out)
+	BtPend.apply_wnd(st, p, six, out)
+	assert_eq(p.stage, BattleState.S_DONE, "infantry saves 5+ against ap: no save left, the attack finished at once")
+	assert_eq([st.squad_alive(t), s.models[0].hp], [0, w], "gk: five kills heal three wounds (never above full)")
+	# finish_atk directly: a melee kill heals, a shooting kill does not
+	var s2 := _sq(st, "0:1", gk, 0, [[20000, 0]], w - 2)
+	var t2 := _sq(st, "1:1", "infantry", 1, [[20000, 3000]])
+	var q := _atk(s2.id, t2.id, 1, 2, 2, 7)
+	q.wounds = 1
+	q.dmg = 1
+	BtPend.finish_atk(st, q, out)
+	assert_eq(s2.models[0].hp, w - 2, "shooting: no glory heal")
+	var t3 := _sq(st, "1:2", "infantry", 1, [[20000, -3000]])
+	q = _atk(s2.id, t3.id, 1, 2, 2, 7)
+	q.melee = true
+	q.wounds = 1
+	BtPend.finish_atk(st, q, out)
+	assert_eq(s2.models[0].hp, w - 1, "melee: one kill, one wound back")
+	# glory_heal: lowest hp first, first on ties, stops when nobody is hurt
+	var st2 := _st()
+	var many := _sq(st2, "0:0", "heavy", 0, [[0, 0], [2000, 0], [4000, 0]])
+	many.models[0].hp = 1
+	many.models[1].hp = 1
+	assert_eq(BtAbilities.glory_heal(st2, many, 1, out), 1, "one wound healed")
+	assert_eq([many.models[0].hp, many.models[1].hp], [2, 1], "the first of the two lowest")
+	assert_eq(BtAbilities.glory_heal(st2, many, 5, out), 1, "only one wound was missing")
+	assert_eq(BtAbilities.glory_heal(st2, many, 3, out), 0, "nobody hurt: nothing")
+	var foot := _sq(st, "0:2", "infantry", 0, [[-20000, 0]])
+	var t4 := _sq(st, "1:3", "infantry", 1, [[-20000, 3000]])
+	foot.models[0].hp = 1
+	q = _atk(foot.id, t4.id, 1, 2, 2, 7)
+	q.melee = true
+	q.wounds = 1
+	BtPend.finish_atk(st, q, out)
+	assert_eq(st.squad_alive(t4), 0, "a squad without gk kills too")
+
+
+func test_flag_hd() -> void:
+	var st := _st()
+	var out: Array[Dictionary] = []
+	var hd := _find(func(q: Dictionary) -> bool: return q.has("hd") and int(q["n"]) == 1)
+	var w := int(GameData.ty(hd)["w"])
+	var t := _sq(st, "1:0", hd, 1, [[0, 0]])
+	var plain := _sq(st, "1:1", "mech", 1, [[10000, 0]])
+	var a := _sq(st, "0:0", "infantry", 0, [[0, 5000]])
+	BtPend.deal_damage(st, t, a, 1, 3, false, out)
+	assert_eq(t.models[0].hp, w - 2, "hd: 3 damage is halved rounding up to 2")
+	BtPend.deal_damage(st, t, a, 2, 1, false, out)
+	assert_eq(t.models[0].hp, w - 4, "hd: 1 damage stays 1")
+	BtPend.deal_damage(st, plain, a, 1, 3, false, out)
+	assert_eq(plain.models[0].hp, 12 - 3, "no hd: full damage")
+	var k := BtPend.deal_damage(st, t, a, 1, 999, false, out)
+	assert_eq([k.size(), st.squad_alive(t)], [1, 0], "a slay (999) is never halved")
+
+
+func test_flag_wind() -> void:
+	var st := _st()
+	var out: Array[Dictionary] = []
+	var wk := _find(func(q: Dictionary) -> bool: return q.has("wind"))
+	var need := int(GameData.ty(wk)["wind"])
+	var w := int(GameData.ty(wk)["w"])
+	var h := _sq(st, "1:0", wk, 1, [[3000, 4000]])
+	var a := _sq(st, "0:0", "infantry", 0, [[0, -10000]])
+	var k := BtPend.deal_damage(st, h, a, 1, 999, false, out)
+	assert_eq([k.size(), st.squad_alive(h), h.wind_n], [1, 0, 1], "deal_damage: the wind hero falls once")
+	assert_true(st.body_of(h.id) != null and st.live_of(1) == 1, "the body waits for the wind and still counts as alive")
+	st.turn = 0
+	BtAbilities.wind_turn(st, out)
+	assert_eq(st.squad_alive(h), 0, "wind_turn: not on the other side's turn")
+	st.turn = 1
+	BtAbilities.wind_turn(st, out)
+	assert_eq([st.squad_alive(h), h.models[0].hp, h.models[0].x, h.models[0].z], [1, w, 3000, 4000], "first fall: rises free, full wounds, where he fell")
+	assert_eq([st.body_of(h.id), st.pend.size(), st.units[st.units.size() - 1].id], [null, 0, "1:0.0"], "appended to units, no roll")
+	BtPend.deal_damage(st, h, a, 1, 999, false, out)
+	BtAbilities.wind_turn(st, out)
+	assert_eq(st.pend.size(), 1, "second fall: a roll is queued")
+	var p := st.pend[0]
+	assert_eq([p.kind, p.stage, p.u, p.need, p.n, p.wind, p.att], [BattleState.K_REZ, BattleState.S_REZ, h.id, need, 1, true, h.pl], "the wind roll entry")
+	BtPend.apply_rez(st, p, [need - 1], out)
+	assert_eq([st.pend.size(), st.body_of(h.id), st.live_of(1)], [0, null, 0], "below the need: the wind does not come, the body is gone")
+	# a fresh hero falling twice and rolling the need
+	var h2 := _sq(st, "1:1", wk, 1, [[-3000, 4000]])
+	h2.wind_n = 1
+	BtPend.deal_damage(st, h2, a, 1, 999, false, out)
+	BtAbilities.wind_turn(st, out)
+	BtPend.apply_rez(st, st.pend[0], [need], out)
+	assert_eq([st.squad_alive(h2), h2.models[0].hp, h2.wind_n], [1, w, 2], "rolling the need: rises with full wounds")
+
+
+func test_flag_spawn() -> void:
+	var st := _st()
+	var out: Array[Dictionary] = []
+	var sk := _find(func(q: Dictionary) -> bool: return q.has("spawn"))
+	var sp: Dictionary = GameData.ty(sk)["spawn"]
+	var hk := str(sp["k"])
+	var n := int(sp["n"]) if sp.has("n") else int(GameData.ty(hk)["n"])
+	var c := _sq(st, "0:0", sk, 0, [[0, 0]])
+	c.fx = 600
+	c.fz = -800
+	var q := BtAbilities.spawn_from(st, c, 9999, 9999, out)
+	assert_true(q != null and q.id == "0:0x" and q.k == hk and q.n0 == n and st.squad_alive(q) == n, "spawn_from: a new squad <id>x of the carried type")
+	assert_eq([q.vs, q.fx, q.fz, q.moved, q.side, q.pl, c.opened], [0, 600, -800, false, 0, 0, true], "no shields, the carrier's facing, not moved, opened")
+	var cx := Fx.js_round(600 * 2600, 1000)
+	var cz := Fx.js_round(-800 * 2600, 1000)
+	var slots := BtSquads.formation(n, cx, cz, 600, -800, BtSquads.radius(q))
+	# the expected spots: each slot through free_spot on a twin table holding the carrier and the earlier models
+	var twin := _st()
+	var tc := _sq(twin, "0:0", sk, 0, [[0, 0]])
+	var tq := twin.add_squad("0:0x", hk, 0, 0, n, 0)
+	var at: Array = []
+	var want: Array = []
+	var on_slot := 0
+	for j: int in n:
+		var f := BtBlocking.free_spot(twin, slots[j][0], slots[j][1], null, PackedInt64Array(), 0, BtSquads.radius(q))
+		twin.add_unit("0:0x.%d" % j, tq, 1, f[0], f[1])
+		if f[0] == slots[j][0] and f[1] == slots[j][1]:
+			on_slot += 1
+		at.append([q.models[j].id, q.models[j].x, q.models[j].z, q.models[j].hp])
+		want.append(["0:0x.%d" % j, f[0], f[1], int(GameData.ty(hk)["w"])])
+	assert_eq(at, want, "a living carrier: formation 2.6 inches ahead of its first model, each slot through free_spot")
+	assert_true(on_slot >= 3 and on_slot < n and tc != null, "most slots are free, the ones touching the carrier move (%d of %d on their slot)" % [on_slot, n])
+	assert_eq(BtAbilities.spawn_from(st, c, 0, 0, out), null, "opened once only")
+	assert_eq(BtAbilities.spawn_from(st, _sq(st, "0:1", "infantry", 0, [[20000, 0]]), 0, 0, out), null, "no spawn: null")
+	# the carrier dies before opening: they leave from where it fell, facing (0, 1000)
+	var c2 := _sq(st, "1:0", sk, 1, [[-20000, -5000]])
+	c2.fx = 1000
+	c2.fz = 0
+	var a := _sq(st, "0:2", "infantry", 0, [[-20000, -15000]])
+	var killed := BtPend.deal_damage(st, c2, a, 1, 999, false, out)
+	BtAbilities.after_kills(st, killed, out)
+	var q2 := st.squad("1:0x")
+	assert_true(q2 != null and c2.opened and st.squad_alive(q2) == n, "after_kills: the dead carrier opens")
+	var s2 := BtSquads.formation(n, -20000, -5000 + 2600, 0, 1000, BtSquads.radius(q2))
+	assert_eq([q2.fx, q2.fz, q2.models[0].x, q2.models[0].z], [0, 1000, s2[0][0], s2[0][1]], "dead carrier: from its rules position facing (0, 1000)")
+	BtAbilities.after_kills(st, killed, out)
+	assert_eq(st.squads.size(), 6, "a second after_kills opens nothing")
+
+
+func test_flag_rez() -> void:
+	var st := _st()
+	var out: Array[Dictionary] = []
+	var rk := _find(func(q: Dictionary) -> bool: return q.has("rez") and int(q["n"]) >= 5 and int(q["w"]) == 1)
+	var need := int(GameData.ty(rk)["rez"])
+	var pts: Array = []
+	for i: int in 5:
+		pts.append([i * 1700, 0])
+	var s := _sq(st, "0:0", rk, 0, pts)
+	s.n0 = 5
+	st.remove_unit(st.unit("0:0.1"))
+	st.remove_unit(st.unit("0:0.3"))
+	_sq(st, "1:0", "infantry", 1, [[0, 20000]])
+	var p := BattleState.Pend.new()
+	p.kind = BattleState.K_REZ
+	p.stage = BattleState.S_REZ
+	p.u = s.id
+	p.need = need
+	p.n = 2
+	BtPend.push(st, p)
+	BtPend.apply_rez(st, p, [need, 1], out)
+	assert_eq(st.pend.size(), 0, "the entry is spent")
+	assert_eq(_ids(st).slice(-1), [["0:0.1", 1]], "apply_rez: one success brings back the first missing model at full wounds, appended")
+	p.stage = BattleState.S_REZ
+	p.n = 3
+	BtPend.apply_rez(st, p, [6, 6, 6], out)
+	assert_eq(st.squad_alive(s), 5, "more successes than losses: the rest is lost")
+	assert_eq(st.units[st.units.size() - 1].id, "0:0.3", "the next missing index")
+	# a wiped squad does not come back; the roll is spent
+	var dead := _sq(st, "0:1", rk, 0, [[20000, 0]])
+	st.remove_unit(dead.models[0])
+	p.stage = BattleState.S_REZ
+	p.u = dead.id
+	BtPend.apply_rez(st, p, [6, 6, 6], out)
+	assert_eq(st.squad_alive(dead), 0, "nobody left: nothing rises")
 
 
 # ------------------------------------------------------------------ behaviour: weapon keywords
@@ -601,6 +842,14 @@ func test_weapon_su() -> void:
 	var t := _sq(st, "1:0", "heavy", 1, [[0, 10000]])
 	assert_eq(BtCombat.atk_math(st, _sq(st, "0:0", "hmg", 0, [[0, 0]]), t, SHOOT)["su"], 1, "su carried into the attack")
 	assert_eq(BtCombat.atk_math(st, _sq(st, "0:1", "infantry", 0, [[1000, 0]]), t, SHOOT)["su"], 0, "no su: 0")
+	var p := _atk("0:0", "1:0", 5, 4, 4, 4)
+	p.su = 1
+	p.hit_r = PackedInt32Array([6, 6, 4, 2, 1])
+	BtPend.count_hits(p)
+	assert_eq([p.hits, p.lethal], [5, 0], "su 1: three hits plus one per six")
+	p.su = 0
+	BtPend.count_hits(p)
+	assert_eq(p.hits, 3, "su 0: three hits")
 
 
 func test_weapon_tr() -> void:
@@ -610,6 +859,19 @@ func test_weapon_tr() -> void:
 	assert_eq([m["tr"], m["need"]], [true, 0], "tr: hits automatically (need 0)")
 	var n := BtCombat.atk_math(st, _sq(st, "0:1", "infantry", 0, [[1000, 0]]), t, SHOOT)
 	assert_eq([n["tr"], n["need"]], [false, 4], "no tr: rolls bs")
+	var out: Array[Dictionary] = []
+	var p := BtPend.mk_atk(st, st.squad("0:0"), t, SHOOT)
+	BtPend.apply_hit(st, p, [1, 1, 1], out)
+	assert_eq([p.hits, p.shots, Array(p.hit_r)], [p.shots, int(m["shots"]), []], "tr: every shot hits, the sent dice are ignored")
+	assert_eq(p.stage, BattleState.S_WOUND, "on to wounds")
+	BtPend.apply_reroll(st, p, 6, out)
+	assert_false(p.rr, "tr: no re-roll")
+	var q := _atk("0:0", "1:0", 4, 4, 4, 4)
+	q.tr = true
+	q.lh = true
+	q.hit_r = PackedInt32Array([6, 6])
+	BtPend.count_hits(q)
+	assert_eq([q.hits, q.lethal], [4, 0], "count_hits with tr: hits = shots and lh gives nothing")
 
 
 func test_weapon_lh() -> void:
@@ -617,6 +879,11 @@ func test_weapon_lh() -> void:
 	var t := _sq(st, "1:0", "heavy", 1, [[0, 2000]])
 	assert_true(BtCombat.atk_math(st, _sq(st, "0:0", "samurai", 0, [[0, 0]]), t, FIGHT)["lh"], "lh carried (melee)")
 	assert_false(BtCombat.atk_math(st, _sq(st, "0:1", "hoplite", 0, [[1000, 0]]), t, FIGHT)["lh"], "no lh")
+	var p := _atk("0:0", "1:0", 4, 3, 4, 4)
+	p.lh = true
+	p.hit_r = PackedInt32Array([6, 3, 6, 1])
+	BtPend.count_hits(p)
+	assert_eq([p.hits, p.lethal, BtPend.wound_dice(p)], [3, 2, 1], "lh: two sixes wound outright, one die left to roll")
 
 
 func test_weapon_dw() -> void:
@@ -624,6 +891,13 @@ func test_weapon_dw() -> void:
 	var t := _sq(st, "1:0", "heavy", 1, [[0, 10000]])
 	assert_true(BtCombat.atk_math(st, _sq(st, "0:0", "medusa", 0, [[0, 0]]), t, SHOOT)["dw"], "dw carried")
 	assert_false(BtCombat.atk_math(st, _sq(st, "0:1", "sniper", 0, [[1000, 0]]), t, SHOOT)["dw"], "no dw")
+	var out: Array[Dictionary] = []
+	var p := _atk("0:0", "1:0", 4, 2, 3, 3)
+	p.dw = true
+	p.stage = BattleState.S_WOUND
+	p.hits = 4
+	BtPend.apply_wnd(st, p, [6, 6, 3, 1], out)
+	assert_eq([p.wounds, p.mortal, BtPend.save_dice(p), p.stage], [3, 2, 1, BattleState.S_SAVE], "dw: two sixes are mortal, one wound to save")
 
 
 func test_weapon_bl() -> void:
@@ -655,6 +929,15 @@ func test_weapon_mk() -> void:
 	var t := _sq(st, "1:0", "heavy", 1, [[0, 8000]])
 	assert_true(BtCombat.atk_math(st, _sq(st, "0:0", mk, 0, [[0, 0]]), t, SHOOT)["mk"], "mk: the shot marks")
 	assert_false(BtCombat.atk_math(st, _sq(st, "0:1", "infantry", 0, [[1000, 0]]), t, SHOOT)["mk"], "no mk")
+	st.turn = 2
+	var p := _atk("0:0", "1:0", 2, 4, 4, 4)
+	p.mk = true
+	BtPend.mark_hit(st, p)
+	assert_eq(t.mk, -1, "no hit, no mark")
+	p.hits = 1
+	BtPend.mark_hit(st, p)
+	assert_eq(t.mk, st.mark_key(), "a hit marks the target for this turn")
+	assert_true(BtCombat.marked(st, t), "and it reads as marked")
 
 
 func test_weapon_la() -> void:
