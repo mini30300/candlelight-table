@@ -37,6 +37,27 @@ static var _g_nz := 1
 ## ช่อง k มีเลขชิ้น _g_idx[_g_off[k] .. _g_off[k + 1] - 1] ตามลำดับใน props
 static var _g_off := PackedInt32Array()
 static var _g_idx := PackedInt32Array()
+## ตำแหน่งและ bb ของแต่ละชิ้นตามลำดับใน props (ตัดเร็วโดยไม่เปิด Dictionary)
+static var _g_px := PackedInt64Array()
+static var _g_pz := PackedInt64Array()
+static var _g_bb := PackedInt64Array()
+## รูปของแต่ละชิ้นเป็นเลข (ดู _shape)
+static var _g_kind := PackedInt64Array()
+static var _g_c := PackedInt64Array()
+static var _g_sn := PackedInt64Array()
+static var _g_m := PackedInt64Array()
+static var _g_a := PackedInt64Array()
+static var _g_b := PackedInt64Array()
+const K_NONE := 0
+const K_BOX := 1
+const K_DISC := 2
+const K_OTHER := 3
+## จุดลองของวงกว้างที่คำนวณแล้ว (ดู _rings_to): ช่อง 0 ว่าง
+static var _ring_off: Array[PackedInt64Array] = []
+static var _ring_min2 := PackedInt64Array()
+## กรอบ (dx ต่ำสุด สูงสุด dz ต่ำสุด สูงสุด) ของจุดทีละกลุ่ม RING_B จุดตามลำดับมุม
+static var _ring_box: Array[PackedInt64Array] = []
+const RING_B := 8
 
 
 # ---------------------------------------------------------------- เตรียมรูปกีดขวาง
@@ -153,12 +174,37 @@ static func block_at(st: BattleState, x: int, z: int) -> bool:
 ## ชิ้นใดกันจุด (x, z) ที่อยู่บนโต๊ะแล้ว: ดูเฉพาะชิ้นในช่องของจุด
 static func _props_block(st: BattleState, x: int, z: int) -> bool:
 	_grid(st)
-	var ci := Fx.clampi(Fx.idiv(x + st.w * 500, CELL), 0, _g_nx - 1)
-	var cj := Fx.clampi(Fx.idiv(z + st.d * 500, CELL), 0, _g_nz - 1)
+	return _cell_block(st, x, z)
+
+
+## เหมือน _props_block แต่ตารางช่องต้องตรงกับ st อยู่แล้ว (free_spot เรียก _grid ครั้งเดียวต่อการค้น)
+## ตัดด้วย bb จากอาร์เรย์ (เท่า prop_blocks) ก่อนดูรูปจริง
+static func _cell_block(st: BattleState, x: int, z: int) -> bool:
+	# เท่า clampi(idiv(...)) แบบไม่เรียกฟังก์ชัน: ติดลบได้ช่องศูนย์ ไม่ติดลบหารตัดเศษคือปัดลง
+	var ux := x + st.w * 500
+	var uz := z + st.d * 500
+	var ci := mini(ux / CELL, _g_nx - 1) if ux >= 0 else 0
+	var cj := mini(uz / CELL, _g_nz - 1) if uz >= 0 else 0
 	var k := cj * _g_nx + ci
 	for t: int in range(_g_off[k], _g_off[k + 1]):
-		if prop_blocks(st.props[_g_idx[t]], x, z):
-			return true
+		var i := _g_idx[t]
+		var dx := x - _g_px[i]
+		var dz := z - _g_pz[i]
+		var bb := _g_bb[i]
+		if absi(dx) > bb or absi(dz) > bb or dx * dx + dz * dz > bb * bb:
+			continue
+		match _g_kind[i]:
+			K_BOX:
+				var c := _g_c[i]
+				var sn := _g_sn[i]
+				if absi(dx * c - dz * sn) * _g_m[i] < _g_a[i] and absi(dx * sn + dz * c) * _g_m[i] < _g_b[i]:
+					return true
+			K_DISC:
+				if (dx * dx + dz * dz) * 100000000 < _g_a[i]:
+					return true
+			K_OTHER:
+				if _hit(st.props[i], dx, dz):
+					return true
 	return false
 
 
@@ -174,11 +220,20 @@ static func _grid(st: BattleState) -> void:
 	var box := PackedInt64Array()
 	var count := PackedInt32Array()
 	count.resize(nx * nz + 1)
+	var gpx := PackedInt64Array()
+	var gpz := PackedInt64Array()
+	var gbb := PackedInt64Array()
+	var shp: Array[PackedInt64Array] = [PackedInt64Array(), PackedInt64Array(), PackedInt64Array(), PackedInt64Array(),
+		PackedInt64Array(), PackedInt64Array()]
 	for i: int in st.props.size():
 		var o := st.props[i]
 		var bb: int = o["bb"]
 		var px: int = o["x"]
 		var pz: int = o["z"]
+		gpx.append(px)
+		gpz.append(pz)
+		gbb.append(bb)
+		_shape(o, shp)
 		var i0 := maxi(0, Fx.idiv(px - bb + hw, CELL))
 		var i1 := mini(nx - 1, Fx.idiv(px + bb + hw, CELL))
 		var j0 := maxi(0, Fx.idiv(pz - bb + hd, CELL))
@@ -207,6 +262,36 @@ static func _grid(st: BattleState) -> void:
 	_g_nz = nz
 	_g_off = count
 	_g_idx = idx
+	_g_px = gpx
+	_g_pz = gpz
+	_g_bb = gbb
+	_g_kind = shp[0]
+	_g_c = shp[1]
+	_g_sn = shp[2]
+	_g_m = shp[3]
+	_g_a = shp[4]
+	_g_b = shp[5]
+
+
+## รูปของชิ้นเป็นเลขล้วน (ผลเท่า _hit): กล่องหมุน |l| x m < a และ |l'| x m < b (ตึก m = 2, กำแพง m = หมื่น)
+## ชิ้นกลม (ห่างกำลังสอง x ร้อยล้าน) < a; เสาใช้ _hit เดิม; ชิ้นกลมรัศมีศูนย์ไม่กันอะไร
+static func _shape(o: Dictionary, shp: Array[PackedInt64Array]) -> void:
+	var v := PackedInt64Array([K_NONE, 0, 0, 0, 0, 0])
+	var s4: int = o["s4"]
+	match str(o["kind"]):
+		"building":
+			v = PackedInt64Array([K_BOX, o["c"], o["sn"], 2, (int(o["bw"]) + 1400) * ONE, (int(o["bd"]) + 1400) * ONE])
+		"wall":
+			v = PackedInt64Array([K_BOX, o["c"], o["sn"], S4, (int(o["segs"]) * 1200 * s4 + 600 * S4) * ONE, (900 * s4 + 600 * S4) * ONE])
+		"pillars":
+			v[0] = K_OTHER
+		_:
+			var rb: int = o["rb"]
+			if rb > 0:
+				var lim2 := rb * s4 + 600 * S4
+				v = PackedInt64Array([K_DISC, 0, 0, 0, lim2 * lim2, 0])
+	for k: int in 6:
+		shp[k].append(v[k])
 
 
 ## รัศมีฐานตามตำแหน่งใน TYPES (ค่าจาก BtSquads.radius_of ที่เดียว เก็บไว้ให้ crowded เร็ว)
@@ -266,9 +351,9 @@ static func free_spot(st: BattleState, x: int, z: int, skip: BattleState.Unit, f
 		rad: int) -> PackedInt64Array:
 	var p := _Probe.new()
 	p.init(st, skip, from, max_d, rad)
-	if p.edge_ok(x, z) and p.from_ok(x, z) and not block_at(st, x, z) and not crowded(st, x, z, skip, rad):
-		return PackedInt64Array([x, z])
 	p.pack()
+	if p.ok(x, z, true):
+		return PackedInt64Array([x, z])
 	for o: Array in BtOffsets.FREESPOT_NEAR:
 		var nx: int = x + int(o[0])
 		var nz: int = z + int(o[1])
@@ -277,21 +362,75 @@ static func free_spot(st: BattleState, x: int, z: int, skip: BattleState.Unit, f
 	if p.has_from:
 		return PackedInt64Array()
 	var far := far_rings(st.w, st.d)
+	_rings_to(far)
+	# จุดในกรอบขอบห่าง (x, z) ไม่เกินมุมกรอบที่ไกลที่สุด: วงที่ทุกจุดไกลกว่านั้นไม่มีจุดผ่านขอบ ข้ามทั้งวง
+	var corner2 := (absi(x) + p.lw) * (absi(x) + p.lw) + (absi(z) + p.ld) * (absi(z) + p.ld)
+	# ช่วง dx / dz ที่ยังอยู่ในขอบ
+	var lx0 := -p.lw - x
+	var lx1 := p.lw - x
+	var lz0 := -p.ld - z
+	var lz1 := p.ld - z
 	for pass_no: int in 2:
 		var r := 1 if pass_no == 1 else 11
 		while r <= far:
-			var n := BtOffsets.fs_ring_n(r)
-			# มุมเริ่มของวง = r x 41/100 เรเดียน ปัดเป็น Q16 ทีละวง (คลาดไม่ถึงครึ่งหน่วย) ไม่ใช่ r x FS_ANG_STEP
-			# ที่คลาดสะสมจนจุดที่วงไกลเลื่อนเป็นร้อย MI
-			var t0 := Fx.js_round(r * 41 * ONE, 100)
-			for a: int in n:
-				var th := Fx.idiv(a * FieldProps.TWO_PI, n) + t0
-				var nx := x + 10 * Fx.js_round(FieldProps.cos_q(th) * r * 125, ONE)
-				var nz := z + 10 * Fx.js_round(FieldProps.sin_q(th) * r * 125, ONE)
-				if p.ok(nx, nz, pass_no == 0):
-					return PackedInt64Array([nx, nz])
+			if _ring_min2[r] <= corner2:
+				var ring: PackedInt64Array = _ring_off[r]
+				var box: PackedInt64Array = _ring_box[r]
+				var n := ring.size() / 2
+				for b: int in box.size() / 4:
+					# กรอบของกลุ่มจุดไม่แตะกรอบขอบ: ทุกจุดในกลุ่มตกขอบ ข้ามทั้งกลุ่ม (ลำดับจุดที่เหลือเหมือนเดิม)
+					if box[4 * b] > lx1 or box[4 * b + 1] < lx0 or box[4 * b + 2] > lz1 or box[4 * b + 3] < lz0:
+						continue
+					for a: int in range(b * RING_B, mini(n, b * RING_B + RING_B)):
+						var nx := x + ring[2 * a]
+						var nz := z + ring[2 * a + 1]
+						# นอกขอบ: ok ก็ตอบไม่ผ่าน ตัดก่อนเรียก
+						if absi(nx) > p.lw or absi(nz) > p.ld:
+							continue
+						if p.ok(nx, nz, pass_no == 0):
+							return PackedInt64Array([nx, nz])
 			r += 1
 	return PackedInt64Array([x, z])
+
+
+## จุดลองของวงกว้าง 1..far เก็บไว้ครั้งเดียว (ขึ้นกับ r กับลำดับมุมเท่านั้น ไม่ขึ้นกับจุดหรือโต๊ะ)
+## วง r: fs_ring_n(r) จุด (dx, dz) เรียงตามมุม; _ring_min2[r] = ระยะกำลังสองที่ใกล้ที่สุดของวง
+static func _rings_to(far: int) -> void:
+	var r := _ring_off.size()
+	if r == 0:
+		_ring_off.append(PackedInt64Array())
+		_ring_min2.append(0)
+		_ring_box.append(PackedInt64Array())
+		r = 1
+	while r <= far:
+		var n := BtOffsets.fs_ring_n(r)
+		# มุมเริ่มของวง = r x 41/100 เรเดียน ปัดเป็น Q16 ทีละวง (คลาดไม่ถึงครึ่งหน่วย) ไม่ใช่ r x FS_ANG_STEP
+		# ที่คลาดสะสมจนจุดที่วงไกลเลื่อนเป็นร้อย MI
+		var t0 := Fx.js_round(r * 41 * ONE, 100)
+		var ring := PackedInt64Array()
+		ring.resize(2 * n)
+		var m2 := -1
+		for a: int in n:
+			var th := Fx.idiv(a * FieldProps.TWO_PI, n) + t0
+			var dx := 10 * Fx.js_round(FieldProps.cos_q(th) * r * 125, ONE)
+			var dz := 10 * Fx.js_round(FieldProps.sin_q(th) * r * 125, ONE)
+			ring[2 * a] = dx
+			ring[2 * a + 1] = dz
+			m2 = dx * dx + dz * dz if m2 < 0 else mini(m2, dx * dx + dz * dz)
+		var box := PackedInt64Array()
+		for b: int in Fx.cdiv(n, RING_B):
+			var a0 := b * RING_B
+			var bx := PackedInt64Array([ring[2 * a0], ring[2 * a0], ring[2 * a0 + 1], ring[2 * a0 + 1]])
+			for a: int in range(a0 + 1, mini(n, a0 + RING_B)):
+				bx[0] = mini(bx[0], ring[2 * a])
+				bx[1] = maxi(bx[1], ring[2 * a])
+				bx[2] = mini(bx[2], ring[2 * a + 1])
+				bx[3] = maxi(bx[3], ring[2 * a + 1])
+			box.append_array(bx)
+		_ring_off.append(ring)
+		_ring_min2.append(m2)
+		_ring_box.append(box)
+		r += 1
 
 
 ## roomToLand: ปักจุดลงสนามที่ (x, z) ได้ไหม — ตัวจุดว่าง หรือมีจุดลองรอบ ๆ (สองวง) ที่ว่างสักจุด
@@ -305,6 +444,8 @@ static func room_to_land(st: BattleState, x: int, z: int) -> bool:
 
 
 ## ตัวช่วยของ free_spot: เก็บขอบและโมเดลเป็นอาร์เรย์ครั้งเดียวต่อการค้น (ของใช้ตารางช่อง) ผลเท่ากับ block_at / crowded
+## โมเดลลงตารางช่องของตัวเองทุกครั้งที่ค้น (โมเดลเพิ่ม ลด และย้ายที่ได้ทุกเมื่อ ตารางถาวรจะตามไม่ทัน)
+## ช่องกว้างเท่าผลรวมรัศมีที่มากที่สุด R: ตัวที่ทับจุดได้ห่างตามแกนน้อยกว่า R จึงอยู่ในช่องของช่วง x - R .. x + R เสมอ
 class _Probe extends RefCounted:
 	var st: BattleState
 	var skip: BattleState.Unit
@@ -318,13 +459,24 @@ class _Probe extends RefCounted:
 	var fz := 0
 	## เพดานระยะกำลังสอง; -1 = ไม่มีจุดใดผ่าน (หน้าเก่า maxD ติดลบเกินหนึ่ง MI)
 	var lim2 := 0
+	## โมเดลเรียงตามช่อง: ช่อง k คือ ux / uz / ur2 [uoff[k] .. uoff[k + 1] - 1]
 	var ux := PackedInt64Array()
 	var uz := PackedInt64Array()
 	var ur2 := PackedInt64Array()
+	var uoff := PackedInt32Array()
+	## R ขนาดช่อง จำนวนช่อง และมุมโต๊ะ (ตัวนอกโต๊ะลงช่องริม)
+	var reach := 0
+	var cell := 1
+	var cnx := 1
+	var cnz := 1
+	var ox := 0
+	var oz := 0
 
 	func init(s: BattleState, sk: BattleState.Unit, from: PackedInt64Array, max_d: int, rad: int) -> void:
 		st = s
 		skip = sk
+		# ตารางช่องของ props ให้ตรงกับ s ครั้งเดียว ระหว่างค้นไม่มีอะไรเปลี่ยน props
+		BtBlocking._grid(s)
 		me = BtBlocking._me(sk, rad)
 		lw = s.w * 500 - BtBlocking.EDGE_FREE
 		ld = s.d * 500 - BtBlocking.EDGE_FREE
@@ -338,32 +490,76 @@ class _Probe extends RefCounted:
 			var md := mini(max_d, 1000000000)
 			lim2 = (md + 1) * (md + 1) if md >= -1 else -1
 
-	func edge_ok(x: int, z: int) -> bool:
-		return absi(x) <= lw and absi(z) <= ld
+	## ช่องของพิกัด (นับก่อนแล้วเติม ลำดับในช่องตาม st.units)
+	func _ci(x: int) -> int:
+		var v := x - ox
+		return mini(v / cell, cnx - 1) if v >= 0 else 0
 
-	func from_ok(x: int, z: int) -> bool:
-		return not has_from or Fx.dist2(x, z, fx, fz) <= lim2
+	func _cj(z: int) -> int:
+		var v := z - oz
+		return mini(v / cell, cnz - 1) if v >= 0 else 0
 
 	func pack() -> void:
+		var tx := PackedInt64Array()
+		var tz := PackedInt64Array()
+		var tr := PackedInt64Array()
+		var n := 0
+		tx.resize(st.units.size())
+		tz.resize(st.units.size())
+		tr.resize(st.units.size())
+		# รัศมีเท่า unit_rad (ตารางเดียวกัน)
+		var rt := BtBlocking._radii()
+		var nt := rt.size()
 		for q: BattleState.Unit in st.units:
 			if q == skip:
 				continue
-			var rr := me + BtBlocking.unit_rad(q)
-			ux.append(q.x)
-			uz.append(q.z)
-			ur2.append(rr * rr)
+			var rr := me + (rt[q.ti] if q.ti >= 0 and q.ti < nt else BtBlocking.BASE_R)
+			tx[n] = q.x
+			tz[n] = q.z
+			tr[n] = rr
+			n += 1
+			reach = maxi(reach, rr)
+		# ช่องไม่เล็กกว่าครึ่งนิ้ว (รัศมีศูนย์ทั้งหมดก็ยังแบ่งช่องได้)
+		cell = maxi(reach, 500)
+		ox = -st.w * 500
+		oz = -st.d * 500
+		cnx = maxi(1, Fx.cdiv(st.w * 1000, cell))
+		cnz = maxi(1, Fx.cdiv(st.d * 1000, cell))
+		var at := PackedInt32Array()
+		at.resize(n)
+		uoff.resize(cnx * cnz + 1)
+		for i: int in n:
+			var k := _cj(tz[i]) * cnx + _ci(tx[i])
+			at[i] = k
+			uoff[k + 1] += 1
+		for k: int in range(1, uoff.size()):
+			uoff[k] += uoff[k - 1]
+		ux.resize(n)
+		uz.resize(n)
+		ur2.resize(n)
+		var fill := uoff.duplicate()
+		for i: int in n:
+			var t := fill[at[i]]
+			fill[at[i]] += 1
+			ux[t] = tx[i]
+			uz[t] = tz[i]
+			ur2[t] = tr[i] * tr[i]
 
 	func ok(x: int, z: int, crowd: bool) -> bool:
 		if absi(x) > lw or absi(z) > ld:
 			return false
 		if has_from and Fx.dist2(x, z, fx, fz) > lim2:
 			return false
-		if absi(x) > bw or absi(z) > bd or BtBlocking._props_block(st, x, z):
+		if absi(x) > bw or absi(z) > bd or BtBlocking._cell_block(st, x, z):
 			return false
-		if crowd:
-			for i: int in ux.size():
-				var ex := x - ux[i]
-				var ez := z - uz[i]
-				if ex * ex + ez * ez < ur2[i]:
-					return false
+		if crowd and ux.size() > 0:
+			# ทับ = ห่างกำลังสองน้อยกว่า rr ยกกำลังสอง ซึ่ง rr ไม่เกิน R: ดูเฉพาะช่องที่ห่างไม่เกิน R
+			var i0 := _ci(x - reach)
+			var i1 := _ci(x + reach)
+			for j: int in range(_cj(z - reach), _cj(z + reach) + 1):
+				for t: int in range(uoff[j * cnx + i0], uoff[j * cnx + i1 + 1]):
+					var ex := x - ux[t]
+					var ez := z - uz[t]
+					if ex * ex + ez * ez < ur2[t]:
+						return false
 		return true

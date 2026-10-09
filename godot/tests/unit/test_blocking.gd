@@ -60,6 +60,12 @@ func _scan(st: BattleState, x: int, z: int) -> bool:
 
 ## the plain reference of free_spot: the same candidate order, every check through _scan / the public crowded
 func _ref_free_spot(st: BattleState, x: int, z: int, skip: BattleState.Unit, from: PackedInt64Array, max_d: int, rad: int) -> Array:
+	return _ref_exit(st, x, z, skip, from, max_d, rad)[0]
+
+
+## [result, exit]: exit is "point", "near", "limited" (from given, nothing near), "wide" (crowd checked),
+## "overlap" (the crowd-off pass) or "none" (the point back)
+func _ref_exit(st: BattleState, x: int, z: int, skip: BattleState.Unit, from: PackedInt64Array, max_d: int, rad: int) -> Array:
 	var lw := st.w * 500 - 1200
 	var ld := st.d * 500 - 1200
 	var lim := from.size() >= 2
@@ -71,12 +77,12 @@ func _ref_free_spot(st: BattleState, x: int, z: int, skip: BattleState.Unit, fro
 				return false
 		return not _scan(st, nx, nz) and not (crowd and BtBlocking.crowded(st, nx, nz, skip, rad))
 	if ok.call(x, z, true):
-		return [x, z]
+		return [[x, z], "point"]
 	for o: Array in BtOffsets.FREESPOT_NEAR:
 		if ok.call(x + int(o[0]), z + int(o[1]), true):
-			return [x + int(o[0]), z + int(o[1])]
+			return [[x + int(o[0]), z + int(o[1])], "near"]
 	if lim:
-		return []
+		return [[], "limited"]
 	var far := BtBlocking.far_rings(st.w, st.d)
 	for pass_no: int in 2:
 		for r: int in range(11 if pass_no == 0 else 1, far + 1):
@@ -86,8 +92,8 @@ func _ref_free_spot(st: BattleState, x: int, z: int, skip: BattleState.Unit, fro
 				var nx := x + 10 * Fx.js_round(FieldProps.cos_q(th) * r * 125, 65536)
 				var nz := z + 10 * Fx.js_round(FieldProps.sin_q(th) * r * 125, 65536)
 				if ok.call(nx, nz, pass_no == 0):
-					return [nx, nz]
-	return [x, z]
+					return [[nx, nz], "wide" if pass_no == 0 else "overlap"]
+	return [[x, z], "none"]
 
 
 ## JSON numbers come back as floats; whole numbers become ints again (what Net does before restore)
@@ -658,3 +664,119 @@ func test_free_spot_speed() -> void:
 	print("info  400 free_spot placements on a dense 72 in ruin (%d props): %d ms" % [st.props.size(), ms])
 	assert_eq(overlap, 0, "400 bases placed with free_spot never overlap")
 	assert_true(ms < 20000, "400 placements take %d ms (< 20 s even on a slow runner)" % ms)
+
+
+## the recorded 48 in ruin with six seats (fixtures/army/page_samples.json, the page's own deploy case)
+func _deploy6() -> BattleState:
+	var all: Dictionary = _to_ints(JSON.parse_string(FileAccess.get_file_as_string("res://tests/unit/fixtures/army/page_samples.json")))
+	var c: Dictionary = {}
+	for cv: Variant in all["deploy"]:
+		var d: Dictionary = cv
+		if str(d["field"]) == "ruin48" and (d["seats"] as Array).size() == 6:
+			c = d
+	var f: Dictionary = all["fields"]["ruin48"]
+	var setup: Dictionary = c["setup"]
+	var st := BattleState.make({"seed": f["seed"], "w": f["w"], "d": f["d"], "teams": setup["teams"],
+		"perTeam": setup["perTeam"], "mode": setup["mode"], "budget": setup["budget"]})
+	var items: Array[Dictionary] = []
+	for r: Variant in f["props"]:
+		items.append(BtBlocking.prep_one(str(r[0]), r[1], r[2], r[3], r[4], r[5], r[6], r[7]))
+	st.set_props(items, true)
+	for sv: Variant in c["seats"]:
+		var s: Dictionary = sv
+		var p := st.add_seat(int(s["team"]), "", bool(s.get("bot", false)), false, "")
+		var list := PackedInt32Array()
+		list.resize(GameData.count())
+		for e: Variant in s.get("list", []):
+			list[int(e[0])] = int(e[1])
+		p.list = list
+		if s.get("dep") != null:
+			var dp: Array = s["dep"]
+			p.has_dep = true
+			p.dep_x = dp[0]
+			p.dep_z = dp[1]
+	return st
+
+
+func test_deploy_speed() -> void:
+	var st := _deploy6()
+	var ev: Array[Dictionary] = []
+	var t0 := Time.get_ticks_msec()
+	BtArmy.deploy(st, ev)
+	var ms := Time.get_ticks_msec() - t0
+	print("info  deploy of the recorded 48 in ruin, %d seats / %d models: %d ms, digest %s" % [st.seats.size(), st.units.size(), ms, st.digest()])
+	assert_eq(st.digest(), "e195700554aa40b1", "deploy of the recorded six-seat ruin is the same as with the plain scan (digest from before the grids)")
+	assert_eq(st.units.size(), 280, "280 models deployed")
+	# measured headless on the dev container: 6425 ms with the plain scan, about 650 ms with the grids;
+	# the bound is loose because the self-test also runs on phones
+	assert_true(ms < 10000, "deploy of 280 models takes %d ms" % ms)
+
+
+## random props of every kind (turned, scaled, walls of 3..6 parts, zero-radius kinds), on any table size
+func _rand_props(rng: Rng, w: int, d: int, n: int) -> Array[Dictionary]:
+	var kinds := ["building", "wall", "pillars", "tree", "tower", "crater", "bush", "boulder", "rubble", "zz"]
+	var out: Array[Dictionary] = []
+	for i: int in n:
+		var k: String = kinds[rng.bounded(kinds.size())]
+		var x := rng.bounded(w * 1000 + 8001) - w * 500 - 4000
+		var z := rng.bounded(d * 1000 + 8001) - d * 500 - 4000
+		out.append(BtBlocking.prep_one(k, x, z, rng.bounded(BtBlocking.ONE * 7), 4000 + rng.bounded(26001), rng.bounded(BtBlocking.ONE),
+			1000 + rng.bounded(9001), 1000 + rng.bounded(7001)))
+	return out
+
+
+func test_free_spot_grids_equal_plain_scan() -> void:
+	# the unit grid, the packed prop shapes, the ring cache and the ring / block skips against the plain reference:
+	# random tables (tiny to wide), random props, unit sets from empty to a covered table (any type, unknown types,
+	# models off the table), skip / rad / from / max_d mixed; every exit of free_spot is reached
+	var rng := Rng.make("test:fsgrid", 3)
+	var exits := {}
+	var bad := []
+	var queries := 0
+	var tables := [[2, 2, 0, 0], [6, 4, 3, 20], [24, 18, 12, 300], [30, 22, 25, 60], [48, 34, 18, 140], [60, 44, 40, 30], [33, 23, 0, 0]]
+	for cfg: Array in tables:
+		for rep: int in 2:
+			var st := BattleState.make({"seed": 1, "w": cfg[0], "d": cfg[1]})
+			st.set_props(_rand_props(rng, cfg[0], cfg[1], cfg[2]), false)
+			var us := []
+			var nu: int = cfg[3] if rep == 0 else Fx.idiv(int(cfg[3]), 3)
+			for i: int in nu:
+				var k := GameData.key_at(rng.bounded(GameData.count())) if rng.bounded(8) != 0 else "zz_unknown"
+				us.append([k, rng.bounded(int(cfg[0]) * 1000 + 6001) - int(cfg[0]) * 500 - 3000,
+					rng.bounded(int(cfg[1]) * 1000 + 6001) - int(cfg[1]) * 500 - 3000])
+			_add_units(st, us)
+			var before := st.digest()
+			for q: int in 40:
+				var x := (rng.bounded(int(cfg[0]) * 100 + 201) - int(cfg[0]) * 50 - 100) * 10
+				var z := (rng.bounded(int(cfg[1]) * 100 + 201) - int(cfg[1]) * 50 - 100) * 10
+				var skip: BattleState.Unit = st.units[rng.bounded(st.units.size())] if st.units.size() > 0 and rng.bounded(3) == 0 else null
+				var from := PackedInt64Array()
+				var max_d := 0
+				if rng.bounded(4) == 0:
+					from = PackedInt64Array([x + (rng.bounded(401) - 200) * 10, z + (rng.bounded(401) - 200) * 10])
+					max_d = rng.bounded(6000) - 3
+				var rad: int = [-1, 0, 800, 1100, 2200, 6000][rng.bounded(6)]
+				var got := _arr(BtBlocking.free_spot(st, x, z, skip, from, max_d, rad))
+				var want := _ref_exit(st, x, z, skip, from, max_d, rad)
+				exits[want[1]] = int(exits.get(want[1], 0)) + 1
+				queries += 1
+				if got != want[0] and bad.size() < 5:
+					bad.append([cfg, x, z, from, max_d, rad, got, want])
+			if st.digest() != before:
+				bad.append(["state changed", cfg])
+	print("info  %d random free_spot queries, exits %s" % [queries, str(exits)])
+	assert_true(bad.is_empty(), "free_spot equals the plain scan on %d random queries" % queries, bad)
+	for e: String in ["point", "near", "limited", "wide", "overlap", "none"]:
+		assert_true(int(exits.get(e, 0)) > 0, "the random queries reach the '%s' exit (%d)" % [e, int(exits.get(e, 0))])
+
+
+func test_free_spot_rings_follow_the_table() -> void:
+	# the ring cache grows with the widest table seen and stays right for a small table afterwards
+	var big := _state(180, 120, [["building", 0, 0, 0, 10000, 0, 170000, 110000]], [])
+	var small := _state(24, 18, [["building", 0, 0, 0, 10000, 0, 20000, 14000]], [])
+	var none := PackedInt64Array()
+	for st: BattleState in [small, big, small]:
+		for p: Array in [[0, 0], [5000, -3000], [-11000, 8000]]:
+			var got := _arr(BtBlocking.free_spot(st, p[0], p[1], null, none, 0, 800))
+			assert_eq(got, _ref_free_spot(st, p[0], p[1], null, none, 0, 800), "%d in table from %s: the same spot as the plain scan" % [st.w, str(p)])
+
