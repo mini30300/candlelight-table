@@ -321,7 +321,7 @@ static func spawn_from(st: BattleState, s: BattleState.Squad, x: int, z: int, ou
 	q.fx = fx
 	q.fz = fz
 	var r := BtSquads.radius(q)
-	# ปัดเป็นตาราง 10 MI (ทิศยาว 1000 คูณ 2.6 นิ้วไม่ลงตาราง formation กับ free_spot จะพาออกนอกตาราง)
+	# ปัดเป็นตาราง 10 MI (ทิศยาว 1000 คูณ 2600 MI หารพันไม่ลงตาราง formation กับ free_spot จะพาออกนอกตาราง)
 	var cx := bx + 10 * Fx.js_round(fx * SPAWN_OUT, 10000)
 	var cz := bz + 10 * Fx.js_round(fz * SPAWN_OUT, 10000)
 	var slots := BtSquads.formation(n, cx, cz, fx, fz, r)
