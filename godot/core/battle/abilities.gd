@@ -290,7 +290,7 @@ static func wind_turn(st: BattleState, out: Array[Dictionary]) -> void:
 
 ## spawnFrom: เปิดท้องม้า (ครั้งเดียว) หมู่ใหม่ <s>x ชนิด spawn.k จำนวน spawn.n (ไม่มีใช้ n ของชนิด) ไม่มีโล่
 ## ม้ายังอยู่: ฐานคือตัวแรกที่ยังอยู่ หันตามทิศของหมู่ · ม้าพังแล้ว: ฐาน (x, z) ตำแหน่งกติกาที่ล้ม หัน (0, 1000)
-## จุดกลาง = ฐาน + ทิศ x 2600 MI แล้ววางแถว formation + free_spot แผลเต็ม ต่อท้าย; ไม่มี spawn หรือเปิดแล้วคืน null
+## จุดกลาง = ฐาน + ทิศ x 2600 MI (ปัดเป็นตาราง 10 MI) แล้ววางแถว formation + free_spot แผลเต็ม ต่อท้าย; ไม่มี spawn หรือเปิดแล้วคืน null
 static func spawn_from(st: BattleState, s: BattleState.Squad, x: int, z: int, out: Array[Dictionary]) -> BattleState.Squad:
 	if s == null or s.opened:
 		return null
@@ -321,8 +321,9 @@ static func spawn_from(st: BattleState, s: BattleState.Squad, x: int, z: int, ou
 	q.fx = fx
 	q.fz = fz
 	var r := BtSquads.radius(q)
-	var cx := bx + Fx.js_round(fx * SPAWN_OUT, 1000)
-	var cz := bz + Fx.js_round(fz * SPAWN_OUT, 1000)
+	# ปัดเป็นตาราง 10 MI (ทิศยาว 1000 คูณ 2.6 นิ้วไม่ลงตาราง formation กับ free_spot จะพาออกนอกตาราง)
+	var cx := bx + 10 * Fx.js_round(fx * SPAWN_OUT, 10000)
+	var cz := bz + 10 * Fx.js_round(fz * SPAWN_OUT, 10000)
 	var slots := BtSquads.formation(n, cx, cz, fx, fz, r)
 	var w := num(ti, "w")
 	for j: int in n:

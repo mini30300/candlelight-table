@@ -759,6 +759,44 @@ func test_flag_spawn() -> void:
 	assert_eq(st.squads.size(), 6, "a second after_kills opens nothing")
 
 
+## R1_PORT_SPEC §2: spawn_from results are on the 10 MI grid. A deploy facing from norm1000 (e.g. (447, 894)) times
+## 2.6 inches is not a multiple of 10 MI, so the exit centre must be rounded to the grid (formation keeps the grid only
+## for an on-grid centre, and free_spot returns a free slot unchanged).
+func test_spawn_on_the_grid() -> void:
+	var sk := _find(func(q: Dictionary) -> bool: return q.has("spawn"))
+	var sp: Dictionary = GameData.ty(sk)["spawn"]
+	var hk := str(sp["k"])
+	var n := int(sp["n"]) if sp.has("n") else int(GameData.ty(hk)["n"])
+	var off: Array = []
+	for f: Array in [[447, 894], [-707, 707], [1000, 0], [123, -992], [0, 1000]]:
+		var st := _st()
+		var out: Array[Dictionary] = []
+		var c := _sq(st, "0:0", sk, 0, [[0, 0]])
+		c.fx = int(f[0])
+		c.fz = int(f[1])
+		var q := BtAbilities.spawn_from(st, c, 0, 0, out)
+		assert_true(q != null and st.squad_alive(q) == n, "spawned %d models facing %s" % [n, str(f)])
+		for m: BattleState.Unit in q.models:
+			if m.x % 10 != 0 or m.z % 10 != 0:
+				off.append([f, m.id, m.x, m.z])
+		# the centre is the carrier plus 2.6 inches along the facing, rounded to the grid (half up)
+		var cx := 10 * Fx.js_round(int(f[0]) * 2600, 10000)
+		var cz := 10 * Fx.js_round(int(f[1]) * 2600, 10000)
+		var slots := BtSquads.formation(n, cx, cz, int(f[0]), int(f[1]), BtSquads.radius(q))
+		var twin := _st()
+		_sq(twin, "0:0", sk, 0, [[0, 0]])
+		var tq := twin.add_squad("0:0x", hk, 0, 0, n, 0)
+		var want: Array = []
+		var got: Array = []
+		for j: int in n:
+			var p := BtBlocking.free_spot(twin, slots[j][0], slots[j][1], null, PackedInt64Array(), 0, BtSquads.radius(q))
+			twin.add_unit("0:0x.%d" % j, tq, 1, p[0], p[1])
+			want.append([p[0], p[1]])
+			got.append([q.models[j].x, q.models[j].z])
+		assert_eq(got, want, "facing %s: formation around the grid-rounded exit centre (%d, %d)" % [str(f), cx, cz])
+	assert_eq(off, [], "every spawned model stands on the 10 MI grid")
+
+
 func test_flag_rez() -> void:
 	var st := _st()
 	var out: Array[Dictionary] = []
