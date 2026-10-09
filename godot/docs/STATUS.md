@@ -16,13 +16,16 @@ The owner paused the game on 9 Oct to work on another project. Everything below 
   green), the doom glyph; comments only for code-text names. The independent check step never ran (session limit):
   review it, re-run the page suites, then cherry-pick, and open the candlelight-server re-embed PR
   (`python3 embed.py`). Merge order then: candlelight-server first. Verdicts: workflow run `wf_563738c7-976` journal.
-- **Wave 3 builder B** (board + act codec): commit `a156f40` on `worktree-wf_270d5a21-a01-2`, 2,300 checks green,
-  not integrated. Builders A (pend + handlers), C (oracle harness + re-record) and D (deploy speed) never finished.
+
+## 10 Oct: wave 3 landed
+Pend queue + ability handlers, board + act codec, oracle harness (24 recordings, page hash), deploy speed (unit grid),
+reviewed (one grid bug in spawn_from fixed). 2,569 unit checks. Open for wave 5: the dispatcher maps act t "" to no
+match for targeted codes; Battle.make applies fixture units0 itself; the caller runs BtTurn.check_over after every
+pend applier and prune. New log keys (atk_done, dice_short, shock_*, chg_*, heal_roll, rez_roll, wind_*, …) need I18n.
 
 ## Next steps, in order
 1. Review and land the rule-1 fix (above) with its server PR.
-2. Re-run waves 3–4 with `scratchpad/r1-core-waves-3-4.js` (reuse `a156f40` for builder B instead of rebuilding),
-   then waves 5–6 (acts dispatcher + battle, goldens, smoke bots, perf, oracle green, `docs/GODOT.md`).
+2. Wave 4 (turn, roller + bot, net wire numbers) from `scratchpad/r1-core-waves-3-4.js`, then waves 5–6 (acts dispatcher + battle, goldens, smoke bots, perf, oracle green, `docs/GODOT.md`).
 3. R1-V3: play the baked clips on the figures (AnimationTree), ruin full set after the owner approves the sample.
 4. Owner gates: R0-H (APK GPU-check screenshot), ruin sample verdict, R7 collection design week.
 
