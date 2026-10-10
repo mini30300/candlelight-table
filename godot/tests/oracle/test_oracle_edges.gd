@@ -59,6 +59,9 @@ static func _stage(s: String) -> String:
 
 
 func test_edge_files_present() -> void:
+	if edge_files().is_empty() and not OS.has_feature("editor"):
+		print("SKIP  oracle edges: no recordings in this build (the exported game carries no .json.gz)")
+		return
 	assert_true(edge_files().size() >= 5, "edge recordings exist (tools/record_act_edges.js)", edge_files())
 
 

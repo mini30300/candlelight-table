@@ -35,6 +35,9 @@ static func _key(a: Dictionary) -> Array:
 
 
 func test_bots_and_roller_choose_as_the_page() -> void:
+	if Oracle.recordings().is_empty() and not OS.has_feature("editor"):
+		print("SKIP  oracle bots: no recordings in this build (the exported game carries no .json.gz)")
+		return
 	var want_env := OS.get_environment("ORACLE")
 	var n_files := 0
 	for path: String in Oracle.recordings():
