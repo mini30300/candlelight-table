@@ -4,7 +4,8 @@ extends "res://tests/testing.gd"
 ## that a later (or parallel) wave writes (LATER); every handler that exists has a behavioural test in this file named
 ## test_<group>_<name> whose body calls it; the accessors read the data with the page's JavaScript truthiness.
 ## The wave-3 handlers (BtPend appliers, glory_heal, revive_one, wind_*, spawn_from, after_kills, refill_shields) exist
-## and are checked here through the flag that uses them; BtTurn.start_turn (wave 4) is still LATER.
+## and are checked here through the flag that uses them; BtTurn.start_turn (wave 4) through brave, rez, spawn and the
+## ld/rez auras.
 
 const TYPES_JSON := "res://data/types.json"
 const SELF := "res://tests/unit/test_abilities.gd"
@@ -12,11 +13,9 @@ const SELF := "res://tests/unit/test_abilities.gd"
 const PINNED_DIGEST := "01e902182e89e173"
 ## modules the registry may point to (R1_PORT_SPEC §1)
 const MODULES := ["BtCombat", "BtAbilities", "BtSquads", "BtArmy", "BtPend", "BtTurn"]
-## handlers that a later or parallel wave writes (wave number): they may be missing until then. Waves 2 and 3 are
+## handlers that a later or parallel wave writes (wave number): they may be missing until then. Waves 2 to 4 are
 ## integrated, so their handlers must exist.
-const LATER := {
-	"BtTurn.start_turn": 4,
-}
+const LATER := {}
 const SHOOT := BattleState.HOW_SHOOT
 const FIGHT := BattleState.HOW_FIGHT
 const OW := BattleState.HOW_OW
@@ -381,6 +380,25 @@ func test_flag_ac() -> void:
 	b.adv = true
 	assert_eq(_key(BtCombat.charge_why_not(st, a, st.squad("1:0"))), "", "ac: charges after advancing")
 	assert_eq(_key(BtCombat.charge_why_not(st, b, t2)), "advanced", "without ac: no charge after advancing")
+
+
+func test_flag_brave() -> void:
+	var st := _st()
+	st.turn = 0
+	var br := _find(func(q: Dictionary) -> bool: return q.has("brave") and int(q["n"]) >= 3)
+	var plain := _find(func(q: Dictionary) -> bool: return not q.has("brave") and not q.has("aura") and int(q["n"]) >= 3)
+	var a := _sq(st, "0:0", br, 0, [[0, 0]])
+	var b := _sq(st, "0:1", plain, 0, [[30000, 0]])
+	_sq(st, "1:0", "infantry", 1, [[0, 30000]])
+	assert_true(BtSquads.half(a) and BtSquads.half(b), "both squads are below half strength")
+	var out: Array[Dictionary] = []
+	BtTurn.start_turn(st, out)
+	var tested: Array = []
+	for p: BattleState.Pend in st.pend:
+		if p.kind == BattleState.K_SHOCK:
+			tested.append(p.u)
+	assert_eq(tested, [b.id], "start_turn: a brave squad never takes the battle-shock test, the other one does")
+	assert_true(st.log_lines.any(func(l: Dictionary) -> bool: return l["key"] == "shock_free_brave" and l["args"] == [a.id]), "logged shock_free_brave")
 
 
 func test_flag_aoc() -> void:
@@ -757,6 +775,19 @@ func test_flag_spawn() -> void:
 	assert_eq([q2.fx, q2.fz, q2.models[0].x, q2.models[0].z], [0, 1000, s2[0][0], s2[0][1]], "dead carrier: from its rules position facing (0, 1000)")
 	BtAbilities.after_kills(st, killed, out)
 	assert_eq(st.squads.size(), 6, "a second after_kills opens nothing")
+	# start_turn opens a living carrier of the side in turn from round 2 only, once
+	var st3 := _st(1)
+	st3.turn = 0
+	var c3 := _sq(st3, "0:0", sk, 0, [[0, 0]])
+	var c4 := _sq(st3, "1:0", sk, 1, [[0, 20000]])
+	BtTurn.start_turn(st3, out)
+	assert_eq([c3.opened, st3.squads.size()], [false, 2], "start_turn round 1: the carrier stays shut")
+	st3.round_no = 2
+	BtTurn.start_turn(st3, out)
+	assert_eq([c3.opened, c4.opened, st3.squads.size(), st3.squad_alive(st3.squad("0:0x"))], [true, false, 3, n],
+		"start_turn round 2: the own carrier opens (spawn_from), the other side's does not")
+	BtTurn.start_turn(st3, out)
+	assert_eq(st3.squads.size(), 3, "opened once only")
 
 
 ## R1_PORT_SPEC §2: spawn_from results are on the 10 MI grid. A deploy facing from norm1000 (e.g. (447, 894)) times
@@ -832,6 +863,23 @@ func test_flag_rez() -> void:
 	p.u = dead.id
 	BtPend.apply_rez(st, p, [6, 6, 6], out)
 	assert_eq(st.squad_alive(dead), 0, "nobody left: nothing rises")
+	# start_turn queues the roll: one die per lost model (at most 10), need = rez, attacker = the squad's seat
+	var st2 := _st()
+	st2.turn = 0
+	var s2 := _sq(st2, "0:0", rk, 0, pts)
+	s2.n0 = 8
+	_sq(st2, "1:0", "infantry", 1, [[0, 20000]])
+	var big := _sq(st2, "0:1", rk, 0, [[20000, 0]])
+	big.n0 = 14
+	var whole := _sq(st2, "0:2", rk, 0, [[-20000, 0]])
+	whole.n0 = 1
+	BtTurn.start_turn(st2, out)
+	var rows: Array = []
+	for q: BattleState.Pend in st2.pend:
+		if q.kind == BattleState.K_REZ:
+			rows.append([q.u, q.need, q.n, q.att, q.stage])
+	assert_eq(rows, [["0:0", need, 3, 0, BattleState.S_REZ], ["0:1", need, 10, 0, BattleState.S_REZ]],
+		"start_turn: rez rolls for squads with losses (n capped at 10), none without")
 
 
 # ------------------------------------------------------------------ behaviour: weapon keywords
@@ -1016,6 +1064,44 @@ func test_aura_bless() -> void:
 	assert_eq(BtCombat.atk_math(st, s, t, SHOOT)["sv"], 7, "ap 2 on armour 5: no save")
 	_sq(st, "1:1", "templar", 1, [[5000, 15000]])
 	assert_eq(BtCombat.atk_math(st, s, t, SHOOT)["sv"], GameData.const_int("BLESS_INV"), "blessed: BLESS_INV")
+
+
+func test_aura_ld() -> void:
+	var st := _st()
+	st.turn = 0
+	var ld := _find(func(q: Dictionary) -> bool: return str(q.get("aura", "")) == "ld" and not q.has("brave"))
+	var s := _sq(st, "0:0", "infantry", 0, [[0, 0]])
+	var far := _sq(st, "0:1", "infantry", 0, [[30000, 0]])
+	_sq(st, "0:2", ld, 0, [[0, 6000]])
+	_sq(st, "1:0", "infantry", 1, [[0, 30000]])
+	var out: Array[Dictionary] = []
+	BtTurn.start_turn(st, out)
+	var tested: Array = []
+	for p: BattleState.Pend in st.pend:
+		if p.kind == BattleState.K_SHOCK:
+			tested.append(p.u)
+	assert_true(BtSquads.half(s) and BtSquads.half(far), "both infantry squads are below half")
+	assert_eq(tested, [far.id], "start_turn: within 6 inches of an ld bearer no battle-shock test; beyond it one")
+	assert_true(st.log_lines.any(func(l: Dictionary) -> bool: return l["key"] == "shock_free_ld" and l["args"] == [s.id]), "logged shock_free_ld")
+
+
+func test_aura_rez() -> void:
+	var st := _st()
+	st.turn = 0
+	var rk := _find(func(q: Dictionary) -> bool: return q.has("rez") and int(q["rez"]) > GameData.const_int("REZ_AURA"))
+	var ak := _find(func(q: Dictionary) -> bool: return str(q.get("aura", "")) == "rez")
+	var near := _sq(st, "0:0", rk, 0, [[0, 0]])
+	var far := _sq(st, "0:1", rk, 0, [[30000, 0]])
+	_sq(st, "0:2", ak, 0, [[0, 6000]])
+	_sq(st, "1:0", ak, 1, [[30000, 6000]])
+	var out: Array[Dictionary] = []
+	BtTurn.start_turn(st, out)
+	var got := {}
+	for p: BattleState.Pend in st.pend:
+		if p.kind == BattleState.K_REZ:
+			got[p.u] = p.need
+	assert_eq([got.get(near.id, -1), got.get(far.id, -1)], [GameData.const_int("REZ_AURA"), BtAbilities.num(near.ti, "rez")],
+		"start_turn: next to an own rez bearer the need is REZ_AURA, a foe's bearer does not help")
 
 
 # ------------------------------------------------------------------ behaviour: army rules
