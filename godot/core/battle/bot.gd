@@ -21,6 +21,8 @@ const MELEE_RNG := 12
 ## บุก: ขอบห่างไม่เกิน 11 นิ้ว (หน่วยประชิด) / 7 นิ้ว (หน่วยยิงที่ตีคุ้มกว่า)
 const CHARGE_MELEE := 11000
 const CHARGE_GUN := 7000
+## เพดานของ d2·4^j ใน _toward (2^58: คูณสี่อีกทีก็ยังไม่ถึง 2^63)
+const SQRT_LIM := 288230376151711744
 
 
 # ---------------------------------------------------------------- ทางเลือก
@@ -129,13 +131,20 @@ static func _roll(dice: Rng, n: int) -> Array:
 
 
 ## จุดจาก c ไปทาง (gx, gz) เป็นระยะ step MI (ยาวศูนย์ = ที่เดิม เหมือน || 1 ของหน้าเก่า)
+## ความยาวคิดละเอียด: isqrt(d2·4^j)/2^j (d2·4^j ไม่เกิน 2^58) isqrt ตรง ๆ ของเวกเตอร์สั้นคลาดเป็นร้อย MI
+## ตัวเศษ dx·step·2^j: |dx|·2^j ไม่เกินราว 2^30, step ไม่เกินราว 1e5 = ไม่เกินราว 1e14
 static func _toward(c: PackedInt64Array, gx: int, gz: int, step: int) -> PackedInt64Array:
 	var dx := gx - c[0]
 	var dz := gz - c[1]
-	var l := Fx.isqrt(dx * dx + dz * dz)
-	if l == 0:
+	var q := dx * dx + dz * dz
+	if q == 0:
 		return PackedInt64Array([c[0], c[1]])
-	return PackedInt64Array([c[0] + Fx.js_round(dx * step, l), c[1] + Fx.js_round(dz * step, l)])
+	var k := 1
+	while q < SQRT_LIM:
+		q *= 4
+		k *= 2
+	var l := Fx.isqrt(q)
+	return PackedInt64Array([c[0] + Fx.js_round(dx * step * k, l), c[1] + Fx.js_round(dz * step * k, l)])
 
 
 ## ศัตรูที่ใกล้ที่สุด (ระยะใกล้สุดระหว่างโมเดล ตรงเป๊ะ เท่ากันเอาหมู่แรก)

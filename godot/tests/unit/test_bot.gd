@@ -10,8 +10,9 @@ const FIXTURE := "res://tests/unit/fixtures/bot/page_samples.json"
 const Apply := preload("res://tests/unit/bot_act_apply.gd")
 ## Digest of _digest_scenario; changes only on purpose.
 const PINNED_DIGEST := "f1e14e21b206c550"
-## planMove targets: the port's integer target vs the page's double (centres are js_round means, lengths isqrt).
-const TARGET_TOL := 5
+## planMove targets: the port's integer target vs the page's double (centres are js_round means, the remaining step
+## isqrt; the direction length is exact to well under 1 MI, see test_move_fall_back_direction_from_close_centres).
+const TARGET_TOL := 2
 
 var fx: Dictionary = {}
 
@@ -298,6 +299,25 @@ func test_move_fall_back_when_outmatched() -> void:
 	_sq(st3, "0:0", "infantry", 0, _line(5, -3600, 0))
 	_sq(st3, "1:0", "infantry", 1, _line(5, -3600, 2500))
 	assert_eq(BtBot.next_act(st3, null), {"a": "stay", "u": "0:0"}, "an even fight stays (not strictly outmatched)")
+
+
+## The page's fall back target is c + (c - foe centre)/|c - foe centre|·mv in doubles. With the centres a few MI apart
+## a floored integer length (isqrt(98) = 9 for 9.899) put the target 424 MI off; the port must stay within 1 MI.
+func test_move_fall_back_direction_from_close_centres() -> void:
+	for off: Array in [[7, 7], [1, 2], [3, -1], [40, 13], [-299, 5]]:
+		var st := _st2()
+		var me := _sq(st, "0:0", "infantry", 0, _line(5, -3600, 0))
+		var ox: int = off[0]
+		var oz: int = off[1]
+		_sq(st, "1:0", "templar", 1, [[ox, oz + 2500], [ox, oz - 2500], [ox, oz]])
+		var d := BtBot.move_decision(st, me)
+		assert_eq(str(d.get("how", "")), "fb", "outmatched gun squad falls back (offset %s)" % str(off))
+		var l := sqrt(float(ox * ox + oz * oz))
+		var want_x := -float(ox) / l * 6000.0
+		var want_z := -float(oz) / l * 6000.0
+		var c := BtSquads.center(me)
+		var err := maxf(absf(float(int(d["x"]) - c[0]) - want_x), absf(float(int(d["z"]) - c[1]) - want_z))
+		assert_true(err <= 1.0, "fall back target within 1 MI of the page's double (offset %s, error %.2f MI)" % [str(off), err])
 
 
 func test_move_hold_and_go_for_objectives() -> void:
