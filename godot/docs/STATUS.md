@@ -23,9 +23,16 @@ reviewed (one grid bug in spawn_from fixed). 2,569 unit checks. Open for wave 5:
 match for targeted codes; Battle.make applies fixture units0 itself; the caller runs BtTurn.check_over after every
 pend applier and prune. New log keys (atk_done, dice_short, shock_*, chg_*, heal_roll, rez_roll, wind_*, …) need I18n.
 
+## 10 Oct: wave 4 landed
+Turn (start_match, start_turn, phases, fights, end of round), roller (tray scheduler), bot (all phases), net/json_num
+(wire numbers). 400 + bot page samples match; 12 bot-vs-bot games finish; 3,299 unit checks. Open for wave 5: Battle.advance
+runs BtPend.prune once then BtTurn.advance_step up to ADVANCE_GUARD; start_match needs an undeployed state; bot_step should
+give next_act the bot:<seat> stream of the squad that acts (the test helper uses the team's first bot seat); new turn log
+keys (match_start, turn_start, fight_*, seat_done, over_*) need I18n.
+
 ## Next steps, in order
 1. Review and land the rule-1 fix (above) with its server PR.
-2. Wave 4 (turn, roller + bot, net wire numbers) from `scratchpad/r1-core-waves-3-4.js`, then waves 5–6 (acts dispatcher + battle, goldens, smoke bots, perf, oracle green, `docs/GODOT.md`).
+2. Waves 5–6 (acts dispatcher + battle, goldens, smoke bots, perf, oracle green, `docs/GODOT.md`).
 3. R1-V3: play the baked clips on the figures (AnimationTree), ruin full set after the owner approves the sample.
 4. Owner gates: R0-H (APK GPU-check screenshot), ruin sample verdict, R7 collection design week.
 
