@@ -50,9 +50,14 @@ static func dist2_min(a: BattleState.Squad, b: BattleState.Squad) -> int:
 	if a == null or b == null or a.models.is_empty() or b.models.is_empty():
 		return BattleState.FAR2
 	var best := BattleState.FAR2
+	# คิดในวงเอง ไม่เรียก Fx.dist2 (ฟังก์ชันนี้ถูกเรียกเป็นแสนครั้งต่อเทิร์นบนโต๊ะแน่น)
 	for p: BattleState.Unit in a.models:
+		var px := p.x
+		var pz := p.z
 		for q: BattleState.Unit in b.models:
-			var d2 := Fx.dist2(p.x, p.z, q.x, q.z)
+			var dx := q.x - px
+			var dz := q.z - pz
+			var d2 := dx * dx + dz * dz
 			if d2 < best:
 				best = d2
 	return best
@@ -83,7 +88,21 @@ static func edge_within(a: BattleState.Squad, b: BattleState.Squad, lim_mi: int)
 		return false
 	if sum > _SUM_MAX:
 		return true
-	return dist2_min(a, b) <= sum * sum
+	# = dist2_min(a, b) <= sum^2: คู่แรกที่ถึงก็พอ ตัดตามแกนก่อนคูณ (ผลเท่ากันทุกกรณี)
+	var lim2 := sum * sum
+	for p: BattleState.Unit in a.models:
+		var px := p.x
+		var pz := p.z
+		for q: BattleState.Unit in b.models:
+			var dx := q.x - px
+			if dx > sum or dx < -sum:
+				continue
+			var dz := q.z - pz
+			if dz > sum or dz < -sum:
+				continue
+			if dx * dx + dz * dz <= lim2:
+				return true
+	return false
 
 
 ## หมู่ที่ยิงได้ (foesOf): ยังอยู่ และ คนละฝ่าย หรือ (ฟรีฟาย และไม่ใช่ตัวเอง) ตามลำดับ squads

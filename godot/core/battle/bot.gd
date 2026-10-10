@@ -245,8 +245,13 @@ static func shoot_act(st: BattleState, s: BattleState.Squad, dice: Rng) -> Dicti
 	var foes := BtSquads.real_foes(st, s)
 	var best: BattleState.Squad = null
 	var bv := PackedInt64Array([0, 1])
+	# การติดประชิดของ s คิดครั้งเดียว (เหมือนกันทุกเป้าในการตัดสินใจนี้) · เป้าที่ไม่มีใครยิงถึงตกที่ too_far แน่ ข้ามก่อน
+	var eng := BtSquads.engaged_with(st, s)
+	var g := BtAbilities.gun(s.ti)
 	for t: BattleState.Squad in foes:
-		if str(BtCombat.shot_why_not(st, s, t)["key"]) != "":
+		if BtCombat.shooters_of(s, t, g).is_empty():
+			continue
+		if str(BtCombat.shot_why_not_with(st, s, t, eng)["key"]) != "":
 			continue
 		var v := exp_dmg(st, s, t, BattleState.HOW_SHOOT)
 		if gt(v, bv):
@@ -254,8 +259,9 @@ static func shoot_act(st: BattleState, s: BattleState.Squad, dice: Rng) -> Dicti
 			best = t
 	if best == null:
 		var seat := st.seat(s.pl)
+		var engaged := 0 if eng.is_empty() else 1
 		for t: BattleState.Squad in foes:
-			if str(BtCombat.gren_why_not(st, s, t)["key"]) != "":
+			if str(BtCombat.gren_why_not_with(st, s, t, engaged)["key"]) != "":
 				continue
 			if seat != null and seat.cp >= 2 and BtStrats.can(st, "gren", s.pl):
 				return {"a": "gren", "u": s.id, "t": t.id, "roll": _roll(dice, 6)}
@@ -276,7 +282,8 @@ static func charge_act(st: BattleState, s: BattleState.Squad) -> Dictionary:
 	var tg: BattleState.Squad = null
 	var td := 0
 	for t: BattleState.Squad in BtSquads.real_foes(st, s):
-		if str(BtCombat.charge_why_not(st, s, t)["key"]) != "":
+		# s ไม่ติดประชิด (ตรวจข้างบนแล้ว) ไม่ต้องคิดซ้ำทุกเป้า
+		if str(BtCombat.charge_why_not_with(st, s, t, 0)["key"]) != "":
 			continue
 		var d := BtSquads.edge(s, t)
 		if tg == null or d < td:

@@ -178,6 +178,15 @@ static func atk_math(st: BattleState, s: BattleState.Squad, t: BattleState.Squad
 static func shot_why_not(st: BattleState, s: BattleState.Squad, t: BattleState.Squad) -> Dictionary:
 	if s == null:
 		return _why("no_gun", [])
+	return shot_why_not_with(st, s, t, BtSquads.engaged_with(st, s))
+
+
+## shot_why_not เมื่อรู้ศัตรูที่ติดประชิด s อยู่แล้ว (eng = engaged_with(st, s) ของสถานะนี้) ผลเท่ากันทุกกรณี
+## บอทถามทุกเป้าในเฟสเดียว จึงคิด eng ครั้งเดียวต่อหมู่ (โต๊ะแน่นหกฝ่ายเคยช้าเป็นสิบวินาทีต่อเทิร์น)
+static func shot_why_not_with(st: BattleState, s: BattleState.Squad, t: BattleState.Squad,
+		eng: Array[BattleState.Squad]) -> Dictionary:
+	if s == null:
+		return _why("no_gun", [])
 	var w := BtAbilities.gun(s.ti)
 	if w.is_empty():
 		return _why("no_gun", [])
@@ -189,14 +198,14 @@ static func shot_why_not(st: BattleState, s: BattleState.Squad, t: BattleState.S
 		return _why("fell_back", [])
 	if s.adv and not BtAbilities.wflag(w, "as") and BtAbilities.text(s.ti, "fac") != "el":
 		return _why("advanced", [])
-	var eng := BtSquads.engaged_with(st, s)
 	var pistol := BtAbilities.wflag(w, "pi")
 	if not eng.is_empty() and not BtAbilities.flag(s.ti, "ttn") and (not pistol or not eng.has(t)):
 		return _why("engaged", [1 if pistol else 0])
-	if eng.is_empty():
-		# เป้าติดประชิดกับพวกเรา: ยิงไม่ได้ เดี๋ยวโดนพวกเดียวกัน
-		for q: BattleState.Squad in BtSquads.real_foes(st, t):
-			if q.side == s.side and BtSquads.edge_within(t, q, BtSquads.ENGAGE_LIM):
+	if eng.is_empty() and t.side != s.side:
+		# เป้าติดประชิดกับพวกเรา: ยิงไม่ได้ เดี๋ยวโดนพวกเดียวกัน (หมู่ของฝ่ายเราใน real_foes(t) = หมู่ที่ยังอยู่ของฝ่ายเรา
+		# เมื่อเป้าอยู่คนละฝ่าย; เป้าฝ่ายเดียวกันตอนฟรีฟายไม่มีหมู่แบบนั้น) ไม่ต้องสร้างรายการศัตรูของเป้า
+		for q: BattleState.Squad in st.squads:
+			if q.side == s.side and not q.models.is_empty() and BtSquads.edge_within(t, q, BtSquads.ENGAGE_LIM):
 				return _why("target_engaged", [])
 	if shooters_of(s, t, w).is_empty():
 		return _why("too_far", [BtSquads.dist_min(s, t), BtAbilities.wnum(w, "rng")])
@@ -233,6 +242,11 @@ static func heal_why_not(st: BattleState, s: BattleState.Squad, t: BattleState.S
 ## บุกได้ไหม (chargeWhyNot): enemies_only, charge_done, advanced, fell_back, engaged, too_far [ขอบฐาน MI]
 ## ขอบฐานไม่เกิน CHARGE_R นิ้วบวก 1 MI
 static func charge_why_not(st: BattleState, s: BattleState.Squad, t: BattleState.Squad) -> Dictionary:
+	return charge_why_not_with(st, s, t, -1)
+
+
+## charge_why_not เมื่อรู้แล้วว่า s ติดประชิดไหม (engaged 1/0 = is_engaged(st, s) ของสถานะนี้, -1 = ให้คิดเอง)
+static func charge_why_not_with(st: BattleState, s: BattleState.Squad, t: BattleState.Squad, engaged: int) -> Dictionary:
 	if not BtSquads.can_target(st, s, t) or t.side == s.side:
 		return _why("enemies_only", [])
 	if s.ch_done:
@@ -241,7 +255,7 @@ static func charge_why_not(st: BattleState, s: BattleState.Squad, t: BattleState
 		return _why("advanced", [])
 	if s.fell and not BtAbilities.flag(s.ti, "fly") and not BtAbilities.flag(s.ti, "ttn"):
 		return _why("fell_back", [])
-	if BtSquads.is_engaged(st, s):
+	if engaged == 1 or (engaged < 0 and BtSquads.is_engaged(st, s)):
 		return _why("engaged", [])
 	if not BtSquads.edge_within(s, t, _lim("CHARGE_R", 12)):
 		return _why("too_far", [BtSquads.edge(s, t)])
@@ -251,13 +265,18 @@ static func charge_why_not(st: BattleState, s: BattleState.Squad, t: BattleState
 ## ปาระเบิดมือได้ไหม (grenWhyNot): not_infantry, already_shot, moved_fast, engaged, enemies_only, too_far
 ## ระยะใกล้สุดไม่เกิน GREN_R นิ้วบวก 1 MI (ค่าแต้มคำสั่งเป็นเรื่องของ BtStrats)
 static func gren_why_not(st: BattleState, s: BattleState.Squad, t: BattleState.Squad) -> Dictionary:
+	return gren_why_not_with(st, s, t, -1)
+
+
+## gren_why_not เมื่อรู้แล้วว่า s ติดประชิดไหม (engaged 1/0 = is_engaged(st, s) ของสถานะนี้, -1 = ให้คิดเอง)
+static func gren_why_not_with(st: BattleState, s: BattleState.Squad, t: BattleState.Squad, engaged: int) -> Dictionary:
 	if s == null or not inf(s.ti) or BtAbilities.gun(s.ti).is_empty():
 		return _why("not_infantry", [])
 	if s.shot:
 		return _why("already_shot", [])
 	if s.adv or s.fell:
 		return _why("moved_fast", [])
-	if BtSquads.is_engaged(st, s):
+	if engaged == 1 or (engaged < 0 and BtSquads.is_engaged(st, s)):
 		return _why("engaged", [])
 	if not BtSquads.can_target(st, s, t) or t.side == s.side:
 		return _why("enemies_only", [])
