@@ -126,12 +126,20 @@ func test_replay_act_by_act() -> void:
 		assert_digest(b.digest(), str(rec["digest0"]), "%s: digest after start" % name)
 		var got := PackedStringArray()
 		var bad := ""
+		var off_grid := ""
 		for a: Variant in _acts(rec):
 			b.apply(a)
 			if b.last_error != "" and bad == "":
 				bad = "%s at seq %d" % [b.last_error, got.size() + 1]
 			got.append(b.digest())
+			# R1_PORT_SPEC §2: every rules position stays on the 10 MI grid after every act
+			if off_grid == "":
+				for m: BattleState.Unit in b.st.units:
+					if m.x % 10 != 0 or m.z % 10 != 0:
+						off_grid = "%s at %d,%d after seq %d" % [m.id, m.x, m.z, got.size()]
+						break
 		assert_eq(bad, "", "%s: every act accepted" % name)
+		assert_eq(off_grid, "", "%s: every model on the 10 MI grid after every act" % name)
 		var want: Array = rec["digest_after"]
 		var i := _first_diff(got, want)
 		var detail := "" if i < 0 else "act %d %s: got %s want %s" % [i + 1, JSON.stringify(_acts(rec)[mini(i, _acts(rec).size() - 1)]),
