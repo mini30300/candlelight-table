@@ -1,0 +1,55 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Candlelight Table"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+App="*res://app/app.gd"
+I18n="*res://ui/i18n.gd"
+Log="*res://app/log.gd"
+Clock="*res://app/clock.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=0
+
+[gui]
+
+theme/custom="res://ui/theme/default_theme.tres"
+theme/custom_font="res://assets/fonts/Sarabun-Regular.ttf"
+
+[importer_defaults]
+
+scene={
+"import_script/path": "res://assets/kits_import/kit_post_import.gd",
+"meshes/create_shadow_meshes": false,
+"meshes/generate_lods": false
+}
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_mouse_from_touch=true
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

@@ -1,0 +1,897 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "map_layout.json",
+  "title": "D&D generated-map layout (ARCHITECTURE section 9)",
+  "description": "Emitted by core/dnd/mapgen from (seed, kind, size) with integer generators, so every device regenerates the same map; the server stores only {seed, kind, ver, edits[]} and devices replay the DM's edits as deltas. Integers only: cells are 1 unit = 5 ft, heights are steps, colours are RGB triplets. Every Thai label carries its English pair. Field by field notes: docs/DATA.md.",
+  "type": "object",
+  "required": [
+    "v",
+    "seed",
+    "kind",
+    "size",
+    "tiles",
+    "heights",
+    "layers",
+    "rooms",
+    "corridors",
+    "doors",
+    "props",
+    "lights",
+    "spawns",
+    "exits",
+    "labels",
+    "edits"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "layout format version; bump with any change to this schema"
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99999,
+      "description": "generator seed (same range as the battle table)"
+    },
+    "kind": {
+      "enum": [
+        "dungeon",
+        "cave",
+        "ruins",
+        "town",
+        "wild",
+        "scene"
+      ],
+      "description": "which generator: BSP rooms, cellular caves, grid with yards, noise with rivers and paths, or a prefab scene"
+    },
+    "size": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 256
+        },
+        {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 256
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": false,
+      "description": "[w, h] in cells"
+    },
+    "tiles": {
+      "type": "array",
+      "description": "tile id per cell: 0 void, 1 floor, 2 wall, 3 water, 4 pit, 5 door, 6 stairs",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2,
+        "items": false
+      }
+    },
+    "heights": {
+      "type": "array",
+      "description": "height step per cell, 0..15 (one step = half a unit); walls take the floor's step",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2,
+        "items": false
+      }
+    },
+    "layers": {
+      "type": "object",
+      "description": "per-cell grids besides tiles and heights",
+      "required": [
+        "fog"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fog": {
+          "type": "array",
+          "description": "0 unexplored, 1 revealed, 2 revealed and lit (DM reveal edits write here)",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65536
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false
+          }
+        },
+        "light": {
+          "type": "array",
+          "description": "optional cached light level 0..15 per cell (derived from lights[], visual)",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65536
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false
+          }
+        },
+        "mark": {
+          "type": "array",
+          "description": "optional DM marks per cell: 0 none, 1 danger, 2 loot, 3 note",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65536
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false
+          }
+        }
+      }
+    },
+    "rooms": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "rect"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "kind": {
+            "enum": [
+              "room",
+              "hall",
+              "vault",
+              "lair",
+              "shrine",
+              "cell",
+              "yard",
+              "cavern",
+              "clearing",
+              "camp",
+              "entry",
+              "boss"
+            ]
+          },
+          "rect": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255,
+                "description": "cell x (east) or z (south) from the north-west corner"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255,
+                "description": "cell x (east) or z (south) from the north-west corner"
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 256
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 256
+              }
+            ],
+            "minItems": 4,
+            "maxItems": 4,
+            "items": false,
+            "description": "[x, z, w, h] in cells"
+          },
+          "tags": {
+            "type": "array",
+            "description": "generator tags: e.g. dark, flooded, trapped, locked, start",
+            "minItems": 0,
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            }
+          }
+        }
+      }
+    },
+    "corridors": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "path": {
+            "type": "array",
+            "description": "cell centres in walking order",
+            "minItems": 2,
+            "maxItems": 4096,
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255,
+                  "description": "cell x (east) or z (south) from the north-west corner"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255,
+                  "description": "cell x (east) or z (south) from the north-west corner"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2,
+              "items": false
+            }
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          }
+        }
+      }
+    },
+    "doors": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "required": [
+          "x",
+          "z",
+          "state"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "closed",
+              "locked",
+              "secret",
+              "broken"
+            ]
+          },
+          "dir": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "0 north, 1 east, 2 south, 3 west"
+          },
+          "room": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999,
+            "description": "the room it belongs to"
+          }
+        }
+      }
+    },
+    "props": {
+      "type": "array",
+      "description": "PROP_CAP is 480 like the battle table",
+      "minItems": 0,
+      "maxItems": 480,
+      "items": {
+        "type": "object",
+        "required": [
+          "k",
+          "x",
+          "z"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "k": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "prop kind (assets/props)"
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "rot": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "quarter turns clockwise"
+          },
+          "h": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15,
+            "description": "height step override"
+          }
+        }
+      }
+    },
+    "lights": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": [
+          "x",
+          "z",
+          "r"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "r": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32,
+            "description": "radius in cells"
+          },
+          "col": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          },
+          "flicker": {
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "spawns": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "x",
+          "z"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "party",
+              "monster",
+              "boss",
+              "npc",
+              "loot",
+              "trap"
+            ]
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "group": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99,
+            "description": "encounter group; the party's entry is group 0"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "monster or item key when fixed by the generator"
+          }
+        }
+      }
+    },
+    "exits": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": [
+          "x",
+          "z",
+          "kind"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "kind": {
+            "enum": [
+              "stairs_down",
+              "stairs_up",
+              "door",
+              "edge",
+              "portal"
+            ]
+          },
+          "to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "depth or scene index this exit leads to; null = unknown yet"
+          }
+        }
+      }
+    },
+    "labels": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": [
+          "x",
+          "z",
+          "th",
+          "en"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "th": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[\\u0e00-\\u0e7f]",
+            "description": "Thai label"
+          },
+          "en": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0e00-\\u0e7f]*$",
+            "description": "English pair of th"
+          }
+        }
+      }
+    },
+    "edits": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "description": "DM deltas replayed over the generated map, in seq order",
+        "required": [
+          "seq",
+          "a"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "act sequence number of the DM act that made the edit"
+          },
+          "a": {
+            "enum": [
+              "tile",
+              "height",
+              "fog",
+              "door",
+              "prop",
+              "prop_del",
+              "light",
+              "light_del",
+              "label"
+            ]
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "z": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "cell x (east) or z (south) from the north-west corner"
+          },
+          "w": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "h": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "v": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+            "description": "new cell value for tile, height and fog"
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999,
+            "description": "prop or light id for *_del and replacements"
+          },
+          "k": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "rot": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "r": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "col": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "closed",
+              "locked",
+              "secret",
+              "broken"
+            ]
+          },
+          "th": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[\\u0e00-\\u0e7f]"
+          },
+          "en": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0e00-\\u0e7f]*$"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "tile"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "x",
+                "z",
+                "v"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "height"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "x",
+                "z",
+                "v"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "fog"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "x",
+                "z",
+                "w",
+                "h",
+                "v"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "door"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "x",
+                "z",
+                "state"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "prop"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "id",
+                "k",
+                "x",
+                "z"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "prop_del"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "id"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "light"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "id",
+                "x",
+                "z",
+                "r"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "light_del"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "id"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "a": {
+                  "const": "label"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "x",
+                "z",
+                "th",
+                "en"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

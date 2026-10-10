@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "i18n.json",
+  "title": "Thai -> English dictionary (data/i18n_en.json, ui/i18n_extra.json)",
+  "description": "Keys are Thai strings or fragments (the page matches the longest key first inside any text), values are the English. A value may not contain Thai (tests/battle/english.js and tests/render/test_screens.gd fail on Thai left on screen); validate_data.py checks that in code because the one exception is the language name itself, which the language button shows in its own script.",
+  "type": "object",
+  "minProperties": 1,
+  "propertyNames": {
+    "minLength": 1,
+    "pattern": "[\\u0e00-\\u0e7f]"
+  },
+  "additionalProperties": {
+    "type": "string",
+    "minLength": 1,
+    "description": "the English text"
+  }
+}
