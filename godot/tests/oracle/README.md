@@ -18,6 +18,8 @@ the board after every act. `test_oracle.gd` builds the same match in the port, r
 | `allowlist.json` | accepted differences `[{scenario, act: int\|"*", path, reason}]`, each reason naming an R1_PORT_SPEC §7 item; empty until the replay runs |
 | `page_hash.gd`, `test_page_hash.gd`, `page_hash.json` | an exact integer replica of the page's `hash2`/`hash3` (V8's double rounding included) for the building depths of injected props, its tests, and the page values they compare with (`record_oracle.js --hash-samples`) |
 | `../../tools/record_oracle.js` | the recorder (`--only`, `--check`, `--histogram`, see its header) |
+| `edges/<base>__<seed>.json.gz`, `test_oracle_edges.gd`, `../../tools/record_act_edges.js` | edge acts: a recording's acts replayed on the page with seeded odd acts in between (stage mismatches, dead or unknown squads, phase ends with another phase, stratagems without CP, legacy codes, acts after the end, …), each through the Worker's sanitiser; the board and the PEND queue after every act. The port must give the same after every act. `record_act_edges.js --check` re-records byte for byte |
+| `test_oracle_bots.gd` | before every act of each bot-only recording the port's `BtBot.next_act` / `finished_act` (empty queue) or `BtRoller.roll` of the next entry must want the page's act (code, squads, how, phase, stratagem choices; not dice values or move points) |
 
 The recordings are committed compressed because the plain JSON of the set is far over 4 MB (boards after every act);
 gzip shrinks a recording about 60× since consecutive boards repeat. Nothing else is needed to read them.
