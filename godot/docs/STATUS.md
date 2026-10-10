@@ -30,9 +30,16 @@ runs BtPend.prune once then BtTurn.advance_step up to ADVANCE_GUARD; start_match
 give next_act the bot:<seat> stream of the squad that acts (the test helper uses the team's first bot seat); new turn log
 keys (match_start, turn_start, fight_*, seat_done, over_*) need I18n.
 
+## 10 Oct: wave 5 landed — a full game runs
+acts dispatcher + Battle; the oracle replays all 24 recorded page games to the end (23 clean, 1 with two §7 #7 spawn-facing
+entries); 8 goldens (2–4 teams, 2v2, obj/kill) with a grid check after every act; 30 smoke bot games with legality checks;
+perf (crowded bot turn 31.6 s → 1.2 s); bot/roller differential and act-edge differential. 3,881 unit checks.
+Open: the UI must call Battle.flush before sending `done` (page playerDone rolls pending dice first); new log keys need I18n;
+oracle README still says the allowlist is empty.
+
 ## Next steps, in order
 1. Review and land the rule-1 fix (above) with its server PR.
-2. Waves 5–6 (acts dispatcher + battle, goldens, smoke bots, perf, oracle green, `docs/GODOT.md`).
+2. Wave 6: `docs/GODOT.md` (code map, invariants, §7 list), reviewed allowlist, v10 gate memo; then the UI on top of Battle.
 3. R1-V3: play the baked clips on the figures (AnimationTree), ruin full set after the owner approves the sample.
 4. Owner gates: R0-H (APK GPU-check screenshot), ruin sample verdict, R7 collection design week.
 
