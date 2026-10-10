@@ -2,15 +2,16 @@ extends "res://tests/testing.gd"
 ## Oracle replay (R1_PORT_SPEC §5–§6): build each recorded page game in the v10 core, replay the page's acts and
 ## compare the board after every act with the page's board (tests/oracle/*.json.gz, made by tools/record_oracle.js).
 ##
-## Until class Battle exists (wave 5) the replay is skipped with a SKIP line; the loader, the fixtures (props through
-## BtBlocking.prep_one with page_hash.gd building depths, seats through BtArmy.fit_list/fac_of, objectives, units0) and
-## the act conversion are still checked on every recording, so the harness is ready when Battle lands.
+## The loader, the fixtures (props through BtBlocking.prep_one with page_hash.gd building depths, seats through
+## BtArmy.fit_list/fac_of, objectives, units0) and the act conversion are checked on every recording; the replay goes
+## through Battle.make (which deploys and applies units0) → start → apply per act (SKIP only if Battle is missing).
 ##
 ## Which recordings are replayed: env ORACLE unset = the 3 with the fewest acts (quick run); ORACLE=all = every one
 ## (`bash godot/tests/run.sh full`); ORACLE=<word> = the ones whose name contains it.
 ## Differences are accepted only through tests/oracle/allowlist.json: [{scenario, act: int|"*", path, reason}], the reason
 ## naming an item of R1_PORT_SPEC §7 ("§7 #2 …"). path is like "units[3].x" or "squads[*].engaged" (* = anything;
-## "squads.*.engaged" works too); act -1 is board0 (the deployment, before any act).
+## "squads.*.engaged" works too); act -1 is board0 (the deployment, before any act). An optional "id" (a glob) limits an
+## entry to the position rows (x/z) of the elements with that id, e.g. a spawned squad whose list index moves.
 
 const PageHash := preload("res://tests/oracle/page_hash.gd")
 const DIR := "res://tests/oracle"
@@ -299,7 +300,8 @@ static func _diff_list(pa: Variant, pb: Variant, name: String, idk: String, exac
 			var mi_v := int(x.get(k, 0))
 			var tenths := PageHash.js_roundf(float(y.get(k, 0)) * 10.0)
 			if absi(mi_v - tenths * 100) > tol:
-				out.append([p + "." + k, mi_v, float(tenths) / 10.0])
+				# a position row also carries the element's id (allowlist entries may name ids, see allowed())
+				out.append([p + "." + k, mi_v, float(tenths) / 10.0, str(x.get(idk, ""))])
 
 
 static func _norm(v: Variant) -> Variant:
@@ -317,8 +319,9 @@ static func _norm(v: Variant) -> Variant:
 	return v
 
 
-## Is this difference allowed for (scenario, act index)?
-func allowed(scenario: String, act: int, path: String) -> bool:
+## Is this difference allowed for (scenario, act index)? An entry with "id" matches only rows of that element id
+## (a glob, e.g. "0:1x*" for a spawned squad and its models, whose list index moves as other models die).
+func allowed(scenario: String, act: int, path: String, id: String = "") -> bool:
 	var dotted := path.replace("[", ".").replace("]", "")
 	for e: Variant in _allow:
 		if typeof(e) != TYPE_DICTIONARY:
@@ -328,6 +331,8 @@ func allowed(scenario: String, act: int, path: String) -> bool:
 			continue
 		var at: Variant = d.get("act", "*")
 		if not (typeof(at) == TYPE_STRING and str(at) == "*") and int(at) != act:
+			continue
+		if d.has("id") and not id.match(str(d["id"])):
 			continue
 		var pat := str(d.get("path", ""))
 		if path.match(pat) or dotted.match(pat):
@@ -339,7 +344,7 @@ func allowed(scenario: String, act: int, path: String) -> bool:
 func first_blocking(scenario: String, act: int, diffs: Array) -> Array:
 	for d: Variant in diffs:
 		var row: Array = d
-		if not allowed(scenario, act, str(row[0])):
+		if not allowed(scenario, act, str(row[0]), str(row[3]) if row.size() > 3 else ""):
 			return row
 	return []
 
@@ -412,6 +417,12 @@ func test_allow_matching() -> void:
 	assert_false(allowed("s", 4, "units[2].x"), "not at another act")
 	assert_false(allowed("t", 3, "units[2].x"), "not in another scenario")
 	assert_eq(first_blocking("s", 3, [["units[2].x", 1, 2], ["units[2].z", 1, 2]]), ["units[2].z", 1, 2], "first blocking skips allowed")
+	_allow = [{"scenario": "s", "act": "*", "path": "units.*.x", "id": "0:1x*", "reason": "§7 #7 test"}]
+	assert_true(allowed("s", 9, "units[7].x", "0:1x.3"), "an id entry matches its element at any index")
+	assert_false(allowed("s", 9, "units[7].x", "0:1.3"), "an id entry does not match another element")
+	assert_false(allowed("s", 9, "units[7].x"), "an id entry does not match a row without an id")
+	assert_eq(first_blocking("s", 9, [["units[7].x", 1, 2, "0:1x.3"], ["units[8].x", 1, 2, "0:2.0"]]),
+		["units[8].x", 1, 2, "0:2.0"], "first blocking passes the row's id")
 	_allow = keep
 
 
@@ -610,19 +621,19 @@ func _replay_one(path: String) -> void:
 	if battle == null:
 		assert_true(false, name + ": Battle.make returned null")
 		return
+	# units0: Battle.make deploys and puts every model at the page's raw deployed position (Q1), same ids in the same
+	# order, before start (so start_turn and the first board see the page's deployment)
+	assert_eq(str(battle.get("last_error")), "", name + ": Battle.make accepts units0 (the page's model ids in the page's order)")
 	battle.call("start")
 	var st: BattleState = battle.get("st")
-	# units0: the page's raw deployed positions replace the v10 deployment (Q1), same ids in the same order
 	var u0: Array = fx["units0"]
 	var ids_ok := st.units.size() == u0.size()
 	for i: int in mini(st.units.size(), u0.size()):
 		var e: Dictionary = u0[i]
-		if st.units[i].id != str(e["id"]):
+		if st.units[i].id != str(e["id"]) or st.units[i].x != int(e["x"]) or st.units[i].z != int(e["z"]):
 			ids_ok = false
 			break
-		st.units[i].x = int(e["x"])
-		st.units[i].z = int(e["z"])
-	assert_true(ids_ok, name + ": the v10 deployment has the page's model ids in the page's order")
+	assert_true(ids_ok, name + ": after start every model stands at its units0 position")
 	if not ids_ok:
 		return
 	var d0 := first_blocking(name, -1, diff_boards(_board_raw(battle), rec["board0"]))

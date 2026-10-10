@@ -325,6 +325,26 @@ static func next_act(st: BattleState, dice: Rng) -> Dictionary:
 	return {}
 
 
+## หมู่ที่ next_act จะใช้ทำ act ถัดไป (null = ไม่มี): ผู้เรียกเลือกสตรีม bot:<ที่นั่งของหมู่นี้> ก่อนถาม next_act
+## ลำดับเดียวกับ next_act: เคลื่อนที่ = หมู่แรกที่ยังไม่เดิน · ยิง = หมู่แรกที่ยังไม่ยิง · บุก = หมู่แรกที่ charge_act ไม่ว่าง
+static func acting_squad(st: BattleState) -> BattleState.Squad:
+	if not st.on or st.over:
+		return null
+	var ph := st.phase
+	if ph != BattleState.PH_MOVE and ph != BattleState.PH_SHOOT and ph != BattleState.PH_CHARGE:
+		return null
+	for s: BattleState.Squad in squads(st):
+		if ph == BattleState.PH_MOVE:
+			if not s.moved:
+				return s
+		elif ph == BattleState.PH_SHOOT:
+			if not s.shot:
+				return s
+		elif not charge_act(st, s).is_empty():
+			return s
+	return null
+
+
 ## ส่วนกติกาของ botTick: endph {ph} เมื่อฝ่ายที่ถึงตามีที่นั่งบอท คิวรอทอยว่าง บอทไม่มีอะไรทำแล้ว (next_act ว่าง)
 ## และที่นั่งที่ไม่ใช่บอทของฝ่ายนั้นกดจบครบ (ฝ่ายที่มีแต่บอทครบเสมอ) ไม่งั้น {}
 ## ไม่ตั้ง done ของที่นั่งบอท (หน้าเก่าตั้งเฉพาะเครื่องเจ้าของห้อง ไม่มีกติกาไหนอ่าน, §7 #17)

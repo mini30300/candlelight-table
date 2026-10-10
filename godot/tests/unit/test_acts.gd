@@ -1,6 +1,8 @@
 extends "res://tests/testing.gd"
-## core/battle/acts.gd (BtActs, R1_PORT_SPEC §1.13 and §4) — the codec half: CODES, sanitize, to_wire.
-## (The dispatcher half, BtActs.apply and each handler's guard, comes with battle.gd in wave 5.)
+## core/battle/acts.gd (BtActs, R1_PORT_SPEC §1.13 and §4): the codec half (CODES, sanitize, to_wire) and the
+## dispatcher half (BtActs.apply = the page's netAct: every code and each handler's guard, CP spent in the handler
+## before the applier's own guards, t "" matching no entry, check_over after every act, a pinned digest). The page's
+## netAct itself is sampled end to end by the oracle replay (tests/oracle, every recorded act through Battle.apply).
 ## Worker samples: fixtures/acts/worker_samples.json (tools/record_board_acts.js runs the "act" branch of the Worker's
 ## btPost, cut from candlelight-server/worker.js, on 146 wire acts: 92 made by hand and 54 the page really sent in the
 ## oracle recordings): sanitize(core form of the wire act) equals the core form of the Worker's answer, key order
@@ -321,3 +323,368 @@ func _digest_cases() -> String:
 		parts.append(JSON.stringify(BtActs.sanitize(c["core"]), "", true))
 		parts.append(JSON.stringify(BtActs.to_wire(BtActs.sanitize(c["core"])), "", true))
 	return Hash.hex64(Hash.fnv1a64_str("\n".join(parts)))
+
+
+# ================================================================ the dispatcher: BtActs.apply (page netAct)
+## A match in progress on an open 60" table: two seats (pids L0, L1, cp each), team 0 in turn, phase ph.
+func _st(ph: int, cp: int = 3) -> BattleState:
+	var st := BattleState.make({"seed": 11, "w": 60, "teams": 2})
+	st.on = true
+	st.phase = ph
+	for i: int in 2:
+		var p := st.add_seat(i, "L%d" % i, false, false, "")
+		p.cp = cp
+	return st
+
+
+func _sq(st: BattleState, id: String, k: String, side: int, pts: Array) -> BattleState.Squad:
+	var t := GameData.ty(k)
+	var s := st.add_squad(id, k, side, side, int(t.get("n", 1)), 0)
+	for j: int in pts.size():
+		var p: Array = pts[j]
+		st.add_unit("%s.%d" % [id, j], s, int(t.get("w", 1)), int(p[0]), int(p[1]))
+	return s
+
+
+func _line(n: int, x0: int, z: int) -> Array:
+	var out: Array = []
+	for i: int in n:
+		out.append([x0 + i * 1700, z])
+	return out
+
+
+func _do(st: BattleState, act: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	BtActs.apply(st, act, out)
+	return out
+
+
+func _logged(st: BattleState, key: String) -> int:
+	var n := 0
+	for l: Dictionary in st.log_lines:
+		if str(l["key"]) == key:
+			n += 1
+	return n
+
+
+func _pos(s: BattleState.Squad) -> Array:
+	var out: Array = []
+	for m: BattleState.Unit in s.models:
+		out.append([m.x, m.z])
+	return out
+
+
+func test_apply_smove() -> void:
+	var st := _st(BattleState.PH_MOVE)
+	var s := _sq(st, "0:0", "infantry", 0, _line(2, 0, 0))
+	_sq(st, "1:0", "infantry", 1, _line(2, 0, 30000))
+	_do(st, {"a": "smove", "u": "0:0", "how": "move", "to": []})
+	assert_false(s.moved, "smove with an empty to: nothing happens, moved stays false (page netAct)")
+	_do(st, {"a": "smove", "u": "0:0", "how": "move", "to": [[0, 3000], [1700, 3000]]})
+	assert_eq([_pos(s), s.moved, s.still], [[[0, 3000], [1700, 3000]], true, false], "smove to: every model to its point")
+	_do(st, {"a": "smove", "u": "0:0", "how": "move", "to": [[0, 6000], [1700, 6000]]})
+	assert_eq(_pos(s), [[0, 3000], [1700, 3000]], "a squad that moved ignores the next smove")
+	_do(st, {"a": "smove", "u": "9:9", "how": "move", "to": [[0, 0]]})
+	assert_eq(st.units.size(), 4, "an unknown squad: nothing")
+	# Claude form: x/z planned on every device with plan_move
+	var st2 := _st(BattleState.PH_MOVE)
+	var c := _sq(st2, "0:0", "infantry", 0, _line(2, 0, 0))
+	_sq(st2, "1:0", "infantry", 1, _line(2, 0, 30000))
+	var want := BtMoves.pts(BtMoves.plan_move(st2, c, 2000, 4000))
+	_do(st2, BtActs.sanitize({"a": "smove", "u": "0:0", "how": "fb", "x": 2000, "z": 4000}))
+	assert_eq([_pos(c), c.moved, c.fell], [want, true, true], "smove x/z: the plan_move points, how fb sets fell")
+	var st3 := _st(BattleState.PH_MOVE)
+	var d := _sq(st3, "0:0", "infantry", 0, _line(1, 4000, 4000))
+	_do(st3, BtActs.sanitize({"a": "smove", "u": "0:0"}))
+	assert_true(d.moved and Fx.dist2(d.models[0].x, d.models[0].z, 0, 0) < Fx.dist2(4000, 4000, 0, 0),
+		"smove with neither to nor x/z plans to the table centre (the Worker's num(undefined) = 0)")
+
+
+func test_apply_stay_skip_adv() -> void:
+	var st := _st(BattleState.PH_SHOOT)
+	var s := _sq(st, "0:0", "infantry", 0, _line(1, 0, 0))
+	_do(st, {"a": "stay", "u": "0:0"})
+	assert_true(s.moved, "stay sets moved in any phase (no phase guard, as the page)")
+	_do(st, {"a": "skip", "u": "0:0", "ph": ""})
+	assert_eq([s.shot, s.ch_done], [true, false], "skip with ph '' uses the current phase (shoot)")
+	_do(st, {"a": "skip", "u": "0:0", "ph": "charge"})
+	assert_true(s.ch_done, "skip charge sets ch_done")
+	var t := _sq(st, "0:1", "infantry", 0, _line(1, 0, 5000))
+	_do(st, {"a": "skip", "u": "0:1", "ph": "move"})
+	assert_eq([t.moved, t.shot, t.ch_done], [true, false, false], "skip in any other phase sets moved")
+	st.phase = BattleState.PH_CMD
+	var c := _sq(st, "0:2", "infantry", 0, _line(1, 0, 9000))
+	_do(st, {"a": "skip", "u": "0:2", "ph": ""})
+	assert_true(c.moved, "skip '' in cmd: moved")
+	_do(st, {"a": "adv", "u": "0:1", "roll": 4})
+	assert_eq([t.adv, t.adv_r], [true, 4], "adv keeps the roll")
+	_do(st, {"a": "adv", "u": "0:1", "roll": 6})
+	assert_eq(t.adv_r, 4, "a second adv is ignored (not s.adv)")
+	_do(st, {"a": "adv", "u": "0:2"})
+	assert_eq([c.adv, c.adv_r], [true, 1], "adv without a roll: 1 (roll|0 || 1), never a draw")
+	assert_eq(st.pend.size(), 0, "adv leaves nothing in the queue")
+
+
+func test_apply_atk_wnd_sav() -> void:
+	var st := _st(BattleState.PH_SHOOT)
+	var s := _sq(st, "0:0", "infantry", 0, _line(5, 0, 0))
+	var t := _sq(st, "1:0", "infantry", 1, _line(5, 0, 15000))
+	_do(st, {"a": "atk", "u": "0:0", "t": "", "how": "shoot", "hit": [6, 6]})
+	assert_eq([st.pend.size(), s.shot], [0, false], "atk without a target squad: nothing")
+	_do(st, {"a": "atk", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [6, 6, 6, 1, 1]})
+	assert_eq(st.pend.size(), 1, "atk: a new attack")
+	var p := st.pend[0]
+	assert_eq([p.stage, p.hits, s.shot], [BattleState.S_WOUND, 3, true], "hit dice applied, the shooter has shot")
+	_do(st, {"a": "wnd", "u": "0:0", "t": "", "wound": [6, 6, 6]})
+	assert_eq(p.stage, BattleState.S_WOUND, "wnd with t '' matches no entry (page pendAt compares P.t === '')")
+	_do(st, {"a": "atk", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [6, 6, 6, 6, 6]})
+	assert_eq([st.pend.size(), _logged(st, "atk_new")], [2, 1], "atk while the entry is past hit: a second attack (page), logged atk_new")
+	st.pend.remove_at(1)
+	_do(st, {"a": "wnd", "u": "0:0", "wound": [6, 6, 6]})
+	assert_eq([p.stage, p.wounds], [BattleState.S_SAVE, 3], "wnd without a t key: any target (pendAt with tid null)")
+	_do(st, {"a": "sav", "u": "0:0", "t": "1:0", "save": [1, 1, 1], "gtg": 0})
+	assert_eq([st.pend.size(), st.squad_alive(t), st.seat(1).cp], [0, 2, 3], "sav: three failed saves kill three, no CP spent")
+	# gtg spends the defender's CP only at stage save, even when it cannot help
+	var q := BtPend.mk_atk(st, s, t, BattleState.HOW_SHOOT)
+	_do(st, {"a": "sav", "u": "0:0", "t": "1:0", "save": [6], "gtg": 1})
+	assert_eq([st.seat(1).cp, q.stage], [3, BattleState.S_HIT], "sav at stage hit: ignored, no CP")
+	_do(st, {"a": "atk", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [6, 6, 6, 1, 1]})
+	_do(st, {"a": "wnd", "u": "0:0", "t": "1:0", "wound": [6, 6, 6]})
+	assert_eq([q.stage, st.pend.size()], [BattleState.S_SAVE, 1], "the queued entry at stage hit takes the atk dice")
+	_do(st, {"a": "sav", "u": "0:0", "t": "1:0", "save": [6, 6, 6], "gtg": 1})
+	assert_eq([st.seat(1).cp, q.gtg, st.squad_alive(t)], [2, true, 2], "gtg at save: CP spent, sv improved")
+	var nogun := _sq(st, "0:1", "hoplite", 0, _line(1, 0, 2000))
+	_do(st, {"a": "atk", "u": "0:1", "t": "1:0", "how": "shoot", "hit": [6]})
+	assert_eq([st.pend.size(), nogun.shot], [0, false], "atk with no weapon for that how: nothing (mkAtk null)")
+	_do(st, {"a": "shoot", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [6, 6, 6, 6, 6], "wound": [6, 6, 6, 6, 6],
+		"save": [1, 1, 1, 1, 1]})
+	assert_true(st.squad_alive(t) == 0 and st.over and st.winner == 0, "shoot: the whole attack; the last enemy dies and the match is over (check_over)")
+
+
+func test_apply_rr() -> void:
+	var st := _st(BattleState.PH_SHOOT)
+	var s := _sq(st, "0:0", "infantry", 0, _line(5, 0, 0))
+	_sq(st, "1:0", "infantry", 1, _line(5, 0, 15000))
+	_do(st, {"a": "atk", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [6, 1, 1, 6, 6]})
+	var p := st.pend[0]
+	_do(st, {"a": "rr", "u": "0:0", "t": "", "v": 6})
+	assert_eq([st.seat(0).cp, p.hits], [3, 3], "rr with t '': no entry, no CP")
+	_do(st, {"a": "rr", "u": "0:0", "t": "1:0", "v": 6})
+	assert_eq([st.seat(0).cp, p.hits, p.rr], [2, 4, true], "rr: CP spent, the lowest failed die re-rolled")
+	_do(st, {"a": "rr", "u": "0:0", "t": "1:0", "v": 6})
+	assert_eq([st.seat(0).cp, p.hits], [2, 4], "a second rr on the same attack: nothing (P.rr)")
+	# CP is spent before apply_reroll's own guards: a torrent attack and an attack with no failed die
+	var st2 := _st(BattleState.PH_SHOOT)
+	var a := _sq(st2, "0:0", "infantry", 0, _line(5, 0, 0))
+	_sq(st2, "1:0", "infantry", 1, _line(5, 0, 15000))
+	_do(st2, {"a": "atk", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [6, 6, 6, 6, 6]})
+	_do(st2, {"a": "rr", "u": "0:0", "t": "1:0", "v": 1})
+	assert_eq([st2.seat(0).cp, st2.pend[0].rr, st2.pend[0].hits], [2, false, 5], "no failed die: the CP is spent anyway, nothing changes (page)")
+	st2.pend[0].tr = true
+	st2.used.clear()
+	_do(st2, {"a": "rr", "u": "0:0", "t": "1:0", "v": 1})
+	assert_eq(st2.seat(0).cp, 1, "torrent: the handler spends the CP, apply_reroll then refuses (tr)")
+	st2.pend[0].tr = false
+	st2.used.clear()
+	st2.seat(0).cp = 0
+	_do(st2, {"a": "rr", "u": "0:0", "t": "1:0", "v": 1})
+	assert_eq([st2.seat(0).cp, st2.pend[0].rr], [0, false], "no CP: nothing")
+	st2.seat(0).cp = 1
+	st2.pend[0].stage = BattleState.S_SAVE
+	_do(st2, {"a": "rr", "u": "0:0", "t": "1:0", "v": 1})
+	assert_eq(st2.seat(0).cp, 1, "not at stage wound: no CP")
+	assert_true(a != null and s != null, "squads built")
+
+
+func test_apply_shock_rez() -> void:
+	var st := _st(BattleState.PH_CMD)
+	var s := _sq(st, "0:0", "infantry", 0, _line(2, 0, 0))
+	_sq(st, "1:0", "infantry", 1, _line(2, 0, 30000))
+	for i: int in 2:
+		var p := BattleState.Pend.new()
+		p.kind = BattleState.K_SHOCK
+		p.stage = BattleState.S_SHOCK
+		p.u = s.id
+		p.att = 0
+		p.need = 7
+		BtPend.push(st, p)
+	_do(st, {"a": "shock", "u": "0:0", "roll": [1, 1], "brave": 0})
+	assert_eq([s.shaken, st.pend.size(), st.seat(0).cp], [true, 1, 3], "shock: the roll fails, no CP")
+	s.shaken = false
+	_do(st, {"a": "shock", "u": "0:0", "roll": [], "brave": 1})
+	assert_eq([s.shaken, st.pend.size(), st.seat(0).cp], [false, 0, 2], "brave: CP spent, passes without dice")
+	_do(st, {"a": "shock", "u": "0:0", "roll": [1, 1], "brave": 0})
+	assert_false(s.shaken, "no shock entry: nothing")
+	var r := _sq(st, "0:1", "rwar", 0, _line(10, -20000, 6000))
+	st.remove_unit(r.models[9])
+	st.remove_unit(r.models[8])
+	var z := BattleState.Pend.new()
+	z.kind = BattleState.K_REZ
+	z.stage = BattleState.S_REZ
+	z.u = r.id
+	z.att = 0
+	z.need = 5
+	z.n = 2
+	BtPend.push(st, z)
+	_do(st, {"a": "rez", "u": "0:1", "roll": [5, 1]})
+	assert_eq([st.squad_alive(r), st.pend.size()], [9, 0], "rez: one 5+ brings one back")
+
+
+func test_apply_charge_codes() -> void:
+	var st := _st(BattleState.PH_CHARGE, 0)
+	var s := _sq(st, "0:0", "hoplite", 0, _line(2, 0, 0))
+	var t := _sq(st, "1:0", "infantry", 1, _line(2, 0, 6000))
+	s.ch_done = true
+	_do(st, {"a": "chg", "u": "0:0", "t": "1:0"})
+	assert_eq(st.pend.size(), 0, "chg from a squad that is ch_done: ignored")
+	s.ch_done = false
+	var far := _sq(st, "1:1", "infantry", 1, _line(1, 0, 50000))
+	_do(st, {"a": "chg", "u": "0:0", "t": "1:1"})
+	assert_eq([st.pend.size(), s.ch_done], [1, true], "chg is declared without a why-not on receive (40\" away)")
+	st.pend.clear()
+	s.ch_done = false
+	_do(st, {"a": "chg", "u": "0:0", "t": "1:0"})
+	var p := st.pend[0]
+	assert_eq(p.stage, BattleState.S_CHARGE, "no CP for overwatch: straight to the charge roll")
+	_do(st, {"a": "cmove", "u": "0:0", "t": "1:0", "to": [[0, 4000], [1700, 4000]]})
+	assert_eq(_pos(s), [[0, 0], [1700, 0]], "cmove before the roll succeeds: ignored")
+	_do(st, {"a": "chr", "u": "0:0", "t": "", "roll": [6, 6], "rr": 0, "keep": 0})
+	assert_eq(p.stage, BattleState.S_CHARGE, "chr with t '': no entry")
+	_do(st, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [1, 1], "rr": 0, "keep": 0})
+	assert_eq([st.pend.size(), p.stage], [0, BattleState.S_DONE], "chr fails and the team has no CP to re-roll: done")
+	# with CP: chrr, then keep or re-roll
+	for i: int in 2:
+		st.seat(i).cp = 2
+	s.ch_done = false
+	_do(st, {"a": "chg", "u": "0:0", "t": "1:0"})
+	var o := st.pend[0]
+	assert_eq(o.stage, BattleState.S_OW, "the target has CP and a gun in range: overwatch is offered")
+	_do(st, {"a": "ow", "u": "0:0", "t": "1:0", "use": 1})
+	assert_eq([st.pend.size(), st.pend[0].kind, st.pend[0].ow, st.pend[1] == o, st.seat(1).cp, o.stage],
+		[2, BattleState.K_ATK, true, true, 1, BattleState.S_OWATK], "ow use 1: CP spent, the overwatch attack sits before the charge")
+	_do(st, {"a": "atk", "u": "1:0", "t": "0:0", "how": "ow", "hit": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]})
+	assert_eq(st.pend.size(), 1, "the overwatch misses")
+	_do(st, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [1, 1], "rr": 0, "keep": 0})
+	assert_eq(o.stage, BattleState.S_CHRR, "chr promotes owatk (chg_ready) and the failed roll waits for a re-roll choice")
+	var cp0 := st.seat(0).cp
+	_do(st, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [6, 6], "rr": 1, "keep": 0})
+	assert_eq([o.stage, st.seat(0).cp], [BattleState.S_MOVE, cp0 - 1], "chr rr at chrr: CP spent and the charge re-rolled")
+	_do(st, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [6, 6], "rr": 1, "keep": 0})
+	assert_eq(st.seat(0).cp, cp0 - 1, "chr rr past chrr: nothing, no CP")
+	_do(st, {"a": "cmove", "u": "0:0", "t": "1:0", "to": [[0, 4500], [1700, 4500]]})
+	assert_eq([_pos(s), s.charged, s.ch_tgt, st.pend.size()], [[[0, 4500], [1700, 4500]], true, "1:0", 0], "cmove at stage move: in")
+	# keep
+	var st2 := _st(BattleState.PH_CHARGE, 1)
+	var a := _sq(st2, "0:0", "hoplite", 0, _line(1, 0, 0))
+	_sq(st2, "1:0", "hoplite", 1, _line(1, 0, 9000))
+	_do(st2, {"a": "chg", "u": "0:0", "t": "1:0"})
+	_do(st2, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [1, 1], "rr": 0, "keep": 0})
+	assert_eq(st2.pend[0].stage, BattleState.S_CHRR, "fail with CP: chrr")
+	_do(st2, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [1, 1], "rr": 0, "keep": 1})
+	assert_eq([st2.pend.size(), st2.seat(0).cp, _logged(st2, "chg_fail")], [0, 1, 1], "keep: the charge fails, no CP")
+	# a plain chr (rr 0, keep 0) at chrr is applied as a roll (the receiver trusts the sender, page applyCharge)
+	a.ch_done = false
+	_do(st2, {"a": "chg", "u": "0:0", "t": "1:0"})
+	_do(st2, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [1, 1], "rr": 0, "keep": 0})
+	var w := st2.pend[0]
+	_do(st2, {"a": "chr", "u": "0:0", "t": "1:0", "roll": [6, 6], "rr": 0, "keep": 0})
+	assert_eq([w.stage, st2.seat(0).cp], [BattleState.S_MOVE, 1], "plain chr at chrr: rolled again without CP (page parity)")
+	assert_true(a != null and t != null and far != null, "squads built")
+
+
+func test_apply_gren_heal() -> void:
+	var st := _st(BattleState.PH_SHOOT, 0)
+	var s := _sq(st, "0:0", "infantry", 0, _line(1, 0, 0))
+	var t := _sq(st, "1:0", "heavy", 1, _line(3, 0, 6000))
+	_do(st, {"a": "gren", "u": "0:0", "t": "1:0", "roll": [6, 6, 6, 6, 6, 6]})
+	assert_eq([s.shot, st.squad_alive(t)], [false, 3], "gren without CP: the whole act is ignored")
+	st.seat(0).cp = 1
+	_do(st, {"a": "gren", "u": "0:0", "t": "1:0", "roll": [4, 4, 4, 1, 1, 1]})
+	assert_eq([s.shot, st.squad_alive(t), st.seat(0).cp], [true, 2, 0], "gren with CP: spent, three mortal wounds spill")
+	var med := _sq(st, "1:1", "medic", 1, _line(1, 10000, 6000))
+	_do(st, {"a": "heal", "u": "1:1", "t": "1:0", "roll": 3})
+	assert_eq([med.shot, t.models[0].hp], [true, 2], "heal: no can-heal check on receive, a 3 heals")
+	_do(st, {"a": "heal", "u": "1:1", "t": "1:0"})
+	assert_eq(st.squad_alive(t), 2, "heal without a roll is a 1 (fails), never a draw")
+	_do(st, {"a": "heal", "u": "1:1", "t": "9:9", "roll": 6})
+	assert_eq(st.squad_alive(t), 2, "heal on an unknown squad: nothing")
+
+
+func test_apply_done_endph_legacy() -> void:
+	var st := _st(BattleState.PH_MOVE)
+	st.add_seat(0, "L2", false, false, "")
+	_sq(st, "0:0", "infantry", 0, _line(1, 0, 0))
+	_sq(st, "1:0", "infantry", 1, _line(1, 0, 30000))
+	_do(st, {"a": "done", "ph": "move", "pid": "nobody"})
+	_do(st, {"a": "done", "ph": "move", "pid": 0})
+	assert_false(st.seat(0).done, "done with an unknown or non-string pid: nothing")
+	_do(st, {"a": "done", "ph": "shoot", "pid": "L0"})
+	assert_false(st.seat(0).done, "done for another phase: nothing")
+	_do(st, {"a": "done", "ph": "move", "pid": "L0"})
+	assert_eq([st.seat(0).done, st.phase], [true, BattleState.PH_MOVE], "one of two humans done: the phase waits")
+	_do(st, {"a": "done", "ph": "", "pid": "L2"})
+	assert_eq(st.phase, BattleState.PH_SHOOT, "the team's last human done (ph ''): next phase")
+	_do(st, {"a": "endph", "ph": "move"})
+	assert_eq(st.phase, BattleState.PH_SHOOT, "endph for another phase: nothing")
+	_do(st, {"a": "endph", "ph": "shoot"})
+	assert_eq(st.phase, BattleState.PH_CHARGE, "endph of the phase: next phase")
+	_do(st, {"a": "endturn"})
+	assert_eq(st.phase, BattleState.PH_FIGHT, "legacy endturn outside cmd/fight: next phase")
+	_do(st, {"a": "endturn"})
+	assert_eq(st.phase, BattleState.PH_FIGHT, "legacy endturn in fight: nothing")
+	st.phase = BattleState.PH_CMD
+	_do(st, {"a": "endturn"})
+	assert_eq([st.phase, st.turn], [BattleState.PH_CMD, 0], "legacy endturn in cmd: nothing")
+	_do(st, {"a": "endph", "ph": ""})
+	assert_eq([st.turn, st.phase], [1, BattleState.PH_CMD], "endph '' in cmd ends the turn (page parity)")
+	var d0 := st.digest()
+	_do(st, {"a": "move", "u": "0:0", "x": 1000, "z": 1000})
+	_do(st, {"a": "nosuch", "u": "0:0"})
+	assert_eq(st.digest(), d0, "legacy move and an unknown code change nothing")
+
+
+func test_apply_after_over() -> void:
+	var st := _st(BattleState.PH_MOVE)
+	var s := _sq(st, "0:0", "infantry", 0, _line(1, 0, 0))
+	_sq(st, "1:0", "infantry", 1, [])
+	_do(st, {"a": "stay", "u": "0:0"})
+	assert_true(st.over and st.winner == 0, "apply ends with check_over: one team left is the winner")
+	assert_true(s.moved, "acts after over are still applied (page)")
+	st.seat(0).cp = 3
+	var t := _sq(st, "1:1", "heavy", 1, _line(1, 0, 6000))
+	_do(st, {"a": "gren", "u": "0:0", "t": "1:1", "roll": [6, 6, 6, 6, 6, 6]})
+	assert_eq([st.seat(0).cp, st.squad_alive(t)], [3, 1], "but no stratagem can be used after over")
+
+
+## A fixed sequence of hand acts on one state: the dispatcher's digest is pinned.
+func test_apply_digest_pinned() -> void:
+	var a := _apply_digest()
+	assert_eq(a, _apply_digest(), "the dispatcher is deterministic")
+	assert_digest(a, PINNED_APPLY, "BtActs.apply digest of the fixed act sequence is pinned")
+
+
+const PINNED_APPLY := "2220fc2a22dc73dd"
+
+
+func _apply_digest() -> String:
+	var st := _st(BattleState.PH_MOVE, 2)
+	_sq(st, "0:0", "infantry", 0, _line(5, -4000, -8000))
+	_sq(st, "0:1", "hoplite", 0, _line(5, -4000, -11000))
+	_sq(st, "1:0", "infantry", 1, _line(5, -4000, 8000))
+	_sq(st, "1:1", "heavy", 1, _line(3, 6000, 9000))
+	var acts: Array = [
+		{"a": "smove", "u": "0:0", "how": "move", "x": -2000, "z": -3000},
+		{"a": "smove", "u": "0:1", "how": "adv", "to": [[-4000, -6000], [-2300, -6000], [-600, -6000], [1100, -6000], [2800, -6000]]},
+		{"a": "endph", "ph": "move"},
+		{"a": "atk", "u": "0:0", "t": "1:0", "how": "shoot", "hit": [1, 2, 3, 4, 5]},
+		{"a": "rr", "u": "0:0", "t": "1:0", "v": 6},
+		{"a": "wnd", "u": "0:0", "t": "1:0", "wound": [6, 5, 4]},
+		{"a": "sav", "u": "0:0", "t": "1:0", "save": [1, 2, 3], "gtg": 1},
+		{"a": "endph", "ph": "shoot"},
+		{"a": "chg", "u": "0:1", "t": "1:0"},
+		{"a": "ow", "u": "0:1", "t": "1:0", "use": 1},
+	]
+	for a: Variant in acts:
+		var act: Dictionary = a
+		_do(st, BtActs.sanitize(act))
+	return st.digest()

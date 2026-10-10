@@ -120,7 +120,172 @@ static func hundredths(mi: int) -> int:
 
 
 # ---------------------------------------------------------------- ตัวจ่าย act (netAct 34950–34980)
-# apply(st, act, out) มาในคลื่นที่ 5 พร้อม battle.gd: รับ act ที่ผ่าน sanitize แล้ว เรียก BtPend/BtMoves/BtTurn ตามตาราง §4
+## netAct: ใช้ act รูปในแกน (ผ่าน sanitize แล้ว) ตามตาราง §4 · ตัวรับไม่ตรวจซ้ำ (เชื่อผู้ส่ง เหมือนหน้าเก่า)
+## CP ของ rr/gtg/brave/gren หักในตัวรับก่อนตัวใช้ผลจะตรวจของมันเอง · หลังทุก act ตรวจจบนัด (checkOver ของตัวใช้ผล)
+## รหัสที่ไม่รู้จักไม่ทำอะไร (Table ไม่รับตั้งแต่ก่อนบันทึก)
+static func apply(st: BattleState, act: Dictionary, out: Array[Dictionary]) -> void:
+	_dispatch(st, act, out)
+	BtTurn.check_over(st, out)
+
+
+static func _dispatch(st: BattleState, act: Dictionary, out: Array[Dictionary]) -> void:
+	var code := str(act.get("a", ""))
+	var u := _str(act.get("u"))
+	var s := st.squad(u)
+	var t := st.squad(_str(act.get("t")))
+	match code:
+		"smove":
+			if s == null or s.moved:
+				return
+			var to: Array = _arr(act.get("to"))
+			if to.is_empty() and typeof(act.get("x")) == TYPE_INT and typeof(act.get("z")) == TYPE_INT:
+				# Claude ส่งแค่จุด: ทุกเครื่องวางแผนเอง
+				to = BtMoves.pts(BtMoves.plan_move(st, s, int(act["x"]), int(act["z"])))
+			if not to.is_empty():
+				BtMoves.apply_smove(st, s, to, _str(act.get("how")), out)
+		"stay":
+			if s != null:
+				s.moved = true
+		"skip":
+			if s != null:
+				var ph := _str(act.get("ph"))
+				if ph == "":
+					ph = st.phase_name()
+				if ph == "shoot":
+					s.shot = true
+				elif ph == "charge":
+					s.ch_done = true
+				else:
+					s.moved = true
+		"adv":
+			if s != null and not s.adv:
+				BtPend.apply_adv(st, s, _roll1(act.get("roll")), out)
+		"atk":
+			if s == null or t == null:
+				return
+			var p := BtPend.pend_at(st, s.id, t.id, BattleState.K_ATK)
+			if p == null or p.stage != BattleState.S_HIT:
+				if p != null:
+					# ขั้นไม่ตรง: สร้างการโจมตีใหม่เหมือนหน้าเก่า
+					_say(st, out, "atk_new", [s.id, t.id, BattleState.STAGES[p.stage]])
+				p = BtPend.mk_atk(st, s, t, _how_i(act.get("how")))
+			if p != null:
+				BtPend.apply_hit(st, p, _arr(act.get("hit")), out)
+		"shoot":
+			if s != null and t != null:
+				BtPend.apply_whole(st, s, t, _arr(act.get("hit")), _arr(act.get("wound")), _arr(act.get("save")),
+					_how_i(act.get("how")), out)
+		"rr":
+			var p := _pend_t(st, act, u, BattleState.K_ATK)
+			if p != null and p.stage == BattleState.S_WOUND and not p.rr and BtStrats.use(st, "rr", p.att, out):
+				BtPend.apply_reroll(st, p, _int(act.get("v")), out)
+		"wnd":
+			var p := _pend_t(st, act, u, BattleState.K_ATK)
+			if p != null:
+				BtPend.apply_wnd(st, p, _arr(act.get("wound")), out)
+		"sav":
+			var p := _pend_t(st, act, u, BattleState.K_ATK)
+			if p != null and p.stage == BattleState.S_SAVE:
+				var g := _bit(act.get("gtg")) == 1 and BtStrats.use(st, "gtg", p.def, out)
+				BtPend.apply_sav(st, p, _arr(act.get("save")), g, out)
+		"shock":
+			var p := BtPend.pend_at(st, u, "", BattleState.K_SHOCK)
+			if p != null:
+				var b := _bit(act.get("brave")) == 1 and BtStrats.use(st, "brave", p.att, out)
+				BtPend.apply_shock(st, p, _arr(act.get("roll")), b, out)
+		"rez":
+			var p := BtPend.pend_at(st, u, "", BattleState.K_REZ)
+			if p != null:
+				BtPend.apply_rez(st, p, _arr(act.get("roll")), out)
+		"chg":
+			if s != null and t != null and not s.ch_done:
+				BtPend.declare_charge(st, s, t, out)
+		"ow":
+			var p := _pend_t(st, act, u, BattleState.K_CHG)
+			if p != null:
+				BtPend.apply_ow(st, p, _bit(act.get("use")) == 1, out)
+		"chr":
+			var p := _pend_t(st, act, u, BattleState.K_CHG)
+			if p == null:
+				return
+			BtPend.chg_ready(st, p)
+			if _bit(act.get("keep")) == 1:
+				BtPend.keep_charge(st, p, out)
+				return
+			if _bit(act.get("rr")) == 1:
+				if p.stage == BattleState.S_CHRR and BtStrats.use(st, "rr", p.att, out):
+					BtPend.apply_charge(st, p, _arr(act.get("roll")), true, out)
+				return
+			BtPend.apply_charge(st, p, _arr(act.get("roll")), false, out)
+		"cmove":
+			var p := _pend_t(st, act, u, BattleState.K_CHG)
+			if p != null:
+				BtPend.apply_cmove(st, p, _arr(act.get("to")), out)
+		"gren":
+			if s != null and t != null and BtStrats.use(st, "gren", s.pl, out):
+				BtPend.apply_gren(st, s, t, _arr(act.get("roll")), out)
+		"heal":
+			if s != null and t != null:
+				BtPend.apply_heal(st, s, t, _roll1(act.get("roll")), out)
+		"done":
+			var pid: Variant = act.get("pid")
+			var pi := st.pid_index(str(pid)) if typeof(pid) == TYPE_STRING else -1
+			if pi >= 0:
+				BtTurn.player_done(st, pi, _str(act.get("ph")), out)
+		"endph":
+			var ph := _str(act.get("ph"))
+			if ph == "" or ph == st.phase_name():
+				BtTurn.next_phase(st, out)
+		"endturn":
+			# เครื่องรุ่นเก่า
+			if st.phase != BattleState.PH_CMD and st.phase != BattleState.PH_FIGHT:
+				BtTurn.next_phase(st, out)
+		"move":
+			pass
+
+
+## pendAt(a.u, a.t, kind): ไม่มีช่อง t = เป้าไหนก็ได้ · t "" ไม่ตรงกับรายการใด (หน้าเก่าเทียบ P.t === "")
+static func _pend_t(st: BattleState, act: Dictionary, u: String, kind: int) -> BattleState.Pend:
+	if not act.has("t") or act["t"] == null:
+		return BtPend.pend_at(st, u, "", kind)
+	var t := _str(act["t"])
+	if t == "":
+		return null
+	return BtPend.pend_at(st, u, t, kind)
+
+
+static func _str(v: Variant) -> String:
+	return str(v) if typeof(v) == TYPE_STRING or typeof(v) == TYPE_STRING_NAME else ""
+
+
+static func _int(v: Variant) -> int:
+	return int(v) if typeof(v) == TYPE_INT else 0
+
+
+## roll|0 || 1: ไม่ใช่ตัวเลขหรือศูนย์ได้ 1 (ตัวใช้ผลตัดค่านอก 1..6 เป็น 1 เอง)
+static func _roll1(v: Variant) -> int:
+	var r := _int(v)
+	return r if r != 0 else 1
+
+
+## แถวจาก act (ไม่ใช่อาร์เรย์ได้ [])
+static func _arr(v: Variant) -> Array:
+	if typeof(v) == TYPE_ARRAY:
+		return v
+	if _is_arr(v):
+		return Array(v)
+	return []
+
+
+## a.how || 'shoot' เป็นเลข HOW_*
+static func _how_i(v: Variant) -> int:
+	var i := BattleState.HOWS.find(_str(v))
+	return i if i >= 0 else BattleState.HOW_SHOOT
+
+
+static func _say(st: BattleState, out: Array[Dictionary], key: String, args: Array) -> void:
+	st.say(key, args)
+	out.append(Events.make(Events.Id.LOG_LINE, {"key": key, "args": args.duplicate()}))
 
 
 # ---------------------------------------------------------------- ตัวกรองทีละช่อง (แบบ worker.js)

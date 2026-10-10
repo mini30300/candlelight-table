@@ -73,13 +73,28 @@ func test_core_is_pure() -> void:
 	assert_true(hits.is_empty(), "no forbidden token in core/** (file:line: token)", hits)
 
 
+## A core script extends RefCounted directly, or another core class that does (Battle extends Table, R1_PORT_SPEC
+## §1.17); nothing else (no Node, no Resource).
 func test_core_scripts_are_refcounted_and_named() -> void:
 	var bad := []
+	var direct := {}
+	var parent := {}
+	var cls_re := RegEx.create_from_string("^class_name (\\w+)\\nextends (\\w+)\\n")
 	for f: String in _gd_files(CORE_DIR):
 		var src := FileAccess.get_file_as_string(f)
-		if not src.begins_with("class_name ") or not src.contains("\nextends RefCounted\n"):
+		var m := cls_re.search(src)
+		if m == null:
 			bad.append(f)
-	assert_true(bad.is_empty(), "every core script starts with class_name and extends RefCounted", bad)
+			continue
+		if m.get_string(2) == "RefCounted":
+			direct[m.get_string(1)] = true
+		else:
+			parent[f] = m.get_string(2)
+	for f: String in parent:
+		if not direct.has(parent[f]):
+			bad.append(f)
+	assert_true(bad.is_empty(), "every core script starts with class_name and extends RefCounted (or a core class that does)", bad)
+	assert_true(direct.has("Table") and parent.values().has("Table"), "Battle extends Table, which extends RefCounted", parent)
 
 
 func test_planted_fixture_is_flagged() -> void:

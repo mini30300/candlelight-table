@@ -1,1 +1,6 @@
-[]
+[
+  {"scenario": "three_ffa_greek_soldiers_orcs_kill_ruin_hills_40", "act": "*", "path": "squads.*", "id": "0:1x",
+    "reason": "§7 #7 position only (id entries match position rows only): the horse opens along the v10 squad facing (old to new centre of its last move), the page along the drawn model rot, so the spawned formation turns by a few degrees"},
+  {"scenario": "three_ffa_greek_soldiers_orcs_kill_ruin_hills_40", "act": "*", "path": "units.*", "id": "0:1x.*",
+    "reason": "§7 #7 position only: the models of that spawned squad stand on the turned formation until their first move"}
+]
