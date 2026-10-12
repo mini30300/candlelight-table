@@ -37,6 +37,14 @@ perf (crowded bot turn 31.6 s → 1.2 s); bot/roller differential and act-edge d
 Open: the UI must call Battle.flush before sending `done` (page playerDone rolls pending dice first); new log keys need I18n;
 oracle README still says the allowlist is empty.
 
+## 12 Oct: Cloudflare account subdomain renamed (game links not yet updated)
+The owner renamed the Cloudflare account subdomain from `mini3030023450` to `rbppc` (for the boat booking site).
+The game server is now `https://candlelight-table.rbppc.workers.dev`; every game client still points at the old
+`candlelight-table.mini3030023450.workers.dev` and cannot connect until updated. The owner will say when to fix it.
+Files to change (replace `mini3030023450` with `rbppc`): `app/src/main/java/dev/mini/candlelight/Api.kt`,
+`app/src/main/assets/battle-table.html` (+ re-embed in candlelight-server), `godot/app/app.gd`, `desktop/dist/index.html`,
+`README.md`, `desktop/README.md`, `tests/desktop/*.js`; also check candlelight-server for the old name. Then a new release.
+
 ## Next steps, in order
 1. Review and land the rule-1 fix (above) with its server PR.
 2. Wave 6: `docs/GODOT.md` (code map, invariants, §7 list), reviewed allowlist, v10 gate memo; then the UI on top of Battle.
