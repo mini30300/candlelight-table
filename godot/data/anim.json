@@ -1,0 +1,1907 @@
+{
+  "anim": {
+    "heavy": {
+      "r": "fire",
+      "g": "carbine",
+      "m": "bash"
+    },
+    "infantry": {
+      "r": "fire",
+      "g": "rifle",
+      "m": "bash"
+    },
+    "hoplite": {
+      "m": "thrust",
+      "sh": 1
+    },
+    "enemy": {
+      "r": "fire",
+      "g": "smg",
+      "m": "bash"
+    },
+    "archer": {
+      "r": "bow",
+      "m": "bash"
+    },
+    "peltast": {
+      "r": "throw",
+      "g": "jav",
+      "m": "bash",
+      "sh": 1
+    },
+    "spartan": {
+      "m": "thrust",
+      "sh": 1
+    },
+    "cavalry": {
+      "m": "thrust",
+      "sh": 1
+    },
+    "sniper": {
+      "r": "fire",
+      "g": "sniper",
+      "m": "bash"
+    },
+    "hmg": {
+      "r": "fire",
+      "g": "hmg",
+      "m": "bash"
+    },
+    "medic": {
+      "r": "fire",
+      "g": "smg",
+      "m": "bash"
+    },
+    "mech": {
+      "r": "fire",
+      "g": "cannon",
+      "m": "bash"
+    },
+    "knight": {
+      "r": "fire",
+      "g": "bolter",
+      "m": "bash"
+    },
+    "kblade": {
+      "m": "swing",
+      "sh": 1
+    },
+    "kheavy": {
+      "r": "fire",
+      "g": "plasma",
+      "m": "bash"
+    },
+    "kterm": {
+      "r": "fire",
+      "g": "stormgun",
+      "hand": "R",
+      "m": "bash"
+    },
+    "kcapt": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kdread": {
+      "r": "fire",
+      "g": "rotary",
+      "hand": "R",
+      "m": "bash"
+    },
+    "gaunt": {
+      "r": "fire",
+      "g": "bio",
+      "m": "claw"
+    },
+    "hound": {
+      "m": "claw"
+    },
+    "warrior": {
+      "r": "fire",
+      "g": "bio",
+      "m": "claw"
+    },
+    "spitter": {
+      "r": "spray",
+      "g": "acid",
+      "m": "claw"
+    },
+    "gargoyle": {
+      "r": "fire",
+      "g": "bio",
+      "m": "claw"
+    },
+    "brute": {
+      "r": "fire",
+      "g": "bio",
+      "hand": "R",
+      "m": "claw"
+    },
+    "rwar": {
+      "r": "fire",
+      "g": "gauss",
+      "m": "bash"
+    },
+    "rimm": {
+      "r": "fire",
+      "g": "gaussh",
+      "m": "bash"
+    },
+    "rguard": {
+      "m": "swing2"
+    },
+    "rscarab": {
+      "m": "lunge"
+    },
+    "rlord": {
+      "r": "cast",
+      "g": "staff",
+      "m": "swing"
+    },
+    "rspider": {
+      "r": "beam",
+      "g": "gauss",
+      "m": "lunge"
+    },
+    "boy": {
+      "r": "fire",
+      "g": "slugga",
+      "hand": "L",
+      "m": "swing"
+    },
+    "loota": {
+      "r": "fire",
+      "g": "deffgun",
+      "m": "bash"
+    },
+    "nob": {
+      "r": "fire",
+      "g": "slugga",
+      "hand": "R",
+      "m": "bash"
+    },
+    "boss": {
+      "r": "fire",
+      "g": "dakka",
+      "hand": "R",
+      "m": "bash"
+    },
+    "grot": {
+      "r": "fire",
+      "g": "grotgun",
+      "m": "bash"
+    },
+    "odread": {
+      "r": "fire",
+      "g": "dakka",
+      "hand": "R",
+      "m": "claw"
+    },
+    "troy": {
+      "m": "lunge"
+    },
+    "achil": {
+      "r": "throw",
+      "g": "jav",
+      "m": "thrust",
+      "sh": 1
+    },
+    "herc": {
+      "r": "hurl",
+      "g": "rock",
+      "m": "swing"
+    },
+    "cyclops": {
+      "r": "hurl",
+      "g": "boulder",
+      "m": "swing2"
+    },
+    "mino": {
+      "m": "swing2"
+    },
+    "medusa": {
+      "r": "gaze",
+      "g": "stone",
+      "m": "claw"
+    },
+    "centaur": {
+      "r": "bow",
+      "m": "lunge"
+    },
+    "pegasus": {
+      "m": "thrust",
+      "sh": 1
+    },
+    "flamer": {
+      "r": "flame",
+      "g": "flamer",
+      "m": "bash"
+    },
+    "mortar": {
+      "r": "lob",
+      "g": "mortar",
+      "m": "bash"
+    },
+    "tank": {
+      "r": "turret",
+      "g": "tankgun",
+      "m": "lunge"
+    },
+    "cmdr": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "dabsong": {
+      "m": "twin"
+    },
+    "musket": {
+      "r": "fire",
+      "g": "musket",
+      "m": "bash"
+    },
+    "eleph": {
+      "m": "thrust"
+    },
+    "yak": {
+      "m": "swing2"
+    },
+    "hanu": {
+      "m": "swing"
+    },
+    "naga": {
+      "r": "spray",
+      "g": "venom",
+      "m": "lunge"
+    },
+    "samurai": {
+      "m": "swing2"
+    },
+    "ninja": {
+      "r": "throw",
+      "g": "star",
+      "m": "swing"
+    },
+    "viking": {
+      "r": "throw",
+      "g": "axe",
+      "m": "swing",
+      "sh": 1
+    },
+    "mummy": {
+      "m": "claw"
+    },
+    "thunder": {
+      "r": "zap",
+      "g": "hammer",
+      "m": "swing"
+    },
+    "dragon": {
+      "r": "breath",
+      "g": "fire",
+      "m": "lunge"
+    },
+    "yumi": {
+      "r": "bow",
+      "m": "bash"
+    },
+    "kiba": {
+      "r": "bow",
+      "m": "swing"
+    },
+    "nodachi": {
+      "m": "swing2"
+    },
+    "naginata": {
+      "m": "swing2"
+    },
+    "musashi": {
+      "m": "twin"
+    },
+    "berserk": {
+      "m": "twin"
+    },
+    "vsword": {
+      "m": "swing",
+      "sh": 1
+    },
+    "daneaxe": {
+      "m": "swing2"
+    },
+    "valkyrie": {
+      "m": "thrust",
+      "sh": 1
+    },
+    "frostg": {
+      "r": "hurl",
+      "g": "ice",
+      "m": "swing"
+    },
+    "loki": {
+      "r": "cast",
+      "g": "loki",
+      "m": "swing"
+    },
+    "odin": {
+      "r": "throw",
+      "g": "gungnir",
+      "m": "thrust",
+      "sh": 1
+    },
+    "jackal": {
+      "m": "swing",
+      "sh": 1
+    },
+    "sphinx": {
+      "m": "lunge"
+    },
+    "anubis": {
+      "r": "cast",
+      "g": "curse",
+      "m": "swing"
+    },
+    "ra": {
+      "r": "gaze",
+      "g": "sun",
+      "m": "swing"
+    },
+    "horus": {
+      "m": "thrust"
+    },
+    "seth": {
+      "r": "flame",
+      "g": "sand",
+      "m": "swing"
+    },
+    "sobek": {
+      "m": "swing2"
+    },
+    "bastet": {
+      "m": "claw"
+    },
+    "levy": {
+      "m": "swing"
+    },
+    "lbow": {
+      "r": "bow",
+      "m": "bash"
+    },
+    "xbow": {
+      "r": "fire",
+      "g": "xbow",
+      "m": "bash"
+    },
+    "pike": {
+      "m": "thrust"
+    },
+    "maa": {
+      "m": "swing"
+    },
+    "mknight": {
+      "m": "thrust",
+      "sh": 1
+    },
+    "ballista": {
+      "r": "turret",
+      "g": "ballista",
+      "m": "bash"
+    },
+    "catapult": {
+      "r": "turret",
+      "g": "catapult",
+      "m": "bash"
+    },
+    "templar": {
+      "m": "swing",
+      "sh": 1
+    },
+    "kassault": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kjump": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kinfil": {
+      "r": "fire",
+      "g": "carbine",
+      "m": "bash"
+    },
+    "ksnipe": {
+      "r": "fire",
+      "g": "sniper",
+      "m": "bash"
+    },
+    "kmelta": {
+      "r": "fire",
+      "g": "melta",
+      "m": "bash"
+    },
+    "kscout": {
+      "r": "fire",
+      "g": "bolter",
+      "m": "bash"
+    },
+    "kscout_sn": {
+      "r": "fire",
+      "g": "sniper",
+      "m": "bash"
+    },
+    "klib": {
+      "r": "cast",
+      "g": "psy",
+      "m": "swing"
+    },
+    "kchap": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kcaptt": {
+      "r": "fire",
+      "g": "stormgun",
+      "hand": "L",
+      "m": "swing"
+    },
+    "ktech": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kprimarch": {
+      "m": "swing",
+      "sh": 1
+    },
+    "kbike": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "R",
+      "m": "swing"
+    },
+    "kabike": {
+      "r": "turret",
+      "g": "bikegun",
+      "m": "lunge"
+    },
+    "kspeeder": {
+      "r": "turret",
+      "g": "spdgun",
+      "m": "lunge"
+    },
+    "ktank": {
+      "r": "turret",
+      "g": "lascan",
+      "m": "lunge"
+    },
+    "krepulsor": {
+      "r": "turret",
+      "g": "plasmat",
+      "m": "lunge"
+    },
+    "kthunderf": {
+      "r": "turret",
+      "g": "thunderf",
+      "m": "bash"
+    },
+    "kgunship": {
+      "r": "turret",
+      "g": "gunship",
+      "m": "lunge"
+    },
+    "kwarsuit": {
+      "r": "fire",
+      "g": "rotary",
+      "hand": "R",
+      "m": "bash"
+    },
+    "kgarm": {
+      "r": "fire",
+      "g": "kauto",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kgwarden": {
+      "r": "fire",
+      "g": "kgatling",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kgpaladin": {
+      "r": "fire",
+      "g": "kbattle",
+      "hand": "L",
+      "m": "swing"
+    },
+    "kgcastellan": {
+      "r": "fire",
+      "g": "kvolcano",
+      "hand": "L",
+      "m": "lunge"
+    },
+    "ktwarhound": {
+      "r": "fire",
+      "g": "tgatling",
+      "hand": "R",
+      "m": "lunge"
+    },
+    "ktwarlord": {
+      "r": "fire",
+      "g": "tvolcano",
+      "hand": "R",
+      "m": "lunge"
+    },
+    "ktimperator": {
+      "r": "fire",
+      "g": "tannihil",
+      "hand": "R",
+      "m": "lunge"
+    },
+    "swsteal": {
+      "m": "claw"
+    },
+    "swlictor": {
+      "m": "claw"
+    },
+    "swripper": {
+      "m": "lunge"
+    },
+    "swleaper": {
+      "m": "claw"
+    },
+    "swtguard": {
+      "m": "claw"
+    },
+    "swhguard": {
+      "r": "fire",
+      "g": "bio",
+      "m": "claw"
+    },
+    "swzoan": {
+      "r": "gaze",
+      "g": "psyg",
+      "m": "claw"
+    },
+    "swvenom": {
+      "m": "claw"
+    },
+    "swexo": {
+      "r": "beam",
+      "g": "bioplasma",
+      "m": "lunge"
+    },
+    "swtfex": {
+      "r": "beam",
+      "g": "rupture",
+      "m": "lunge"
+    },
+    "swmawloc": {
+      "m": "lunge"
+    },
+    "swlord": {
+      "r": "gaze",
+      "g": "psyg",
+      "m": "claw"
+    },
+    "swwtyrant": {
+      "r": "fire",
+      "g": "bio",
+      "hand": "R",
+      "m": "claw"
+    },
+    "swoneeye": {
+      "r": "fire",
+      "g": "bio",
+      "hand": "R",
+      "m": "claw"
+    },
+    "swhiero": {
+      "r": "beam",
+      "g": "biocannon",
+      "m": "lunge"
+    },
+    "rbdmark": {
+      "r": "fire",
+      "g": "gauss",
+      "m": "bash"
+    },
+    "rbskorp": {
+      "m": "twin"
+    },
+    "rblokh": {
+      "r": "fire",
+      "g": "gaussh",
+      "m": "bash"
+    },
+    "rblheavy": {
+      "r": "fire",
+      "g": "gaussx",
+      "m": "bash"
+    },
+    "rbwraith": {
+      "m": "lunge"
+    },
+    "rbpraet": {
+      "r": "cast",
+      "g": "staff",
+      "m": "thrust"
+    },
+    "rbcryptek": {
+      "r": "cast",
+      "g": "staff",
+      "m": "swing"
+    },
+    "rbdlord": {
+      "m": "swing"
+    },
+    "rbctan": {
+      "r": "gaze",
+      "g": "ctan",
+      "m": "swing2"
+    },
+    "rbdstalk": {
+      "r": "beam",
+      "g": "doomray",
+      "m": "lunge"
+    },
+    "rbtstalk": {
+      "r": "beam",
+      "g": "heatray",
+      "m": "lunge"
+    },
+    "rbbarge": {
+      "r": "turret",
+      "g": "tesla",
+      "m": "lunge"
+    },
+    "rbmono": {
+      "r": "beam",
+      "g": "whip",
+      "m": "lunge"
+    },
+    "rbpylon": {
+      "r": "beam",
+      "g": "pylon",
+      "m": "lunge"
+    },
+    "rbtblade": {
+      "r": "turret",
+      "g": "tbgun",
+      "m": "lunge"
+    },
+    "rbking": {
+      "r": "cast",
+      "g": "staff",
+      "m": "swing"
+    },
+    "doom": {
+      "r": "throw",
+      "g": "saw",
+      "m": "swing",
+      "sh": 1
+    },
+    "loki_f": {
+      "r": "cast",
+      "g": "loki",
+      "m": "swing"
+    },
+    "ogwar": {
+      "r": "fire",
+      "g": "dakka",
+      "hand": "L",
+      "m": "bash"
+    },
+    "obeastb": {
+      "r": "fire",
+      "g": "slugga",
+      "hand": "L",
+      "m": "swing"
+    },
+    "osquigb": {
+      "m": "swing"
+    },
+    "obigmek": {
+      "r": "fire",
+      "g": "shokk",
+      "m": "bash"
+    },
+    "opain": {
+      "m": "swing"
+    },
+    "omek": {
+      "r": "fire",
+      "g": "kustom",
+      "m": "bash"
+    },
+    "oweird": {
+      "r": "gaze",
+      "g": "waagh",
+      "m": "swing"
+    },
+    "osnagga": {
+      "r": "fire",
+      "g": "slugga",
+      "hand": "L",
+      "m": "swing"
+    },
+    "ostorm": {
+      "r": "fire",
+      "g": "slugga",
+      "hand": "L",
+      "m": "swing"
+    },
+    "oburna": {
+      "r": "flame",
+      "g": "flamer",
+      "m": "bash"
+    },
+    "osquighog": {
+      "r": "throw",
+      "g": "jav",
+      "m": "thrust"
+    },
+    "omekgun": {
+      "r": "turret",
+      "g": "mekgun",
+      "m": "lunge"
+    },
+    "obike": {
+      "r": "fire",
+      "g": "slugga",
+      "hand": "R",
+      "m": "swing"
+    },
+    "oflash": {
+      "r": "fire",
+      "g": "snazz",
+      "m": "bash"
+    },
+    "omega": {
+      "r": "fire",
+      "g": "dakka",
+      "hand": "L",
+      "m": "bash"
+    },
+    "okan": {
+      "r": "fire",
+      "g": "dakka",
+      "hand": "L",
+      "m": "claw"
+    },
+    "owagon": {
+      "r": "turret",
+      "g": "owagon",
+      "m": "lunge"
+    },
+    "ogork": {
+      "r": "fire",
+      "g": "odakka",
+      "hand": "L",
+      "m": "bash"
+    },
+    "okillrig": {
+      "r": "turret",
+      "g": "orokkit",
+      "m": "lunge"
+    },
+    "elguard": {
+      "r": "fire",
+      "g": "shur",
+      "m": "bash"
+    },
+    "elstorm": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "elranger": {
+      "r": "fire",
+      "g": "lrifle",
+      "m": "bash"
+    },
+    "eldire": {
+      "r": "fire",
+      "g": "shur",
+      "m": "bash"
+    },
+    "elbanshee": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "elreaper": {
+      "r": "fire",
+      "g": "reaper",
+      "m": "bash"
+    },
+    "elplat": {
+      "r": "turret",
+      "g": "dcan",
+      "m": "bash"
+    },
+    "elwguard": {
+      "r": "fire",
+      "g": "wraithc",
+      "hand": "R",
+      "m": "bash"
+    },
+    "elwblade": {
+      "m": "twin"
+    },
+    "eldragon": {
+      "r": "fire",
+      "g": "fusion",
+      "m": "bash"
+    },
+    "elspider": {
+      "r": "fire",
+      "g": "spinner",
+      "m": "bash"
+    },
+    "elconclave": {
+      "r": "cast",
+      "g": "psyel",
+      "m": "thrust"
+    },
+    "elseer": {
+      "r": "cast",
+      "g": "psyel",
+      "m": "swing"
+    },
+    "elrevn": {
+      "r": "cast",
+      "g": "psyel",
+      "m": "swing"
+    },
+    "elautarch": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "elfarseer": {
+      "r": "cast",
+      "g": "psyel",
+      "m": "thrust"
+    },
+    "elspirit": {
+      "r": "cast",
+      "g": "psyel",
+      "m": "swing"
+    },
+    "elwlord": {
+      "r": "fire",
+      "g": "bshur",
+      "hand": "L",
+      "m": "swing"
+    },
+    "elprism": {
+      "r": "turret",
+      "g": "prism",
+      "m": "lunge"
+    },
+    "elhunter": {
+      "r": "turret",
+      "g": "elaser",
+      "m": "lunge"
+    },
+    "elvyper": {
+      "r": "turret",
+      "g": "vypgun",
+      "m": "lunge"
+    },
+    "elwknight": {
+      "r": "fire",
+      "g": "hwraith",
+      "hand": "R",
+      "m": "lunge"
+    },
+    "elavatar": {
+      "r": "cast",
+      "g": "avatar",
+      "m": "swing"
+    },
+    "elharl": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "dewar": {
+      "r": "fire",
+      "g": "splinter",
+      "m": "bash"
+    },
+    "dewych": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "dewrack": {
+      "r": "flame",
+      "g": "flamer",
+      "m": "swing"
+    },
+    "dehell": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "swing2"
+    },
+    "descourge": {
+      "r": "fire",
+      "g": "dlance",
+      "m": "bash"
+    },
+    "demand": {
+      "r": "fire",
+      "g": "balefire",
+      "hand": "R",
+      "m": "swing"
+    },
+    "dereaver": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "R",
+      "m": "swing"
+    },
+    "decronos": {
+      "r": "beam",
+      "g": "spirit",
+      "m": "lunge"
+    },
+    "degrot": {
+      "m": "swing2"
+    },
+    "deincubi": {
+      "m": "swing2"
+    },
+    "detalos": {
+      "r": "beam",
+      "g": "splintc",
+      "m": "lunge"
+    },
+    "debride": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "detrue": {
+      "r": "fire",
+      "g": "blaster",
+      "m": "bash"
+    },
+    "dearchon": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "desucc": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "twin"
+    },
+    "dehaem": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "dedracon": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "desyren": {
+      "m": "twin"
+    },
+    "debeast": {
+      "r": "fire",
+      "g": "spistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "devect": {
+      "r": "cast",
+      "g": "vect",
+      "m": "swing"
+    },
+    "dedrazhar": {
+      "m": "twin"
+    },
+    "deravager": {
+      "r": "turret",
+      "g": "dlancet",
+      "m": "lunge"
+    },
+    "derazor": {
+      "r": "turret",
+      "g": "razorm",
+      "m": "lunge"
+    },
+    "devoid": {
+      "r": "turret",
+      "g": "voidl",
+      "m": "lunge"
+    },
+    "dereaper": {
+      "r": "turret",
+      "g": "reapt",
+      "m": "lunge"
+    },
+    "detantalus": {
+      "r": "turret",
+      "g": "pdisint",
+      "m": "lunge"
+    },
+    "decorsair": {
+      "r": "fire",
+      "g": "shur",
+      "m": "bash"
+    },
+    "tafw": {
+      "r": "fire",
+      "g": "pulse",
+      "m": "bash"
+    },
+    "tabreach": {
+      "r": "fire",
+      "g": "pblast",
+      "m": "bash"
+    },
+    "tapath": {
+      "r": "fire",
+      "g": "pcarb",
+      "m": "bash"
+    },
+    "takroot": {
+      "r": "fire",
+      "g": "kroot",
+      "m": "bash"
+    },
+    "takhound": {
+      "m": "lunge"
+    },
+    "tadrone": {
+      "r": "turret",
+      "g": "dronegun",
+      "m": "lunge"
+    },
+    "tacrisis": {
+      "r": "fire",
+      "g": "suitgun",
+      "hand": "R",
+      "m": "bash"
+    },
+    "tabroad": {
+      "r": "fire",
+      "g": "railh",
+      "hand": "R",
+      "m": "bash"
+    },
+    "tafarstalk": {
+      "r": "fire",
+      "g": "kroot",
+      "m": "bash"
+    },
+    "tavespid": {
+      "r": "fire",
+      "g": "neutron",
+      "m": "claw"
+    },
+    "takox": {
+      "r": "turret",
+      "g": "krootgun",
+      "m": "lunge"
+    },
+    "tastealth": {
+      "r": "fire",
+      "g": "burstc",
+      "hand": "R",
+      "m": "bash"
+    },
+    "taghost": {
+      "r": "fire",
+      "g": "fusionh",
+      "hand": "R",
+      "m": "bash"
+    },
+    "tariptide": {
+      "r": "fire",
+      "g": "ionh",
+      "hand": "R",
+      "m": "bash"
+    },
+    "tahazard": {
+      "r": "fire",
+      "g": "suitgun",
+      "hand": "R",
+      "m": "bash"
+    },
+    "taknarloc": {
+      "r": "turret",
+      "g": "boltth",
+      "m": "lunge"
+    },
+    "tapiranha": {
+      "r": "turret",
+      "g": "burstt",
+      "m": "lunge"
+    },
+    "tahammer": {
+      "r": "turret",
+      "g": "railt",
+      "m": "lunge"
+    },
+    "tashark": {
+      "r": "turret",
+      "g": "iont",
+      "m": "lunge"
+    },
+    "tasurge": {
+      "r": "fire",
+      "g": "pulsed",
+      "hand": "R",
+      "m": "lunge"
+    },
+    "tataunar": {
+      "r": "fire",
+      "g": "tridrail",
+      "hand": "R",
+      "m": "lunge"
+    },
+    "tacomm": {
+      "r": "fire",
+      "g": "suitgun",
+      "hand": "R",
+      "m": "bash"
+    },
+    "taeth": {
+      "m": "swing"
+    },
+    "tashadow": {
+      "r": "fire",
+      "g": "fusion",
+      "hand": "R",
+      "m": "bash"
+    },
+    "tafarsight": {
+      "r": "fire",
+      "g": "suitgun",
+      "hand": "L",
+      "m": "swing"
+    },
+    "tafireb": {
+      "r": "fire",
+      "g": "pulse",
+      "m": "bash"
+    },
+    "tamarks": {
+      "r": "fire",
+      "g": "railr",
+      "m": "bash"
+    },
+    "tashaper": {
+      "r": "fire",
+      "g": "kroot",
+      "m": "bash"
+    },
+    "taguevesa": {
+      "r": "fire",
+      "g": "pulse",
+      "m": "bash"
+    },
+    "cxw": {
+      "r": "fire",
+      "g": "bolter",
+      "m": "bash"
+    },
+    "cxb": {
+      "m": "twin"
+    },
+    "cxp": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "cxr": {
+      "m": "claw"
+    },
+    "cxh": {
+      "r": "fire",
+      "g": "kauto",
+      "m": "bash"
+    },
+    "cxc": {
+      "r": "fire",
+      "g": "rifle",
+      "m": "bash"
+    },
+    "cxl": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "cxs": {
+      "r": "fire",
+      "g": "balefire",
+      "hand": "L",
+      "m": "swing"
+    },
+    "cxt": {
+      "r": "turret",
+      "g": "tankgun",
+      "m": "lunge"
+    },
+    "cxd": {
+      "r": "turret",
+      "g": "kbattle",
+      "m": "lunge"
+    },
+    "dmr": {
+      "m": "swing"
+    },
+    "dmp": {
+      "m": "swing"
+    },
+    "dmf": {
+      "r": "fire",
+      "g": "balefire",
+      "hand": "R",
+      "m": "claw"
+    },
+    "dmc": {
+      "m": "claw"
+    },
+    "dmh": {
+      "m": "lunge"
+    },
+    "dmg": {
+      "r": "fire",
+      "g": "psy",
+      "hand": "L",
+      "m": "twin"
+    },
+    "dmx": {
+      "r": "cast",
+      "g": "psy",
+      "m": "swing2"
+    },
+    "kna1": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "thrust"
+    },
+    "kna2": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "knb1": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "knb2": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing2"
+    },
+    "knc1": {
+      "m": "swing",
+      "sh": 1
+    },
+    "knc2": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "R",
+      "m": "swing"
+    },
+    "knd1": {
+      "m": "swing",
+      "sh": 1
+    },
+    "knd2": {
+      "m": "lunge"
+    },
+    "kne1": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing2"
+    },
+    "kne2": {
+      "r": "fire",
+      "g": "pistol",
+      "hand": "L",
+      "m": "swing"
+    },
+    "tagm": {
+      "r": "fire",
+      "g": "gmrifle",
+      "hand": "R",
+      "m": "swing",
+      "sh": 1
+    }
+  },
+  "tracer": {
+    "carbine": [
+      "#FFE2A0",
+      "rgba(255,170,70,0.45)",
+      2.2
+    ],
+    "rifle": [
+      "#FFF1C8",
+      "rgba(255,200,110,0.4)",
+      1.8
+    ],
+    "smg": [
+      "#FFE9B0",
+      "rgba(255,180,90,0.4)",
+      1.6
+    ],
+    "sniper": [
+      "#E8FBFF",
+      "rgba(140,220,255,0.55)",
+      2.2
+    ],
+    "hmg": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      2.4
+    ],
+    "cannon": [
+      "#FFD27A",
+      "rgba(255,120,40,0.55)",
+      4.6
+    ],
+    "bolter": [
+      "#FFE7A8",
+      "rgba(255,150,60,0.5)",
+      2.6
+    ],
+    "plasma": [
+      "#E6F4FF",
+      "rgba(90,170,255,0.65)",
+      4.2
+    ],
+    "stormgun": [
+      "#FFE7A8",
+      "rgba(255,150,60,0.5)",
+      2.4
+    ],
+    "pistol": [
+      "#FFF1C8",
+      "rgba(255,200,110,0.4)",
+      1.6
+    ],
+    "rotary": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      2.6
+    ],
+    "bio": [
+      "#F4FFB0",
+      "rgba(170,230,60,0.5)",
+      2
+    ],
+    "gauss": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.6)",
+      2.8
+    ],
+    "gaussh": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.65)",
+      3.6
+    ],
+    "staff": [
+      "#FFF6C8",
+      "rgba(255,220,90,0.65)",
+      3.4
+    ],
+    "slugga": [
+      "#FFE9B0",
+      "rgba(255,170,80,0.4)",
+      1.8
+    ],
+    "deffgun": [
+      "#FFD27A",
+      "rgba(255,130,50,0.55)",
+      3.6
+    ],
+    "dakka": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      2.4
+    ],
+    "grotgun": [
+      "#FFF1C8",
+      "rgba(255,200,110,0.35)",
+      1.4
+    ],
+    "musket": [
+      "#FFF1C8",
+      "rgba(255,200,110,0.4)",
+      2
+    ],
+    "tankgun": [
+      "#FFD27A",
+      "rgba(255,120,40,0.6)",
+      5.2
+    ],
+    "stone": [
+      "#F2F0E6",
+      "rgba(210,220,200,0.6)",
+      3.6
+    ],
+    "loki": [
+      "#E4FFD8",
+      "rgba(90,230,120,0.65)",
+      3.4
+    ],
+    "curse": [
+      "#EEDCFF",
+      "rgba(150,90,255,0.65)",
+      3.4
+    ],
+    "sun": [
+      "#FFF6C8",
+      "rgba(255,196,60,0.75)",
+      5
+    ],
+    "melta": [
+      "#FFF4D8",
+      "rgba(255,130,40,0.7)",
+      5
+    ],
+    "psy": [
+      "#E6F0FF",
+      "rgba(120,160,255,0.7)",
+      3.6
+    ],
+    "psyg": [
+      "#F0E6FF",
+      "rgba(190,120,255,0.72)",
+      4.4
+    ],
+    "kauto": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      3.2
+    ],
+    "kgatling": [
+      "#FFE08A",
+      "rgba(255,160,60,0.55)",
+      3.6
+    ],
+    "kbattle": [
+      "#FFD27A",
+      "rgba(255,120,40,0.6)",
+      5.6
+    ],
+    "kvolcano": [
+      "#FFF6E0",
+      "rgba(255,90,30,0.8)",
+      8
+    ],
+    "tgatling": [
+      "#FFE08A",
+      "rgba(255,160,60,0.6)",
+      4.4
+    ],
+    "tvolcano": [
+      "#FFF6E0",
+      "rgba(255,90,30,0.85)",
+      12
+    ],
+    "tannihil": [
+      "#F0F8FF",
+      "rgba(110,190,255,0.85)",
+      14
+    ],
+    "bikegun": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      2.6
+    ],
+    "spdgun": [
+      "#FFE08A",
+      "rgba(255,160,60,0.5)",
+      2.6
+    ],
+    "lascan": [
+      "#FFE8E0",
+      "rgba(255,70,50,0.7)",
+      4.6
+    ],
+    "plasmat": [
+      "#E6F4FF",
+      "rgba(90,170,255,0.7)",
+      6
+    ],
+    "gunship": [
+      "#FFD27A",
+      "rgba(255,120,40,0.6)",
+      6
+    ],
+    "bioplasma": [
+      "#F2FFD0",
+      "rgba(160,240,80,0.7)",
+      5
+    ],
+    "rupture": [
+      "#F4FFB0",
+      "rgba(170,230,60,0.6)",
+      5.5
+    ],
+    "biocannon": [
+      "#F2FFD0",
+      "rgba(160,240,80,0.75)",
+      8
+    ],
+    "gaussx": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.75)",
+      5
+    ],
+    "ctan": [
+      "#F4ECFF",
+      "rgba(200,140,255,0.8)",
+      6
+    ],
+    "doomray": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.8)",
+      7
+    ],
+    "heatray": [
+      "#FFF0D0",
+      "rgba(255,140,40,0.75)",
+      5
+    ],
+    "tesla": [
+      "#E0F4FF",
+      "rgba(120,200,255,0.75)",
+      3.2
+    ],
+    "whip": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.75)",
+      5
+    ],
+    "pylon": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.85)",
+      9
+    ],
+    "tbgun": [
+      "#D8FFE0",
+      "rgba(60,255,120,0.6)",
+      2.8
+    ],
+    "thunderf": [
+      "#FFD27A",
+      "rgba(255,120,40,0.55)",
+      4
+    ],
+    "shokk": [
+      "#E8FFE0",
+      "rgba(120,255,140,0.75)",
+      5
+    ],
+    "kustom": [
+      "#FFE9B0",
+      "rgba(255,170,80,0.5)",
+      2.8
+    ],
+    "waagh": [
+      "#E4FFD0",
+      "rgba(110,240,80,0.8)",
+      4.8
+    ],
+    "snazz": [
+      "#FFE08A",
+      "rgba(255,170,60,0.55)",
+      3
+    ],
+    "mekgun": [
+      "#FFD27A",
+      "rgba(255,120,40,0.6)",
+      5
+    ],
+    "owagon": [
+      "#FFD27A",
+      "rgba(255,120,40,0.6)",
+      5.6
+    ],
+    "odakka": [
+      "#FFE08A",
+      "rgba(255,160,60,0.55)",
+      3.4
+    ],
+    "orokkit": [
+      "#FFD27A",
+      "rgba(255,120,40,0.55)",
+      4
+    ],
+    "shur": [
+      "#E8F6FF",
+      "rgba(150,210,255,0.5)",
+      2
+    ],
+    "lrifle": [
+      "#FFF0F8",
+      "rgba(255,150,210,0.55)",
+      2
+    ],
+    "reaper": [
+      "#FFE0C8",
+      "rgba(255,110,60,0.6)",
+      3.4
+    ],
+    "dcan": [
+      "#F0E0FF",
+      "rgba(120,40,200,0.85)",
+      7
+    ],
+    "wraithc": [
+      "#F4E8FF",
+      "rgba(180,110,255,0.8)",
+      5
+    ],
+    "fusion": [
+      "#FFF4D8",
+      "rgba(255,130,40,0.7)",
+      5
+    ],
+    "spinner": [
+      "#F0FFF8",
+      "rgba(160,255,220,0.5)",
+      2.4
+    ],
+    "psyel": [
+      "#EAF4FF",
+      "rgba(110,190,255,0.75)",
+      4
+    ],
+    "bshur": [
+      "#E8F6FF",
+      "rgba(150,210,255,0.55)",
+      2.8
+    ],
+    "prism": [
+      "#FFFFFF",
+      "rgba(255,120,220,0.8)",
+      7
+    ],
+    "elaser": [
+      "#FFF0F4",
+      "rgba(255,90,140,0.75)",
+      4.6
+    ],
+    "vypgun": [
+      "#E8F6FF",
+      "rgba(150,210,255,0.55)",
+      2.8
+    ],
+    "hwraith": [
+      "#F4E8FF",
+      "rgba(180,110,255,0.85)",
+      9
+    ],
+    "avatar": [
+      "#FFF4D0",
+      "rgba(255,110,30,0.85)",
+      6
+    ],
+    "splinter": [
+      "#E6FFE0",
+      "rgba(120,255,120,0.45)",
+      1.6
+    ],
+    "spistol": [
+      "#E6FFE0",
+      "rgba(120,255,120,0.4)",
+      1.4
+    ],
+    "dlance": [
+      "#F6E6FF",
+      "rgba(140,40,220,0.8)",
+      4.2
+    ],
+    "balefire": [
+      "#E8FFF0",
+      "rgba(80,255,170,0.7)",
+      3.6
+    ],
+    "blaster": [
+      "#F6E6FF",
+      "rgba(140,40,220,0.75)",
+      3.6
+    ],
+    "spirit": [
+      "#E8FFF8",
+      "rgba(120,255,210,0.7)",
+      3.8
+    ],
+    "splintc": [
+      "#E6FFE0",
+      "rgba(120,255,120,0.5)",
+      2.2
+    ],
+    "dlancet": [
+      "#F6E6FF",
+      "rgba(140,40,220,0.85)",
+      5
+    ],
+    "razorm": [
+      "#FFE0C8",
+      "rgba(255,110,60,0.6)",
+      3.4
+    ],
+    "voidl": [
+      "#F0E0FF",
+      "rgba(110,30,200,0.85)",
+      6.4
+    ],
+    "reapt": [
+      "#F0F4FF",
+      "rgba(140,160,255,0.75)",
+      5
+    ],
+    "pdisint": [
+      "#F6E6FF",
+      "rgba(160,60,240,0.8)",
+      4.4
+    ],
+    "vect": [
+      "#F6E6FF",
+      "rgba(140,40,220,0.85)",
+      4.4
+    ],
+    "pulse": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.6)",
+      2.2
+    ],
+    "pblast": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.65)",
+      3
+    ],
+    "pcarb": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.6)",
+      2
+    ],
+    "kroot": [
+      "#FFF1C8",
+      "rgba(255,200,110,0.4)",
+      1.8
+    ],
+    "dronegun": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.55)",
+      1.8
+    ],
+    "suitgun": [
+      "#E6F4FF",
+      "rgba(90,170,255,0.65)",
+      3.6
+    ],
+    "railh": [
+      "#F4FFFF",
+      "rgba(120,230,255,0.8)",
+      5
+    ],
+    "neutron": [
+      "#F4EEFF",
+      "rgba(190,150,255,0.6)",
+      2.4
+    ],
+    "krootgun": [
+      "#FFD27A",
+      "rgba(255,120,40,0.55)",
+      4
+    ],
+    "burstc": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.6)",
+      2.4
+    ],
+    "fusionh": [
+      "#FFF4D8",
+      "rgba(255,130,40,0.75)",
+      6
+    ],
+    "ionh": [
+      "#EAF6FF",
+      "rgba(80,180,255,0.8)",
+      5.6
+    ],
+    "boltth": [
+      "#FFF1C8",
+      "rgba(255,200,110,0.4)",
+      2.4
+    ],
+    "burstt": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.6)",
+      2.6
+    ],
+    "railt": [
+      "#F4FFFF",
+      "rgba(120,230,255,0.85)",
+      7
+    ],
+    "iont": [
+      "#EAF6FF",
+      "rgba(80,180,255,0.8)",
+      5
+    ],
+    "pulsed": [
+      "#E4F4FF",
+      "rgba(80,160,255,0.8)",
+      8
+    ],
+    "tridrail": [
+      "#F4FFFF",
+      "rgba(120,230,255,0.9)",
+      11
+    ],
+    "railr": [
+      "#F4FFFF",
+      "rgba(120,230,255,0.7)",
+      2.8
+    ]
+  },
+  "flame": {
+    "flamer": [
+      "255,236,160",
+      "255,120,30",
+      "255,190,90"
+    ],
+    "fire": [
+      "255,240,170",
+      "255,110,20",
+      "255,190,90"
+    ],
+    "acid": [
+      "226,255,150",
+      "120,200,40",
+      "200,250,120"
+    ],
+    "venom": [
+      "210,255,230",
+      "40,190,140",
+      "160,250,210"
+    ],
+    "sand": [
+      "250,236,196",
+      "206,160,90",
+      "236,204,140"
+    ]
+  }
+}

@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "weapon.json",
+  "title": "Weapon profile of a battle-table datasheet",
+  "description": "A ranged weapon (gun: rng + bs, or tr) or a melee weapon (mel: ws). Every number is an integer; the Thai legend is data/rules_summary.md and the English one docs/CODEMAP.md section 2.6.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ranged"
+    },
+    {
+      "$ref": "#/$defs/melee"
+    }
+  ],
+  "$defs": {
+    "ranged": {
+      "type": "object",
+      "description": "ranged weapon",
+      "required": [
+        "nm",
+        "rng",
+        "a",
+        "s",
+        "ap",
+        "d"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nm": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[\\u0e00-\\u0e7f]",
+          "description": "Thai weapon name; must be a key of data/i18n_en.json"
+        },
+        "a": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "attacks per model (dice in the hit roll = models x a; the lint caps one roll at 60 dice)"
+        },
+        "s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "strength (wound roll against T)"
+        },
+        "ap": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9,
+          "description": "armour penetration (target's save is worse by this)"
+        },
+        "d": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "damage per unsaved wound"
+        },
+        "lh": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "hit roll 6 wounds automatically"
+        },
+        "dw": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "wound roll 6 = damage that ignores saves"
+        },
+        "po": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6,
+          "description": "poison: wounds infantry on po+ regardless of T"
+        },
+        "fx": {
+          "type": "string",
+          "pattern": "^[a-z]+$",
+          "description": "effect kind: a key of fx.json fxs (visual + sound only)"
+        },
+        "trail": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "melee swing trail colour (visual only)"
+        },
+        "rng": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "range in inches"
+        },
+        "bs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6,
+          "description": "ballistic skill: hit on bs+; 0 or absent only with tr (auto-hit)"
+        },
+        "rf": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "rapid fire: +rf attacks per model within half range"
+        },
+        "as": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "may shoot after advancing"
+        },
+        "pi": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "pistol: may shoot while engaged"
+        },
+        "hv": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "heavy: +1 to hit when the squad stood still"
+        },
+        "su": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "sustained: hit roll 6 = one extra hit"
+        },
+        "tr": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "torrent: hits automatically, no hit roll"
+        },
+        "bl": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "blast: +1 attack per 5 models in the target squad"
+        },
+        "mk": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "markerlight: a hit marks the target, friendly shooting at it is +1 to hit this turn"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "tr"
+          ]
+        },
+        {
+          "required": [
+            "bs"
+          ],
+          "properties": {
+            "bs": {
+              "minimum": 2
+            }
+          }
+        }
+      ]
+    },
+    "melee": {
+      "type": "object",
+      "description": "melee weapon",
+      "required": [
+        "nm",
+        "a",
+        "ws",
+        "s",
+        "ap",
+        "d"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nm": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[\\u0e00-\\u0e7f]",
+          "description": "Thai weapon name; must be a key of data/i18n_en.json"
+        },
+        "a": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "attacks per model (dice in the hit roll = models x a; the lint caps one roll at 60 dice)"
+        },
+        "s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "strength (wound roll against T)"
+        },
+        "ap": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9,
+          "description": "armour penetration (target's save is worse by this)"
+        },
+        "d": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "damage per unsaved wound"
+        },
+        "lh": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "hit roll 6 wounds automatically"
+        },
+        "dw": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "wound roll 6 = damage that ignores saves"
+        },
+        "po": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6,
+          "description": "poison: wounds infantry on po+ regardless of T"
+        },
+        "fx": {
+          "type": "string",
+          "pattern": "^[a-z]+$",
+          "description": "effect kind: a key of fx.json fxs (visual + sound only)"
+        },
+        "trail": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "melee swing trail colour (visual only)"
+        },
+        "ws": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6,
+          "description": "weapon skill: hit on ws+"
+        },
+        "la": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "lance: +1 to wound on the turn the squad charged"
+        }
+      }
+    }
+  }
+}

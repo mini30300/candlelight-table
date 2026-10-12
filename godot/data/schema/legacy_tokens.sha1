@@ -1,0 +1,12 @@
+# SHA-1 of the lower-cased legacy tokens (old unit keys and server names that carry a word of AGENTS.md rule 1)
+# found in data/types.json, data/i18n_en.json and data/bt2_snapshot.json when this baseline was made. They are
+# allowed only inside data/*.json,
+# data/schema/ and tests/; a new occurrence anywhere fails validate_data.py. Hashes, so the file does not
+# spell them out. Regenerate only in a dedicated renaming PR: validate_data.py --write-legacy [--base REV].
+1ceade6cb8ec01443fd67405a61ab942c50fd962
+22c6d0d43ed45ae542b1fc9f8e5e174ce18b7f54
+4a46e2470e5c8c817c3cc6b6081d8c57da78f679
+5a43fbbcff31aca3a11fdf7c111ba05ba686de90
+629055558d09520911597eda230ca9a3737542dd
+65c2bbe4963b576616263aba17405369848ce2d7
+9cc86e0b00f5df0c449e6bc5f7add2eef63c65e4

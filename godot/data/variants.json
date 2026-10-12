@@ -1,0 +1,121 @@
+{
+  "cxw": [
+    "cxw",
+    "cxw_b",
+    "cxw_c",
+    "cxw",
+    "cxw_d"
+  ],
+  "cxb": [
+    "cxb",
+    "cxb_b",
+    "cxb_c",
+    "cxb",
+    "cxb_b"
+  ],
+  "cxp": [
+    "cxp",
+    "cxp_b",
+    "cxp_c",
+    "cxp",
+    "cxp_b"
+  ],
+  "cxr": [
+    "cxr",
+    "cxr_b",
+    "cxr_c",
+    "cxr",
+    "cxr_b"
+  ],
+  "cxh": [
+    "cxh",
+    "cxh_m",
+    "cxh_c",
+    "cxh_m",
+    "cxh"
+  ],
+  "cxc": [
+    "cxc",
+    "cxc_b",
+    "cxc_c",
+    "cxc",
+    "cxc_d",
+    "cxc_b",
+    "cxc",
+    "cxc_c",
+    "cxc_d",
+    "cxc_b"
+  ],
+  "dmr": [
+    "dmr",
+    "dmr_b",
+    "dmr_c"
+  ],
+  "dmp": [
+    "dmp",
+    "dmp_b",
+    "dmp_c"
+  ],
+  "dmf": [
+    "dmf",
+    "dmf_b",
+    "dmf_c"
+  ],
+  "dmc": [
+    "dmc",
+    "dmc_b",
+    "dmc_c"
+  ],
+  "dmh": [
+    "dmh",
+    "dmh_b",
+    "dmh_c"
+  ],
+  "kna1": [
+    "kna1",
+    "kna1_s",
+    "kna1"
+  ],
+  "kne2": [
+    "kne2",
+    "kne2_h",
+    "kne2",
+    "kne2",
+    "kne2_h"
+  ],
+  "kscout": [
+    "kscout",
+    "kscout_sn",
+    "kscout",
+    "kscout_sn",
+    "kscout"
+  ],
+  "samurai": [
+    "samurai",
+    "samurai_nb"
+  ],
+  "levy": [
+    "levy",
+    "levy_axe",
+    "levy_club"
+  ],
+  "pike": [
+    "pike",
+    "pike_halb",
+    "pike_bill"
+  ],
+  "maa": [
+    "maa",
+    "maa_mace",
+    "maa_hammer",
+    "maa_axe",
+    "maa_flail"
+  ],
+  "tafarstalk": [
+    "tafarstalk",
+    "tafarstalk",
+    "tafarstalk_sc",
+    "tafarstalk",
+    "tafarstalk"
+  ]
+}

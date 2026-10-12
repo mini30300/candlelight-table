@@ -1,0 +1,39 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://table/table_view.gd" id="1_view"]
+[ext_resource type="Script" path="res://table/camera_rig.gd" id="2_camera"]
+[ext_resource type="Script" path="res://table/terrain_mesh.gd" id="3_terrain"]
+[ext_resource type="Script" path="res://table/props_layer.gd" id="4_props"]
+[ext_resource type="Script" path="res://table/figures/figure_pool.gd" id="5_figures"]
+[ext_resource type="Script" path="res://table/rings.gd" id="6_rings"]
+
+[node name="BattleTable" type="Node3D"]
+script = ExtResource("1_view")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("2_camera")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+fov = 55.0
+near = 0.2
+far = 400.0
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.819152, 0.439385, -0.368688, 0, 0.642788, 0.766044, 0.573576, -0.627507, 0.526541, 0, 20, 0)
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 1.2
+shadow_enabled = false
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="Terrain" type="MeshInstance3D" parent="."]
+script = ExtResource("3_terrain")
+
+[node name="Props" type="Node3D" parent="."]
+script = ExtResource("4_props")
+
+[node name="Figures" type="Node3D" parent="."]
+script = ExtResource("5_figures")
+
+[node name="Rings" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("6_rings")

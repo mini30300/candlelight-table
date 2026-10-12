@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/battle_table.tscn" id="2_table"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="BattleTable" parent="World" instance=ExtResource("2_table")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 2

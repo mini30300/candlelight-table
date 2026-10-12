@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ability.json",
+  "title": "Ability registry entry (bt_data.json abilities[], from tools/gen_bt_data.py --snapshot)",
+  "description": "One unit flag, aura kind, weapon keyword, army-wide rule or hidden-unit flag with its Thai and English text. {v} in the text stands for the flag's value (e.g. rez 5 -> 'reanimates on a 5+'). core/battle/abilities.gd maps every key here to a handler.",
+  "type": "object",
+  "required": [
+    "key",
+    "kind",
+    "value",
+    "th",
+    "en"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z]+(:[a-z]+)?$",
+      "description": "flag name; aura kinds as aura:<kind>; army rules as the army code"
+    },
+    "kind": {
+      "enum": [
+        "unit",
+        "aura",
+        "weapon",
+        "army",
+        "hidden"
+      ]
+    },
+    "value": {
+      "enum": [
+        "flag",
+        "int",
+        "string",
+        "object"
+      ],
+      "description": "what the datasheet stores under the key"
+    },
+    "applies": {
+      "enum": [
+        "gun",
+        "mel",
+        "both"
+      ],
+      "description": "weapon keywords only: which weapon slot may carry it"
+    },
+    "th": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "Thai text as the page's abilityText / wpnLine shows it"
+    },
+    "en": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0e00-\\u0e7f]*$",
+      "description": "English text as the server's bt2Abilities tells Claude"
+    }
+  }
+}

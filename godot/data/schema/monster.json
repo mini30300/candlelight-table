@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "monster.json",
+  "title": "Bestiary entry (data/dnd/monsters/*.json, R5 stub)",
+  "description": "A monster is a datasheet in the battle table's shape (unit.json stats) mapped to a figure kit with cosmetic swaps, plus encounter tags and an AI profile for core/dnd. Names carry Thai and English together. Stub for R5: fields may be added, never renamed.",
+  "type": "object",
+  "required": [
+    "k",
+    "nm",
+    "kit",
+    "stats",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "k": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*$",
+      "description": "unique monster key"
+    },
+    "nm": {
+      "type": "object",
+      "description": "name",
+      "required": [
+        "th",
+        "en"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "th": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[\\u0e00-\\u0e7f]"
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0e00-\\u0e7f]*$"
+        }
+      }
+    },
+    "d": {
+      "type": "object",
+      "description": "one-line description",
+      "required": [
+        "th",
+        "en"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "th": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[\\u0e00-\\u0e7f]"
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0e00-\\u0e7f]*$"
+        }
+      }
+    },
+    "kit": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "figure kit key (kits.json; a unit key or a variant/skin kit)"
+    },
+    "scale": {
+      "type": "integer",
+      "minimum": 25,
+      "maximum": 400,
+      "description": "percent of the kit's size"
+    },
+    "palette": {
+      "type": "object",
+      "description": "material name -> RGB override (natural.json names keep their own colour)",
+      "minProperties": 0,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        ],
+        "minItems": 3,
+        "maxItems": 3,
+        "items": false,
+        "description": "RGB triplet 0..255"
+      }
+    },
+    "stats": {
+      "$ref": "unit.json#/$defs/stats",
+      "description": "datasheet stats block"
+    },
+    "tags": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "enum": [
+          "undead",
+          "beast",
+          "humanoid",
+          "daemon",
+          "construct",
+          "swarm",
+          "boss",
+          "flying",
+          "aquatic",
+          "giant",
+          "caster",
+          "vermin"
+        ]
+      }
+    },
+    "ai": {
+      "enum": [
+        "ambusher",
+        "stalker",
+        "brute",
+        "swarm",
+        "caster"
+      ],
+      "description": "behaviour profile run through the bot.gd pattern"
+    },
+    "cr": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 30,
+      "description": "challenge rating for the encounter tables"
+    },
+    "loot": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "loot table key (data/dnd/items.json)"
+    }
+  }
+}

@@ -1,0 +1,267 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/army.gd" id="1_army"]
+[ext_resource type="FontFile" path="res://assets/fonts/Sarabun-Bold.ttf" id="2_bold"]
+[ext_resource type="Script" path="res://ui/widgets/kit_turntable.gd" id="3_turn"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0.095, 0.085, 0.11, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
+bg_color = Color(0.19, 0.175, 0.21, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_fill"]
+bg_color = Color(0.86, 0.69, 0.36, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Army" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_army")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.055, 0.048, 0.065, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="Column" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="Margin/Column"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BackButton" type="Button" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 48)
+layout_mode = 2
+focus_mode = 0
+text = "‹ กลับ"
+
+[node name="Title" type="Label" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.88, 1)
+theme_override_fonts/font = ExtResource("2_bold")
+theme_override_font_sizes/font_size = 26
+text = "จัดกองทัพ"
+
+[node name="BudgetBox" type="HBoxContainer" parent="Margin/Column/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BudgetMinus" type="Button" parent="Margin/Column/TopBar/BudgetBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 24
+text = "−"
+
+[node name="BudgetLabel" type="Label" parent="Margin/Column/TopBar/BudgetBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.88, 1)
+theme_override_fonts/font = ExtResource("2_bold")
+theme_override_font_sizes/font_size = 18
+text = "…"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BudgetPlus" type="Button" parent="Margin/Column/TopBar/BudgetBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 24
+text = "+"
+
+[node name="PointsBox" type="VBoxContainer" parent="Margin/Column/TopBar"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PointsLabel" type="Label" parent="Margin/Column/TopBar/PointsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "…"
+text_overrun_behavior = 3
+
+[node name="PointsBar" type="ProgressBar" parent="Margin/Column/TopBar/PointsBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+max_value = 1000.0
+show_percentage = false
+
+[node name="RandomButton" type="Button" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+focus_mode = 0
+text = "สุ่มกองทัพ"
+
+[node name="LangButton" type="Button" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 48)
+layout_mode = 2
+focus_mode = 0
+text = "ENGLISH"
+
+[node name="Body" type="HBoxContainer" parent="Margin/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="ArmyPanel" type="PanelContainer" parent="Margin/Column/Body"]
+custom_minimum_size = Vector2(236, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="ArmyScroll" type="ScrollContainer" parent="Margin/Column/Body/ArmyPanel"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="ArmyList" type="VBoxContainer" parent="Margin/Column/Body/ArmyPanel/ArmyScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="RosterColumn" type="VBoxContainer" parent="Margin/Column/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ArmyName" type="Label" parent="Margin/Column/Body/RosterColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.88, 1)
+theme_override_fonts/font = ExtResource("2_bold")
+theme_override_font_sizes/font_size = 22
+text = "…"
+
+[node name="ArmyDesc" type="Label" parent="Margin/Column/Body/RosterColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.77, 0.7, 1)
+theme_override_font_sizes/font_size = 15
+text = "…"
+autowrap_mode = 3
+
+[node name="RosterScroll" type="ScrollContainer" parent="Margin/Column/Body/RosterColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Roster" type="VBoxContainer" parent="Margin/Column/Body/RosterColumn/RosterScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="StatusLabel" type="Label" parent="Margin/Column/Body/RosterColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "…"
+autowrap_mode = 3
+
+[node name="PreviewPanel" type="PanelContainer" parent="Margin/Column/Body"]
+custom_minimum_size = Vector2(330, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="PreviewColumn" type="VBoxContainer" parent="Margin/Column/Body/PreviewPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PreviewTitle" type="Label" parent="Margin/Column/Body/PreviewPanel/PreviewColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.77, 0.7, 1)
+theme_override_font_sizes/font_size = 15
+text = "ดูหน้าตา"
+
+[node name="Preview" type="SubViewportContainer" parent="Margin/Column/Body/PreviewPanel/PreviewColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 220)
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+script = ExtResource("3_turn")
+
+[node name="UnitName" type="Label" parent="Margin/Column/Body/PreviewPanel/PreviewColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.88, 1)
+theme_override_fonts/font = ExtResource("2_bold")
+theme_override_font_sizes/font_size = 20
+text = "…"
+autowrap_mode = 3
+
+[node name="UnitSub" type="Label" parent="Margin/Column/Body/PreviewPanel/PreviewColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.77, 0.7, 1)
+theme_override_font_sizes/font_size = 15
+text = "…"
+
+[node name="UnitDesc" type="Label" parent="Margin/Column/Body/PreviewPanel/PreviewColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.93, 1)
+theme_override_font_sizes/font_size = 15
+text = "…"
+autowrap_mode = 3
+
+[node name="DragHint" type="Label" parent="Margin/Column/Body/PreviewPanel/PreviewColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.6, 0.56, 1)
+theme_override_font_sizes/font_size = 13
+text = "ลากเพื่อหมุน"

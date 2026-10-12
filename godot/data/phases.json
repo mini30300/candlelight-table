@@ -1,0 +1,16 @@
+{
+  "order": [
+    "cmd",
+    "move",
+    "shoot",
+    "charge",
+    "fight"
+  ],
+  "nm": {
+    "cmd": "คำสั่ง",
+    "move": "เคลื่อนที่",
+    "shoot": "ยิง",
+    "charge": "บุก",
+    "fight": "ตะลุมบอน"
+  }
+}

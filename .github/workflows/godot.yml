@@ -1,0 +1,400 @@
+# แอปใหม่ (Godot 4, โฟลเดอร์ godot/): สร้างชุดโมเดล → รันเทส (x86-64 และ arm64) → ส่งออก .exe (ลองรันบน Windows จริง) และ APK
+# ทำงานเฉพาะเมื่อ godot/** หรือไฟล์นี้เปลี่ยน · PR ได้ APK ทดสอบ (debug) · push ขึ้น main ได้ APK เซ็นจริง + zip ของ Windows
+# แนบไว้ใน release build-N อันเดียวกับแอปเก่า · ของที่ได้: godot-kits, godot-probe (รูป), godot-windows (zip), godot-android (apk)
+name: Godot
+on:
+  push:                   # main only: a PR branch gets its run from the pull_request event (one run per push, not two)
+    branches: [ main ]
+    paths: [ 'godot/**', '.github/workflows/godot.yml' ]
+  pull_request:
+    paths: [ 'godot/**', '.github/workflows/godot.yml' ]
+  workflow_dispatch:
+
+concurrency:              # a new push on the same PR cancels the older run
+  group: godot-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: '4.7.1'   # pinned in one place; godot/tools/godot.sh carries the matching checksums (bump both in one PR)
+  GODOT_RELEASE: stable
+  # a push to main (or a manual run from main) is a release build: signed APK, and the assets go on the build-N release
+  RELEASE_BUILD: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+
+jobs:
+  # The figure kits (godot/assets/kits/*.glb + kits.json, 48 MB) and the bakes derived from them are generated from the
+  # old page and never committed: this job makes them once (cached on the page and godot/tools) and shares them as the
+  # godot-kits artifact, rooted at godot/assets (kits/, impostors/, anim/), which the other jobs download.
+  kits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache the generated kits and bakes (keyed on the old page and godot/tools)
+        id: kits-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            godot/assets/kits
+            godot/assets/impostors
+            godot/assets/anim
+          key: godot-kits-${{ hashFiles('app/src/main/assets/battle-table.html', 'godot/tools/**') }}
+      - uses: actions/setup-node@v4
+        if: steps.kits-cache.outputs.cache-hit != 'true'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Install Playwright and Chromium
+        if: steps.kits-cache.outputs.cache-hit != 'true'
+        working-directory: tests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Godot (the bakes need it; godot.sh verifies the pinned checksum)
+        if: steps.kits-cache.outputs.cache-hit != 'true' && hashFiles('godot/tools/bake_impostors.gd', 'godot/tools/bake_anim.gd') != ''
+        run: bash godot/tools/godot.sh
+      - name: Xvfb and Mesa (the impostor bake draws with software OpenGL)
+        if: steps.kits-cache.outputs.cache-hit != 'true' && hashFiles('godot/tools/bake_impostors.gd') != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends xvfb libgl1-mesa-dri libglx-mesa0 libegl-mesa0 \
+            libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 libfontconfig1
+      - name: Export the kits and bake (godot/tools/kits.sh)
+        if: steps.kits-cache.outputs.cache-hit != 'true'
+        run: bash godot/tools/kits.sh
+      - name: Check the set
+        run: |
+          test -s godot/assets/kits/kits.json
+          echo "$(ls godot/assets/kits/*.glb | wc -l) kits, $(du -sh godot/assets/kits | cut -f1)"
+          # keep the artifact rooted at godot/assets even while a bake does not exist yet
+          for d in impostors anim; do
+            mkdir -p "godot/assets/$d"
+            [ -n "$(ls -A "godot/assets/$d")" ] || echo "not baked yet (see godot/tools/kits.sh)" > "godot/assets/$d/NOT-BAKED-YET.txt"
+            echo "$d: $(ls "godot/assets/$d" | wc -l) files"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-kits
+          path: |
+            godot/assets/kits
+            godot/assets/impostors
+            godot/assets/anim
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    needs: kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secrets guard (no keystore value, keystore file or token in the repo)
+        run: |
+          bad=0
+          while IFS= read -r hit; do echo "::error::export preset carries a keystore value: $hit"; bad=1; done \
+            < <(git grep -nE '^keystore/(release|release_user|release_password|debug_password)="[^"]+"' -- '*export_presets.cfg' || true)
+          while IFS= read -r f; do echo "::error::keystore file committed: $f"; bad=1; done \
+            < <(git ls-files -- '*.jks' '*.keystore' '*.p12' '*.pfx' || true)
+          while IFS= read -r hit; do echo "::error::token-like string committed: ${hit:0:80}"; bad=1; done \
+            < <(git grep -nE '(gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{70,}|(CLOUDFLARE|CF)_API_TOKEN[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_-]{40})' -- ':!.github/workflows/godot.yml' || true)
+          if [ "$bad" != 0 ]; then exit 1; fi
+          echo "clean: no keystore values, keystore files or tokens"
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-${{ runner.arch }}
+      - name: Godot (godot/tools/godot.sh downloads it unless cached, and verifies the pinned checksum)
+        run: bash godot/tools/godot.sh
+      - name: Install Xvfb and Mesa (software OpenGL for the render probe)
+        run: |
+          command -v xvfb-run > /dev/null && dpkg -s libgl1-mesa-dri > /dev/null 2>&1 && exit 0
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends xvfb libgl1-mesa-dri libglx-mesa0 libegl-mesa0 \
+            libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 libfontconfig1
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Unit tests
+        run: ~/godot-bin/godot --headless --path godot -s tests/run_tests.gd
+      - name: Data lint (godot/tools/validate_data.py, once R0-F lands)
+        if: hashFiles('godot/tools/validate_data.py') != ''
+        run: python3 godot/tools/validate_data.py
+      - name: Self-test script (the one the Windows smoke job runs inside the exported game)
+        run: ~/godot-bin/godot --headless --path godot -s tests/selftest.gd -- --out "$RUNNER_TEMP/selftest.txt"
+      - name: Render probe
+        run: |
+          timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
+            --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s tests/render_probe.gd
+      - name: Render tests (line-up of every kit, per-level budgets, the main screens and the army picker in Thai and English, the field look, foot slide of the baked clips)
+        run: |
+          for suite in render/test_lineup render/test_budgets render/test_main_screens render/test_field_look render/test_army_screen render/test_anim_footslide; do
+            echo "== $suite"
+            timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot \
+              --rendering-driver opengl3 --resolution 1280x720 --audio-driver Dummy -s "tests/$suite.gd" 2>&1 | grep -v '^$' | tee "$RUNNER_TEMP/$(basename "$suite").log"
+            test "${PIPESTATUS[0]}" -eq 0
+            grep -q '^PASS' "$RUNNER_TEMP/$(basename "$suite").log"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-probe
+          path: godot/tests/out/*.png
+          if-no-files-found: error
+
+  # The same import and unit tests on arm64 (the cross-architecture determinism check); no display, no render.
+  test-arm:
+    needs: kits
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-${{ runner.arch }}
+      - name: Godot arm64 (godot/tools/godot.sh picks the build from uname -m)
+        run: bash godot/tools/godot.sh
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Unit tests
+        run: ~/godot-bin/godot --headless --path godot -s tests/run_tests.gd
+      - name: Self-test script
+        run: ~/godot-bin/godot --headless --path godot -s tests/selftest.gd -- --out "$RUNNER_TEMP/selftest.txt"
+
+  windows:
+    needs: kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-${{ runner.arch }}
+      - name: Cache the Windows export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-x86_64
+      - name: Godot + the Windows x86_64 templates (godot.sh keeps what is cached, verifies what it downloads)
+        run: bash godot/tools/godot.sh templates windows
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Export Windows Desktop (release)
+        run: |
+          mkdir -p dist-godot/windows
+          ~/godot-bin/godot --headless --path godot --export-release "Windows Desktop" "$GITHUB_WORKSPACE/dist-godot/windows/CandlelightTable.exe"
+          ls -la dist-godot/windows
+          test -s dist-godot/windows/CandlelightTable.exe
+      - name: Zip the exe (and the .pck, if separate) with the Thai readme
+        run: |
+          cd dist-godot/windows
+          cp "$GITHUB_WORKSPACE/godot/tools/README-windows-th.md" README-th.txt
+          zip -j "$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip" CandlelightTable.exe README-th.txt $(ls CandlelightTable.pck CandlelightTable.console.exe 2> /dev/null)
+          unzip -l "$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-windows
+          path: dist-godot/candlelight-table-godot-windows.zip
+          if-no-files-found: error
+
+  # Runs the exported game on a real Windows machine: engine + renderer lines and the unit tests inside the exe.
+  windows-smoke:
+    needs: windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-windows
+          path: godot-windows
+      # The official 4.7 templates are built without path overrides, so the exe ignores -s: an override.cfg beside it
+      # makes the SelfTest class (tests/selftest.gd) the main loop instead. Only this unzipped copy gets that file.
+      - name: Run tests/selftest.gd inside CandlelightTable.exe
+        shell: pwsh
+        run: |
+          Expand-Archive -Path godot-windows/candlelight-table-godot-windows.zip -DestinationPath smoke -Force
+          Get-ChildItem smoke
+          @('[application]', 'run/main_loop_type="SelfTest"') | Set-Content -Path smoke/override.cfg -Encoding ascii
+          $report = Join-Path $env:RUNNER_TEMP 'selftest.txt'
+          $exe = (Resolve-Path smoke/CandlelightTable.exe).Path
+          $p = Start-Process -FilePath $exe -ArgumentList @('--headless', '--audio-driver', 'Dummy', '--', '--out', $report) -Wait -PassThru -NoNewWindow
+          if (Test-Path $report) { Get-Content $report } else { Write-Host '::error::the self-test wrote no report' }
+          if ($p.ExitCode -ne 0) { throw "self-test failed with exit code $($p.ExitCode)" }
+          if (-not (Test-Path $report)) { throw 'the self-test wrote no report' }
+          if (-not (Select-String -Path $report -Pattern '^PASS ' -Quiet)) { throw 'the report has no PASS line' }
+
+  android:
+    needs: kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-kits
+          path: godot/assets
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - name: Android SDK packages (the runner's SDK at $ANDROID_HOME)
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "build-tools;34.0.0" "platforms;android-34" > /dev/null
+          ls "$ANDROID_HOME/build-tools" "$ANDROID_HOME/platform-tools/adb" "$ANDROID_HOME/build-tools/34.0.0/aapt"
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-linux-${{ runner.arch }}
+      - name: Cache the Android export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-android
+      - name: Godot + the Android templates (godot.sh keeps what is cached, verifies what it downloads)
+        run: bash godot/tools/godot.sh templates android
+      # Godot reads the SDK paths and the debug keystore from its editor settings file
+      # (~/.config/godot/editor_settings-4.7.tres; the keys below are the ones the 4.7 editor writes itself).
+      # The debug keystore is a throwaway made right here, so nothing secret is involved.
+      - name: Godot editor settings for Android + a throwaway debug keystore
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android -keypass android \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          cfg="${XDG_CONFIG_HOME:-$HOME/.config}/godot"
+          mkdir -p "$cfg"
+          cat > "$cfg/editor_settings-${GODOT_VERSION%.*}.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$RUNNER_TEMP/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          cat "$cfg/editor_settings-${GODOT_VERSION%.*}.tres"
+      - name: Version code from the run number, version name from godot/core/version.gd (0.1 until it exists)
+        run: |
+          APP_VER=$( { grep -ohE 'APP_VER[^"]*"[^"]+"' godot/core/version.gd 2> /dev/null || true; } | head -n 1 | sed -E 's/.*"([^"]+)"/\1/')
+          [ -n "$APP_VER" ] || APP_VER=0.1
+          sed -i -E "s#^version/code=.*#version/code=$GITHUB_RUN_NUMBER#; s#^version/name=.*#version/name=\"$APP_VER\"#" godot/export_presets.cfg
+          grep -nE '^(version/(code|name)|package/unique_name)=' godot/export_presets.cfg
+      - name: Import assets
+        run: ~/godot-bin/godot --headless --path godot --import
+      - name: Export Android (debug APK, pull requests and other branches)
+        if: env.RELEASE_BUILD != 'true'
+        run: |
+          mkdir -p dist-godot/android
+          ~/godot-bin/godot --headless --path godot --export-debug "Android" "$GITHUB_WORKSPACE/dist-godot/android/candlelight-godot-debug.apk"
+      # Release signing (main only): the preset's keystore/release* fields stay empty, so Godot reads these environment
+      # variables instead. The keystore comes from the same secrets build.yml uses, decoded into $RUNNER_TEMP (never the
+      # repo) and deleted below whatever happens; the values are masked in the log.
+      - name: Restore the signing key (main only)
+        if: env.RELEASE_BUILD == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "::error::the secret KEYSTORE_BASE64 is empty"; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+      - name: Export Android (signed release APK, main only)
+        if: env.RELEASE_BUILD == 'true'
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ runner.temp }}/release.jks
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p dist-godot/android
+          ~/godot-bin/godot --headless --path godot --export-release "Android" "$GITHUB_WORKSPACE/dist-godot/android/candlelight-table-godot-$GITHUB_RUN_NUMBER.apk"
+      - name: Delete the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+      - name: Check the APK (signature, aapt badging, package id, size gate 120 MB)
+        run: |
+          apk=$(ls dist-godot/android/*.apk | head -n 1)
+          test -s "$apk"
+          TOOLS="$ANDROID_HOME/build-tools/34.0.0"
+          "$TOOLS/apksigner" verify "$apk"
+          "$TOOLS/aapt" dump badging "$apk" | grep -E "^(package|application-label|sdkVersion|targetSdkVersion|native-code)" || true
+          "$TOOLS/aapt" dump badging "$apk" | grep -q "^package: name='dev.mini.candlelight.table'" || { echo "::error::package id is not dev.mini.candlelight.table"; exit 1; }
+          size=$(stat -c %s "$apk")
+          echo "$apk: $((size / 1024 / 1024)) MB"
+          test "$size" -le $((120 * 1024 * 1024)) || { echo "::error::APK over 120 MB ($size bytes)"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-android
+          path: dist-godot/android/*.apk
+          if-no-files-found: error
+
+  # main only: the signed APK and the Windows zip go on the build-N release that build.yml makes for the same commit,
+  # so the owner finds the old and the new app in one place. GitHub numbers each workflow's runs separately, so this
+  # job looks the release up by commit instead of using its own run number; if build.yml has not made one (still
+  # running, or failed), a godot-build-N release of its own is made instead.
+  release:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    needs: [ test, windows, windows-smoke, android ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-windows
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-android
+          path: dist
+      - name: Name the assets after this run
+        run: |
+          mv dist/candlelight-table-godot-windows.zip "dist/candlelight-table-godot-$GITHUB_RUN_NUMBER-windows.zip"
+          test -s "dist/candlelight-table-godot-$GITHUB_RUN_NUMBER.apk"
+          ls -la dist
+      - name: Find the build-N release of this commit (build.yml makes it; wait up to 15 minutes)
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=""
+          for i in $(seq 1 30); do
+            for t in $(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=20" --jq '.[].tag_name' | grep -E '^build-[0-9]+$' || true); do
+              sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$t" --jq .sha 2> /dev/null || true)
+              if [ "$sha" = "$GITHUB_SHA" ]; then tag="$t"; break; fi
+            done
+            if [ -n "$tag" ]; then break; fi
+            echo "no build-N release for $GITHUB_SHA yet ($i/30), waiting 30 s"
+            sleep 30
+          done
+          if [ -n "$tag" ]; then
+            echo "attaching to the existing release $tag"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "name=" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::no build-N release for this commit: making godot-build-$GITHUB_RUN_NUMBER instead"
+            echo "tag=godot-build-$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "name=Candlelight Table (Godot) build $GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.name }}
+          files: |
+            dist/candlelight-table-godot-${{ github.run_number }}.apk
+            dist/candlelight-table-godot-${{ github.run_number }}-windows.zip
