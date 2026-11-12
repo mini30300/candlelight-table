@@ -12,9 +12,10 @@ func _circle_rect_gap(p: Vector2, r: float, rect: Rect2) -> float:
 	return HallLayout.dist_to_rect(p, rect) - r
 
 
-func test_stations_are_the_seven_of_the_spec() -> void:
+func test_stations_are_the_eight_of_the_spec() -> void:
 	# 0.3 (SHIP_LOBBY_SPEC §2.2): the treasure-chest station "vault" is appended on purpose (six -> seven ids)
-	assert_eq(HallLayout.IDS, PackedStringArray(["battle", "army", "settings", "online", "adventure", "exit", "vault"]), "seven station ids")
+	# 0.4 (ARENA_SPEC §2.1): the weapons-arena door "arena" is appended on purpose (seven -> eight ids)
+	assert_eq(HallLayout.IDS, PackedStringArray(["battle", "army", "settings", "online", "adventure", "exit", "vault", "arena"]), "eight station ids")
 	for id in HallLayout.IDS:
 		assert_true(HallLayout.STATIONS.has(id), "station %s has a footprint" % id)
 	assert_eq(HallLayout.rect_of("battle"), Rect2(-3.0, -4.0, 6.0, 4.0), "the war table is 6 x 4 m at (0, -2)")
@@ -119,7 +120,8 @@ func test_flood_fill_reaches_every_station() -> void:
 			picked[at] = true
 	for c in free.size():
 		free_n += free[c]
-	assert_eq(HallLayout.IDS.size(), 7, "seven stations to reach, the moved airlock and the vault included")
+	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
+	assert_eq(HallLayout.IDS.size(), 8, "eight stations to reach, the moved airlock, the vault and the arena door included")
 	for id in HallLayout.IDS:
 		assert_true(reached.has(id), "the flood fill from the spawn reaches the %s trigger" % id)
 		assert_true(picked.has(id), "station_at gives %s somewhere the avatar can walk" % id)
@@ -134,6 +136,8 @@ func test_station_at_samples() -> void:
 		Vector2(9.0, -1.0): "settings", Vector2(10.6, 3.0): "online", Vector2(0.0, -6.5): "", Vector2(-3.0, 4.0): "adventure",
 		Vector2(0.0, 7.0): "exit", Vector2(0.0, 4.0): "", Vector2(6.0, 4.0): "vault", Vector2(3.15, 4.0): "vault",
 		Vector2(-6.0, -1.0): "", Vector2(5.5, -6.0): "",
+		# 0.4 (ARENA_SPEC §13.1): the arena door's front ring and the return spot
+		Vector2(-9.8, 6.95): "arena", Vector2(-9.8, 5.2): "",
 	}
 	for p in samples:
 		assert_eq(HallLayout.station_at(p), str(samples[p]), "station_at %s" % str(p))
@@ -158,8 +162,9 @@ func test_blockers_and_flames() -> void:
 	var tags := {}
 	for b in HallLayout.blockers():
 		tags[str(b["tag"])] = true
+	# 0.4 (ARENA_SPEC §13.1): + the arena door box
 	for t in ["wall_back", "wall_front", "wall_left", "wall_right", "ceiling", "battle", "army", "settings", "online", "adventure", "exit",
-			"vault"]:
+			"vault", "arena"]:
 		assert_true(tags.has(t), "blocker " + t)
 	assert_true(HallLayout.inside_solid(Vector3(0.0, 6.2, 0.0)), "above y = 6 is solid (the invisible ceiling)")
 	assert_true(HallLayout.inside_solid(Vector3(0.0, 0.5, -2.0)), "inside the war table is solid")
@@ -303,3 +308,74 @@ func test_signs_and_cool_lights() -> void:
 
 func _cell(i: int, k: int) -> Vector2:
 	return Vector2(-HallLayout.HALF.x + (i + 0.5) * GRID, -HallLayout.HALF.y + (k + 0.5) * GRID)
+
+
+# ---- 0.4: the weapons-arena door (ARENA_SPEC §2, §13.2) ----
+
+func test_arena_door_opening() -> void:
+	var ad: Dictionary = HallLayout.ARENA_DOOR
+	var x0 := float(ad["x0"])
+	var x1 := float(ad["x1"])
+	var half := (x1 - x0) * 0.5
+	assert_true(x0 > -HallLayout.HALF.x and x1 < HallLayout.HALF.x, "the opening lies inside the front wall")
+	var exit_r := HallLayout.rect_of("exit")
+	assert_true(exit_r.position.x - x1 >= 7.0, "the opening clears the exit door by >= 7 m (%.2f)" % (exit_r.position.x - x1))
+	assert_true(float(ad["apex"]) - float(ad["spring"]) > half, "rise > half width: the arch is really pointed")
+	var r := HallLayout.rect_of("arena")
+	assert_within(r.position.x, x0, 0.001, "the door box spans the opening (left)")
+	assert_within(r.end.x, x1, 0.001, "the door box spans the opening (right)")
+	assert_within(float(HallLayout.STATIONS["arena"]["height"]), float(ad["apex"]), 0.001, "the door box is as tall as the arch")
+	assert_true(float(ad["stub"]) > 0.0, "a corridor stub is drawn behind the door")
+
+
+func test_arena_return_spot() -> void:
+	var rp := Vector2(HallLayout.ARENA_RETURN.x, HallLayout.ARENA_RETURN.z)
+	assert_false(HallLayout.blocked(rp, HallLayout.AVATAR_R), "ARENA_RETURN is free for the avatar")
+	assert_eq(HallLayout.station_at(rp), "", "ARENA_RETURN is in no trigger")
+	assert_false(HallLayout.in_arena_doorway(rp), "ARENA_RETURN does not walk straight back in")
+	var pivot := HallLayout.ARENA_RETURN + HallCamera.HEAD
+	var d := Basis.from_euler(Vector3(-0.45, 0.0, 0.0)).z.normalized()
+	var arm := HallLayout.room_clear(pivot, d, HallCamera.WALL_PAD)
+	assert_true(arm >= 2.4, "the camera arm at the return spot along yaw 0 is >= 2.4 m (%.2f): the egg stays opaque" % arm)
+
+
+func test_arena_doorway_trigger() -> void:
+	var s: Dictionary = HallLayout.STATIONS["arena"]
+	var r := HallLayout.rect_of("arena")
+	var furthest := r.position.y - HallLayout.AVATAR_R
+	assert_true(furthest >= 7.23 - 0.0001, "the avatar's furthest z at the door (%.2f) reaches the auto zone" % furthest)
+	assert_true(HallLayout.in_arena_doorway(Vector2(-9.8, furthest)), "walking into the doorway enters")
+	assert_false(HallLayout.in_arena_doorway(Vector2(-9.8, 7.0)), "standing on the prompt does not enter")
+	assert_false(HallLayout.in_arena_doorway(Vector2(-10.8, 6.9)), "the corner test's start is outside the auto zone")
+	for i in 49:
+		var x := -12.0 + i * 0.5
+		assert_false(HallLayout.in_arena_doorway(Vector2(x, 6.6)), "the front-wall camera walk (z 6.6) never enters (x %.1f)" % x)
+	# every point of the auto zone the avatar can stand on is inside the arena trigger
+	var bad := []
+	var z := 7.0
+	while z <= HallLayout.HALF.y:
+		var x := -10.55
+		while x <= -9.05:
+			var p := Vector2(x, z)
+			if HallLayout.in_arena_doorway(p) and HallLayout.station_at(p) != "arena":
+				bad.append(str(p))
+			x += 0.05
+		z += 0.05
+	assert_eq(bad, [], "in_arena_doorway is true only inside the arena trigger")
+	var front := float(r.position.y) - HallLayout.CAM_PAD
+	assert_true(front >= HallLayout.HALF.y - HallCamera.WALL_PAD - 0.0001, "the door box front - CAM_PAD (%.2f) >= HALF.y - WALL_PAD, as at the exit door" % front)
+	assert_within(r.position.y, HallLayout.rect_of("exit").position.y, 0.001, "the door box front face equals the exit door's")
+	assert_true(float(s["reach"]) > 0.0, "the arena door has a reach")
+
+
+func test_arena_stub_light_is_outside() -> void:
+	var stub: Dictionary = HallLayout.ARENA_STUB_LIGHT
+	var found := false
+	for l in HallLayout.COOL_LIGHTS:
+		found = found or (l["p"] as Vector3).is_equal_approx(stub["p"])
+	assert_false(found, "ARENA_STUB_LIGHT is not in COOL_LIGHTS (it is outside the room)")
+	assert_true((stub["p"] as Vector3).z > HallLayout.HALF.y + HallLayout.WALL_T, "the stub light hangs in the corridor stub")
+	var mouth := false
+	for l in HallLayout.COOL_LIGHTS:
+		mouth = mouth or (l["p"] as Vector3).is_equal_approx(Vector3(-9.8, 2.6, 7.6))
+	assert_true(mouth, "one cool light sits at the arena door's mouth")

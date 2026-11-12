@@ -52,6 +52,7 @@ const PENNANTS := [Color(0.80, 0.22, 0.20), Color(0.24, 0.44, 0.80), Color(0.86,
 const TEAM_A := Color(0.28, 0.52, 0.84)
 const TEAM_B := Color(0.83, 0.31, 0.26)
 const BAYS: PackedFloat32Array = [-8.0, -5.0, 0.5, 5.5, 8.0]   # ช่วงโค้งเพดานตามแนวเสา (z)
+const ARENA_K := 5         # ช่องต่อครึ่งโค้งของประตูอารีน่า
 const OVERLAP := 0.08     # ผิวที่ชนกันยื่นเลยกันเล็กน้อย ไม่ให้มีรอยแยกเห็นทะลุ (ส่วนเกินอยู่นอกห้อง มองไม่เห็น)
 
 static var _cache: Dictionary = {}        # "meshes|sides" → Array[ArrayMesh], "holo|thick" → ArrayMesh
@@ -302,8 +303,10 @@ static func _shell(sides: int, lights: PackedVector3Array) -> ArrayMesh:
 	_cables(g)
 	_exit_door(g, glow_g)
 	_airlock(g, glow_g, sides)
+	_arena_door(g, glow_g)
 	bake(g, lights, HallLayout.COOL_LIGHTS)
 	append(g, glow_g)
+	append(g, _arena_stub())
 	return g.mesh()
 
 
@@ -459,7 +462,9 @@ static func _subtract(base: Vector2, cut: Array[Vector2]) -> Array[Vector2]:
 
 
 ## แผงเหล็ก 2 x 1.5 ม. เหนือแผงล่าง (ขอบมืดคือผนังข้างหลังที่เห็นตามร่อง)
-static func _panels(g: PropsLayer.Geo, rng: RandomNumberGenerator, o: Vector3, u: Vector3, n: Vector3, length: float, top: float) -> void:
+## cut = ช่องประตู (s เริ่ม, s จบ, แถวที่เริ่มต่ำกว่า y นี้ถูกตัด); สุ่มสีครบทุกแผ่นเท่าเดิม ลายส่วนอื่นของยานไม่เปลี่ยน
+static func _panels(g: PropsLayer.Geo, rng: RandomNumberGenerator, o: Vector3, u: Vector3, n: Vector3, length: float, top: float,
+		cut: Vector3 = Vector3.ZERO) -> void:
 	var gap := 0.03
 	var y := 1.0
 	while y < top - 0.01:
@@ -468,7 +473,13 @@ static func _panels(g: PropsLayer.Geo, rng: RandomNumberGenerator, o: Vector3, u
 		while a < length - 0.01:
 			var b := minf(a + 2.0, length)
 			var k := rng.randf_range(0.86, 1.06)
-			_wall_rect(g, o, u, n, a + gap, b - gap, y + gap, y1 - gap, 0.004, STEEL * k)
+			if y < cut.z and b > cut.x and a < cut.y:
+				if a + gap < cut.x:
+					_wall_rect(g, o, u, n, a + gap, cut.x, y + gap, y1 - gap, 0.004, STEEL * k)
+				if b - gap > cut.y:
+					_wall_rect(g, o, u, n, cut.y, b - gap, y + gap, y1 - gap, 0.004, STEEL * k)
+			else:
+				_wall_rect(g, o, u, n, a + gap, b - gap, y + gap, y1 - gap, 0.004, STEEL * k)
 			a = b
 		y = y1
 
@@ -493,9 +504,20 @@ static func _front_wall(g: PropsLayer.Geo, rng: RandomNumberGenerator) -> void:
 	var o := Vector3(hx, 0.0, hz)
 	var u := Vector3(-1, 0, 0)
 	var n := Vector3(0, 0, -1)
-	_wall_rect(g, o, u, n, -OVERLAP, hx * 2.0 + OVERLAP, -OVERLAP, top + OVERLAP, 0.0, STEEL_DARK * 0.6)
-	_panels(g, rng, o, u, n, hx * 2.0, top)
-	_wainscot(g, o, u, n, 0.0, hx * 2.0)
+	# ช่องประตูอารีน่า (ARENA_SPEC §2.2): ผนังแผ่นหลัง แผงเหล็ก แผงล่าง เว้นช่องโค้งแหลม
+	var ad := HallLayout.ARENA_DOOR
+	var s0 := hx - float(ad["x1"])
+	var s1 := hx - float(ad["x0"])
+	var ah := (s1 - s0) * 0.5
+	var sp := float(ad["spring"])
+	# แผ่นข้างช่องแบ่งที่จุดเริ่มโค้ง ให้มุมตรงกับแถบเหนือโค้ง (ไม่มีรอยต่อรูปตัว T)
+	for r in [Vector2(-OVERLAP, s0), Vector2(s1, hx * 2.0 + OVERLAP)]:
+		_wall_rect(g, o, u, n, r.x, r.y, -OVERLAP, sp, 0.0, STEEL_DARK * 0.6)
+		_wall_rect(g, o, u, n, r.x, r.y, sp, top + OVERLAP, 0.0, STEEL_DARK * 0.6)
+	_over_arch(g, o, u, n, s0 + ah, Vector3(ah, float(ad["spring"]), float(ad["apex"])), top + OVERLAP, 0.0, STEEL_DARK * 0.6)
+	_panels(g, rng, o, u, n, hx * 2.0, top, Vector3(s0, s1, float(ad["apex"])))
+	_wainscot(g, o, u, n, 0.0, s0)
+	_wainscot(g, o, u, n, s1, hx * 2.0)
 	var gable: Array[Vector3] = []
 	for q in _gable_line():
 		gable.append(Vector3(q.x, q.y, hz))
@@ -516,6 +538,169 @@ static func _front_wall(g: PropsLayer.Geo, rng: RandomNumberGenerator) -> void:
 		var w := Vector3(-d.y, d.x, 0) * 0.04
 		g.poly([c + d * 0.5 - w + n * 0.012, c + d * 1.5 - w + n * 0.012, c + d * 1.5 + w + n * 0.012, c + d * 0.5 + w + n * 0.012], BRONZE * 0.7, n)
 	emblem(g, c + n * 0.014, Vector3(-1, 0, 0), n, 0.45, BRONZE * 0.9, WAX * 0.8, GOLD)
+
+
+## ผิวผนังเหนือโค้งแหลม (กลาง cs, arch = ครึ่งกว้าง จุดเริ่มโค้ง ยอด) ถึงความสูง ytop เป็นแถบตั้งตามจุดบนโค้ง
+static func _over_arch(g: PropsLayer.Geo, o: Vector3, u: Vector3, n: Vector3, cs: float, arch: Vector3, ytop: float,
+		off: float, col: Color) -> void:
+	var pts := arch_pts(arch.x, arch.y, arch.z, ARENA_K)
+	for side in [-1.0, 1.0]:
+		for j in ARENA_K:
+			_wall_poly(g, o, u, n, [Vector2(cs + side * pts[j].x, pts[j].y), Vector2(cs + side * pts[j + 1].x, pts[j + 1].y),
+				Vector2(cs + side * pts[j + 1].x, ytop), Vector2(cs + side * pts[j].x, ytop)], off, col)
+
+
+## ประตูอารีน่าฝั่งห้อง (ARENA_SPEC §2.2): คิ้วบรอนซ์เรียบผนังรอบช่อง กรอบโค้งแหลมบรอนซ์ยื่น 0.25 ม. ในช่อง
+## (อยู่ในกล่องกันของสถานี) ลายเตือนหน้าธรณี ไฟอำพันที่ยอดกรอบ
+static func _arena_door(g: PropsLayer.Geo, glow_g: PropsLayer.Geo) -> void:
+	var ad := HallLayout.ARENA_DOOR
+	var hx := HallLayout.HALF.x
+	var hz := HallLayout.HALF.y
+	var o := Vector3(hx, 0.0, hz)
+	var u := Vector3(-1, 0, 0)
+	var n := Vector3(0, 0, -1)
+	var sp := float(ad["spring"])
+	var ap := float(ad["apex"])
+	var a := (float(ad["x1"]) - float(ad["x0"])) * 0.5
+	var cs := hx - (float(ad["x0"]) + float(ad["x1"])) * 0.5
+	var fw := 0.18
+	var depth := 0.25
+	var inner := Vector3(a - fw, sp, ap - 0.24)
+	# แผงเหล็กเหนือโค้งถึงแนวแผงแถวบน กับคิ้วบรอนซ์เรียบผนัง
+	_over_arch(g, o, u, n, cs, Vector3(a, sp, ap), 3.97, 0.004, STEEL * 0.95)
+	_arch_band(g, o, u, n, cs, Vector3(a + 0.12, sp, ap + 0.17), Vector3(a, sp, ap), ARENA_K, 0.012, BRONZE * 0.7)
+	for side in [-1.0, 1.0]:
+		_wall_rect(g, o, u, n, cs + side * a, cs + side * (a + 0.12), 0.0, sp, 0.012, BRONZE * 0.7)
+	# แผ่นรองในเนื้อผนังรอบขอบช่อง (ลึก 0.1 ม.): รอยต่อเส้นผมระหว่างกรอบกับผนังไม่เห็นทะลุ
+	_over_arch(g, o, u, n, cs, Vector3(a, sp, ap), ap + 0.4, -0.1, STEEL_DARK * 0.5)
+	for side in [-1.0, 1.0]:
+		_wall_rect(g, o, u, n, cs + side * (a + 0.25), cs + side * a, -OVERLAP, ap + 0.4, -0.1, STEEL_DARK * 0.5)
+	# กรอบ: หน้า ข้างใน ข้างนอก
+	_arch_band(g, o, u, n, cs, Vector3(a, sp, ap), inner, ARENA_K, depth, BRONZE * 0.9)
+	var pin := arch_pts(inner.x, inner.y, inner.z, ARENA_K)
+	var pout := arch_pts(a, sp, ap, ARENA_K)
+	for side in [-1.0, 1.0]:
+		_wall_rect(g, o, u, n, cs + side * (a - fw), cs + side * a, 0.0, sp, depth, BRONZE * 0.9)
+		var si: float = cs + side * (a - fw)
+		var so: float = cs + side * a
+		g.poly([wp(o, u, n, si, 0.0, 0.0), wp(o, u, n, si, sp, 0.0), wp(o, u, n, si, sp, depth), wp(o, u, n, si, 0.0, depth)],
+			BRONZE * 0.7, -u * side)
+		g.poly([wp(o, u, n, so, 0.0, 0.0), wp(o, u, n, so, sp, 0.0), wp(o, u, n, so, sp, depth), wp(o, u, n, so, 0.0, depth)],
+			BRONZE * 0.75, u * side)
+		for j in ARENA_K:
+			var q0 := Vector2(cs + side * pin[j].x, pin[j].y)
+			var q1 := Vector2(cs + side * pin[j + 1].x, pin[j + 1].y)
+			g.poly([wp(o, u, n, q0.x, q0.y, 0.0), wp(o, u, n, q1.x, q1.y, 0.0), wp(o, u, n, q1.x, q1.y, depth), wp(o, u, n, q0.x, q0.y, depth)],
+				BRONZE * 0.62, Vector3(0.0, -1.0, 0.0) + u * (cs - q0.x) * 0.5)
+			var r0 := Vector2(cs + side * pout[j].x, pout[j].y)
+			var r1 := Vector2(cs + side * pout[j + 1].x, pout[j + 1].y)
+			g.poly([wp(o, u, n, r0.x, r0.y, 0.0), wp(o, u, n, r1.x, r1.y, 0.0), wp(o, u, n, r1.x, r1.y, depth), wp(o, u, n, r0.x, r0.y, depth)],
+				BRONZE * 0.8, Vector3(0.0, 1.0, 0.0) + u * (r0.x - cs) * 0.5)
+	# ธรณีเหล็กกับลายเตือนหน้าประตู
+	var cx := (float(ad["x0"]) + float(ad["x1"])) * 0.5
+	g.box(Vector3(cx, 0.015, hz - 0.12), Vector3(a - fw, 0.015, 0.12), STEEL * 0.7)
+	_chevrons(g, Vector3(cx, 0.014, 7.58), Vector3.RIGHT, 1.0, 0.11)
+	# ไฟอำพันที่ยอดกรอบ (ไม่อบแสง)
+	var ly := (inner.z + ap) * 0.5 - 0.02
+	var lz := hz - depth - 0.006
+	glow_g.poly([Vector3(cx - 0.07, ly - 0.06, lz), Vector3(cx + 0.07, ly - 0.06, lz), Vector3(cx + 0.07, ly + 0.06, lz),
+		Vector3(cx - 0.07, ly + 0.06, lz)], LAMP_AMBER, n)
+
+
+## ทางเดินสั้นหลังประตูอารีน่า z 8.0 → 11.0 (ARENA_SPEC §2.2): ผิวในช่องผนัง พื้นเหล็กกับตะแกรง ผนังข้าง ซี่โครงหนึ่งวง
+## เพดานโค้งแหลมต่อจากโค้งประตู รางสายไฟ ไฟอำพันใต้สัน ปิดท้ายด้วยประตูแรงดันที่ปิดสนิท (ไม่มีช่องมองทะลุ)
+## อบแสงแยก: ไม่มีเทียน แสงอำพันดวงเดียว ARENA_STUB_LIGHT แล้วต่อท้ายโครงยาน
+static func _arena_stub() -> PropsLayer.Geo:
+	var g := PropsLayer.Geo.new()
+	var glow_g := PropsLayer.Geo.new()
+	var ad := HallLayout.ARENA_DOOR
+	var x0 := float(ad["x0"])
+	var x1 := float(ad["x1"])
+	var sp := float(ad["spring"])
+	var ap := float(ad["apex"])
+	var a := (x1 - x0) * 0.5
+	var cx := (x0 + x1) * 0.5
+	var zw := HallLayout.HALF.y
+	var zb := zw + HallLayout.WALL_T
+	var ze := zb + float(ad["stub"])
+	var zr := (zb + ze) * 0.5
+	# โปรไฟล์ช่อง (x, y): ผนังซ้าย โค้ง ผนังขวา
+	# ผนังเริ่มใต้พื้นเล็กน้อย พื้นกว้างเลยผนัง (ไม่มีรอยต่อรูปตัว T ให้เห็นทะลุ)
+	var prof := PackedVector2Array([Vector2(x0, -OVERLAP)])
+	var pts := arch_pts(a, sp, ap, ARENA_K)
+	for j in pts.size():
+		prof.append(Vector2(cx - pts[j].x, pts[j].y))
+	for j in range(pts.size() - 2, -1, -1):
+		prof.append(Vector2(cx + pts[j].x, pts[j].y))
+	prof.append(Vector2(x1, -OVERLAP))
+	var segs := [[zw - 0.004, zb, STEEL * 0.7], [zb, zr, STEEL * 0.8], [zr, ze + 0.004, STEEL * 0.8]]
+	for sg in segs:
+		for i in prof.size() - 1:
+			var p := prof[i]
+			var q := prof[i + 1]
+			var mid := (p + q) * 0.5
+			var col: Color = sg[2] if p.y > sp - 0.01 and q.y > sp - 0.01 else (sg[2] as Color) * 0.92
+			g.poly([Vector3(p.x, p.y, sg[0]), Vector3(q.x, q.y, sg[0]), Vector3(q.x, q.y, sg[1]), Vector3(p.x, p.y, sg[1])], col,
+				Vector3(cx - mid.x, 1.6 - mid.y, 0.0))
+	# พื้น: แผ่นเหล็ก ตะแกรงกลาง คานขวาง
+	g.poly([Vector3(x0 - OVERLAP, 0.0, zw - 0.004), Vector3(x1 + OVERLAP, 0.0, zw - 0.004), Vector3(x1 + OVERLAP, 0.0, ze + OVERLAP),
+		Vector3(x0 - OVERLAP, 0.0, ze + OVERLAP)], DECK * 0.9, Vector3.UP)
+	g.poly([Vector3(cx - 0.4, 0.004, zb + 0.1), Vector3(cx + 0.4, 0.004, zb + 0.1), Vector3(cx + 0.4, 0.004, ze - 0.1),
+		Vector3(cx - 0.4, 0.004, ze - 0.1)], GRATE * 0.7, Vector3.UP)
+	var z := zb + 0.35
+	while z < ze - 0.2:
+		g.poly([Vector3(cx - 0.4, 0.007, z - 0.03), Vector3(cx + 0.4, 0.007, z - 0.03), Vector3(cx + 0.4, 0.007, z + 0.03),
+			Vector3(cx - 0.4, 0.007, z + 0.03)], GRATE * 1.6, Vector3.UP)
+		z += 0.3
+	# แผงล่างบรอนซ์บนผนังข้าง
+	for sx in [-1.0, 1.0]:
+		var xw: float = cx + sx * (a - 0.006)
+		g.poly([Vector3(xw, 0.0, zb), Vector3(xw, 1.0, zb), Vector3(xw, 1.0, ze), Vector3(xw, 0.0, ze)], BRONZE * 0.44, Vector3(-sx, 0.0, 0.0))
+		g.box(Vector3(cx + sx * (a - 0.06), sp * 0.5, zr), Vector3(0.06, sp * 0.5, 0.06), STEEL * 0.95)
+	# ซี่โครงโค้งที่กลางทางเดิน (ลึก 0.12 ม.)
+	var rin := Vector3(a - 0.12, sp, ap - 0.16)
+	_arch_band(g, Vector3(0.0, 0.0, zr - 0.06), Vector3(1, 0, 0), Vector3(0, 0, -1), cx, Vector3(a, sp, ap), rin, ARENA_K, 0.0, STEEL * 0.95)
+	var pr := arch_pts(rin.x, rin.y, rin.z, ARENA_K)
+	for side in [-1.0, 1.0]:
+		for j in ARENA_K:
+			var q0 := Vector3(cx + side * pr[j].x, pr[j].y, 0.0)
+			var q1 := Vector3(cx + side * pr[j + 1].x, pr[j + 1].y, 0.0)
+			g.poly([q0 + Vector3(0, 0, zr - 0.06), q1 + Vector3(0, 0, zr - 0.06), q1 + Vector3(0, 0, zr + 0.06), q0 + Vector3(0, 0, zr + 0.06)],
+				STEEL * 0.7, Vector3(cx - q0.x, 1.6 - q0.y, 0.0))
+	# รางสายไฟผนังขวา
+	g.box(Vector3(x1 - 0.1, 2.2, zr), Vector3(0.09, 0.025, (ze - zb) * 0.5 - 0.02), STEEL_DARK * 0.9, 0.0, true)
+	for k in 2:
+		var xk := x1 - 0.06 - k * 0.07
+		tube(g, Vector3(xk, 2.25, zb), Vector3(xk, 2.25, ze), 0.025, 4, Color(0.30, 0.10, 0.08) if k == 0 else STEEL_DARK * 0.6)
+	# ประตูแรงดัน: แผ่นหลังเต็มโปรไฟล์ (ช่องเหนือบานปิดด้วยเหล็ก) บานสองบาน คิ้วบรอนซ์ ลายเตือน
+	var back: Array[Vector3] = []
+	for q in prof:
+		back.append(Vector3(q.x, q.y, ze))
+	g.poly(back, STEEL_DARK * 0.85, Vector3(0, 0, -1))
+	var lh := 2.3
+	var lz := ze - 0.05
+	for sx in [-1.0, 1.0]:
+		g.box(Vector3(cx + sx * 0.49, lh * 0.5, lz), Vector3(0.47, lh * 0.5, 0.05), STEEL * (0.78 if sx < 0.0 else 0.72))
+	var fz := ze - 0.104
+	g.poly([Vector3(cx - 0.025, 0.0, fz), Vector3(cx + 0.025, 0.0, fz), Vector3(cx + 0.025, lh, fz), Vector3(cx - 0.025, lh, fz)], STEEL_DARK * 0.4, Vector3(0, 0, -1))
+	for y in [0.95, 1.85]:
+		g.poly([Vector3(cx - 0.96, y, fz), Vector3(cx + 0.96, y, fz), Vector3(cx + 0.96, y + 0.1, fz), Vector3(cx - 0.96, y + 0.1, fz)], BRONZE * 0.85, Vector3(0, 0, -1))
+	g.box(Vector3(cx, lh + 0.06, ze - 0.05), Vector3(a, 0.06, 0.06), BRONZE * 0.8)
+	g.poly([Vector3(cx - 0.96, 0.12, fz), Vector3(cx + 0.96, 0.12, fz), Vector3(cx + 0.96, 0.44, fz), Vector3(cx - 0.96, 0.44, fz)], HAZARD_DARK, Vector3(0, 0, -1))
+	var xs := cx - 0.92
+	while xs + 0.3 <= cx + 0.94:
+		g.poly([Vector3(xs, 0.14, fz - 0.002), Vector3(xs + 0.12, 0.14, fz - 0.002), Vector3(xs + 0.26, 0.42, fz - 0.002),
+			Vector3(xs + 0.14, 0.42, fz - 0.002)], HAZARD, Vector3(0, 0, -1))
+		xs += 0.3
+	bake(g, PackedVector3Array(), [HallLayout.ARENA_STUB_LIGHT])
+	# ไฟอำพันใต้สันเพดาน กับไฟเหนือประตูแรงดัน (ไม่อบแสง)
+	var ry := ap - 0.06
+	glow_g.poly([Vector3(cx - 0.05, ry, zb + 0.2), Vector3(cx + 0.05, ry, zb + 0.2), Vector3(cx + 0.05, ry, ze - 0.2),
+		Vector3(cx - 0.05, ry, ze - 0.2)], LAMP_AMBER * 0.9, Vector3.DOWN)
+	glow_g.poly([Vector3(cx - 0.12, 2.72, fz), Vector3(cx + 0.12, 2.72, fz), Vector3(cx + 0.12, 2.86, fz), Vector3(cx - 0.12, 2.86, fz)],
+		LAMP_AMBER, Vector3(0, 0, -1))
+	append(g, glow_g)
+	return g
 
 
 ## เส้นขอบบนของหน้าจั่ว (x, y): จาก 6.3 ด้านขวา ตามโค้งเพดานถึงซ้าย (รูปนูน)

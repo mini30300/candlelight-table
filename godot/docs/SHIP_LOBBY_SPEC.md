@@ -90,6 +90,7 @@ yaw (0 faces +z).
 | `vault` | **New**: treasure chest on an octagonal two-step dais (r 1.2): bronze chest 1.3 × 0.75 m, iron bands, gold light leaking from the lid seam, a lock plate with our candle emblem, two candles at the dais front | (5.0, 4.0), (1.2, 1.2) | yes | 1.5 | 1.4 | (3.15, 4.0) | (5.0, 2.3, 4.0) / −π/2 | coming-soon panel |
 
 - `HallLayout.IDS` = `["battle", "army", "settings", "online", "adventure", "exit", "vault"]` (vault appended).
+- 0.4: station `arena` (the arena door, front wall left) — see `ARENA_SPEC.md` §2.
 - The online gate and the vault are chosen so that no two footprints overlap, every front ring is free for the avatar
   and inside its own trigger only, and the flood fill from the spawn reaches every trigger (checked in §9).
 - Checked distances: spawn → vault edge 3.8 m (> 1.5), spawn → battle trigger 3.4 m, vault front → battle 4.0 m,

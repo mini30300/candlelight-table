@@ -14,8 +14,9 @@ const WALK_CAP_MS := 15000
 const GAME_CAP_MS := 60000
 ## the hall's blockers from LOBBY_SPEC §2.1 (centre x, z, half x, half z) and its pillars (x, z, r)
 ## 0.3 (SHIP_LOBBY_SPEC §2.2, §12): the airlock (online) moved to the right wall and the treasure chest (round) was added
+## 0.4 (ARENA_SPEC §13.1): + the arena door's box (the table follows the deck's blockers by hand)
 const RECTS := {"battle": [0.0, -2.0, 3.0, 2.0], "army": [-11.4, -1.0, 0.5, 2.6], "settings": [10.0, -1.0, 0.4, 0.4],
-	"online": [11.95, 3.0, 0.15, 1.7], "exit": [0.0, 7.9, 1.2, 0.2]}
+	"online": [11.95, 3.0, 0.15, 1.7], "exit": [0.0, 7.9, 1.2, 0.2], "arena": [-9.8, 7.9, 1.0, 0.2]}
 const ROUND_TABLE := [-5.0, 4.0, 1.3]
 const VAULT := [5.0, 4.0, 1.2]
 const PILLARS := [[-8.5, -5.0], [8.5, -5.0], [-8.5, 0.5], [8.5, 0.5], [-8.5, 5.5], [8.5, 5.5]]

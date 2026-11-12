@@ -1,4 +1,4 @@
-# Where the game work stands (12 Nov 2569)
+# Where the game work stands (13 Nov 2569)
 
 The owner paused the game on 9 Oct to work on another project and resumed it on 12 Nov with the front page and the
 walkable lobby (below). Everything here is what a later session needs to pick up.
@@ -177,8 +177,37 @@ places, holo grid, a cool fill light, moved test starts).
   `test_lobby_flow` 33, `test_settings_flow` 30, oracle 155, render probe, anim_footslide 54, army_screen 62,
   battle_screen 120, budgets 112, field_look 213, hall 264, lineup 29, main_screens 40, menu_screens 118; data lint PASS.
 
+## 13 Nov: weapons arena (ใหม่ 0.4, `docs/ARENA_SPEC.md`)
+The owner asked (12 Nov, before going to sleep) for another room off the lobby, reached by a corridor: a weapons test
+range, not a campaign, where his character draws a gun and the game becomes a third-person shooter, with an attack
+system (punch, rifle, a saw sword), one alien enemy, and a switch (shoot it or press) for that enemy's bot. Built by
+three builders in parallel from ARENA_SPEC (room, player, enemy), then integrated and reviewed:
+- **Deck**: a new station `arena`, a pointed doorway in the front wall left of the exit with a corridor stub; walking
+  into it (or E) fades and pushes the arena screen; coming back places the avatar at `ARENA_RETURN`. The deck's views and
+  budgets are unchanged; reaching the door starts loading the arena's heavy files on a thread (`preload_arena`).
+- **Arena** (`scenes/arena/`, `ui/screens/arena_screen.*`, `ui/widgets/arena_hud.gd`, `arena_touch.gd`, `ui/arena/`):
+  a 10 m corridor (walk mode) into a 20 × 24 m range; past the shoot line the egg draws our rifle and the shoulder camera
+  takes over (crosshair, mouse look while captured, or touch: stick, aim pad, four round buttons); rifle (30 rounds,
+  8/s, reloads by itself when it runs dry with fire held), punch, saw sword; the hive beast (สัตว์รัง: the `warrior` kit
+  playing the baked clips) as a dummy until the bot switch (shoot it, melee the post, or E; once per burst) turns it on:
+  it chases round the pillars (A*), shows the claw's real reach as a red sector filling to its rim during the 0.6 s
+  wind-up, claws for 18 at 0.72 s, flinches (with 1.2 s of poise so melee spam cannot lock it) and dies on 300 damage;
+  reset, board, downed and respawn, pause on Esc / focus loss / the app going to the background. Player and enemy are
+  swappable figures behind a contract, loaded from a private pack (`packs/`, git-ignored) when present.
+- Where the build differs from the spec (camera framing, spawn, poise, plate bursts, telegraph sector, HUD batching, …):
+  ARENA_SPEC §17. APP_VER ใหม่ 0.4; RULES_V, DATA_HASH, PROTO untouched (local single-player, seeded RNG for tests).
+- Review (13 Nov, three lenses: game feel and rules, phones and performance, correctness and tests): one must-fix (the
+  Thai note and the docs) and 13 should-fixes, all fixed with tests, plus most suggestions (§17 lists them). Left as
+  questions for the owner: the beast's toughness and speed, whether reset should turn the bot off, the phone button
+  positions, the beast's model.
+- Full run after the review fixes (`run.sh full`, 13 Nov Bangkok, exit 0): unit 5,584 checks in 62 scripts; flow `test_arena_flow` 49, `test_hall_reach` 35, `test_lobby_flow` 33, `test_settings_flow` 30; oracle 155; render probe; render suites anim_footslide 54, arena 122, arena_hud 122, army_screen 62, battle_screen 120, budgets 112, field_look 213, hall 305, hive_beast 92, lineup 29, main_screens 40, menu_screens 118; data lint PASS.
+- Measured (draw calls hi / mid / lo / min): arena overview 25 / 25 / 21 / 21, corridor 29 / 29 / 22 / 22, phone worst view (with four damage
+  numbers and the hurt edge) 38 / 38 / 35 / 34; the longest frame entering the arena 206 ms (was 364–447 before the preload).
+  Owner media (stills, a 13 s play clip) are in the session scratchpad `godot-arena/fix/media/`, not in the repo.
+
 ## Next steps, in order
-1. Owner feedback on ใหม่ 0.3 (the warship deck on his phone; where the chest stands; what the random rewards should
+1. Owner feedback on ใหม่ 0.4 (the arena: the beast's toughness and speed, reset and the bot, phone buttons, the beast's
+   model), ใหม่ 0.3 (the warship deck on his phone; where the chest stands; what the random rewards should
    hold) and on ใหม่ 0.2 (one bot game, eggs vs old models), then online rooms (R3: the room
    screen is `ui/screens/lobby.tscn`, distinct from the walkable hall) and the human turn UI polish (a custom army list
    for the human seat, deploy by hand, healing and grenades by tap, flyers lifted by `fly.json`).

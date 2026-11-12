@@ -28,7 +28,7 @@ const STAND_H := 1.72
 const STANDS: PackedVector2Array = [Vector2(-11.3, -6.0), Vector2(11.3, -6.0), Vector2(-11.3, 3.0), Vector2(11.3, 6.0),
 	Vector2(-4.0, -7.5), Vector2(4.0, -7.5)]
 
-const IDS: PackedStringArray = ["battle", "army", "settings", "online", "adventure", "exit", "vault"]
+const IDS: PackedStringArray = ["battle", "army", "settings", "online", "adventure", "exit", "vault", "arena"]
 ## c = กลางรอยเท้า (x, z), h = ครึ่งขนาด, reach = ระยะเอื้อมจากขอบ, height = ความสูงของที่กัน,
 ## round = ที่กันเป็นวงกลม (รัศมี h.x), front = จุดวงแหวนหน้าที่ใช้งาน (x, z), sign = ตำแหน่งป้าย, face = yaw ของป้าย
 const STATIONS := {
@@ -47,7 +47,16 @@ const STATIONS := {
 		"front": Vector2(0.0, 6.95), "sign": Vector3(0.0, 3.75, 7.62), "face": PI},
 	"vault": {"c": Vector2(5.0, 4.0), "h": Vector2(1.2, 1.2), "reach": 1.5, "height": 1.4, "round": true,
 		"front": Vector2(3.15, 4.0), "sign": Vector3(5.0, 2.3, 4.0), "face": -PI * 0.5},
+	# ประตูอารีน่าทดสอบอาวุธ (ARENA_SPEC §2): กล่องกันปิดช่องประตูเหมือนประตูทางออก ตัวผู้เล่นหยุดที่ z 7.35
+	"arena": {"c": Vector2(-9.8, 7.9), "h": Vector2(1.0, 0.2), "reach": 1.4, "height": 3.8, "round": false,
+		"front": Vector2(-9.8, 6.95), "sign": Vector3(-9.8, 4.3, 7.62), "face": PI},
 }
+## ช่องประตูอารีน่าในผนังหน้า (วาดอย่างเดียว ตัวชนผนังเต็มเหมือนเดิม): ช่วง x, จุดเริ่มโค้ง, ยอดโค้ง, ทางเดินสั้นหลังประตู
+const ARENA_DOOR := {"x0": -10.8, "x1": -8.8, "spring": 2.5, "apex": 3.8, "stub": 2.5}
+## เดินเข้าช่องประตูลึกกว่านี้ (เลยขอบกล่องกัน − รัศมีตัว − ค่านี้) = เข้าอารีน่า
+const ARENA_AUTO := 0.12
+## จุดที่กลับมาจากอารีน่า หันไป -z (ว่าง ไม่อยู่ในวงสถานีไหน)
+const ARENA_RETURN := Vector3(-9.8, 0.0, 5.2)
 ## ม้านั่งกลมสี่ตัวรอบโต๊ะผจญภัย (ในกรอบสี่เหลี่ยมของมัน): ระยะทแยงจากกลาง รัศมี สูง
 const STOOL_D := 1.06
 const STOOL_R := 0.2
@@ -104,7 +113,11 @@ const COOL_LIGHTS := [
 	{"p": Vector3(5.0, 1.3, 4.0), "k": 0.25, "d": 2.0, "col": GOLD},
 	# แสงดาวจากหน้าต่างกระจายทั่วดาดฟ้า (D ใหญ่มาก = เกือบคงที่ทั้งห้อง) ให้เหล็กอมฟ้า ไม่เป็นสีหินอุ่น
 	{"p": Vector3(0.0, 3.0, 0.0), "k": 0.14, "d": 1.0e6, "col": Color("9fb8ff")},
+	# แสงอำพันที่ปากประตูอารีน่า
+	{"p": Vector3(-9.8, 2.6, 7.6), "k": 0.35, "d": 2.5, "col": SCREEN_AMBER},
 ]
+## แสงอำพันในทางเดินสั้นหลังประตูอารีน่า (อยู่นอกห้อง จึงไม่อยู่ใน COOL_LIGHTS)
+const ARENA_STUB_LIGHT := {"p": Vector3(-9.8, 3.2, 9.8), "k": 0.9, "d": 3.0, "col": SCREEN_AMBER}
 ## ป้ายชื่อสถานที่ใต้โค้งหน้าต่างกลาง (แผ่นบรอนซ์อยู่หลังป้าย 7 ซม.)
 const TITLE_SIGN := Vector3(0.0, 6.45, -7.9)
 
@@ -158,6 +171,13 @@ static func station_at(p: Vector2) -> String:
 			best = id
 			best_d = d
 	return best
+
+
+## กลางตัวผู้เล่น p (x, z) เดินเข้าไปในช่องประตูอารีน่าแล้ว (ARENA_SPEC §2.1)
+static func in_arena_doorway(p: Vector2) -> bool:
+	var c: Vector2 = STATIONS["arena"]["c"]
+	var h: Vector2 = STATIONS["arena"]["h"]
+	return absf(p.x - c.x) <= 0.75 and p.y >= c.y - h.y - AVATAR_R - ARENA_AUTO
 
 
 static func spawn_xz() -> Vector2:

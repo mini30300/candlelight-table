@@ -2,6 +2,9 @@ extends "res://tests/testing.gd"
 ## The input map of project.godot (LOBBY_SPEC §6.2): seven actions bound to physical keys, so WASD and the
 ## arrows work whatever the keyboard layout (a Thai layout included), and a parsed physical W presses
 ## move_forward.
+## 0.4 (ARENA_SPEC §5.2, §13.1): five shooter actions join them on purpose (seven become twelve): fire (left mouse
+## button), melee (right mouse button or physical F), reload (R), weapon_1 / weapon_2 (1 / 2); mouse buttons are
+## checked as InputEventMouseButton.
 
 const EXPECTED := {
 	"move_forward": [KEY_W, KEY_UP],
@@ -11,6 +14,16 @@ const EXPECTED := {
 	"run": [KEY_SHIFT],
 	"interact": [KEY_E],
 	"back": [KEY_ESCAPE],
+	"fire": [],
+	"melee": [KEY_F],
+	"reload": [KEY_R],
+	"weapon_1": [KEY_1],
+	"weapon_2": [KEY_2],
+}
+## mouse buttons of the shooter actions (ARENA_SPEC §5.2)
+const MOUSE := {
+	"fire": [MOUSE_BUTTON_LEFT],
+	"melee": [MOUSE_BUTTON_RIGHT],
 }
 
 
@@ -61,3 +74,27 @@ func test_parsed_physical_w_presses_move_forward() -> void:
 	Input.parse_input_event(up)
 	Input.flush_buffered_events()
 	assert_false(Input.is_action_pressed(&"move_forward"), "releasing W releases move_forward")
+
+
+func test_twelve_actions_and_mouse_buttons() -> void:
+	assert_eq(EXPECTED.size(), 12, "twelve actions: seven of the deck + five of the arena shooter")
+	for action in MOUSE:
+		assert_true(InputMap.has_action(action), "action exists: " + action)
+		if not InputMap.has_action(action):
+			continue
+		var buttons := []
+		for ev in InputMap.action_get_events(action):
+			if ev is InputEventMouseButton:
+				buttons.append((ev as InputEventMouseButton).button_index)
+		assert_eq(buttons, MOUSE[action], action + " is bound to its mouse button")
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE[action][0]
+		press.pressed = true
+		assert_true(press.is_action_pressed(action), action + ": a press of its mouse button presses it")
+	for action in ["move_forward", "interact", "reload", "weapon_1", "weapon_2"]:
+		for ev in InputMap.action_get_events(action):
+			assert_false(ev is InputEventMouseButton, action + " has no mouse button")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	assert_false(wheel.is_action(&"fire") or wheel.is_action(&"melee"), "the wheel is read in code, not bound to fire or melee")

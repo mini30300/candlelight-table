@@ -1,10 +1,12 @@
 extends SceneTree
 ## Every station of the warship deck (SHIP_LOBBY_SPEC §2.2, §9) is reachable on foot from the spawn, with the real
-## colliders, headless: main menu → เล่นกับบอท → the lobby; for each of the seven stations the avatar starts at the spawn
+## colliders, headless: main menu → เล่นกับบอท → the lobby; for each of the eight stations the avatar starts at the spawn
 ## and the on-screen stick steers it along a free path (grid search over HallLayout with the avatar's radius) until the
 ## station's prompt shows; on the way the avatar never enters a blocker (HallLayout.blocker_at). Then the treasure chest
 ## (vault, the future random rewards): its prompt in Thai and English, E opens the one-line coming-soon panel and stays
-## in the lobby, Esc closes the panel first, a second Esc returns to the main menu. Graphics level min, test settings
+## in the lobby, Esc closes the panel first, a second Esc returns to the main menu. 0.4 (ARENA_SPEC §13.1): the arena
+## door is the eighth station; the walk stops on its prompt at the trigger's edge and the lobby stays (depth 2: walking
+## into the trigger does not enter, only walking into the doorway does). Graphics level min, test settings
 ## file (never this machine's settings.cfg). Run:
 ##   timeout 600 <godot> --headless --path godot --audio-driver Dummy -s tests/flow/test_hall_reach.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL.
@@ -66,7 +68,8 @@ func _run() -> void:
 	var world: Node3D = hall.get("world")
 	var names: Dictionary = (hall.get_script() as Script).get_script_constant_map()["NAMES"]
 	var use: Button = hall.get_node("%UseButton")
-	_check(HallLayout.IDS.size() == 7 and HallLayout.IDS.has("vault"), "seven stations, the vault included")
+	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
+	_check(HallLayout.IDS.size() == 8 and HallLayout.IDS.has("vault") and HallLayout.IDS.has("arena"), "eight stations, the vault and the arena door included")
 	for id in HallLayout.IDS:
 		var t0 := Time.get_ticks_msec()
 		var res := await _walk_to(world, hall, id)
@@ -75,6 +78,10 @@ func _run() -> void:
 		_check(str(res["inside"]) == "", "on the way to %s the avatar never enters a blocker" % id, str(res["inside"]))
 		var want := str(root.get_node(^"I18n").call("t", str(names[id])))
 		_check(use.visible and use.text.contains(want), "at %s the prompt names it: %s" % [id, use.text])
+		if id == "arena":
+			await _frames(10)
+			_check(int(_app().call("depth")) == 2 and _app().call("current") == hall and not bool(hall.call("fading")),
+				"at the arena door's prompt the lobby stays (depth 2, no auto entry from the trigger's edge)")
 	await _check_vault(world, hall)
 	_finish()
 

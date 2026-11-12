@@ -21,7 +21,13 @@ extends SceneTree
 ## §2.6 (min <= 40 / 40k) and the deck targets of SHIP_LOBBY_SPEC §6 (min <= 30 / 30k), in the overview and again in the
 ## phone layout's worst view (20:9 window, touch on, first-entry hint showing, at the war table looking across the deck);
 ## sign outlines only on hi/mid, the title plaque on the signs' font size, the drifting ships' culling box covers the
-## dome. No holes into the void: with a magenta background no magenta pixel shows in 64 views on mid and 32 on min.
+## dome. No holes into the void: with a magenta background no magenta pixel shows in 80 views on mid and 40 on min.
+## 0.4 (ARENA_SPEC §2, §13.4): the arena door (front wall, left): E at it fades and pushes the arena screen (depth 3), its
+## ‹ lobby button returns to the hall at ARENA_RETURN (hall active, camera current); walking into the doorway on hi fades
+## (a Tween) and pushes it too, on min with no Tween; a camera walk along the front wall past the door never enters it;
+## the door view (avatar at the door's ring, yaw pi) stays within the deck targets on every level, desktop and phone
+## layout; the void spots include the return spot looking into the doorway and the stub. Saves hall_arena_door.png and
+## hall_arena_door_min.png.
 ## Saves hall_th.png, hall_en.png, hall_min.png, hall_touch.png (_<w>x<h> added for the other sizes), hall_viewport.png,
 ## hall_vault.png, hall_vault_en.png and hall_deck_<level>.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
@@ -31,6 +37,7 @@ extends SceneTree
 const SCENE := "res://scenes/main.tscn"
 const HALL_SCREEN := "res://ui/screens/hall_screen.tscn"
 const BATTLE_SETUP := "res://ui/screens/battle_setup.tscn"
+const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
 const DEFAULT_OUT_DIR := "res://tests/out"
 const SETTINGS_FILE := "user://test_hall.cfg"
 const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(640, 360), Vector2i(1280, 576)]
@@ -46,7 +53,9 @@ const DECK := {"hi": [5, true, true, 700], "mid": [3, true, true, 500], "lo": [3
 ## the vault's coming-soon line: lines allowed in Thai / English (SHIP_LOBBY_SPEC §5)
 const VAULT_LINES := {"th": 1, "en": 2}
 ## no holes into the void: spots the camera looks from (SHIP_LOBBY_SPEC §9.3)
-const VOID_SPOTS: Array[Vector3] = [Vector3(0.0, 0.0, 5.0), Vector3(0.0, 0.0, -6.5), Vector3(-10.0, 0.0, 6.0), Vector3(9.5, 0.0, 4.5)]
+## 0.4 (ARENA_SPEC §13.1): + the arena return spot, looking into the doorway and the stub from close
+const VOID_SPOTS: Array[Vector3] = [Vector3(0.0, 0.0, 5.0), Vector3(0.0, 0.0, -6.5), Vector3(-10.0, 0.0, 6.0), Vector3(9.5, 0.0, 4.5),
+	Vector3(-9.8, 0.0, 5.2)]
 const VOID_SIZE := Vector2i(640, 360)
 const MAGENTA := Color(1.0, 0.0, 1.0)
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min"]
@@ -110,8 +119,9 @@ func _run() -> void:
 	print("hall counts: " + str(c))
 	# 0.3 (SHIP_LOBBY_SPEC §9.1): two vault candles (24 -> 26 flames), the vault sign and the title plaque (7 -> 9 labels),
 	# the space mesh behind the viewport (3 -> 4 static meshes)
-	_check(int(c["flames"]) == 26 and int(c["signs"]) == 9 and int(c["static_meshes"]) <= 4 and int(c["blockers"]) >= 20,
-		"mid: 26 flames, 7 station signs + the title plaque + the name tag, at most 4 static meshes, every blocker built", str(c))
+	# 0.4 (ARENA_SPEC §13.1): the arena door's sign (9 -> 10 labels)
+	_check(int(c["flames"]) == 26 and int(c["signs"]) == 10 and int(c["static_meshes"]) <= 4 and int(c["blockers"]) >= 21,
+		"mid: 26 flames, 8 station signs + the title plaque + the name tag, at most 4 static meshes, every blocker built", str(c))
 	var table := get_first_node_in_group("table_view") as Node3D
 	_check(table == null or (not table.visible and table.process_mode == Node.PROCESS_MODE_DISABLED), "the battle table stays hidden and disabled under the hall")
 	_check(_camera(world).current, "the hall camera is current")
@@ -124,6 +134,7 @@ func _run() -> void:
 	await _check_camera(hall)
 	await _check_camera_walks(hall)
 	await _check_stations(hall)
+	await _check_arena_door(hall)
 	await _check_touch(hall)
 	await _check_levels(hall)
 	await _check_touch_budget(hall)
@@ -179,7 +190,8 @@ func _check_texts(hall: Node) -> void:
 					if _thai_re.search(l.text) != null:
 						signs += 1
 				# 0.3: seven station signs, the title plaque and the name tag (was six signs + the name tag)
-				_check(signs == 9, tag + ": the seven station signs, the title plaque and the name tag are Thai (%d)" % signs)
+				# 0.4 (ARENA_SPEC §13.1): + the arena door's sign (eight station signs)
+				_check(signs == 10, tag + ": the eight station signs, the title plaque and the name tag are Thai (%d)" % signs)
 				_check(str(world.call("sign_text", "title")) == "ดาดฟ้ายานรบ", tag + ": the title plaque reads ดาดฟ้ายานรบ")
 				_check(use.text == "โต๊ะรบ · กด E", tag + ": Thai prompt " + use.text)
 				_check(_thai_re.search((hall.get_node("%MenuButton") as Button).text) != null, tag + ": the menu button is Thai")
@@ -336,7 +348,9 @@ func _check_camera_walks(hall: Node) -> void:
 	var walks := [[Vector3(0.0, 0, 5.0), Vector2(0.8, 0.6), "spawn -> the console", 0.0], [Vector3(0.0, 0, 5.0), Vector2(-0.8, 0.6), "spawn -> the armoury", 0.0],
 		[Vector3(5.0, 0, -3.5), Vector2(1.0, 0.0), "past the pillar at (8.5, 0.5)", 0.0], [Vector3(-11.0, 0, 3.0), Vector2(1.0, 0.0), "across the hall at z 3", 0.0],
 		[Vector3(0.0, 0, 5.0), Vector2(0.9, 0.2), "spawn -> the vault", 0.0],
-		[Vector3(9.5, 0, 0.2), Vector2(-1.0, 0.0), "along the airlock, camera between the avatar and the right wall", PI * 0.5, "online"]]
+		[Vector3(9.5, 0, 0.2), Vector2(-1.0, 0.0), "along the airlock, camera between the avatar and the right wall", PI * 0.5, "online"],
+		# 0.4 (ARENA_SPEC §13.4): along the front wall past the arena door, camera between the avatar and the wall
+		[Vector3(-6.5, 0, 6.6), Vector2(-0.8, 0.0), "along the front wall past the arena door, camera between the avatar and the wall", 0.0, "arena"]]
 	for w in walks:
 		rig.call("set_view", float(w[3]), -0.45, 6.5)
 		world.call("place_avatar", w[0], PI)
@@ -362,6 +376,8 @@ func _check_camera_walks(hall: Node) -> void:
 		_check(inside == "", "walking %s the camera never enters a blocker" % w[2], inside)
 		if w.size() > 4:
 			_check(near <= 0.5, "walking %s the camera passes within 0.5 m of the %s footprint (%.2f m)" % [w[2], str(w[4]), near])
+		_check(int(_app().call("depth")) == 2 and _app().call("current") == hall and not bool(hall.call("fading")),
+			"walking %s never enters the arena (still the hall, depth 2)" % w[2])
 	rig.call("set_view", 0.0, -0.45, 6.5)
 	await _physics(4)
 
@@ -435,6 +451,135 @@ func _check_stations(hall: Node) -> void:
 		_check(_app().call("current") == hall and world.visible, "popping the setup returns to the hall")
 	else:
 		print("note  %s is not built yet; the flow test covers the war table" % BATTLE_SETUP)
+
+
+## 0.4 (ARENA_SPEC §2.3, §13.4): the arena door. E at it fades (mid: a Tween) and pushes the arena screen (depth 3) with
+## the hall hidden and stopped; the arena's ‹ lobby button fades back to the hall at ARENA_RETURN, facing -z, station "",
+## hall active, its camera current, the egg opaque. Walking into the doorway (W) on hi enters too, through a Tween; on min
+## it enters with no Tween. Then the door view budget on all four levels (desktop and phone layout) and the PNGs.
+func _check_arena_door(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var rig: Node3D = world.get("camera_rig")
+	var fade := hall.get_node("%Fade") as ColorRect
+	_check(fade != null and not fade.visible and fade.mouse_filter == Control.MOUSE_FILTER_IGNORE, "the hall has a hidden %Fade that lets taps through")
+	world.call("place_avatar", _front("arena"), PI)
+	await _settle()
+	_check(str(hall.call("station")) == "arena" and int(_app().call("depth")) == 2, "standing on the arena door's ring shows its prompt and stays in the hall")
+	await _press(KEY_E)
+	_check(bool(hall.call("fading")) and fade.visible and fade.mouse_filter == Control.MOUSE_FILTER_STOP, "E at the arena door starts the fade (taps blocked)")
+	_check(bool(hall.call("handle_back")), "back is swallowed while the fade runs")
+	await _frames_until(func() -> bool: return int(_app().call("depth")) == 3, 90)
+	var arena: Node = _app().call("current")
+	_check(int(_app().call("depth")) == 3 and arena != null and arena.scene_file_path == ARENA_SCREEN, "the arena screen is pushed (depth 3)")
+	_check(not (hall as CanvasItem).visible and not world.visible and world.process_mode == Node.PROCESS_MODE_DISABLED and not _camera(world).current,
+		"the hall is hidden, stopped and gives up the camera under the arena")
+	await _frames(20)
+	var lobby: Button = arena.get_node_or_null("%LobbyButton") if arena != null else null
+	_check(lobby != null, "the arena screen has a ‹ lobby button")
+	if lobby != null:
+		lobby.pressed.emit()
+	else:
+		_app().call("pop")
+	await _frames_until(func() -> bool: return _app().call("current") == hall and not bool(hall.call("fading")), 120)
+	var av := _avatar(world)
+	_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and (hall as CanvasItem).visible and world.visible
+		and world.process_mode == Node.PROCESS_MODE_INHERIT and _camera(world).current, "back from the arena: the hall is visible, active and owns the camera")
+	_check(av.global_position.distance_to(HallLayout.ARENA_RETURN) < 0.01 and absf(wrapf(float(av.get("face")) - PI, -PI, PI)) < 0.01
+		and str(hall.call("station")) == "", "the avatar stands at ARENA_RETURN facing -z, in no station (%s)" % str(av.global_position))
+	_check(not fade.visible and av.process_mode == Node.PROCESS_MODE_INHERIT, "the fade has cleared and the avatar can walk again")
+	await _physics(6)
+	_check(float(world.call("avatar_alpha")) >= 0.999, "the egg is opaque at the return spot (alpha %.2f)" % float(world.call("avatar_alpha")))
+	var table := get_first_node_in_group("table_view") as Node3D
+	_check(table == null or not table.visible, "the battle table is still hidden after the arena")
+	# walking into the doorway: hi through a Tween, min with none
+	for level in ["hi", "min"]:
+		_app().call("set_gfx", level)
+		hall.call("refresh")
+		world.call("place_avatar", _front("arena"), PI)
+		rig.call("set_view", PI, -0.3, 6.5)
+		await _settle()
+		_key(KEY_W, true)
+		var entered := false
+		var tween_seen := false
+		for i in 120:
+			await physics_frame
+			if bool(hall.call("fading")) and hall.get("_fade_tween") != null and (hall.get("_fade_tween") as Tween).is_valid():
+				tween_seen = true
+			if int(_app().call("depth")) == 3:
+				entered = true
+				break
+		_key(KEY_W, false)
+		_check(entered, "%s: walking into the arena doorway pushes the arena screen" % level)
+		_check(tween_seen == (level == "hi"), "%s: the fade %s" % [level, "is a Tween" if level == "hi" else "creates no Tween (a cut)"])
+		if int(_app().call("depth")) == 3:
+			await _frames(6)
+			_app().call("pop")
+			await _frames_until(func() -> bool: return not bool(hall.call("fading")), 90)
+		_check(_app().call("current") == hall and av.global_position.distance_to(HallLayout.ARENA_RETURN) < 0.01, "%s: back at the return spot" % level)
+	_app().call("set_gfx", "mid")
+	hall.call("refresh")
+	await _check_door_view(hall)
+
+
+## The door view (ARENA_SPEC §11.2): the avatar on the arena door's ring, camera yaw pi, pitch -0.3, arm 6.5; desktop
+## (1280x720, touch off) and the phone layout (1600x720, touch on, hint showing) within the deck targets on all four
+## levels. hall_arena_door.png (mid) and hall_arena_door_min.png are taken from the return spot looking at the door.
+func _check_door_view(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var rig: Node3D = world.get("camera_rig")
+	var hint := hall.get_node("%Hint") as CanvasItem
+	var hint_visible := hint.visible
+	var hint_modulate := hint.modulate
+	var size0 := root.size
+	for layout in ["desktop", "phone"]:
+		var phone: bool = layout == "phone"
+		_app().call("set_touch", "on" if phone else "off")
+		await _resize(Vector2i(1600, 720) if phone else Vector2i(1280, 720))
+		for level in LEVELS:
+			_app().call("set_gfx", level)
+			hall.call("refresh")
+			hint.visible = phone
+			hint.modulate = Color.WHITE
+			world.call("place_avatar", _front("arena"), PI)
+			rig.call("set_view", PI, -0.3, 6.5)
+			var idle := OS.low_processor_usage_mode
+			OS.low_processor_usage_mode = false
+			await _physics(4)
+			await _frames(4)
+			var draws := 0
+			var prims := 0
+			for i in 4:
+				await process_frame
+				draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+				prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+			OS.low_processor_usage_mode = idle
+			print("hall arena door view %-7s %-4s draw calls %4d  primitives %7d" % [layout, level, draws, prims])
+			var t: Array = SHIP_TARGET[level]
+			_check(draws <= int(t[0]) and prims <= int(t[1]), "%s, %s: the arena door view, %d draw calls, %d primitives within the deck target %d / %d"
+				% [level, layout, draws, prims, int(t[0]), int(t[1])])
+			if not phone and (level == "mid" or level == "min"):
+				world.call("place_avatar", HallLayout.ARENA_RETURN, PI)
+				rig.call("set_view", PI, -0.2, 3.5)
+				await _physics(4)
+				await _frames(4)
+				_save("hall_arena_door%s.png" % ("" if level == "mid" else "_min"))
+	hint.visible = hint_visible
+	hint.modulate = hint_modulate
+	_app().call("set_gfx", "mid")
+	_app().call("set_touch", "off")
+	hall.call("refresh")
+	await _resize(size0)
+	world.call("place_avatar", HallLayout.SPAWN, PI)
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	await _settle()
+
+
+## Waits up to n frames for cond() to hold.
+func _frames_until(cond: Callable, n: int) -> void:
+	for i in n:
+		if cond.call():
+			return
+		await process_frame
 
 
 ## The treasure chest (SHIP_LOBBY_SPEC §5): the station for the future random rewards only says "coming soon" in Thai

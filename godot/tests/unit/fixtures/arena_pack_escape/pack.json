@@ -1,0 +1,5 @@
+{
+  "format": 1,
+  "id": "escape_pack",
+  "enemy": "../arena_pack/fake_figure.gd"
+}

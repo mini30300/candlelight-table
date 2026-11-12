@@ -52,8 +52,8 @@ func test_version_label_never_shows_thai() -> void:
 	assert_true(thai_re.search(en) == null, "English version label has no Thai: " + en)
 	var v: String = menu_script.call("version_number")
 	assert_true(thai_re.search(v) == null and v != "" and Version.APP_VER.ends_with(v), "the version number without its Thai prefix: " + v)
-	# 0.3 (SHIP_LOBBY_SPEC §10): the warship-deck lobby is a user-visible release, so APP_VER moved on purpose
-	assert_eq(v, "0.3", "this release is ใหม่ 0.3")
+	# 0.4 (ARENA_SPEC §15): the weapons arena is a user-visible release, so APP_VER moved on purpose (0.3 -> 0.4)
+	assert_eq(v, "0.4", "this release is ใหม่ 0.4")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 
