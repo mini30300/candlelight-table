@@ -2,10 +2,10 @@ extends Node
 ## รากของแอป: World (โต๊ะ 3 มิติ คงอยู่ทุกหน้า) + UI (ScreenStack ของ App) + Overlay (toast/ถาดลูกเต๋า ภายหลัง)
 ## ครั้งแรกที่เปิด (ยังไม่มี settings.cfg) เดาระดับกราฟิกจากเครื่อง: มือถือ = lo (RAM ≤ 2 GB = min), PC RAM ≤ 2 GB = min,
 ## ≤ 4 GB = lo, อื่น ๆ = mid — มือถือของเจ้าของ (Mali-G52) ได้ 21 เฟรม/วิ กับเงาเต็มจอ จึงเริ่มที่ lo
-## หน้าแรกของภาพทดลอง R0-E คือหน้าตรวจการ์ดจอ; ปุ่ม "จัดกองทัพ ›" ของหน้านั้นเปิดหน้าจัดกองทัพ (R1-V4) ซ้อนด้วย App.push
-## ปุ่มกลับของหน้าจัดกองทัพ (หรือปุ่มย้อนกลับของ Android) พากลับมาหน้าตรวจการ์ดจอ
+## หน้าแรกคือเมนูธีมเทียน (LOBBY_SPEC §1): เล่นกับบอท → ห้องโถง; หน้าตรวจการ์ดจออยู่ในหน้าตั้งค่า
+## โต๊ะตัวอย่างใน World ไม่สร้างตอนเริ่ม (auto_build = false) ซ่อนและปิดการประมวลผลไว้ จนหน้าตรวจการ์ดจอหรือการรบเรียกใช้
 
-const GPU_CHECK := preload("res://ui/screens/gpu_check.tscn")
+const MAIN_MENU := preload("res://ui/screens/main_menu.tscn")
 const ARMY := preload("res://ui/screens/army.tscn")
 const GB := 1024.0 * 1024.0 * 1024.0
 
@@ -17,7 +17,7 @@ const GB := 1024.0 * 1024.0 * 1024.0
 
 
 func _enter_tree() -> void:
-	if first_run_guess and not FileAccess.file_exists(App.SETTINGS_PATH):
+	if first_run_guess and not FileAccess.file_exists(App.settings_file):
 		App.set_gfx(guess_level())
 		App.save_settings()
 		Log.info("first run: graphics level " + App.gfx)
@@ -25,9 +25,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	App.set_screen_root(ui)
-	var first := App.push(GPU_CHECK)
-	if first.has_signal("army_requested"):
-		first.connect("army_requested", open_army)
+	App.push(MAIN_MENU)
 
 
 ## เปิดหน้าจัดกองทัพซ้อนบนหน้าปัจจุบัน คืนโหนดหน้าใหม่

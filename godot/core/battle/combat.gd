@@ -249,17 +249,26 @@ static func charge_why_not(st: BattleState, s: BattleState.Squad, t: BattleState
 static func charge_why_not_with(st: BattleState, s: BattleState.Squad, t: BattleState.Squad, engaged: int) -> Dictionary:
 	if not BtSquads.can_target(st, s, t) or t.side == s.side:
 		return _why("enemies_only", [])
-	if s.ch_done:
-		return _why("charge_done", [])
-	if s.adv and not BtAbilities.flag(s.ti, "ac") and not pain_on(st, s.ti):
-		return _why("advanced", [])
-	if s.fell and not BtAbilities.flag(s.ti, "fly") and not BtAbilities.flag(s.ti, "ttn"):
-		return _why("fell_back", [])
-	if engaged == 1 or (engaged < 0 and BtSquads.is_engaged(st, s)):
-		return _why("engaged", [])
+	var own := charge_gate(st, s, engaged)
+	if own != "":
+		return _why(own, [])
 	if not BtSquads.edge_within(s, t, _lim("CHARGE_R", 12)):
 		return _why("too_far", [BtSquads.edge(s, t)])
 	return _why("", [])
+
+
+## ส่วนของ charge_why_not ที่ขึ้นกับหมู่ s อย่างเดียว (ยังไม่เลือกเป้า): charge_done, advanced, fell_back, engaged หรือ ""
+## วิ่งมาแล้วบุกได้ถ้ามี ac หรือ pain_on · ถอยมาแล้วบุกได้ถ้าบินหรือไททัน (UI ใช้ตัวนี้ ไม่คิดกติกาเอง)
+static func charge_gate(st: BattleState, s: BattleState.Squad, engaged: int = -1) -> String:
+	if s.ch_done:
+		return "charge_done"
+	if s.adv and not BtAbilities.flag(s.ti, "ac") and not pain_on(st, s.ti):
+		return "advanced"
+	if s.fell and not BtAbilities.flag(s.ti, "fly") and not BtAbilities.flag(s.ti, "ttn"):
+		return "fell_back"
+	if engaged == 1 or (engaged < 0 and BtSquads.is_engaged(st, s)):
+		return "engaged"
+	return ""
 
 
 ## ปาระเบิดมือได้ไหม (grenWhyNot): not_infantry, already_shot, moved_fast, engaged, enemies_only, too_far

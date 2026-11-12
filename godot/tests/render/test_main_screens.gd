@@ -1,8 +1,12 @@
 extends SceneTree
-## Opens scenes/main.tscn (the look build: table + the GPU-check screen), saves tests/out/main_th.png, switches the
-## screen to English and saves main_en.png. Asserts: 400 figures with 400 team rings, the images are not black, the
-## Thai screen shows Thai, and no Label/Button/OptionButton item/LineEdit placeholder shows Thai in English mode (the
-## language button's "ไทย" label is the one deliberate exception, as on the old page). Run like tests/render_probe.gd:
+## Opens scenes/main.tscn. Since LOBBY_SPEC (12 Nov) the first screen is the main menu and the demo table is built
+## lazily (hidden, processing off) — before, the GPU check was the first screen and the table built at startup; these
+## expectations changed on purpose. The menu must pass the Thai / English scan; then Settings → GPU check builds and
+## shows the demo table (the figure style pinned to kit, as before) and every earlier check runs there: saves
+## tests/out/main_th.png, switches the screen to English and saves main_en.png. Asserts: 400 figures with 400 team rings,
+## the images are not black, the Thai screen shows Thai, and no Label/Button/OptionButton item/LineEdit placeholder
+## shows Thai in English mode (the language button's "ไทย" label is the one deliberate exception, as on the old page).
+## Leaving the GPU check hides the table and disables it again. Run like tests/render_probe.gd:
 ##   timeout 300 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_main_screens.gd
 ## TEST_OUT (an absolute folder) in the environment replaces tests/out. Exit code 1 on any failure.
@@ -10,11 +14,13 @@ extends SceneTree
 const SCENE := "res://scenes/main.tscn"
 const DEFAULT_OUT_DIR := "res://tests/out"
 const FRAMES := 4
+const SETTINGS_FILE := "user://test_main_screens.cfg"
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
-var _frame := 0
-var _english_done := false
+var _started := false
+var _done := false
+var _fig_was := "egg"
 var _passed := 0
 var _failed := 0
 var _thai_re := RegEx.create_from_string("[฀-๿]")
@@ -33,52 +39,106 @@ func _initialize() -> void:
 	_main.set("first_run_guess", false)   # never write this machine's settings.cfg from a test
 	var app := root.get_node_or_null(^"App")
 	if app != null:
+		app.set("settings_file", SETTINGS_FILE)   # the language switch below saves: into the test file
+		_fig_was = str(app.get("fig"))
+		app.call("set_fig", "kit")   # the demo table below is the kit look (LOBBY_SPEC §7.2), restored at the end
 		app.call("set_lang", "th")
 	root.add_child(_main)
 	print("adapter: " + RenderingServer.get_video_adapter_name() + " (" + RenderingServer.get_video_adapter_api_version() + ")")
 
 
 func _process(_delta: float) -> bool:
-	_frame += 1
-	if _frame <= FRAMES:
-		return false
+	if not _started:
+		_started = true
+		_run()
+	return _done
+
+
+func _run() -> void:
+	await _frames(FRAMES)
+	var menu: Node = _screen()
+	_check(menu != null and menu.has_method("handle_back") and menu.get_node_or_null("%PlayButton") != null,
+		"main.tscn opens the main menu first (the GPU check moved to Settings)")
+	if menu == null or menu.get_node_or_null("%PlayButton") == null:
+		_end(false)
+		return
+	var table0 := _main.get_node_or_null(^"World/BattleTable") as Node3D
+	_check(table0 != null and not bool(table0.get("built")) and int(table0.call("counts")["figures"]) == 0,
+		"the demo table is not built at startup (built lazily)")
+	_check(table0 != null and not table0.visible and table0.process_mode == Node.PROCESS_MODE_DISABLED,
+		"the demo table is hidden and its processing disabled under the menu")
+	_check(_thai_re.search(str(menu.get_node("%Title").get("text"))) != null, "menu, Thai mode: the title is Thai")
+	_check(_thai_in(menu, []).size() > 0, "menu, Thai mode: Thai text on screen")
+	_check(str(menu.get_node("%LangButton").get("text")) == "ENGLISH", "menu, Thai mode: the language button says ENGLISH")
+	menu.call("set_language", true, false)
+	_check(str(menu.get_node("%Title").get("text")) == "Candlelight Table", "menu, English mode: the title is translated")
+	var menu_left := _thai_in(menu, ["LangButton"])
+	_check(menu_left.is_empty(), "menu, English mode: no Thai left on screen", str(menu_left))
+	menu.call("set_language", false, false)
+	menu.get_node("%SettingsButton").pressed.emit()
+	await _frames(2)
+	var settings: Node = _screen()
+	_check(settings != null and settings.get_node_or_null("%GpuCheckButton") != null, "the menu's settings button opens Settings")
+	if settings == null or settings.get_node_or_null("%GpuCheckButton") == null:
+		_end(false)
+		return
+	settings.get_node("%GpuCheckButton").pressed.emit()
+	await _frames(FRAMES)
 	var screen: Node = _screen()
-	if screen == null:
-		print("FAIL  no GPU-check screen on the stack")
-		quit(1)
-		return true
-	if not _english_done:
-		var table := _main.get_node_or_null(^"World/BattleTable")
-		_check(table != null, "main.tscn holds the battle table under World")
-		if table != null:
-			var c: Dictionary = table.call("counts")
-			print("scene: " + str(c))
-			_check(int(c["figures"]) == 400, "400 figures (%d)" % int(c["figures"]))
-			_check(int(c["rings"]) == 400, "400 team rings (%d)" % int(c["rings"]))
-			# the props come from the rules field of the default setup (core/field), every one of them drawn
-			_check(int(c["props"]) == int(c["field_props"]) and int(c["props"]) > 0,
-				"every prop of the rules field is drawn (%d of %d)" % [int(c["props"]), int(c["field_props"])])
-		_check(_thai_re.search(str(screen.get_node("%Title").get("text"))) != null, "Thai mode: the title is Thai")
-		_check(_thai_in(screen, []).size() > 0, "Thai mode: Thai text on screen")
-		var en_names := str(screen.get_node("%LangButton").get("text"))
-		_check(en_names == "ENGLISH", "Thai mode: the language button says ENGLISH")
-		if not _save("main_th.png"):
-			return true
-		screen.call("set_language", true)
-		_english_done = true
-		_frame = 0
-		return false
+	if screen == null or not screen.has_signal("army_requested"):
+		print("FAIL  Settings → GPU check did not open the GPU-check screen")
+		_end(false)
+		return
+	var table := _main.get_node_or_null(^"World/BattleTable")
+	_check(table != null, "main.tscn holds the battle table under World")
+	if table != null:
+		_check((table as Node3D).visible and table.process_mode == Node.PROCESS_MODE_INHERIT,
+			"the GPU check shows the table and turns its processing on")
+		_check(bool(table.get("camera_rig").get("camera").get("current")), "the GPU check makes the table camera current")
+		var c: Dictionary = table.call("counts")
+		print("scene: " + str(c))
+		_check(int(c["figures"]) == 400, "400 figures (%d)" % int(c["figures"]))
+		_check(int(c["rings"]) == 400, "400 team rings (%d)" % int(c["rings"]))
+		# the props come from the rules field of the default setup (core/field), every one of them drawn
+		_check(int(c["props"]) == int(c["field_props"]) and int(c["props"]) > 0,
+			"every prop of the rules field is drawn (%d of %d)" % [int(c["props"]), int(c["field_props"])])
+	_check(_thai_re.search(str(screen.get_node("%Title").get("text"))) != null, "Thai mode: the title is Thai")
+	_check(_thai_in(screen, []).size() > 0, "Thai mode: Thai text on screen")
+	var en_names := str(screen.get_node("%LangButton").get("text"))
+	_check(en_names == "ENGLISH", "Thai mode: the language button says ENGLISH")
+	if not _save("main_th.png"):
+		_end(false)
+		return
+	screen.call("set_language", true)
+	await _frames(FRAMES)
 	_check(str(screen.get_node("%Title").get("text")) == "GPU check", "English mode: the title is translated")
 	var left := _thai_in(screen, ["LangButton"])
 	_check(left.is_empty(), "English mode: no Thai left on screen", str(left))
 	var ok := _save("main_en.png")
 	_check_table_api(_main.get_node_or_null(^"World/BattleTable"))
+	screen.get_node("%BackButton").pressed.emit()
+	await _frames(2)
+	var t := _main.get_node_or_null(^"World/BattleTable") as Node3D
+	_check(_screen() == settings, "the GPU check's back button returns to Settings")
+	_check(t != null and not t.visible and t.process_mode == Node.PROCESS_MODE_DISABLED, "leaving the GPU check hides the table and disables it again")
+	_end(ok)
+
+
+func _end(ok: bool) -> void:
 	var app := root.get_node_or_null(^"App")
 	if app != null:
 		app.call("set_lang", "th")
-	print("%s  %d passed, %d failed" % ["PASS " if _failed == 0 else "FAIL ", _passed, _failed])
+		app.call("set_fig", _fig_was)
+		app.set("settings_file", str(app.get("SETTINGS_PATH")))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_FILE))
+	print("%s  %d passed, %d failed" % ["PASS " if _failed == 0 and ok else "FAIL ", _passed, _failed])
+	_done = true
 	quit(0 if ok and _failed == 0 else 1)
-	return true
+
+
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
 
 
 ## The table's non-visual API the GPU-check screen and later tracks rely on: the stress toggle, the selection
@@ -175,7 +235,6 @@ func _save(name: String) -> bool:
 	var err := img.save_png(path)
 	if err != OK:
 		print("FAIL  could not save " + path + ": " + error_string(err))
-		quit(1)
 		return false
 	print("ok    saved " + ProjectSettings.globalize_path(path) + " " + str(img.get_size()))
 	_check(_mean_luma(img) > 0.04, name + " is not black")

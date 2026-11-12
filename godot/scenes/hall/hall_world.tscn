@@ -1,0 +1,68 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/hall/hall_world.gd" id="1_world"]
+[ext_resource type="Script" path="res://scenes/hall/hall_avatar.gd" id="2_avatar"]
+[ext_resource type="Script" path="res://scenes/hall/hall_camera.gd" id="3_camera"]
+[ext_resource type="Script" path="res://table/rings.gd" id="4_rings"]
+
+[sub_resource type="CapsuleShape3D" id="Capsule_avatar"]
+radius = 0.35
+height = 1.75
+
+[sub_resource type="SphereShape3D" id="Sphere_arm"]
+radius = 0.3
+
+[node name="HallWorld" type="Node3D"]
+script = ExtResource("1_world")
+
+[node name="Static" type="Node3D" parent="."]
+
+[node name="Flames" type="MultiMeshInstance3D" parent="."]
+
+[node name="Blockers" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="PropBlockers" type="StaticBody3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="Signs" type="Node3D" parent="."]
+
+[node name="Rings" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("4_rings")
+
+[node name="Avatar" type="CharacterBody3D" parent="."]
+collision_layer = 2
+motion_mode = 1
+script = ExtResource("2_avatar")
+
+[node name="Shape" type="CollisionShape3D" parent="Avatar"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.875, 0)
+shape = SubResource("Capsule_avatar")
+
+[node name="Egg" type="MeshInstance3D" parent="Avatar"]
+cast_shadow = 0
+
+[node name="NameLabel" type="Label3D" parent="Avatar"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 0)
+cast_shadow = 0
+pixel_size = 0.004
+billboard = 1
+double_sided = false
+modulate = Color(1, 0.92, 0.76, 1)
+outline_modulate = Color(0.12, 0.06, 0.02, 1)
+font_size = 56
+outline_size = 14
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("3_camera")
+
+[node name="Arm" type="SpringArm3D" parent="CameraRig"]
+shape = SubResource("Sphere_arm")
+spring_length = 6.5
+margin = 0.1
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Arm"]
+fov = 60.0
+near = 0.1
+far = 90.0

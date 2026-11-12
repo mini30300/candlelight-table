@@ -1,6 +1,7 @@
-# Where the game work stopped (9 Oct 2569)
+# Where the game work stands (12 Nov 2569)
 
-The owner paused the game on 9 Oct to work on another project. Everything below is what a later session needs to pick up.
+The owner paused the game on 9 Oct to work on another project and resumed it on 12 Nov with the front page and the
+walkable lobby (below). Everything here is what a later session needs to pick up.
 
 ## On this branch (claude/new-session-fsucoo, draft PR #27), CI green
 - R0 complete. R1 so far: `godot/docs/R1_PORT_SPEC.md` (the contract, waves 0–6, lead decisions at the end of §9),
@@ -9,8 +10,9 @@ The owner paused the game on 9 Oct to work on another project. Everything below 
   verdict before the full set), army picker (V4), 79 baked animation clips (V2). 2,097 unit checks, render suites,
   exported-game self-test (`windows-smoke`, also reproducible locally with a `--export-pack` + linux template).
 
-## Done but not yet on this branch
-- **Rule-1 fix of the old page (battle table 9.5)**: commit `ec4608f` on local branch `rule1-port`
+## Done but not yet on this branch (cancelled by the owner on 12 Nov)
+- **Rule-1 fix of the old page (battle table 9.5)** — the owner cancelled this item on 12 Nov; do not redo it unless he
+  asks again. The record below is kept for history only: commit `ec4608f` on local branch `rule1-port`
   (worktree `.claude/worktrees/wf_563738c7-976-26`; same change as `cda0135`). Redesigns the confirmed marks:
   the secret giant mech's V antenna and V skirt mark, knb1's red saltire, the medic's red cross (now a white cross on
   green), the doom glyph; comments only for code-text names. The independent check step never ran (session limit):
@@ -44,14 +46,97 @@ answers 200 again, so the clients' address is right and nothing in this repo nee
 `boat-booking.mini3030023450.workers.dev`. (Players whose DNS cached the failure may need `ipconfig /flushdns` or ~30 min.)
 
 ## 9 Nov: the rule-1 fix above is lost
-Its commits (`ec4608f`, `cda0135`) were never pushed and the container was replaced; they no longer exist. Redo the
-change from the description above.
+Its commits (`ec4608f`, `cda0135`) were never pushed and the container was replaced; they no longer exist. On 12 Nov
+the owner cancelled the item, so it is not redone.
+
+## 12 Nov: front page, walkable lobby and games against bots (`docs/LOBBY_SPEC.md`), APP_VER ใหม่ 0.2
+The owner asked for the front page and the lobby first ("a lobby you can walk around in with WASD"), egg-shaped placeholder
+figures before the real models, the old models kept, and play against bots first (online later). Three builders worked
+in parallel from LOBBY_SPEC, each on its own files (§6):
+- **menu**: the main menu is the first screen (title art drawn from shapes: table, five candles, flicker on a ≤ 6 Hz Timer on
+  hi/mid only); Settings (language, graphics level, figure style egg/kit — kit disabled without kits on disk — touch
+  controls auto/on/off, and the GPU check, which now lives here); `App.fig`, `App.touch`, `touch_active()`, `replace()`,
+  `settings_file` (tests never write the machine's settings.cfg), `back()` asks `handle_back()` first, Esc is the `back`
+  action; a physical-key `[input]` map (WASD/arrows, Shift, E, Esc — works with a Thai layout);
+  `include_text_server_data`; i18n fragments `ui/i18n/{menu,hall,battle}.json` (I18n, lint and `test_i18n_fragments`);
+  `CandleStyle`; `run.sh` and CI run every `tests/render/test_*.gd` and a headless `tests/flow/` stage.
+  `main.tscn`'s demo table no longer builds at startup (hidden, processing off until the GPU check or a battle needs
+  it), so `test_main_screens` and `test_army_screen` now walk menu → Settings → GPU check (an intended change; no check
+  was dropped).
+- **lobby**: the hall (`scenes/hall/`, `ui/screens/hall_screen.tscn`, `ui/widgets/touch_stick.gd`) — §2.
+- **battle**: egg figures (`table/figures/egg_shapes.gd`, FigurePool/TableView switch), setup, `MatchRunner`, battle
+  screen and end panel (`ui/battle/`, `ui/screens/battle_setup.tscn`, `battle_screen.tscn`) — §3–4.
+Full run (`run.sh full`, 12 Nov 12:13, all three tracks in): 4,557 unit checks, oracle 155, the flow test 25 (menu → hall →
+W to the war table → E → setup → bot game to the end panel → back → Esc), render probe and 9 render suites, data lint — all pass.
+Out of scope this round (§8): online rooms, the adventure table, real models, figure animation, a 3D dice tray, sound,
+deploy by hand, custom lists for the human seat, saving a game.
+
+**Integration (12 Nov, after the three tracks).** The whole flow was walked end to end and wired: boot → main menu →
+เล่นกับบอท → hall → walk to the war table → E (or the big use button on a phone) → setup → START → a bot game with egg
+figures and team rings (or with you in one seat; "ให้บอทเล่นแทน" can always finish it) → end panel → กลับล็อบบี้ → hall →
+Esc → main menu. Settings changes (language, graphics level, eggs / old models, touch controls) reach every screen when it
+shows again. Fixes made while integrating:
+- the hall spawn moved from z 6 to z 5: at z 6 the front wall pushed the camera arm down to about 1.5 m and the first view
+  of the lobby was a giant see-through egg (`HallLayout.SPAWN`; `test_hall_layout` now expects 3.4 m to the war table's
+  trigger and still checks ≥ 3 m; LOBBY_SPEC §2.1 updated);
+- the battle log cut long attack lines (many dice) mid-number at the panel edge; they now end in "…"
+  (`battle_screen.gd`; checked in `test_battle_screen`);
+- the setup screen's "สุ่มใหม่" button text touched its border (min width 120).
+- New `tests/flow/test_settings_flow.gd` (30 checks): Settings from the hall → English, lo, touch on, old models → the
+  hall's signs, prompt, stick and level, setup, the battle's figure style and level, the end panel, then back to Thai /
+  mid / eggs, every change saved to a test settings file.
+Final full run after integration (`run.sh full`, 12 Nov 12:36–12:39 Bangkok, exit 0): unit 4,558 checks in 51 scripts,
+flow `test_lobby_flow` 25 (W reaches the war table in 1.3 s, 3.6 m) and `test_settings_flow` 30, oracle 155, render probe,
+render suites anim_footslide 54, army_screen 62, battle_screen 106, budgets 112, field_look 213, hall 147, lineup 29,
+main_screens 40, menu_screens 118; data lint PASS. Owner media (stills and an 8 s walk clip) are in the session
+scratchpad `godot-lobby/media/`, not in the repo.
+
+**Review fixes (12 Nov, before the commit).** A three-lens review (correctness, rules, mobile/perf) found these; all
+fixed with a test each:
+- *Charge gate (must fix)*: the human seat could not charge with `ac` units after advancing, dark elves after advancing
+  from round 3, or flyers/titans after falling back, although the core allows it (and the bot did it). The UI now asks
+  the core: new `BtCombat.charge_gate(st, s)` (the target-free part of `charge_why_not_with`, which now calls it; same
+  results, so RULES_V stays 10), `MatchRunner.can_select` and `select_why` use it, and a refused tap shows the core's
+  reason. `test_match_runner` charges with all three after advancing / falling back.
+- *Hall camera*: a pillar, stand or shelf between the camera and the avatar snapped the arm up to 6.4 m in one frame
+  (walks to the lectern and the army display). Props moved to their own physics layer (`PropBlockers`, value 4; the
+  avatar still collides) and the spring arm sees walls and ceiling only; `HallLayout.camera_clear` pulls the camera only
+  when its point would be inside a prop (to the nearer side), the arm extends back at most 4 m/s and never through a
+  prop, and the camera point is re-checked after the pivot moves in `_process`. `test_hall` walks spawn → lectern,
+  spawn → army display and past two pillars (arm change ≤ 0.5 m a frame, measured 0.07 m; camera never in a blocker);
+  `test_hall_layout` covers the ray math (400 random rays).
+- *Held keys*: leaving a battle while holding W made the next battle's camera pan by itself. `CameraRig` now forgets
+  keys, fingers and drags on `NOTIFICATION_DISABLED` (`reset_input`) and gives up the current camera; the main menu also
+  drops any 3D camera, so nothing 3D draws behind it. `test_lobby_flow` (33 checks) holds W while leaving, plays a
+  second game and checks its camera does not drift; the flow tests now send `keycode` and `physical_keycode`.
+- *Setup*: the army dropdown's popup rows were 31.5 px; `CandleStyle.popup` gives the candle theme and 48 px rows
+  (scrolls when longer than the screen), checked in `test_battle_screen`. The setup screen now reopens with the last
+  game's choices (`App.last_choice`, memory only, new seed).
+- *Stuck game*: the toast said "press back to lobby" with no button on screen; a stuck game now shows the end panel with
+  a stuck title and กลับล็อบบี้.
+- *i18n*: the lint counted every `ui/i18n/*.json` while `I18n` loads only `FRAGMENTS`; the lint now reads `FRAGMENTS`
+  from `ui/i18n.gd`, fails on an unlisted or missing fragment, and requires every Thai literal under `ui/` and `app/` to
+  be a whole key (`I18n.t` matches whole strings only); new fixtures `fail_i18n_fragment` and `fail_i18n_joined`;
+  `test_i18n_fragments` checks the folder holds exactly `FRAGMENTS`; ARCHITECTURE §8 and §13.4 corrected.
+- *Small*: with touch controls the battle log uses 18 px text in 6 lines (was 15 px, 8 lines); `test_table_style`
+  covers "saved kit style with no kits on disk falls back to eggs"; LOBBY_SPEC is committed with session paths replaced
+  by `<scratchpad>`.
+- Left for the owner: the stick and use-button positions on the phone (spec §2.5 puts the use button at bottom centre;
+  a floating stick or a bottom-right button needs his choice).
+Full run after the review fixes (`run.sh full`, 12 Nov 13:56–14:00 Bangkok, exit 0): unit 4,592 checks in 52 scripts,
+flow `test_lobby_flow` 33 and `test_settings_flow` 30, oracle 155, render probe, render suites anim_footslide 54,
+army_screen 62, battle_screen 120, budgets 112, field_look 213, hall 155, lineup 29, main_screens 40, menu_screens 118;
+data lint PASS (15 fixture checks).
 
 ## Next steps, in order
-1. Redo, review and land the rule-1 fix (above) with its server PR.
-2. Wave 6: `docs/GODOT.md` (code map, invariants, §7 list), reviewed allowlist, v10 gate memo; then the UI on top of Battle.
+1. Owner feedback on ใหม่ 0.2 (the lobby on his phone, one bot game, eggs vs old models), then online rooms (R3: the room
+   screen is `ui/screens/lobby.tscn`, distinct from the walkable hall) and the human turn UI polish (a custom army list
+   for the human seat, deploy by hand, healing and grenades by tap, flyers lifted by `fly.json`).
+2. Wave 6: reviewed allowlist, v10 gate memo (`docs/GODOT.md` now maps the lobby files; keep it current).
 3. R1-V3: play the baked clips on the figures (AnimationTree), ruin full set after the owner approves the sample.
-4. Owner gates: R0-H (APK GPU-check screenshot), ruin sample verdict, R7 collection design week.
+4. Owner gates: R0-H (APK GPU-check screenshot, now under Settings), ruin sample verdict, R7 collection design week.
+
+(The rule-1 redesign of the old page, formerly step 1, was cancelled by the owner on 12 Nov.)
 
 ## Budget rule agreed with the owner (8 Oct)
 Run one workflow at a time (parallel runs hit the 5-hour limit and lose half-finished agents); Opus for builders.

@@ -16,6 +16,8 @@ const MATERIAL_PATH := "res://assets/shaders/figure_material.tres"
 const NO_PAINT := Color(-1.0, 0.0, 0.0, 0.0)   # INSTANCE_CUSTOM.x < 0 = สีชุดตามเดิม
 const STRESS_RIGID := 400
 const STRESS_SKINNED := 100
+## รูปฟิกเกอร์: egg = ตัวไข่ (EggShapes, ระหว่างรอโมเดลจริง) · kit = ชุดโมเดลเดิม (LOBBY_SPEC §4.1)
+const STYLES := ["egg", "kit"]
 const LOD_MERGE_ANGLE := 60.0
 const LOD_SPLIT_ANGLE := 25.0
 const CUSTOM_FORMAT_MASK: int = (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) \
@@ -46,6 +48,7 @@ class KitData:
 
 var level := "mid"
 var figures: Array[Figure] = []
+var style := "kit"
 
 var _kits: Dictionary = {}          # ชื่อ → KitData (null เมื่อโหลดไม่ได้)
 var _near: Array[Node3D] = []
@@ -89,6 +92,9 @@ func set_figures(list: Array[Figure]) -> void:
 func build(l: String, camera_pos: Vector3) -> void:
 	level = l if SKINNED_CAP.has(l) else "mid"
 	_clear_nodes()
+	if style == "egg":
+		_build_eggs()
+		return
 	var cap: int = SKINNED_CAP[level]
 	var lod_index: int = RIGID_LOD[level]
 	var order: Array[int] = []
@@ -155,6 +161,10 @@ func set_stress(on: bool, camera_pos: Vector3, half_w: float = 23.0, half_d: flo
 	_stress_on = on
 	figures.resize(_base_count)
 	if on:
+		if style == "egg":
+			_add_stress_eggs(half_w, half_d)
+			build(level, camera_pos)
+			return
 		var skinned_kits: Array[String] = []
 		var all_kits: Array[String] = []
 		for name in _kits:
@@ -205,7 +215,75 @@ func set_lighting(sun_dir: Vector3, sun_colour: Color, ambient: Color) -> void:
 ## ตัวเลขสำหรับหน้าตรวจการ์ดจอและเทสงบ
 func counts() -> Dictionary:
 	return {"figures": figures.size(), "skinned": _skinned_count, "rigid": figures.size() - _skinned_count,
-		"kits": _mmis.size(), "tris": _tris}
+		"kits": _mmis.size(), "tris": _tris, "style": style}
+
+
+# ---- ตัวไข่ (LOBBY_SPEC §4.1) ----
+
+## เลือกรูปฟิกเกอร์ egg/kit (ค่าอื่นไม่รับ); ผู้เรียก build ใหม่เอง
+func set_style(s: String) -> void:
+	if STYLES.has(s):
+		style = s
+
+
+## ชั้นตัวไข่: MultiMesh หนึ่งชิ้นต่อชั้นขนาด (ไม่เกิน 7 = draw call) วัสดุร่วมเดียวกับชุดโมเดล ไม่มี skinned
+## instance หันตาม yaw ขยายเท่ากันทุกแกนด้วยรัศมีฐาน (เมชเป็นหน่วย R) · สีขาว (CONTRACT §3) custom = ไม่ทาสี
+func _build_eggs() -> void:
+	# โหนดเก่าที่รอลบ (สร้างใหม่ในเฟรมเดียวกัน) เอาออกก่อน ชื่อ Egg_<ชั้น> จะไม่ชนกัน
+	for n in get_children():
+		if n.is_queued_for_deletion():
+			remove_child(n)
+	var simple := level == "lo" or level == "min"
+	var groups: Dictionary = {}    # ชั้น → Array[Figure]
+	for f in figures:
+		f.skinned = false
+		var cls := EggShapes.class_of(f.kit)
+		if not groups.has(cls):
+			groups[cls] = []
+		(groups[cls] as Array).append(f)
+	_skinned_count = 0
+	_tris = 0
+	for cls in EggShapes.CLASSES:
+		if not groups.has(cls):
+			continue
+		var list: Array = groups[cls]
+		var mesh := EggShapes.mesh(cls, simple)
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Egg_" + cls
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = mesh
+		mm.instance_count = list.size()
+		for j in list.size():
+			var f: Figure = list[j]
+			mm.set_instance_transform(j, Transform3D(Basis(Vector3.UP, f.yaw).scaled(Vector3.ONE * f.radius), f.pos))
+			mm.set_instance_color(j, Color.WHITE)
+			mm.set_instance_custom_data(j, NO_PAINT)
+		mmi.multimesh = mm
+		mmi.material_override = _figure_material()
+		add_child(mmi)
+		_mmis["egg_" + cls] = mmi
+		_tris += list.size() * EggShapes.tris(mesh)
+
+
+## ทดสอบหนักแบบตัวไข่: เพิ่ม STRESS_RIGID + STRESS_SKINNED ตัว (ไม่มี skinned ในโหมดนี้) จากชนิดที่ไม่ลับ
+func _add_stress_eggs(half_w: float, half_d: float) -> void:
+	var keys: Array[String] = []
+	for t in GameData.types():
+		var k := str(t.get("k", ""))
+		if k != "" and not GameData.is_hidden(k):
+			keys.append(k)
+	if keys.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	for i in STRESS_RIGID + STRESS_SKINNED:
+		var k := keys[i % keys.size()]
+		var f := make(k, i % 8, Vector3(rng.randf_range(-half_w, half_w), 0.0, rng.randf_range(-half_d, half_d)), rng.randf() * TAU, EggShapes.base_r(k))
+		f.stress = true
+		figures.append(f)
 
 
 # ---- ที่เดียวของวัสดุ ----

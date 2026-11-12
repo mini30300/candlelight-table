@@ -1,0 +1,215 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/settings.gd" id="1_set"]
+
+[node name="Settings" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_set")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.055, 0.039, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="Column" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="TopBar" type="HBoxContainer" parent="Margin/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="BackButton" type="Button" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 56)
+layout_mode = 2
+text = "‹ กลับ"
+
+[node name="Title" type="Label" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ตั้งค่า"
+vertical_alignment = 1
+
+[node name="GpuCheckButton" type="Button" parent="Margin/Column/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+text = "ตรวจการ์ดจอ ›"
+
+[node name="Panel" type="PanelContainer" parent="Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Grid" type="GridContainer" parent="Margin/Column/Panel"]
+layout_mode = 2
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 22
+columns = 2
+
+[node name="LangLabel" type="Label" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_vertical = 0
+text = "ภาษา"
+vertical_alignment = 1
+
+[node name="LangCell" type="HBoxContainer" parent="Margin/Column/Panel/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="LangButton" type="Button" parent="Margin/Column/Panel/Grid/LangCell"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 56)
+layout_mode = 2
+text = "ENGLISH"
+
+[node name="GfxLabel" type="Label" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_vertical = 0
+text = "ระดับกราฟิก"
+vertical_alignment = 1
+
+[node name="GfxBox" type="HBoxContainer" parent="Margin/Column/Panel/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="GfxHi" type="Button" parent="Margin/Column/Panel/Grid/GfxBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 56)
+layout_mode = 2
+toggle_mode = true
+text = "สูง"
+
+[node name="GfxMid" type="Button" parent="Margin/Column/Panel/Grid/GfxBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 56)
+layout_mode = 2
+toggle_mode = true
+text = "กลาง"
+
+[node name="GfxLo" type="Button" parent="Margin/Column/Panel/Grid/GfxBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 56)
+layout_mode = 2
+toggle_mode = true
+text = "ต่ำ"
+
+[node name="GfxMin" type="Button" parent="Margin/Column/Panel/Grid/GfxBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 56)
+layout_mode = 2
+toggle_mode = true
+text = "ต่ำสุด (มือถืออ่อน)"
+
+[node name="FigLabel" type="Label" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_vertical = 0
+text = "รูปตัวละคร"
+vertical_alignment = 1
+
+[node name="FigCell" type="VBoxContainer" parent="Margin/Column/Panel/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="FigBox" type="HBoxContainer" parent="Margin/Column/Panel/Grid/FigCell"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="FigEgg" type="Button" parent="Margin/Column/Panel/Grid/FigCell/FigBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 56)
+layout_mode = 2
+toggle_mode = true
+text = "ตัวไข่ (ชั่วคราว)"
+
+[node name="FigKit" type="Button" parent="Margin/Column/Panel/Grid/FigCell/FigBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 56)
+layout_mode = 2
+toggle_mode = true
+text = "โมเดลชุดเดิม"
+
+[node name="FigNote" type="Label" parent="Margin/Column/Panel/Grid/FigCell"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "โมเดลชุดเดิมยังอยู่ครบ สลับกลับได้ทุกเมื่อ"
+autowrap_mode = 3
+
+[node name="TouchLabel" type="Label" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_vertical = 0
+text = "ปุ่มบนจอ"
+vertical_alignment = 1
+
+[node name="TouchCell" type="VBoxContainer" parent="Margin/Column/Panel/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TouchBox" type="HBoxContainer" parent="Margin/Column/Panel/Grid/TouchCell"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TouchAuto" type="Button" parent="Margin/Column/Panel/Grid/TouchCell/TouchBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 56)
+layout_mode = 2
+toggle_mode = true
+text = "อัตโนมัติ"
+
+[node name="TouchOn" type="Button" parent="Margin/Column/Panel/Grid/TouchCell/TouchBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 56)
+layout_mode = 2
+toggle_mode = true
+text = "เปิด"
+
+[node name="TouchOff" type="Button" parent="Margin/Column/Panel/Grid/TouchCell/TouchBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 56)
+layout_mode = 2
+toggle_mode = true
+text = "ปิด"
+
+[node name="TouchNote" type="Label" parent="Margin/Column/Panel/Grid/TouchCell"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "อัตโนมัติ: เปิดบนมือถือ ปิดบนคอมพิวเตอร์"
+autowrap_mode = 3

@@ -1,0 +1,233 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://ui/widgets/title_art.gd" id="2_art"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Art" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_art")
+
+[node name="Margin" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="Row" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 24
+
+[node name="Left" type="VBoxContainer" parent="Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="TopSpace" type="Control" parent="Margin/Row/Left"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Margin/Row/Left"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "โต๊ะเทียน"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Margin/Row/Left"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "โต๊ะรบกับเพื่อน บอท หรือ Claude"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Right" type="VBoxContainer" parent="Margin/Row"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="SpaceTop" type="Control" parent="Margin/Row/Right"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Buttons" type="VBoxContainer" parent="Margin/Row/Right"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="PlayButton" type="Button" parent="Margin/Row/Right/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+text = "เล่นกับบอท"
+
+[node name="OnlineButton" type="Button" parent="Margin/Row/Right/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "ออนไลน์"
+
+[node name="OnlineBadge" type="Label" parent="Margin/Row/Right/Buttons/OnlineButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -138.0
+offset_top = -15.0
+offset_right = -14.0
+offset_bottom = 15.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+text = "เร็วๆ นี้"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SettingsButton" type="Button" parent="Margin/Row/Right/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "ตั้งค่า"
+
+[node name="LangButton" type="Button" parent="Margin/Row/Right/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "ENGLISH"
+
+[node name="QuitButton" type="Button" parent="Margin/Row/Right/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "ออก"
+
+[node name="SpaceBottom" type="Control" parent="Margin/Row/Right"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="VersionLabel" type="Label" parent="Margin/Row/Right"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "แอปใหม่ รุ่น {v}"
+horizontal_alignment = 2
+
+[node name="Toast" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -120.0
+offset_right = 260.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="ToastText" type="Label" parent="Toast"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ออนไลน์กับเพื่อน เร็วๆ นี้"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="ToastTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 2.5
+one_shot = true
+
+[node name="QuitConfirm" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="QuitConfirm"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.62)
+
+[node name="Center" type="CenterContainer" parent="QuitConfirm"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="QuitPanel" type="PanelContainer" parent="QuitConfirm/Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="QuitConfirm/Center/QuitPanel"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="QuitText" type="Label" parent="QuitConfirm/Center/QuitPanel/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ออกจากเกม?"
+horizontal_alignment = 1
+
+[node name="QuitRow" type="HBoxContainer" parent="QuitConfirm/Center/QuitPanel/Box"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="QuitYes" type="Button" parent="QuitConfirm/Center/QuitPanel/Box/QuitRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 64)
+layout_mode = 2
+text = "ออก"
+
+[node name="QuitNo" type="Button" parent="QuitConfirm/Center/QuitPanel/Box/QuitRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 64)
+layout_mode = 2
+text = "ยกเลิก"

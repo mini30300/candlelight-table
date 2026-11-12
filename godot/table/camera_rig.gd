@@ -49,6 +49,25 @@ func _ready() -> void:
 	_apply()
 
 
+## โต๊ะถูกปิด (หน้าอื่นทับ ออกจากการรบ): ปุ่ม/นิ้ว/เมาส์ที่ปล่อยตอนนั้นจะไม่มาถึง จึงลืมไว้ก่อน และคืนกล้อง
+## (หน้าที่ใช้โต๊ะเรียก make_current เองตอนเปิด) จะได้ไม่วาดโลก 3 มิติใต้หน้าที่ไม่มีโต๊ะ
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DISABLED:
+		reset_input()
+		if camera != null and camera.current:
+			camera.clear_current(false)
+
+
+## ลืมปุ่ม WASD นิ้ว และการลากเมาส์ที่ค้างอยู่ แล้วหยุดเลื่อน (ไม่งั้นกล้องเลื่อนเองตอนโต๊ะกลับมา)
+func reset_input() -> void:
+	_keys = 0
+	_touches.clear()
+	_mouse_pan = false
+	_mouse_orbit = false
+	_press_live = false
+	set_process(false)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		_touch(event as InputEventScreenTouch)

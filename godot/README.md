@@ -10,18 +10,24 @@
 
 | ที่ | คืออะไร |
 | --- | --- |
-| `project.godot` | โปรเจกต์ Godot 4.7: เรนเดอร์ `gl_compatibility` ทั้งเดสก์ท็อปและมือถือ, 1280×720 ยืดแบบ `canvas_items`/`expand`, แนวนอน, นิ้วแตะจำลองเป็นเมาส์; autoload ตามลำดับ `App`, `I18n`, `Log`, `Clock` |
-| `app/app.gd` | `App`: ตั้งค่าของแอป (ระดับกราฟิก hi/mid/lo/min, ภาษา th/en, เสียง, URL เซิร์ฟเวอร์) ใน `user://settings.cfg` + ตัวสลับหน้าจอ (`push`/`pop`/`current`) + ปุ่มย้อนกลับ |
+| `project.godot` | โปรเจกต์ Godot 4.7: เรนเดอร์ `gl_compatibility` ทั้งเดสก์ท็อปและมือถือ, 1280×720 ยืดแบบ `canvas_items`/`expand`, แนวนอน, นิ้วแตะจำลองเป็นเมาส์; autoload ตามลำดับ `App`, `I18n`, `Log`, `Clock`; ปุ่มกด (`[input]`) ผูกกับตำแหน่งปุ่มจริง จึงใช้ได้แม้แป้นเป็นภาษาไทย: `move_forward/back/left/right` (WASD + ลูกศร), `run` (Shift), `interact` (E), `back` (Esc); `include_text_server_data` ให้ไฟล์ที่ส่งออกตัดคำไทยถูก |
+| `app/app.gd` | `App`: ตั้งค่าของแอป (ระดับกราฟิก hi/mid/lo/min, ภาษา th/en, เสียง, URL เซิร์ฟเวอร์, รูปตัวละคร `fig` egg/kit, ปุ่มบนจอ `touch` auto/on/off) ใน `user://settings.cfg` (เทสชี้ `settings_file` ไปไฟล์อื่น) + ตัวสลับหน้าจอ (`push`/`pop`/`replace`/`current`) + ปุ่มย้อนกลับ/Esc (`back()` ถาม `handle_back()` ของหน้าปัจจุบันก่อน) |
 | `app/log.gd` | `Log`: เก็บล็อก 500 บรรทัดล่าสุด (`info`/`warn`/`error`, `dump()` สำหรับปุ่มคัดลอกล็อก) |
 | `app/clock.gd` | `Clock`: นาฬิกาเดียวของตัวจับเวลาฝั่งภาพ (`now_ms()`, `frozen`, `step(ms)`; เทสหยุดเวลาแล้วเดินเองได้) |
-| `ui/i18n.gd` | `I18n`: พจนานุกรมไทย → อังกฤษ (คีย์คือข้อความไทย เหมือน `BT_I18N` ของหน้าเก่า); `I18n.english`, `I18n.t("…")`; ค้นตามลำดับ `EN` ในสคริปต์ → `ui/i18n_extra.json` → `data/i18n_en.json` |
-| `ui/i18n_extra.json` | คำอังกฤษของข้อความไทยที่มีเฉพาะในแอปใหม่ — ข้อความไทยใหม่ทุกข้อความต้องมีคู่ที่นี่ |
+| `ui/i18n.gd` | `I18n`: พจนานุกรมไทย → อังกฤษ (คีย์คือข้อความไทย เหมือน `BT_I18N` ของหน้าเก่า); `I18n.english`, `I18n.t("…")`; ค้นตามลำดับ `EN` ในสคริปต์ → `ui/i18n_extra.json` (+ ไฟล์ย่อย `ui/i18n/*.json`) → `data/i18n_en.json`; จับทั้งข้อความเท่านั้น (แปลแม่แบบก่อนแล้วค่อย `.format`) |
+| `ui/i18n_extra.json` | คำอังกฤษของข้อความไทยที่มีเฉพาะในแอปใหม่ (ชุดแรก) |
+| `ui/i18n/menu.json`, `hall.json`, `battle.json` | คำอังกฤษของหน้าแรก/ตั้งค่า, ห้องโถง และการรบ แยกไฟล์ต่องาน — ข้อความไทยใหม่ใส่ที่ไฟล์ของงานนั้น คีย์ที่มีอยู่แล้วที่ไหนก็ตามให้ใช้ซ้ำ ห้ามใส่ซ้ำ (`tests/unit/test_i18n_fragments.gd` ตรวจ) |
 | `ui/theme/default_theme.tres` | ธีมหลัก (`gui/theme/custom`): ฟอนต์ Sarabun |
+| `ui/theme/candle_style.gd` | `CandleStyle`: สีและสไตล์ธีมห้องแสงเทียน (ปุ่ม กล่อง หัวข้อ กลุ่มปุ่มเลือก ขอบจอปลอดภัย) ใช้ร่วมทุกหน้าใหม่ |
+| `ui/screens/main_menu.tscn`, `ui/widgets/title_art.gd` | หน้าแรก: ภาพหัวโต๊ะไม้กับเทียนวาดจากรูปทรงล้วน (เปลวไหวด้วย Timer เฉพาะ hi/mid), ปุ่ม เล่นกับบอท / ออนไลน์ (เร็วๆ นี้) / ตั้งค่า / ENGLISH / ออก (เฉพาะคอม), รุ่นแอป, กล่องถามก่อนออก |
+| `ui/screens/settings.tscn` | หน้าตั้งค่า: ภาษา ระดับกราฟิก รูปตัวละคร (ตัวไข่ / โมเดลชุดเดิม — ปิดเมื่อไม่มีชุดโมเดลในเครื่อง) ปุ่มบนจอ และปุ่มไปหน้าตรวจการ์ดจอ |
+| `scenes/hall/`, `ui/screens/hall_screen.tscn`, `ui/widgets/touch_stick.gd` | ห้องโถง (ในโค้ดชื่อ hall บนจอชื่อ "ล็อบบี้"): ห้องเดินได้ด้วย WASD/จอยสติ๊ก กล้องตาม สถานีโต๊ะรบ ตู้โชว์กองทัพ ตั้งค่า ออนไลน์ โต๊ะผจญภัย ประตูทางออก — แบบใน `docs/LOBBY_SPEC.md` §2 |
+| `ui/screens/battle_setup.tscn`, `ui/screens/battle_screen.tscn`, `ui/battle/`, `table/figures/egg_shapes.gd` | ตั้งเกมกับบอท การรบ (ทุกการกระทำผ่าน `Battle` ใน `core/`) และฟิกเกอร์ตัวไข่ขนาดตามชนิดหน่วย — แบบใน `docs/LOBBY_SPEC.md` §3–4 |
 | `core/` | แกนกติกา: เลขคณิตจำนวนเต็ม (`fx.gd`), ตัวสุ่ม PCG32 (`rng.gd`), แฮช (`hash.gd`), บันทึกการกระทำ (`actlog.gd`), โครง `Table` และ `version.gd` — ห้ามมีทศนิยม ตรีโกณ หรือตัวสุ่มของเอนจิน (`tests/unit/test_core_purity.gd` ตรวจ) |
 | `table/camera_rig.gd` | `CameraRig`: ลาก/สองนิ้วหมุนและซูม, ล้อเมาส์, WASD, ปรับให้พอดีโต๊ะ (กล้องร่วมของทั้งสองโต๊ะ) |
 | `table/table_view.gd`, `terrain_mesh.gd`, `props_layer.gd`, `rings.gd`, `figures/figure_pool.gd` | ภาพสามมิติของโต๊ะรบ: พื้นสนาม อุปกรณ์ วงแหวนสีทีมใต้ตัวหมาก และชั้นของฟิกเกอร์ตามระดับกราฟิก (ตัวใกล้ขยับได้ ตัวไกลวาดรวมเป็นชุด) |
-| `scenes/main.tscn` + `main.gd`, `scenes/battle_table.tscn` | ฉากหลักของแอป (โลก + หน้าจอ + ชั้นซ้อน) และฉากโต๊ะรบ; ครั้งแรกเดาระดับกราฟิกจากเครื่อง (มือถือ → lo) |
-| `ui/screens/gpu_check.tscn` | หน้าตรวจเครื่อง: ชื่อการ์ดจอ เฟรม/วิ จำนวนวาด หน่วยความจำ เลือกระดับกราฟิก ทดสอบหนัก พิมพ์ชื่อไทย ปุ่มคัดลอกตัวเลข |
+| `scenes/main.tscn` + `main.gd`, `scenes/battle_table.tscn` | ฉากหลักของแอป (โลก + หน้าจอ + ชั้นซ้อน) และฉากโต๊ะรบ; หน้าแรกคือเมนู, โต๊ะใน World ไม่สร้างตอนเริ่ม (`auto_build = false`) ซ่อนและปิดการประมวลผลจนหน้าตรวจการ์ดจอหรือการรบเรียกใช้; ครั้งแรกเดาระดับกราฟิกจากเครื่อง (มือถือ → lo) |
+| `ui/screens/gpu_check.tscn` | หน้าตรวจเครื่อง (เปิดจากหน้าตั้งค่า): สร้างและโชว์โต๊ะตัวอย่าง ชื่อการ์ดจอ เฟรม/วิ จำนวนวาด หน่วยความจำ เลือกระดับกราฟิก ทดสอบหนัก พิมพ์ชื่อไทย ปุ่มคัดลอกตัวเลข ปุ่มจัดกองทัพ |
 | `assets/kits_import/kit_post_import.gd`, `assets/shaders/figure.gdshader` | ตอนนำเข้า รวมชุดโมเดลแต่ละตัวเป็นชิ้นเดียว (สี + ช่องสีสำหรับเพ้นท์) และเชดเดอร์ของฟิกเกอร์ (ไม่ย้อมสีทีม สีทีมคือวงแหวน) — กติกาใน `assets/kits/CONTRACT.md` |
 | `assets/impostors/` | **สร้างขึ้นเอง ไม่ commit**: `tools/bake_impostors.gd` อบภาพแทนระยะไกล 16 มุม × 2 ระดับต่อตัว |
 | `assets/anim/` | **สร้างขึ้นเอง ไม่ commit** (ยกเว้น `CLIPS.md`): `tools/bake_anim.js` จับท่าจากโครงกระดูกของหน้าเก่าทีละเฟรม (เดิน วิ่ง หยุด หันตัว ยืนหายใจ ยิง ธนู ขว้าง แทง ฟัน ยกโล่ สะดุ้ง ล้ม นั่งบนหลังม้า และม้าเดิน/วิ่งพร้อมคนขี่โดยกีบไม่ไถลพื้น) เป็น `clips.json` แล้ว `tools/bake_anim.gd` แปลงเป็น `humanoid.res` (AnimationLibrary ชุดเดียวใช้ได้ทุกตัวที่มีโครง) — กติกาใน `assets/anim/CLIPS.md` |
@@ -33,7 +39,7 @@
 | `data/` | ตารางข้อมูลเกมที่ `tools/export_data.js` ส่งออกจากหน้าเก่า (`data/README.md` อธิบายทุกไฟล์) — ห้ามแก้ด้วยมือ |
 | `tools/` | `export_kits.js` (ฟิกเกอร์), `export_data.js` (ข้อมูลเกม), `record_oracle.js` (อัดเกมอ้างอิงจากหน้าเก่า), `validate_data.py` (ตรวจข้อมูล ชื่อต้องห้าม คำแปล ลูกเต๋า), `gen_bt_data.py` (ไฟล์ให้เซิร์ฟเวอร์), `godot.sh` (ดาวน์โหลด Godot ตรวจลายเซ็น), `kits.sh` (สร้างชุดโมเดล อบภาพ อบท่าทาง), `bake_impostors.gd`, `bake_anim.js` + `bake_anim.gd` (ท่าทางจากหน้าเก่า), `mount_rig.js` (หาชิ้นส่วนที่ขยับของพาหนะ เช่น ขา หาง ปีก) |
 | `data/schema/` | JSON schema ของทุกตาราง + `legacy_tokens.sha1`; `data/version.json` ตราข้อมูล |
-| `tests/` | `run.sh` (คำสั่งเดียวรันทั้งชุด), `run_tests.gd` (ตัวรัน), `testing.gd` (assert), `unit/test_*.gd` (เทสหน่วย), `render_probe.gd` + `render/` (เทสภาพผ่าน xvfb), `oracle/` (เกมอ้างอิง 20 เกม), `selftest.gd` (เทสในไฟล์ .exe ที่ส่งออก), `data_fixtures/` (ตัวอย่างสำหรับตัวตรวจข้อมูล), `out/` (ผลลัพธ์ ไม่ commit) |
+| `tests/` | `run.sh` (คำสั่งเดียวรันทั้งชุด), `run_tests.gd` (ตัวรัน), `testing.gd` (assert), `unit/test_*.gd` (เทสหน่วย), `render_probe.gd` + `render/` (เทสภาพผ่าน xvfb), `flow/` (เทสทั้งเส้นทางแบบ headless: หน้าแรก → ห้องโถง → ตั้งเกม → เกมบอทจนจบ → กลับ), `oracle/` (เกมอ้างอิง 20 เกม), `selftest.gd` (เทสในไฟล์ .exe ที่ส่งออก), `data_fixtures/` (ตัวอย่างสำหรับตัวตรวจข้อมูล), `out/` (ผลลัพธ์ ไม่ commit) |
 | `export_presets.cfg` | "Windows Desktop" (.exe x86_64) และ "Android" (APK arm64-v8a + armeabi-v7a, min SDK 24; `gradle_build/min_sdk` ต้องว่างไว้จนกว่าจะเปิดใช้ Gradle); ช่อง keystore เว้นว่างไว้โดยตั้งใจ |
 | `docs/` | `ARCHITECTURE.md` และ `PLAN.md` |
 
@@ -60,8 +66,8 @@
 ## เทส
 
 ```bash
-bash godot/tests/run.sh                 # quick: นำเข้า + เทสหน่วย (CI รันชุดนี้ทุก PR)
-bash godot/tests/run.sh full            # quick + เรนเดอร์ฉากทดสอบและเทสภาพทั้งสี่ชุดผ่าน xvfb (รูปอยู่ใน tests/out)
+bash godot/tests/run.sh                 # quick: นำเข้า + เทสหน่วย + เทสทั้งเส้นทาง tests/flow/ (CI รันทุก PR)
+bash godot/tests/run.sh full            # quick + เกมอ้างอิงทั้งหมด + ฉากทดสอบและเทสภาพทุกไฟล์ tests/render/test_*.gd ผ่าน xvfb (รูปอยู่ใน tests/out)
 python3 godot/tools/validate_data.py    # ตรวจข้อมูล ชื่อต้องห้าม คำแปลอังกฤษ ลูกเต๋า (CI รันทุก PR)
 bash godot/tests/run.sh i18n            # เฉพาะเทสที่ path มีคำนี้ (เช่น i18n, unit/core)
 GODOT=/path/to/godot TEST_OUT=/tmp/out bash godot/tests/run.sh   # เลือกไบนารีและโฟลเดอร์ผลลัพธ์ (ค่าเริ่มต้น godot/tests/out)
@@ -90,6 +96,16 @@ timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --renderin
 เต็มเพดาน 480 ชิ้น — ด่านของกติกาข้อ 6), `tests/render/test_main_screens.gd` (หน้าหลักและหน้าตรวจเครื่อง ไทย/อังกฤษ)
 และ `tests/render/test_field_look.gd` (สนามจากกติกาทุกฉาก x ภูมิประเทศ 16 รูป `field_<ฉาก>_<ภูมิประเทศ>.png` + ท้องฟ้า
 ต่อฉาก: ของที่วาดครบตามกติกา ความสูงพื้นตรงกับกติกา) `run.sh full` รันให้ทั้งหมด
+
+`run.sh` และ CI รัน **ทุกไฟล์** `tests/render/test_*.gd` ตามลำดับชื่อ (เพิ่มชุดใหม่แค่สร้างไฟล์ ไม่ต้องแก้รายชื่อ) เช่น
+`test_menu_screens.gd` (หน้าแรกและหน้าตั้งค่าที่ 640×360, 1280×720, 1280×576 ไทย/อังกฤษ ไม่มีอะไรล้นจอ ปุ่มอย่างน้อย 44 px
+ตั้งค่าแล้วบันทึกจริง Esc เปิดกล่องถามก่อนออก ระดับต่ำสุดไม่มีงานต่อเฟรม), `test_hall.gd` และ `test_battle_screen.gd`
+ส่วน `tests/flow/test_*.gd` รันแบบ headless (ไม่ต้องมีจอ) ทั้งใน quick และ full:
+```bash
+godot --headless --path godot --audio-driver Dummy -s tests/flow/test_lobby_flow.gd      # หน้าแรก → ห้องโถง → เกมบอทจนจบ → กลับ (กด W ค้างตอนออก แล้วเกมที่สองกล้องไม่ไหลเอง)
+godot --headless --path godot --audio-driver Dummy -s tests/flow/test_settings_flow.gd   # ตั้งค่า (ภาษา ระดับกราฟิก ปุ่มบนจอ โมเดล) มีผลทุกหน้า
+```
+เทสทุกชุดใช้ไฟล์ตั้งค่าของตัวเอง (`App.settings_file = "user://test_<ชื่อ>.cfg"`) ไม่เขียนทับ `settings.cfg` ของเครื่อง
 
 ## ส่งออก (export)
 
@@ -120,8 +136,9 @@ godot --headless --path godot --export-debug "Android" "$PWD/dist-godot/android/
 - commit ไฟล์ `.import` และ `.uid` ที่ Godot เขียนข้าง asset และสคริปต์ (CI พึ่งพามัน); `.godot/`, `tests/out/`
   และ `assets/kits/*.glb` + `kits.json` ไม่ commit
 - คอมเมนต์ในโค้ดเกมสั้นและเป็นไทยเหมือนส่วนอื่นของ repo; ในเทส เครื่องมือ และเอกสารใช้อังกฤษได้
-- ข้อความไทยบนจอทุกข้อความผ่าน `I18n.t()` และมีคู่อังกฤษใน `ui/i18n_extra.json` (ข้อความของหน้าเก่ามาจาก
-  `data/i18n_en.json`); `tests/unit/test_i18n.gd` ตรวจว่าทุกข้อความที่ HUD ใช้มีคำอังกฤษและไม่มีไทยหลงเหลือ
+- ข้อความไทยบนจอทุกข้อความผ่าน `I18n.t()` และมีคู่อังกฤษใน `ui/i18n_extra.json` หรือไฟล์ย่อย `ui/i18n/*.json`
+  (ข้อความของหน้าเก่ามาจาก `data/i18n_en.json`); `tests/unit/test_i18n.gd` ตรวจว่าทุกข้อความที่ HUD ใช้มีคำอังกฤษและไม่มีไทยหลงเหลือ
+  และเทสต่อหน้า (เช่น `test_menu_text.gd`) ตรวจว่าข้อความไทยทุกชิ้นในไฟล์ของหน้านั้นเป็นคีย์เต็ม
 - โค้ดกติกาต้องให้ผลเหมือนกันทุกเครื่อง (สุ่มจาก seed เท่านั้น ไม่ใช้ `randi()` ลอย ๆ ไม่ใช้เวลานาฬิกา); `core/` ใช้
   จำนวนเต็มล้วน (ดู `docs/ARCHITECTURE.md` §4)
 - งานต่อเฟรมต้องน้อย: ระดับกราฟิกต่ำสุดต้องลื่นบนมือถืออ่อน (`gl_compatibility`, ไม่เพิ่ม pass)

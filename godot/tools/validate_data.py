@@ -18,9 +18,10 @@ Checks, each printed as one `ok`/`FAIL` line:
             data/*.json, data/schema/ and tests/. Anything new anywhere fails. The list itself is stored ROT13 so this
             file passes its own scan; the readable list is AGENTS.md rule 1. Brand names may appear in .md files that
             restate the rule.
-  i18n      every Thai string literal in godot/ui/** and godot/app/** (.gd and .tscn) has an English entry in
-            ui/i18n_extra.json or data/i18n_en.json (a literal passes when the longest-key fragment matching of the old
-            page leaves no Thai character, like BT_I18N.tr).
+  i18n      every Thai string literal in godot/ui/** and godot/app/** (.gd and .tscn) is a whole key of
+            ui/i18n_extra.json, a ui/i18n/*.json fragment that I18n.FRAGMENTS loads (a fragment file it does not list
+            fails), data/i18n_en.json or the EN of ui/i18n.gd: I18n.t matches whole strings only, so a literal
+            pieced together from keys fails too (the message then says so).
   order     data/types.json is append-only against the previous commit (git show); skipped with a note outside git.
   dice      no datasheet can roll more than --dice-cap (60) dice in one stage (see dice_worst_case for the sum).
   secrets   nothing that looks like a token, key, private key or keystore under godot/.
@@ -628,6 +629,17 @@ def en_dict_literals(path):
     return keys
 
 
+def i18n_fragments(root):
+    """File names under ui/i18n/ that `const FRAGMENTS` in ui/i18n.gd loads, in order; None when there is no list."""
+    p = os.path.join(root, "ui", "i18n.gd")
+    if not os.path.exists(p):
+        return None
+    m = re.search(r"^const\s+FRAGMENTS\b[^=]*=\s*\[(.*?)\]", read_text(p), re.M | re.S)
+    if not m:
+        return None
+    return re.findall(r'"res://ui/i18n/([^"/]+\.json)"', m.group(1))
+
+
 def ui_dictionary(root, validator=None):
     keys, errs, sources = set(), [], []
     p = os.path.join(root, "data", "i18n_en.json")
@@ -647,6 +659,33 @@ def ui_dictionary(root, validator=None):
         except ValueError as e:
             errs.append("ui/i18n_extra.json: not valid JSON: %s" % e)
         sources.append("ui/i18n_extra.json")
+    # only the fragments I18n really loads (its FRAGMENTS list) count; a file it never loads would pass the lint
+    # while English mode shows Thai, so an unlisted or missing fragment is an error
+    frag_dir = os.path.join(root, "ui", "i18n")
+    listed = i18n_fragments(root)
+    on_disk = sorted(fn for fn in os.listdir(frag_dir) if fn.endswith(".json")) if os.path.isdir(frag_dir) else []
+    for fn in on_disk:
+        if listed is None or fn not in listed:
+            errs.append("ui/i18n/%s is not in FRAGMENTS of ui/i18n.gd: the app never loads it" % fn)
+    for fn in (listed or []):
+        name = "ui/i18n/" + fn
+        if fn not in on_disk:
+            errs.append("ui/i18n.gd FRAGMENTS lists %s, which does not exist" % name)
+            continue
+        try:
+            frag = read_json(os.path.join(frag_dir, fn))
+            if validator is not None and frag != {}:   # a fresh fragment starts as {}
+                errs += ["%s %s" % (name, e) for e in validator.validate(frag, "i18n.json")]
+            if isinstance(frag, dict):
+                for k, v in frag.items():
+                    if isinstance(v, str) and THAI.search(v) and k not in LANG_NAMES:
+                        errs.append("%s %r: the English %r still contains Thai" % (name, k, v))
+                keys.update(k for k in frag if isinstance(k, str))
+            else:
+                errs.append("%s: not a JSON object" % name)
+        except ValueError as e:
+            errs.append("%s: not valid JSON: %s" % (name, e))
+        sources.append(name)
     for gd in ("ui/i18n.gd", "scripts/i18n.gd"):
         found = en_dict_literals(os.path.join(root, gd))
         if found:
@@ -689,10 +728,17 @@ def check_ui_i18n(root, validator=None):
                     if not THAI.search(lit):
                         continue
                     n_lit += 1
+                    if lit in keys:
+                        continue
+                    # I18n.t matches whole strings only: a literal pieced together from keys still shows Thai
                     left = untranslated(lit, keys_by_len)
+                    shown = lit if len(lit) < 60 else lit[:57] + "..."
                     if left:
                         errs.append("%s:%d: Thai %r has no English entry (ui/i18n_extra.json); untranslated: %r" %
-                                    (rel(p, root), line, lit if len(lit) < 60 else lit[:57] + "...", left))
+                                    (rel(p, root), line, shown, left))
+                    else:
+                        errs.append("%s:%d: Thai %r is not a whole key (I18n.t matches whole strings; translate the "
+                                    "template, then format, or join translated pieces at runtime)" % (rel(p, root), line, shown))
     if not scanned:
         notes.append("no ui/ or app/ folder yet: nothing to scan")
     else:
@@ -1047,6 +1093,12 @@ def run_fixtures(validator, cap):
     # a Thai UI string with no English entry
     errs, _ = check_ui_i18n(os.path.join(FIXTURES, "fail_i18n_missing"), validator)
     expect("fail_i18n_missing", errs, True)
+    # a fragment file the app never loads (not in I18n.FRAGMENTS) does not count as a translation
+    errs, _ = check_ui_i18n(os.path.join(FIXTURES, "fail_i18n_fragment"), validator)
+    expect("fail_i18n_fragment", errs, True)
+    # two keys joined inside one literal: I18n.t matches whole strings, so English mode would still show Thai
+    errs, _ = check_ui_i18n(os.path.join(FIXTURES, "fail_i18n_joined"), validator)
+    expect("fail_i18n_joined", errs, True)
     # a planted private-key header (stored ROT13 as well)
     with tempfile.TemporaryDirectory() as tmp:
         materialise_rot13(os.path.join(FIXTURES, "fail_secret"), tmp)

@@ -1,0 +1,286 @@
+class_name HallWorld
+extends Node3D
+## ห้องโถง 3 มิติ (ล็อบบี้ที่เดินได้, LOBBY_SPEC §2): เมชนิ่ง เปลวเทียน ตัวชน ป้าย วงแหวน ตัวผู้เล่น กล้องตาม
+## ข้อความบนป้ายมาจากหน้าห้องโถงผ่าน set_sign_text (ไฟล์นี้ไม่มีข้อความไทย)
+## สภาพแวดล้อมตั้งบน Camera3D (โลกเดียวกับโต๊ะรบที่มี WorldEnvironment ของมันเอง) ไม่มีไฟจริง ไม่มีเงา
+## งานต่อเฟรม: ไม่มีในสคริปต์นี้; ตัวผู้เล่นกับกล้องเปิดงานต่อเฟรมเองเฉพาะตอนขยับ
+
+signal station_changed(id: String)
+
+const TEAMS_PATH := "res://data/teams.json"
+const TABLE_VIEW := "res://table/table_view.gd"
+const BG := Color("120c08")
+const AVATAR_RING_R := 0.68
+const STATION_RING_R := 0.55
+const RING_ACTIVE := Color(1.0, 0.78, 0.34)
+## ต่อระดับกราฟิก (§2.6): จำนวนเปลวไฟ ไฟไหว ตัวโยก จำนวนเหลี่ยมของเสา/ไข่
+const LEVELS := {
+	"hi": {"flames": 24, "flicker": true, "bob": true, "sides": 14},
+	"mid": {"flames": 24, "flicker": true, "bob": true, "sides": 12},
+	"lo": {"flames": 24, "flicker": false, "bob": false, "sides": 10},
+	"min": {"flames": 12, "flicker": false, "bob": false, "sides": 8},
+}
+const FLAME_SHADER := "res://scenes/hall/flame.gdshader"
+const SIGN_FONT_SIZE := 88
+const SIGN_PIXEL := 0.005
+const SIGN_WIDTH := 860.0
+## กล้องถูกผนังดันเข้ามาใกล้หัวกว่านี้ ไข่ตัวผู้เล่นจางลง (ไม่บังห้อง)
+const FADE_NEAR := 1.4
+const FADE_FAR := 2.6
+const FADE_MIN := 0.35
+
+static var _table_levels: Dictionary = {}
+
+@onready var avatar: HallAvatar = $Avatar
+@onready var camera_rig: HallCamera = $CameraRig
+@onready var rings: Rings = $Rings
+@onready var blockers_body: StaticBody3D = $Blockers
+@onready var props_body: StaticBody3D = $PropBlockers
+@onready var flames_node: MultiMeshInstance3D = $Flames
+@onready var static_root: Node3D = $Static
+@onready var signs_root: Node3D = $Signs
+
+var level := ""
+var active := true
+var team_colour := Color(0.28, 0.52, 0.84)
+
+var _static: Array[MeshInstance3D] = []
+var _signs: Dictionary = {}            # id → Label3D (สถานี + "you" ป้ายเหนือตัวผู้เล่น)
+var _station := ""
+var _avatar_ring := -1
+var _station_rings: Dictionary = {}    # id → ดัชนีวงแหวน
+var _blockers := 0
+var _sides := 0
+var _flame_count := 0
+var _flame_shader: ShaderMaterial
+var _env: Environment
+var _fade_mat: StandardMaterial3D
+var _alpha := 1.0
+
+
+func _ready() -> void:
+	add_to_group("gfx_level")
+	var teams: Variant = JSON.parse_string(FileAccess.get_file_as_string(TEAMS_PATH)) if FileAccess.file_exists(TEAMS_PATH) else null
+	if teams is Array and not (teams as Array).is_empty() and (teams[0] as Dictionary).has("rgb"):
+		var rgb: Array = teams[0]["rgb"]
+		team_colour = Color8(int(rgb[0]), int(rgb[1]), int(rgb[2]))
+	for i in 3:
+		var mi := MeshInstance3D.new()
+		mi.name = ["Shell", "Furniture", "Cloth"][i]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.material_override = HallBuilder.material()
+		static_root.add_child(mi)
+		_static.append(mi)
+	flames_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_blockers = HallBuilder.build_colliders(blockers_body, props_body)
+	_build_signs()
+	rings.setup(1 + HallLayout.IDS.size() + 2)
+	_avatar_ring = rings.add_ring(HallLayout.SPAWN, Vector3.UP, AVATAR_RING_R, team_colour)
+	for id in HallLayout.IDS:
+		var f: Vector2 = HallLayout.STATIONS[id]["front"]
+		_station_rings[id] = rings.add_kind(Rings.Kind.OBJECTIVE, Vector3(f.x, 0.0, f.y), Vector3.UP, STATION_RING_R)
+	_env = Environment.new()
+	_env.background_mode = Environment.BG_COLOR
+	_env.background_color = BG
+	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_env.ambient_light_color = Color.BLACK
+	_env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	camera_rig.camera.environment = _env
+	avatar.camera_rig = camera_rig
+	avatar.egg.material_override = HallBuilder.material()
+	avatar.moved.connect(_on_avatar_moved)
+	camera_rig.arm_settled.connect(_on_arm)
+	camera_rig.set_view(HallLayout.SPAWN_YAW, camera_rig.pitch, camera_rig.arm_length)
+	var app := get_node_or_null(^"/root/App")
+	apply_level(str(app.get("gfx")) if app != null else "mid")
+	place_avatar(HallLayout.SPAWN, PI)
+	if active:
+		camera_rig.camera.make_current()
+
+
+## ใช้ระดับกราฟิก hi/mid/lo/min: ค่ารวมของแอปแบบเดียวกับ TableView.apply_level (render scale, fps, วาดตอนนิ่ง)
+## แล้วเมชนิ่งตามจำนวนเหลี่ยม เปลวไฟ (จำนวน + ไหว/ไม่ไหว) ไข่ตัวผู้เล่น การโยกตัว
+func apply_level(l: String) -> void:
+	if not LEVELS.has(l):
+		l = "mid"
+	level = l
+	var cfg: Dictionary = LEVELS[l]
+	var tv: Dictionary = table_levels().get(l, {})
+	var vp := get_viewport()
+	if vp != null and not tv.is_empty():
+		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+		vp.scaling_3d_scale = float(tv["scale"])
+		vp.msaa_3d = Viewport.MSAA_DISABLED
+	if not tv.is_empty():
+		Engine.max_fps = int(tv["fps"])
+		OS.low_processor_usage_mode = bool(tv["idle"])
+	var sides := int(cfg["sides"])
+	if sides != _sides:
+		_sides = sides
+		var ms := HallBuilder.meshes(sides)
+		for i in _static.size():
+			_static[i].mesh = ms[i]
+		avatar.egg.mesh = HallBuilder.avatar_mesh(team_colour, sides)
+	_build_flames(int(cfg["flames"]), bool(cfg["flicker"]))
+	avatar.bob = bool(cfg["bob"])
+
+
+## ค่าต่อระดับของโต๊ะ (TableView.LEVELS) อ่านจากสคริปต์ตอนใช้ (แหล่งเดียวกับโต๊ะรบ)
+static func table_levels() -> Dictionary:
+	if _table_levels.is_empty():
+		var s: Script = load(TABLE_VIEW)
+		if s != null:
+			_table_levels = s.get_script_constant_map().get("LEVELS", {})
+	return _table_levels
+
+
+## เปิด/ปิดห้องโถงทั้งห้อง: ซ่อน หยุดงาน (ตัวชนออกจากฟิสิกส์ด้วย) และคืนกล้อง; เปิดกลับครบทั้งสามอย่าง
+func set_active(on: bool) -> void:
+	active = on
+	visible = on
+	process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+	if not is_node_ready():
+		return
+	if on:
+		camera_rig.camera.make_current()
+	else:
+		camera_rig.camera.clear_current(false)
+		camera_rig.reset_input()
+		avatar.halt()
+
+
+## ข้อความบนป้ายของสถานี id (หรือ "you" = ป้ายเหนือตัวผู้เล่น); หน้าห้องโถงส่งข้อความที่แปลแล้วมา
+func set_sign_text(id: String, text: String) -> void:
+	var l: Label3D = _signs.get(id)
+	if l != null:
+		l.text = text
+
+
+func sign_text(id: String) -> String:
+	var l: Label3D = _signs.get(id)
+	return l.text if l != null else ""
+
+
+func labels() -> Array[Label3D]:
+	var out: Array[Label3D] = []
+	for id in _signs:
+		out.append(_signs[id])
+	return out
+
+
+func set_stick(v: Vector2) -> void:
+	avatar.set_stick(v)
+
+
+## สถานีที่ตัวผู้เล่นเอื้อมถึงตอนนี้ ("" = ไม่มี)
+func station() -> String:
+	return _station
+
+
+## วางตัวผู้เล่นที่ p หันไป yaw แล้วกล้องตามทันที
+func place_avatar(p: Vector3, yaw: float = PI) -> void:
+	camera_rig.snap(Vector3(p.x, 0.0, p.z))
+	avatar.place(p, yaw)
+
+
+func counts() -> Dictionary:
+	var tris := 0
+	for mi in _static:
+		if mi.mesh != null:
+			tris += HallBuilder.tris(mi.mesh as ArrayMesh)
+	return {"flames": _flame_count, "blockers": _blockers, "signs": _signs.size(), "level": level,
+		"static_meshes": _static.size(), "static_tris": tris, "rings": rings.count(), "sides": _sides}
+
+
+# ---- ภายใน ----
+
+func _on_avatar_moved(pos: Vector3) -> void:
+	rings.set_ring(_avatar_ring, pos, Vector3.UP, AVATAR_RING_R, team_colour)
+	camera_rig.follow(pos)
+	var s := HallLayout.station_at(Vector2(pos.x, pos.z))
+	if s == _station:
+		return
+	if _station != "":
+		rings.set_colour(_station_rings[_station], Rings.KIND_COLOUR[Rings.Kind.OBJECTIVE])
+	if s != "":
+		rings.set_colour(_station_rings[s], RING_ACTIVE)
+	_station = s
+	station_changed.emit(s)
+
+
+## แขนกล้องสั้นลงเพราะชนผนัง: ไข่จางลงตามระยะ (สลับวัสดุเฉพาะตอนค่าเปลี่ยน ไม่มีงานตอนนิ่ง)
+func _on_arm(length: float) -> void:
+	var a := clampf(FADE_MIN + (1.0 - FADE_MIN) * (length - FADE_NEAR) / (FADE_FAR - FADE_NEAR), FADE_MIN, 1.0)
+	if absf(a - _alpha) < 0.04 and not (a == 1.0 and _alpha != 1.0):
+		return
+	_alpha = a
+	if a >= 1.0:
+		avatar.egg.material_override = HallBuilder.material()
+		return
+	if _fade_mat == null:
+		_fade_mat = HallBuilder.material().duplicate() as StandardMaterial3D
+		_fade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_fade_mat.albedo_color = Color(1.0, 1.0, 1.0, a)
+	avatar.egg.material_override = _fade_mat
+
+
+func avatar_alpha() -> float:
+	return _alpha
+
+
+## เปลวไฟทั้งหมดใน MultiMesh เดียว: hi/mid ใช้ shader ไหว (TIME + เฟสต่อดวง), lo/min วัสดุธรรมดา
+func _build_flames(n: int, flicker: bool) -> void:
+	var pts := HallLayout.flames(n <= HallLayout.MAX_FLAMES_MIN)
+	n = mini(n, pts.size())
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = HallBuilder.flame_mesh()
+	mm.instance_count = n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2601
+	for i in n:
+		var big := 1.5 if pts[i].is_equal_approx(HallLayout.LECTERN_FLAME) else 1.0
+		var s := big * rng.randf_range(0.9, 1.12)
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * s), pts[i]))
+		mm.set_instance_color(i, Color.WHITE)
+		mm.set_instance_custom_data(i, Color(rng.randf(), 0.0, 0.0, 0.0))
+	flames_node.multimesh = mm
+	if flicker:
+		if _flame_shader == null:
+			_flame_shader = ShaderMaterial.new()
+			_flame_shader.shader = load(FLAME_SHADER)
+		flames_node.material_override = _flame_shader
+	else:
+		flames_node.material_override = HallBuilder.flame_plain_material()
+	_flame_count = n
+
+
+func _build_signs() -> void:
+	for id in HallLayout.IDS:
+		var s: Dictionary = HallLayout.STATIONS[id]
+		var l := _make_label("Sign_" + id)
+		l.position = s["sign"]
+		l.rotation.y = float(s["face"])
+		l.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		l.double_sided = false
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.width = SIGN_WIDTH
+		signs_root.add_child(l)
+		_signs[id] = l
+	_signs["you"] = avatar.name_label
+
+
+func _make_label(n: String) -> Label3D:
+	var l := Label3D.new()
+	l.name = n
+	l.font_size = SIGN_FONT_SIZE
+	l.pixel_size = SIGN_PIXEL
+	l.outline_size = 16
+	l.modulate = Color(1.0, 0.92, 0.76)
+	l.outline_modulate = Color(0.12, 0.06, 0.02)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return l

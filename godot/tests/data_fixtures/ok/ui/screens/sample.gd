@@ -9,5 +9,5 @@ const COUNT := "เหลือ %d หน่วย"
 
 func _ready() -> void:
 	print(I18n.t(TITLE), I18n.t('วิ่ง'), I18n.t("""ยิง"""))
-	var s := "ยกเลิก · ตกลง"   # two known fragments joined with punctuation
+	var s := I18n.t("ยกเลิก") + " · " + I18n.t("ตกลง")   # two keys joined at runtime, each a whole key
 	print(s, "no thai here", "เฟรม/วิ")

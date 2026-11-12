@@ -4,7 +4,11 @@ extends SceneTree
 ## RenderingServer.get_rendering_info; asserts the draw-call and triangle budgets per level. Two fields from
 ## core/field: the default setup the app opens with (seed 1, 48" ruin, hills, buildings x1 -> tests/out/budgets_<level>.png)
 ## and the densest one, where FieldProps stops at PROP_CAP = 480 props (180" ruin, dense forest, buildings x2.5 ->
-## budgets_dense_<level>.png); the drawn prop count must equal FieldProps.items.size() in both.
+## budgets_dense_<level>.png); the drawn prop count must equal FieldProps.items.size() in both. These two phases draw the
+## kits: the figure style is pinned with App.set_fig("kit") (the app's default became the egg placeholders, LOBBY_SPEC §4.1).
+## A third phase (LOBBY_SPEC §7.4) switches the same default 400-figure / 8-team scene to eggs: the same budgets, no
+## skinned figure, at most 7 egg MultiMeshes, 400 rings, and on min at least 30 % fewer draw calls than the kit phase
+## (budgets_egg_<level>.png).
 ## Needs a display and a GPU or Mesa (llvmpipe), like tests/render_probe.gd:
 ##   timeout 300 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_budgets.gd
@@ -21,7 +25,9 @@ const SETTLE := 3      # frames before measuring a level
 const MEASURE := 4     # frames measured per level
 ## the field with the most props the rules allow: FieldProps reaches PROP_CAP here
 const DENSE_SETUP := {"seed": 1, "w": 180, "theme": "ruin", "terrain": "forest", "buildings": true, "density": 2500}
-const PHASES: PackedStringArray = ["default", "dense"]
+const PHASES: PackedStringArray = ["default", "dense", "egg"]
+## egg phase on min: draw calls at most this share of the kit phase on min
+const EGG_MIN_SHARE := 0.7
 
 var _out_dir := DEFAULT_OUT_DIR
 var _table: Node3D
@@ -35,6 +41,7 @@ var _usec_n := 0
 var _last_usec := 0
 var _passed := 0
 var _failed := 0
+var _kit_draws := {}     # level → draw calls of the default (kit) phase
 
 
 func _initialize() -> void:
@@ -46,6 +53,9 @@ func _initialize() -> void:
 		print("FAIL  cannot load " + SCENE)
 		quit(1)
 		return
+	var app := root.get_node_or_null(^"App")
+	if app != null:
+		app.call("set_fig", "kit")   # the kit phases draw the kits (not saved: no settings file is written)
 	_table = scene.instantiate()
 	root.add_child(_table)
 	print("adapter: " + RenderingServer.get_video_adapter_name() + " (" + RenderingServer.get_video_adapter_api_version() + ")")
@@ -75,7 +85,12 @@ func _process(_delta: float) -> bool:
 		return false
 	if _phase + 1 < PHASES.size():
 		_phase += 1
-		_table.call("rebuild", DENSE_SETUP)
+		if PHASES[_phase] == "egg":
+			# the default field of the table script (read at run time: TableView itself is not compiled into a -s script)
+			_table.call("rebuild", (_table.get_script() as Script).get_script_constant_map()["DEFAULT_SETUP"])
+			_table.call("set_figure_style", "egg")
+		else:
+			_table.call("rebuild", DENSE_SETUP)
 		_check_scene()
 		_start_level(0)
 		return false
@@ -96,7 +111,12 @@ func _check_scene() -> void:
 	if tag == "dense":
 		_check(int(c["props"]) == FieldProps.PROP_CAP, "dense: the props stop at PROP_CAP %d (%d)" % [FieldProps.PROP_CAP, int(c["props"])])
 	_check(int(c["teams"]) == 8, "%s: 8 teams" % tag)
-	_check(int(c["kits"]) >= 8, "%s: at least 8 kit MultiMeshes (%d)" % [tag, int(c["kits"])])
+	if tag == "egg":
+		_check(str(c.get("style", "")) == "egg", "egg: the figures are eggs (style %s)" % str(c.get("style", "")))
+		_check(int(c["kits"]) >= 1 and int(c["kits"]) <= 7, "egg: at most 7 egg MultiMeshes, one per size class (%d)" % int(c["kits"]))
+	else:
+		_check(str(c.get("style", "")) == "kit", "%s: the figures are kits (style %s)" % [tag, str(c.get("style", ""))])
+		_check(int(c["kits"]) >= 8, "%s: at least 8 kit MultiMeshes (%d)" % [tag, int(c["kits"])])
 
 
 func _start_level(i: int) -> void:
@@ -125,6 +145,14 @@ func _finish_level() -> void:
 	_check(_prims <= int(b[1]), "%s: primitives %d <= %d" % [label, _prims, int(b[1])])
 	_check(int(c["skinned"]) <= int(SKINNED_CAP[level]), "%s: skinned figures %d <= cap %d" % [label, int(c["skinned"]), int(SKINNED_CAP[level])])
 	_check(int(c["figures"]) == 400, "%s: still 400 figures" % label)
+	if tag == "default":
+		_kit_draws[level] = _draws
+	elif tag == "egg":
+		_check(int(c["skinned"]) == 0, "%s: no skinned figure (%d)" % [label, int(c["skinned"])])
+		_check(int(c["rings"]) == 400, "%s: still 400 rings" % label)
+		if level == "min" and _kit_draws.has(level):
+			var lim := int(float(_kit_draws[level]) * EGG_MIN_SHARE)
+			_check(_draws <= lim, "%s: draw calls %d <= 70 %% of the kit phase (%d of %d)" % [label, _draws, lim, int(_kit_draws[level])])
 	var img := root.get_viewport().get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
 	var path := _out_dir + "/budgets_" + label.replace(" ", "_") + ".png"

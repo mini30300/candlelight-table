@@ -1,0 +1,23 @@
+{
+  "ตั้งค่า": "Settings",
+  "ออนไลน์": "Online",
+  "เร็วๆ นี้": "Coming soon",
+  "คุณ": "You",
+  "ล็อบบี้": "Lobby",
+  "ออก": "Quit",
+  "ตกลง": "OK",
+  "โต๊ะเทียน": "Candlelight Table",
+  "โต๊ะรบกับเพื่อน บอท หรือ Claude": "A battle table with friends, bots or Claude",
+  "เล่นกับบอท": "Play against bots",
+  "ออนไลน์กับเพื่อน เร็วๆ นี้": "Online with friends — coming soon",
+  "แอปใหม่ รุ่น {v}": "New app, version {v}",
+  "ออกจากเกม?": "Quit the game?",
+  "รูปตัวละคร": "Figures",
+  "ตัวไข่ (ชั่วคราว)": "Eggs (placeholder)",
+  "โมเดลชุดเดิม": "Original models",
+  "ไม่พบชุดโมเดลในเครื่องนี้": "No model kits found on this device",
+  "โมเดลชุดเดิมยังอยู่ครบ สลับกลับได้ทุกเมื่อ": "The original models are all still here; switch back any time",
+  "ปุ่มบนจอ": "On-screen controls",
+  "อัตโนมัติ: เปิดบนมือถือ ปิดบนคอมพิวเตอร์": "Auto: on for phones, off for computers",
+  "ตรวจการ์ดจอ ›": "GPU check ›"
+}

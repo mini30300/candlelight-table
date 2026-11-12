@@ -1,6 +1,8 @@
 extends SceneTree
 ## The army picker screen (ui/screens/army.tscn, R1-V4) inside scenes/main.tscn: the GPU-check screen's army button
-## opens it through App.push and its back button returns. For every army, in Thai and in English: the roster lists
+## opens it through App.push and its back button returns. Since LOBBY_SPEC (12 Nov) the main menu is the first screen and
+## the GPU check is reached from it through Settings, so the test walks main menu → Settings → GPU check first (the
+## table's visibility follows the GPU check, which builds and shows it); every other check is unchanged. For every army, in Thai and in English: the roster lists
 ## that army's datasheets in TYPES order and never a hidden unit, and in English no visible Label/Button text keeps
 ## Thai (the language button's "ไทย" is the one deliberate exception, as on the old page). The +/- buttons move the
 ## points total, the random army is fixed by its seed and fits the budget, the preview turntable shows the selected
@@ -20,6 +22,7 @@ const EN_ARMY := "nr"
 const BUDGETS: PackedInt32Array = [200, 500, 1000, 2000]
 const SETTLE := 6
 const MIN_TARGET := 44.0
+const SETTINGS_FILE := "user://test_army_screen.cfg"
 
 var _out_dir := DEFAULT_OUT_DIR
 var _suffix := ""
@@ -45,6 +48,7 @@ func _initialize() -> void:
 		return
 	_main = scene.instantiate()
 	_main.set("first_run_guess", false)   # never write this machine's settings.cfg from a test
+	_app().set("settings_file", SETTINGS_FILE)
 	_app().call("set_lang", "th")
 	root.add_child(_main)
 	print("adapter: " + RenderingServer.get_video_adapter_name() + " (" + RenderingServer.get_video_adapter_api_version() + ")")
@@ -60,8 +64,22 @@ func _process(_delta: float) -> bool:
 
 func _run() -> void:
 	await _frames(4)
+	var menu: Node = _app().call("current")
+	_check(menu != null and menu.get_node_or_null("%SettingsButton") != null, "the first screen is the main menu with a settings button")
+	if menu == null or menu.get_node_or_null("%SettingsButton") == null:
+		_finish()
+		return
+	menu.get_node("%SettingsButton").pressed.emit()
+	await _frames(2)
+	var settings: Node = _app().call("current")
+	_check(settings != null and settings.get_node_or_null("%GpuCheckButton") != null, "the settings screen offers the GPU check")
+	if settings == null or settings.get_node_or_null("%GpuCheckButton") == null:
+		_finish()
+		return
+	settings.get_node("%GpuCheckButton").pressed.emit()
+	await _frames(4)
 	var gpu: Node = _app().call("current")
-	_check(gpu != null and gpu.has_signal("army_requested"), "the first screen is the GPU check with an army button")
+	_check(gpu != null and gpu.has_signal("army_requested"), "Settings → GPU check: the GPU check with an army button")
 	if gpu == null:
 		_finish()
 		return
@@ -409,6 +427,8 @@ func _save(name: String) -> void:
 
 func _finish() -> void:
 	_app().call("set_lang", "th")
+	_app().set("settings_file", str(_app().get("SETTINGS_PATH")))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_FILE))
 	print("%s  %d passed, %d failed" % ["PASS " if _failed == 0 else "FAIL ", _passed, _failed])
 	_done = true
 	quit(0 if _failed == 0 else 1)

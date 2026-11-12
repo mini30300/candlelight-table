@@ -2,10 +2,13 @@ extends Node
 ## I18n (autoload): พจนานุกรมไทย → อังกฤษ ของข้อความบนจอ (คีย์คือข้อความไทย แบบ BT_I18N ของหน้าเก่า)
 ## ค่าเริ่มต้นคือไทย; สลับด้วย I18n.english = true แล้วเรียก I18n.t("…") ทุกครั้งที่วาดข้อความ
 ## ลำดับค้นหา: EN ในไฟล์นี้ → res://ui/i18n_extra.json (ข้อความที่มีแต่ในแอปใหม่) → res://data/i18n_en.json (ของหน้าเก่า)
+## ไฟล์ย่อยที่อยู่ใน FRAGMENTS เท่านั้น รวมเข้า extra ต่อท้าย i18n_extra.json โดยไม่ทับคีย์เดิม
+## (ไฟล์ใหม่ใน ui/i18n/ ต้องเพิ่มชื่อใน FRAGMENTS ด้วย ไม่งั้น lint กับเทสไม่ผ่าน) · ค้นทั้งข้อความเท่านั้น ไม่ต่อชิ้น
 ## โหลดใน _init() จึงใช้ได้ทันทีแม้ใน -s runner ก่อน _ready()
 
 const EXTRA_PATH := "res://ui/i18n_extra.json"
 const PAGE_PATH := "res://data/i18n_en.json"
+const FRAGMENTS: PackedStringArray = ["res://ui/i18n/menu.json", "res://ui/i18n/hall.json", "res://ui/i18n/battle.json"]
 
 ## คำแปลที่ฝังในโค้ด (i18n_extra.json ต้องมีคู่เดียวกัน; เทสตรวจ)
 const EN: Dictionary = {
@@ -26,6 +29,11 @@ var page: Dictionary = {}    # จาก data/i18n_en.json
 
 func _init() -> void:
 	extra = load_json_dict(EXTRA_PATH)
+	for path in FRAGMENTS:
+		var frag := load_json_dict(path)
+		for k in frag:
+			if not extra.has(k):
+				extra[k] = frag[k]
 	page = load_json_dict(PAGE_PATH)
 
 

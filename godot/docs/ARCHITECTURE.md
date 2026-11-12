@@ -131,8 +131,9 @@ godot/
     board3d/                    R4+: tile builder from layout JSON (GridMap/MultiMesh), tokens, fog of war, lights
   ui/                           Control scenes, Thai first
     theme/default_theme.tres    (exists under assets/theme; move here in R0-A) Sarabun; 44 px touch targets; phone scale
-    i18n.gd                     I18n autoload (exists as scripts/i18n.gd): Thai keys -> data/i18n_en.json + ui/i18n_extra.json
+    i18n.gd                     I18n autoload: Thai keys -> EN in the script, ui/i18n_extra.json, ui/i18n/* (FRAGMENTS), data/i18n_en.json
     i18n_extra.json             English for Thai strings that exist only in the new app (every new string needs a pair)
+    i18n/                       per-screen pairs (menu.json, hall.json, battle.json); only files listed in I18n.FRAGMENTS load
     screens/                    setup, army, lobby, deploy, play_hud, spectator, custom, settings, preview, gpu_check,
                                 dnd_camp, dnd_table, dm_panel (R4), rogue_* (R5)
     widgets/                    squad_card, datasheet, log_view, dice_popup, roster_row, turn_bar, camera_bar
@@ -449,9 +450,13 @@ synthesis. **Size**: kits ~100 KB imported each, loaded lazily.
 
 ## 8. UI and i18n
 
-- Thai is the source language and the key. `I18n.t(th)` looks up `data/i18n_en.json` (1,554 pairs exported from the
-  page) then `ui/i18n_extra.json` (strings that exist only in the new app); whole string first, then fragments longest
-  key first; if any Thai is left the whole string stays Thai (the page's `tr()` rule). Typed text and player names are
+- Thai is the source language and the key. `I18n.t(th)` looks up the `EN` dictionary in `ui/i18n.gd`, then
+  `ui/i18n_extra.json` with the fragment files of `I18n.FRAGMENTS` (`ui/i18n/menu.json`, `hall.json`, `battle.json`;
+  strings that exist only in the new app), then `data/i18n_en.json` (1,554 pairs exported from the page). It matches
+  **whole strings only** (no fragment matching): translate the template, then `.format()` it, or join pieces that are
+  each translated. A string with no entry stays Thai. The data lint (`tools/validate_data.py`, check `i18n`) fails on a
+  Thai literal under `ui/` or `app/` that is not a whole key, and on a `ui/i18n/*.json` file that `FRAGMENTS` does not
+  list; `tests/unit/test_i18n_fragments.gd` pins the fragment list and the folder. Typed text and player names are
   never translated. Core emits message keys + args; the UI formats them, so `core/` holds no UI text.
 - `App.lang` persisted (same meaning as the web app's `cl_lang`); switching re-applies without restart.
 - Two CI tests mirror `tests/battle/english.js`: static (`tests/unit/test_i18n.gd`: every Thai literal in `.gd/.tscn/
@@ -643,8 +648,9 @@ caps. `build.yml`/`tests.yml` untouched.
    ask the owner to paste a key; if a task needs one, stop and name the secret and where it goes.
 3. **Hidden units stay hidden.** `sec`/`lk` are opaque fields; the unlock logic is ported in code only and never
    described in notes, PRs, issues, comments, tests or this folder's docs.
-4. **Thai is the default.** Every new Thai UI string has an English pair in `ui/i18n_extra.json` (page strings come from
-   `data/i18n_en.json`); `tests/render/test_screens.gd` fails if Thai is left on screen in English mode.
+4. **Thai is the default.** Every new Thai UI string has an English pair as a whole key: in `ui/i18n_extra.json` or a
+   fragment file listed in `I18n.FRAGMENTS` (`ui/i18n/*.json`); page strings come from `data/i18n_en.json`. The data
+   lint and `test_i18n_fragments` enforce it, and the render suites fail if Thai is left on screen in English mode.
 5. **Determinism.** `core/` is integer-only, seeded-stream-only, Node-free; no `randi()`, `randf()`, `Time` or `OS` in
    rules; rules positions (`gx`/`gz` in MI) are authoritative; walking x/z are visual. Goldens on x86-64, arm64 and the
    Windows exe check it on every PR.

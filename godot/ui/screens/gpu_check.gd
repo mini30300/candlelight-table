@@ -1,9 +1,10 @@
 extends Control
-## หน้าตรวจการ์ดจอ (หน้าแรกของภาพทดลอง R0-E): ชื่อการ์ดจอ รุ่น GL เฟรม/วิ จำนวนวาด สามเหลี่ยม หน่วยความจำ จำนวนฟิกเกอร์,
+## หน้าตรวจการ์ดจอ (เปิดจากหน้าตั้งค่า; เดิมเป็นหน้าแรกของภาพทดลอง R0-E): ชื่อการ์ดจอ รุ่น GL เฟรม/วิ จำนวนวาด สามเหลี่ยม หน่วยความจำ จำนวนฟิกเกอร์,
 ## ปุ่มทดสอบหนัก (+400 แข็ง +100 ขยับได้), ตัวเลือกระดับกราฟิก (ปรับ render scale/เงาทันที แล้วบันทึก), ช่องพิมพ์ไทย
 ## (ทดสอบแป้นพิมพ์), สลับไทย/อังกฤษ, คัดลอกตัวเลข · ตัวเลขอัปเดตทุก 0.5 วิด้วย Timer (ไม่มี _process)
 ## แผงอยู่ซ้ายบน ส่วนที่เหลือของจอทะลุไปโต๊ะ (mouse_filter = ignore) กล้องจึงลาก/หนีบได้
-## ปุ่ม "จัดกองทัพ ›" ส่งสัญญาณ army_requested ให้ main.gd เปิดหน้าจัดกองทัพ (กลับมาแล้ววาดข้อความใหม่ตามภาษา)
+## ปุ่ม "จัดกองทัพ ›" ส่งสัญญาณ army_requested ให้หน้าตั้งค่าเปิดหน้าจัดกองทัพ (กลับมาแล้ววาดข้อความใหม่ตามภาษา)
+## เปิดแล้วสร้างโต๊ะตัวอย่างใหม่ (main.tscn ไม่สร้างตอนเริ่มแอป) โชว์โต๊ะ เปิดการประมวลผล ใช้กล้องโต๊ะ; ปิดหน้าแล้วซ่อนโต๊ะคืน
 
 signal army_requested
 
@@ -27,6 +28,7 @@ const COPIED_MS := 2000
 @onready var fit_button: Button = %FitButton
 @onready var lang_button: Button = %LangButton
 @onready var army_button: Button = %ArmyButton
+@onready var back_button: Button = %BackButton
 @onready var hint: Label = %Hint
 @onready var timer: Timer = %Timer
 
@@ -38,6 +40,13 @@ var _copied_ms := 0
 
 func _ready() -> void:
 	table = get_tree().get_first_node_in_group("table_view") as TableView
+	if table != null:
+		if TableView.LEVELS.has(App.gfx):
+			table.level = App.gfx
+		table.rebuild(TableView.DEFAULT_SETUP)
+		table.visible = true
+		table.process_mode = Node.PROCESS_MODE_INHERIT
+		table.camera_rig.camera.make_current()
 	level_picker.clear()
 	for l in LEVELS:
 		level_picker.add_item(l)
@@ -47,6 +56,7 @@ func _ready() -> void:
 	fit_button.pressed.connect(_on_fit)
 	lang_button.pressed.connect(_on_lang)
 	army_button.pressed.connect(func() -> void: army_requested.emit())
+	back_button.pressed.connect(func() -> void: App.pop())
 	visibility_changed.connect(_on_visibility)
 	timer.wait_time = INFO_EVERY
 	timer.timeout.connect(_update_info)
@@ -59,11 +69,14 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if table != null:
 		table.set_measuring(false)
+		table.visible = false
+		table.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## วาดข้อความทุกชิ้นใหม่ตามภาษาปัจจุบัน
 func refresh() -> void:
 	title.text = I18n.t(TITLE)
+	back_button.text = I18n.t("‹ กลับ")
 	level_label.text = I18n.t("ระดับกราฟิก")
 	for i in LEVELS.size():
 		level_picker.set_item_text(i, I18n.t(LEVEL_TH[LEVELS[i]]))

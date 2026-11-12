@@ -98,6 +98,7 @@ func build_look() -> void:
 	terrain.build(field, theme, int(cfg["grid"]))
 	props.build(field_props, terrain, theme, bool(cfg["props_simple"]))
 	table_sky.setup(theme_name, seed_value)
+	figures.set_style(effective_style())
 	var list := _compose_figures()
 	figures.set_figures(list)
 	camera_rig.fit_table(table_w, table_d)
@@ -163,6 +164,7 @@ func apply_level(l: String) -> void:
 	props.set_per_vertex(per_vertex)
 	figures.set_per_vertex(per_vertex)
 	if built:
+		figures.set_style(effective_style())
 		figures.apply_level(level, camera_pos())
 	_apply_environment()
 	_update_idle()
@@ -233,7 +235,9 @@ func _on_tapped(screen_pos: Vector2) -> void:
 		if d <= reach * reach and (best < 0 or d < best_d):
 			best = i
 			best_d = d
-	select_figure(best)
+	if not _battle_mode:
+		select_figure(best)
+	picked.emit(best, p)
 
 
 ## จุดตัดรังสีกับพื้น (วนปรับความสูง 4 รอบ); null เมื่อรังสีไม่ชี้ลง
@@ -304,12 +308,15 @@ func _free_spot(x: float, z: float, r: float) -> Vector2:
 
 ## 8 ทีม × ~50 ตัว: ทีมละกองทัพจาก facs.json เดินตามพูลบอท core.json (หน่วยที่มีชุดโมเดลจริง) วางเป็นบล็อกสองแถวริมโต๊ะ
 func _compose_figures() -> Array[FigurePool.Figure]:
+	if _battle_mode:
+		return _battle_list
 	var out: Array[FigurePool.Figure] = []
 	var facs: Variant = _load_json(FACS_PATH)
 	var core: Variant = _load_json(CORE_PATH)
 	var types_arr: Variant = _load_json(TYPES_PATH)
 	var on_disk := KitLibrary.list_kits()
-	if not facs is Array or not core is Dictionary or not types_arr is Array or on_disk.is_empty():
+	var eggs := figures.style == "egg"   # ตัวไข่ไม่ต้องมีชุดโมเดลในเครื่อง
+	if not facs is Array or not core is Dictionary or not types_arr is Array or (on_disk.is_empty() and not eggs):
 		Log.warn("table: no kits or data tables; the field stays empty (run tools/export_kits.js)")
 		return out
 	var types: Dictionary = {}
@@ -330,10 +337,10 @@ func _compose_figures() -> Array[FigurePool.Figure]:
 		while models < per_team and pool is Array and not (pool as Array).is_empty() and guard < 400:
 			var key := str((pool as Array)[guard % (pool as Array).size()])
 			guard += 1
-			if not on_disk.has(key) or not types.has(key):
+			if (not eggs and not on_disk.has(key)) or not types.has(key):
 				continue
 			if not used.has(key):
-				if used.size() >= MAX_KITS_PER_TEAM or not figures.kit_available(key):
+				if used.size() >= MAX_KITS_PER_TEAM or (not eggs and not figures.kit_available(key)):
 					continue
 				used.append(key)
 			var n := mini(int(types[key].get("n", 1)), per_team - models)
@@ -357,7 +364,7 @@ func _place_team(team: int, squads: Array, manifest: Dictionary, rng: RandomNumb
 	var face := 0.0 if row == 0 else PI
 	var footprint := 0.0
 	for sq in squads:
-		var rr := KitLibrary.base_radius(manifest, sq[0])
+		var rr := _fig_radius(manifest, sq[0])
 		footprint += int(sq[1]) * (2.0 * rr + 0.3) * (2.0 * rr + 0.3)
 	var zone_area := (x1 - x0) * (table_d * 0.5 - 1.4 - z_end)
 	var scale := minf(1.0, sqrt(zone_area * 0.72 / maxf(footprint, 1.0)))
@@ -366,7 +373,7 @@ func _place_team(team: int, squads: Array, manifest: Dictionary, rng: RandomNumb
 	var row_h := 0.0
 	for sq in squads:
 		var kit: String = sq[0]
-		var r := KitLibrary.base_radius(manifest, kit)
+		var r := _fig_radius(manifest, kit)
 		for i in int(sq[1]):
 			var w := (2.0 * r + 0.3) * scale
 			var tries := 0
@@ -398,3 +405,209 @@ func _place_team(team: int, squads: Array, manifest: Dictionary, rng: RandomNumb
 			x += w
 			row_h = maxf(row_h, 2.0 * r * scale)
 		x += 0.6 * scale
+
+
+# ---- โต๊ะรบจริง (LOBBY_SPEC §4) ----
+## ฟิกเกอร์จาก BattleState (ไม่ใช่ภาพทดลอง): ตัวละตัวตาม st.units ที่ตำแหน่งกติกา (MI / 1000 = เมตร) หันตามหมู่
+## วงทีมใต้ทุกตัว วงจุดยึดสีเจ้าของ วงเลือก/ปลายทาง · วาดใหม่จาก st ทุกครั้ง (วางกอง เกิดใหม่ ลุกขึ้น ไม่มีเหตุการณ์รายตัว)
+## ภาพไม่คิดกติกาและไม่แตะ st · รูปฟิกเกอร์ตาม App.fig (figure_style "" = ตามแอป) ชุดโมเดลไม่มีในเครื่องก็เป็นตัวไข่
+
+## แตะโต๊ะ: fig = ฟิกเกอร์ที่ใกล้จุดแตะที่สุดในระยะ (-1 = ไม่มี) ground = จุดบนพื้น
+signal picked(fig: int, ground: Vector3)
+
+## "" = ตาม App.fig · "egg" · "kit"
+@export var figure_style := ""
+
+## โหมดชุดโมเดลสร้างโหนด skinned (หนัก): วาดใหม่ไม่ถี่กว่านี้
+const KIT_SYNC_MS := 250
+
+var _battle_mode := false
+var _battle_list: Array[FigurePool.Figure] = []
+var _battle_st: BattleState
+var _battle_units := PackedStringArray()   # ดัชนีฟิกเกอร์ → id ของโมเดล
+var _unit_fig: Dictionary = {}             # id ของโมเดล → ดัชนีฟิกเกอร์
+var _sel_ids := PackedStringArray()
+var _sel_rings := PackedInt32Array()
+var _dest_pos := Vector3.INF
+var _dest_r := 0.8
+var _dest_ring := -1
+var _last_sync_ms := -100000
+var _sync_queued := false
+var _kits_on_disk := -1                    # -1 = ยังไม่ได้ดู
+var _fallback_logged := false
+
+
+## รูปที่ใช้จริง: ค่าที่ตั้งหรือ App.fig; kit แต่ไม่มีชุดโมเดลในเครื่อง = egg (บันทึกครั้งเดียว)
+func effective_style() -> String:
+	var s := figure_style
+	if s == "":
+		var app := get_node_or_null(^"/root/App")
+		s = str(app.get("fig")) if app != null else "egg"
+	if not FigurePool.STYLES.has(s):
+		s = "egg"
+	if s == "kit":
+		if _kits_on_disk < 0:
+			_kits_on_disk = KitLibrary.list_kits().size()
+		if _kits_on_disk == 0:
+			if not _fallback_logged:
+				_fallback_logged = true
+				Log.warn("table: no kits on disk; figures fall back to eggs")
+			return "egg"
+	return s
+
+
+## เปลี่ยนรูปฟิกเกอร์แล้ววาดฟิกเกอร์กับวงใหม่ (สนามเดิม)
+func set_figure_style(s: String) -> void:
+	figure_style = s
+	if not built:
+		return
+	if _battle_mode and _battle_st != null:
+		_last_sync_ms = -100000
+		sync_battle(_battle_st)
+		return
+	figures.set_style(effective_style())
+	var list := _compose_figures()
+	figures.set_figures(list)
+	figures.build(level, camera_pos())
+	rings.setup(list.size() + RING_EXTRA)
+	for f in list:
+		rings.add_ring(f.pos, terrain.normal_at(f.pos.x, f.pos.z), f.radius * 1.1, team_colour(f.team))
+	selected = -1
+	_select_ring = -1
+
+
+## เริ่มวาดการรบ: สนามเดียวกับกติกา (seed ขนาด ฉาก ภูมิประเทศ สิ่งก่อสร้าง ความหนาแน่น x10 เป็นส่วนพัน) แล้วฟิกเกอร์จาก st
+func build_battle(st: BattleState) -> void:
+	_battle_mode = true
+	_battle_st = st
+	_battle_list = []
+	_sel_ids = PackedStringArray()
+	_dest_pos = Vector3.INF
+	rebuild({"seed": st.seed, "w": st.w, "theme": st.theme, "terrain": st.terrain, "buildings": st.buildings,
+		"density": st.density_h * 10})
+	_last_sync_ms = -100000
+	sync_battle(st)
+
+
+## ฟิกเกอร์และวงจาก st อีกครั้ง (ไม่สร้างสนามใหม่) · โหมดชุดโมเดลไม่ถี่กว่า KIT_SYNC_MS (ที่ค้างทำตอนครบเวลา)
+func sync_battle(st: BattleState) -> void:
+	if not _battle_mode or st == null:
+		return
+	_battle_st = st
+	var style := effective_style()
+	var now := Time.get_ticks_msec()
+	if style == "kit" and now - _last_sync_ms < KIT_SYNC_MS:
+		if not _sync_queued and is_inside_tree():
+			_sync_queued = true
+			get_tree().create_timer((KIT_SYNC_MS - (now - _last_sync_ms)) / 1000.0).timeout.connect(_queued_sync)
+		return
+	_last_sync_ms = now
+	var list: Array[FigurePool.Figure] = []
+	_battle_units = PackedStringArray()
+	_unit_fig = {}
+	for u in st.units:
+		var s := st.squad(u.sq)
+		var x := u.x / 1000.0
+		var z := u.z / 1000.0
+		var yaw := atan2(float(s.fx), float(s.fz)) if s != null else 0.0
+		_unit_fig[u.id] = list.size()
+		_battle_units.append(u.id)
+		list.append(FigurePool.make(u.t, u.side, Vector3(x, terrain.height_at(x, z), z), yaw, EggShapes.base_r(u.t)))
+	_battle_list = list
+	figures.set_style(style)
+	figures.set_figures(list)
+	figures.build(level, camera_pos())
+	rings.setup(list.size() + st.objs.size() + RING_EXTRA)
+	for f in list:
+		rings.add_ring(f.pos, terrain.normal_at(f.pos.x, f.pos.z), f.radius * 1.1, team_colour(f.team))
+	var obj_r := GameData.const_int("OBJ_R", 3) * 1.0
+	for o in st.objs:
+		var ox := o.x / 1000.0
+		var oz := o.z / 1000.0
+		var i := rings.add_kind(Rings.Kind.OBJECTIVE, Vector3(ox, terrain.height_at(ox, oz), oz), terrain.normal_at(ox, oz), obj_r)
+		var own := BtObjectives.ctl(st, o)
+		if own >= 0:
+			rings.set_colour(i, team_colour(own).lerp(Color.WHITE, 0.25))
+	selected = -1
+	_select_ring = -1
+	_sel_rings = PackedInt32Array()
+	_dest_ring = -1
+	show_selection(_sel_ids)
+	show_dest(_dest_pos, _dest_r)
+
+
+func _queued_sync() -> void:
+	_sync_queued = false
+	if _battle_mode and _battle_st != null:
+		sync_battle(_battle_st)
+
+
+## id ของโมเดลที่ฟิกเกอร์ i แทน ("" = ไม่ใช่)
+func fig_unit(i: int) -> String:
+	return _battle_units[i] if _battle_mode and i >= 0 and i < _battle_units.size() else ""
+
+
+## ดัชนีฟิกเกอร์ของโมเดล id (-1 = ไม่มี)
+func unit_fig(id: String) -> int:
+	return int(_unit_fig.get(id, -1))
+
+
+## วงเลือก (สีขาว) ใต้โมเดลที่ให้มา; รายการว่าง = เอาออก
+func show_selection(unit_ids: PackedStringArray) -> void:
+	for i in _sel_rings:
+		rings.remove_ring(i)
+	_sel_rings = PackedInt32Array()
+	_sel_ids = unit_ids.duplicate()
+	for id in unit_ids:
+		var fi := unit_fig(id)
+		if fi < 0 or fi >= figures.figures.size():
+			continue
+		var f := figures.figures[fi]
+		var r := rings.add_kind(Rings.Kind.SELECT, f.pos, terrain.normal_at(f.pos.x, f.pos.z), f.radius * 1.1)
+		if r >= 0:
+			_sel_rings.append(r)
+
+
+## วงปลายทาง/ระยะเดิน (สีทอง) ที่จุด p รัศมี radius (เมตร); Vector3.INF = เอาออก
+func show_dest(p: Vector3, radius: float = 0.8) -> void:
+	if _dest_ring >= 0:
+		rings.remove_ring(_dest_ring)
+		_dest_ring = -1
+	_dest_pos = p
+	_dest_r = radius
+	if p == Vector3.INF or not p.is_finite():
+		return
+	var y := terrain.height_at(p.x, p.z)
+	_dest_ring = rings.add_kind(Rings.Kind.DEST, Vector3(p.x, y, p.z), terrain.normal_at(p.x, p.z), radius / float(Rings.KIND_SCALE[Rings.Kind.DEST]))
+
+
+## จบการวาดการรบ: เอาฟิกเกอร์และวงออก (สนามคงอยู่) โต๊ะกลับเป็นโหมดภาพทดลองเมื่อ rebuild ครั้งถัดไป
+func end_battle() -> void:
+	if not _battle_mode:
+		return
+	_battle_mode = false
+	_battle_st = null
+	_battle_list = []
+	_battle_units = PackedStringArray()
+	_unit_fig = {}
+	_sel_ids = PackedStringArray()
+	_sel_rings = PackedInt32Array()
+	_dest_pos = Vector3.INF
+	_dest_ring = -1
+	var none: Array[FigurePool.Figure] = []
+	figures.set_figures(none)
+	figures.build(level, camera_pos())
+	rings.setup(RING_EXTRA)
+	selected = -1
+	_select_ring = -1
+
+
+func in_battle() -> bool:
+	return _battle_mode
+
+
+## รัศมีฐานของฟิกเกอร์ภาพทดลอง: ตัวไข่จาก types.json, ชุดโมเดลจาก kits.json (ค่าเดียวกันตามสูตรของตัวส่งออก)
+func _fig_radius(manifest: Dictionary, kit: String) -> float:
+	if figures.style == "egg":
+		return EggShapes.base_r(kit)
+	return KitLibrary.base_radius(manifest, kit)
