@@ -381,6 +381,19 @@ decorations (banners, bases, trophies as extra palette slots or small attachment
 one is locked out of a fair game; collection affects only looks?); whether the painter edits per model or per squad;
 how much of this is visible to online opponents on v10 rooms (paint as ints is cheap; decorations need a cap).
 
+**Owner decisions of 12 Nov (random rewards).** สรุปไทย: ระบบสุ่มได้ทั้งสกิน ของที่ใช้ได้จริงในการรบ และตัวละคร
+ต้องคุมไม่ให้ของโกงเกินไป เก็บของบนเซิร์ฟเวอร์ และเหรียญได้จากแคมเปญพิเศษ
+- Pulls give cosmetics (skins, gun parts, decorations), usable items with stats, and characters. Items with stats are
+  used in the battle system, so they answer the first open question above: the collection affects more than looks.
+- Balance: no item may be overpowered. Every item has a capped bonus, and bot tournaments (hundreds of seeded games per
+  item set) must show no item set winning far more often before it ships. Each new set of usable items is a rules
+  change: bump `RULES_V` and the server gate so old clients never silently disagree.
+- Anti-cheat: the server rolls the pulls and owns the inventory; clients only request a pull and read their own items.
+  Inventory data on the device may also be encrypted, like the model protection proposed earlier, but that only slows
+  cheaters down; the server record is the truth.
+- Coins come from a special campaign mode; the owner will describe it. Still never real money.
+- The warship deck lobby (0.3) has the placeholder station for it: the treasure chest, "หีบสมบัติ · เร็วๆ นี้".
+
 **Effort.** 10–15 agent sessions after R6, or in parallel with R5 if the owner prefers it earlier.
 
 ---
