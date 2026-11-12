@@ -1,18 +1,29 @@
 extends SceneTree
-## The walkable lobby hall (LOBBY_SPEC §2, §7.3) inside scenes/main.tscn, reached from the main menu's %PlayButton.
+## The walkable lobby (LOBBY_SPEC §2, §7.3), since 0.3 the warship deck of SHIP_LOBBY_SPEC (§9.1, §9.3), inside
+## scenes/main.tscn, reached from the main menu's %PlayButton.
 ## Entry: the table_view node stays hidden and disabled, the hall camera is current.
 ## Movement by simulated physical keys: W follows the camera's forward, D its right, Shift+W covers >= 1.6x the walk
 ## distance in the same physics frames, after a 90-degree mouse orbit W follows the new forward, and walking into the
 ## back wall, a pillar and the war table stops at the surface (the avatar never enters a blocker).
 ## Camera: in each corner, orbiting, tilting and zooming out keeps the camera inside the hall (0.1 m in), in no blocker
-## and below the ceiling (y = 6); four walks past pillars and stands move the arm by at most 0.5 m a frame. Stations: each prompt shows its translated name, E at the army display and the
-## lectern opens the army picker / settings and their back buttons return to an active hall, the online gate and the
-## adventure table show %SoonPanel and stay, the exit door, %MenuButton and Esc return to the main menu.
+## and below the ceiling (y = 6); six walks (past pillars and stands, from the spawn to the vault, and along the airlock
+## with the camera between the avatar and the right wall, where it must come within 0.5 m of the airlock's face) move
+## the arm by at most 0.5 m a frame. Stations: each prompt shows its translated name, E at the armoury and the console opens the army
+## picker / settings and their back buttons return to an active hall, the docking airlock (right wall), the adventure
+## table and the vault (treasure chest) show %SoonPanel and stay; the vault in Thai and English: prompt, panel text, Esc
+## and walking away close it, the touch use button opens it; the exit door, %MenuButton and Esc return to the main menu.
 ## Touch: with App.touch "on" %Stick and the touch prompt show, simulated screen touches on the stick walk (past 0.85
 ## run), "off" hides it. Thai and English at 640x360, 1280x720 and 1280x576 with the 3D signs included; layout rules of
-## §7.1. min: after 10 idle frames nothing under the hall processes and the spring arm sleeps; draw calls and
-## primitives are printed for all four levels and checked against §2.6 (min <= 40 / 40k).
-## Saves hall_th.png, hall_en.png, hall_min.png, hall_touch.png (_<w>x<h> added for the other sizes). Run:
+## §7.1, with the adventure and the vault coming-soon panels open too (vault line: one line in Thai, at most two in
+## English). Levels: ships, drift, holo flicker and stars per SHIP_LOBBY_SPEC §6, no ShaderMaterial under the hall on
+## lo/min, Ships hidden on min, the Space mesh shown on every level. min: after 10 idle frames nothing under the hall
+## processes and the spring arm sleeps; draw calls and primitives are printed for all four levels and checked against
+## §2.6 (min <= 40 / 40k) and the deck targets of SHIP_LOBBY_SPEC §6 (min <= 30 / 30k), in the overview and again in the
+## phone layout's worst view (20:9 window, touch on, first-entry hint showing, at the war table looking across the deck);
+## sign outlines only on hi/mid, the title plaque on the signs' font size, the drifting ships' culling box covers the
+## dome. No holes into the void: with a magenta background no magenta pixel shows in 64 views on mid and 32 on min.
+## Saves hall_th.png, hall_en.png, hall_min.png, hall_touch.png (_<w>x<h> added for the other sizes), hall_viewport.png,
+## hall_vault.png, hall_vault_en.png and hall_deck_<level>.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_hall.gd
 ## TEST_OUT (an absolute folder) in the environment replaces tests/out. Exit code 1 on any failure.
@@ -28,6 +39,16 @@ const MIN_TARGET := 44.0
 const HALL_NAMES: PackedStringArray = ["UseButton", "Stick", "MenuButton", "SettingsButton", "SoonPanel", "Hint"]
 ## [draw calls, primitives] per level (LOBBY_SPEC §2.6)
 const BUDGET := {"hi": [140, 250000], "mid": [100, 150000], "lo": [60, 80000], "min": [40, 40000]}
+## tighter targets of the warship deck (SHIP_LOBBY_SPEC §6), asserted as well
+const SHIP_TARGET := {"hi": [40, 60000], "mid": [40, 50000], "lo": [35, 40000], "min": [30, 30000]}
+## [ships, ships drift, holo flickers, stars] per level (SHIP_LOBBY_SPEC §6)
+const DECK := {"hi": [5, true, true, 700], "mid": [3, true, true, 500], "lo": [3, false, false, 320], "min": [0, false, false, 180]}
+## the vault's coming-soon line: lines allowed in Thai / English (SHIP_LOBBY_SPEC §5)
+const VAULT_LINES := {"th": 1, "en": 2}
+## no holes into the void: spots the camera looks from (SHIP_LOBBY_SPEC §9.3)
+const VOID_SPOTS: Array[Vector3] = [Vector3(0.0, 0.0, 5.0), Vector3(0.0, 0.0, -6.5), Vector3(-10.0, 0.0, 6.0), Vector3(9.5, 0.0, 4.5)]
+const VOID_SIZE := Vector2i(640, 360)
+const MAGENTA := Color(1.0, 0.0, 1.0)
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min"]
 const WALK_TICKS := 45
 
@@ -87,8 +108,10 @@ func _run() -> void:
 	_check(world != null and world.name == &"HallWorld" and world.is_in_group("gfx_level"), "its world is the HallWorld child, in the gfx_level group")
 	var c: Dictionary = world.call("counts")
 	print("hall counts: " + str(c))
-	_check(int(c["flames"]) == 24 and int(c["signs"]) == 7 and int(c["static_meshes"]) <= 3 and int(c["blockers"]) >= 20,
-		"mid: 24 flames, 6 signs + the name tag, at most 3 static meshes, every blocker built", str(c))
+	# 0.3 (SHIP_LOBBY_SPEC §9.1): two vault candles (24 -> 26 flames), the vault sign and the title plaque (7 -> 9 labels),
+	# the space mesh behind the viewport (3 -> 4 static meshes)
+	_check(int(c["flames"]) == 26 and int(c["signs"]) == 9 and int(c["static_meshes"]) <= 4 and int(c["blockers"]) >= 20,
+		"mid: 26 flames, 7 station signs + the title plaque + the name tag, at most 4 static meshes, every blocker built", str(c))
 	var table := get_first_node_in_group("table_view") as Node3D
 	_check(table == null or (not table.visible and table.process_mode == Node.PROCESS_MODE_DISABLED), "the battle table stays hidden and disabled under the hall")
 	_check(_camera(world).current, "the hall camera is current")
@@ -103,6 +126,8 @@ func _run() -> void:
 	await _check_stations(hall)
 	await _check_touch(hall)
 	await _check_levels(hall)
+	await _check_touch_budget(hall)
+	await _check_void(hall)
 	await _check_ways_out(hall)
 	_check(_machine_settings() == _machine_cfg, "this machine's settings.cfg was not touched")
 	_finish()
@@ -153,7 +178,9 @@ func _check_texts(hall: Node) -> void:
 				for l: Label3D in world.call("labels"):
 					if _thai_re.search(l.text) != null:
 						signs += 1
-				_check(signs == 7, tag + ": the six signs and the name tag are Thai (%d)" % signs)
+				# 0.3: seven station signs, the title plaque and the name tag (was six signs + the name tag)
+				_check(signs == 9, tag + ": the seven station signs, the title plaque and the name tag are Thai (%d)" % signs)
+				_check(str(world.call("sign_text", "title")) == "ดาดฟ้ายานรบ", tag + ": the title plaque reads ดาดฟ้ายานรบ")
 				_check(use.text == "โต๊ะรบ · กด E", tag + ": Thai prompt " + use.text)
 				_check(_thai_re.search((hall.get_node("%MenuButton") as Button).text) != null, tag + ": the menu button is Thai")
 				_check((hall.get_node("%Hint") as Label).visible and _thai_re.search((hall.get_node("%Hint") as Label).text) != null,
@@ -167,6 +194,21 @@ func _check_texts(hall: Node) -> void:
 			if lang == "en":
 				thai = _thai_in(hall, [])
 				_check(thai.is_empty(), tag + ": the coming-soon panel is English", ", ".join(thai))
+				_check(str(world.call("sign_text", "title")) == "Warship Deck", tag + ": the title plaque reads Warship Deck")
+			hall.call("close_soon")
+			# 0.3: the vault's longer line (SHIP_LOBBY_SPEC §5, panel 760 x 120)
+			hall.call("show_soon", "vault")
+			await _frames(2)
+			var label: Label = hall.get_node("%SoonLabel")
+			lay = _layout_problems(hall)
+			_check(lay.is_empty(), tag + ": the vault coming-soon panel fits too", ", ".join(lay))
+			_check(label.get_line_count() <= int(VAULT_LINES[lang]) and label.get_visible_line_count() == label.get_line_count(),
+				tag + ": the vault line takes %d line(s), at most %d, all shown" % [label.get_line_count(), int(VAULT_LINES[lang])])
+			if lang == "en":
+				thai = _thai_in(hall, [])
+				_check(thai.is_empty() and label.text.begins_with("Treasure chest"), tag + ": the vault panel is English (%s)" % label.text, ", ".join(thai))
+			else:
+				_check(label.text.begins_with("หีบสมบัติ"), tag + ": the vault panel is Thai (%s)" % label.text)
 			hall.call("close_soon")
 	await _resize(SIZES[0])
 	_app().call("set_lang", "th")
@@ -181,7 +223,8 @@ func _check_movement(hall: Node) -> void:
 	var av := _avatar(world)
 	var rig: Node3D = world.get("camera_rig")
 	rig.call("set_view", 0.0, -0.45, 6.5)
-	world.call("place_avatar", Vector3(4.0, 0.0, 6.5), PI)
+	# 0.3: the starts moved from x 4 to x 2: the treasure chest (r 1.2 at (5, 4)) now stands in the old walk lines
+	world.call("place_avatar", Vector3(2.0, 0.0, 6.5), PI)
 	await _settle()
 	var d := await _hold([KEY_W], WALK_TICKS)
 	var fwd: Vector3 = rig.call("forward_flat")
@@ -190,7 +233,7 @@ func _check_movement(hall: Node) -> void:
 		"the first move hides the hint")
 	await _until_still(av)
 	_check(not av.is_physics_processing(), "after the keys are released the avatar stops processing")
-	world.call("place_avatar", Vector3(4.0, 0.0, 6.5), PI)
+	world.call("place_avatar", Vector3(2.0, 0.0, 6.5), PI)
 	await _settle()
 	d = await _hold([KEY_D], 30)
 	var right: Vector3 = rig.call("right_flat")
@@ -198,17 +241,17 @@ func _check_movement(hall: Node) -> void:
 	_check(absf(wrapf(float(av.get("face")) - atan2(right.x, right.z), -PI, PI)) < 0.35, "the avatar turns to face where it walks")
 	await _until_still(av)
 	# the same physics frames with and without Shift
-	world.call("place_avatar", Vector3(4.0, 0.0, 7.0), PI)
+	world.call("place_avatar", Vector3(2.0, 0.0, 7.0), PI)
 	await _settle()
 	var walk := (await _hold([KEY_W], WALK_TICKS)).length()
 	await _until_still(av)
-	world.call("place_avatar", Vector3(4.0, 0.0, 7.0), PI)
+	world.call("place_avatar", Vector3(2.0, 0.0, 7.0), PI)
 	await _settle()
 	var run := (await _hold([KEY_SHIFT, KEY_W], WALK_TICKS)).length()
 	await _until_still(av)
 	_check(run >= walk * 1.6, "Shift+W covers %.2f m against %.2f m walking (x%.2f >= 1.6)" % [run, walk, run / maxf(walk, 0.001)])
 	# arrows walk like WASD
-	world.call("place_avatar", Vector3(4.0, 0.0, 6.5), PI)
+	world.call("place_avatar", Vector3(2.0, 0.0, 6.5), PI)
 	await _settle()
 	d = await _hold([KEY_UP], 30)
 	_check(d.normalized().dot(fwd) > 0.98 and d.length() > 0.5, "the Up arrow walks forward too")
@@ -234,7 +277,7 @@ func _check_walls(hall: Node) -> void:
 	rig.call("set_view", 0.0, -0.45, 6.5)
 	# [start, keys, name, check(final) -> bool]
 	var cases := [
-		[Vector3(-6.0, 0.0, -5.6), [KEY_W], "the back wall", func(p: Vector3) -> bool: return p.z >= -HallLayout.HALF.y + HallLayout.AVATAR_R - 0.02 and p.z < -7.5],
+		[Vector3(-6.0, 0.0, -5.6), [KEY_W], "the back wall (viewport)", func(p: Vector3) -> bool: return p.z >= -HallLayout.HALF.y + HallLayout.AVATAR_R - 0.02 and p.z < -7.5],
 		[Vector3(8.5, 0.0, -2.6), [KEY_W], "a pillar", func(p: Vector3) -> bool: return Vector2(p.x, p.z).distance_to(HallLayout.PILLARS[1]) >= HallLayout.PILLAR_R + HallLayout.AVATAR_R - 0.02 and p.z < -3.9],
 		[Vector3(0.0, 0.0, 2.6), [KEY_W], "the war table", func(p: Vector3) -> bool: return p.z >= HallLayout.AVATAR_R - 0.02 and p.z < 0.5],
 	]
@@ -278,33 +321,47 @@ func _check_camera(hall: Node) -> void:
 
 ## Natural walks past pillars and stands (review of 12 Nov): the camera glides (the spring arm's hit length changes by at
 ## most 0.5 m a physics frame, against 5.4 m before props left the arm's mask) and never enters a blocker.
+## Each walk: start, stick, name, camera yaw, and optionally a station whose footprint the camera must pass within 0.5 m.
 func _check_camera_walks(hall: Node) -> void:
 	var world: Node3D = hall.get("world")
 	var rig: Node3D = world.get("camera_rig")
 	var arm: SpringArm3D = rig.get("arm")
 	var cam := _camera(world)
 	var av := _avatar(world)
-	var walks := [[Vector3(0.0, 0, 5.0), Vector2(0.8, 0.6), "spawn -> the lectern"], [Vector3(0.0, 0, 5.0), Vector2(-0.8, 0.6), "spawn -> the army display"],
-		[Vector3(5.0, 0, -3.5), Vector2(1.0, 0.0), "past the pillar at (8.5, 0.5)"], [Vector3(-11.0, 0, 3.0), Vector2(1.0, 0.0), "across the hall at z 3"]]
+	# 0.3: the lectern is the console and the army display the armoury (names only); two walks added around the vault
+	# and the moved airlock (SHIP_LOBBY_SPEC §9.3). Review of 12 Nov: with yaw 0 the old "past the vault to the airlock"
+	# walk kept the camera at the front wall (never closer than 2.9 m to the airlock), so the airlock walk now runs along
+	# its front with the camera between the avatar and the right wall. The vault walk is a smoke walk: the chest's padded
+	# top (1.55 m) stays under the camera (>= 1.75 m unless a wall shortens the arm, and the chest is >= 6 m from walls).
+	var walks := [[Vector3(0.0, 0, 5.0), Vector2(0.8, 0.6), "spawn -> the console", 0.0], [Vector3(0.0, 0, 5.0), Vector2(-0.8, 0.6), "spawn -> the armoury", 0.0],
+		[Vector3(5.0, 0, -3.5), Vector2(1.0, 0.0), "past the pillar at (8.5, 0.5)", 0.0], [Vector3(-11.0, 0, 3.0), Vector2(1.0, 0.0), "across the hall at z 3", 0.0],
+		[Vector3(0.0, 0, 5.0), Vector2(0.9, 0.2), "spawn -> the vault", 0.0],
+		[Vector3(9.5, 0, 0.2), Vector2(-1.0, 0.0), "along the airlock, camera between the avatar and the right wall", PI * 0.5, "online"]]
 	for w in walks:
-		rig.call("set_view", 0.0, -0.45, 6.5)
+		rig.call("set_view", float(w[3]), -0.45, 6.5)
 		world.call("place_avatar", w[0], PI)
 		await _physics(10)
 		world.call("set_stick", w[1])
 		var last := arm.get_hit_length()
 		var worst := 0.0
 		var inside := ""
+		var near := INF
 		for i in 200:
 			await physics_frame
 			var l := arm.get_hit_length()
 			worst = maxf(worst, absf(l - last))
 			last = l
-			if inside == "" and HallLayout.inside_solid(cam.global_position, 0.1):
-				inside = "camera %s with the avatar at %s" % [str(cam.global_position.snapped(Vector3.ONE * 0.01)), str(av.global_position.snapped(Vector3.ONE * 0.01))]
+			var cp := cam.global_position
+			if inside == "" and HallLayout.inside_solid(cp, 0.1):
+				inside = "camera %s with the avatar at %s" % [str(cp.snapped(Vector3.ONE * 0.01)), str(av.global_position.snapped(Vector3.ONE * 0.01))]
+			if w.size() > 4:
+				near = minf(near, HallLayout.dist_to_rect(Vector2(cp.x, cp.z), HallLayout.rect_of(str(w[4]))))
 		world.call("set_stick", Vector2.ZERO)
 		await _until_still(av)
 		_check(worst <= 0.5, "walking %s the camera arm changes by at most 0.5 m a frame (%.2f m)" % [w[2], worst])
 		_check(inside == "", "walking %s the camera never enters a blocker" % w[2], inside)
+		if w.size() > 4:
+			_check(near <= 0.5, "walking %s the camera passes within 0.5 m of the %s footprint (%.2f m)" % [w[2], str(w[4]), near])
 	rig.call("set_view", 0.0, -0.45, 6.5)
 	await _physics(4)
 
@@ -320,7 +377,11 @@ func _check_stations(hall: Node) -> void:
 		await _settle()
 		_check(str(hall.call("station")) == id and use.visible and use.text.contains(str(root.get_node(^"I18n").call("t", str(names[id])))),
 			"at %s the prompt names it: %s" % [id, use.text])
-	# the army display and the lectern open their screens; back returns to an active hall
+	# 0.3: the airlock moved to the right wall (SHIP_LOBBY_SPEC §2.2): its prompt shows over there
+	world.call("place_avatar", _front("online"), PI)
+	await _settle()
+	_check(_avatar(world).global_position.x > 10.0 and str(hall.call("station")) == "online", "the docking airlock is on the right wall (avatar at x %.2f)" % _avatar(world).global_position.x)
+	# the armoury and the console open their screens; back returns to an active hall
 	for pair in [["army", "the army picker", "listed_units"], ["settings", "the settings screen", "refresh"]]:
 		world.call("place_avatar", _front(pair[0]), PI)
 		await _settle()
@@ -341,13 +402,15 @@ func _check_stations(hall: Node) -> void:
 			"back from %s: the hall is visible, active and owns the camera again" % pair[1])
 		var table := get_first_node_in_group("table_view") as Node3D
 		_check(table == null or not table.visible, "the battle table is still hidden after %s" % pair[1])
-	# online and adventure show the coming-soon panel and stay
+	# online, adventure and (0.3) the vault show the coming-soon panel and stay
 	var soon: Control = hall.get_node("%SoonPanel")
-	for id in ["online", "adventure"]:
+	var soon_texts: Dictionary = (hall.get_script() as Script).get_script_constant_map()["SOON"]
+	for id in ["online", "adventure", "vault"]:
 		world.call("place_avatar", _front(id), PI)
 		await _settle()
 		await _press(KEY_E)
-		_check(soon.visible and _app().call("current") == hall, "E at %s shows the coming-soon panel and stays in the hall" % id)
+		_check(soon.visible and _app().call("current") == hall and int(_app().call("depth")) == 2, "E at %s shows the coming-soon panel and stays in the hall" % id)
+		_check((hall.get_node("%SoonLabel") as Label).text == str(soon_texts[id]), "the %s panel shows its own line" % id)
 		var timer: Timer = hall.get_node("%SoonTimer")
 		_check(not timer.is_stopped() and timer.wait_time <= 2.6, "the panel closes itself after 2.5 s")
 		await _press(KEY_ESCAPE)
@@ -359,6 +422,7 @@ func _check_stations(hall: Node) -> void:
 	await _hold([KEY_S], 6)
 	_check(not soon.visible, "walking away closes the coming-soon panel")
 	await _until_still(_avatar(world))
+	await _check_vault(hall)
 	# the war table opens the battle setup once the battle track has built it
 	if ResourceLoader.exists(BATTLE_SETUP):
 		world.call("place_avatar", _front("battle"), PI)
@@ -371,6 +435,48 @@ func _check_stations(hall: Node) -> void:
 		_check(_app().call("current") == hall and world.visible, "popping the setup returns to the hall")
 	else:
 		print("note  %s is not built yet; the flow test covers the war table" % BATTLE_SETUP)
+
+
+## The treasure chest (SHIP_LOBBY_SPEC §5): the station for the future random rewards only says "coming soon" in Thai
+## and English; Esc (App.back) closes the panel first, walking away closes it, nothing is pushed.
+func _check_vault(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var soon: Control = hall.get_node("%SoonPanel")
+	var label: Label = hall.get_node("%SoonLabel")
+	var use: Button = hall.get_node("%UseButton")
+	var rig: Node3D = world.get("camera_rig")
+	for lang in ["th", "en"]:
+		_app().call("set_lang", lang)
+		hall.call("refresh")
+		world.call("place_avatar", _front("vault"), PI)
+		rig.call("set_view", PI * 0.5, -0.35, 5.5)   # from behind the chest, so the PNG shows it under the panel
+		await _settle()
+		var want_prompt := "หีบสมบัติ · กด E" if lang == "th" else "Treasure Chest · press E"
+		_check(str(hall.call("station")) == "vault" and use.visible and use.text == want_prompt, "%s: at the chest the prompt is %s" % [lang, use.text])
+		var sign_text := str(world.call("sign_text", "vault"))
+		_check(sign_text == ("หีบสมบัติ · เร็วๆ นี้" if lang == "th" else "Treasure Chest · Coming soon"), "%s: the chest's sign reads %s" % [lang, sign_text])
+		await _press(KEY_E)
+		var want := "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง" if lang == "th" else "Treasure chest — coming soon: win random gun parts and decorations"
+		_check(soon.visible and label.text == want and _app().call("current") == hall and int(_app().call("depth")) == 2,
+			"%s: E at the chest opens the coming-soon panel (%s) and stays in the hall" % [lang, label.text])
+		if lang == "en":
+			var thai := _thai_in(hall, [])
+			_check(thai.is_empty(), "en: no Thai at the chest with its panel open", ", ".join(thai))
+		var lay := _layout_problems(hall)
+		_check(lay.is_empty(), "%s: the chest's panel fits the screen" % lang, ", ".join(lay))
+		_save("hall_vault%s.png" % ("" if lang == "th" else "_en"))
+		_app().call("back")
+		await _frames(2)
+		_check(not soon.visible and _app().call("current") == hall and int(_app().call("depth")) == 2, "%s: back (Esc) closes the chest's panel first and stays in the hall" % lang)
+		await _press(KEY_E)
+		_check(soon.visible, "%s: E opens it again" % lang)
+		await _hold([KEY_S], 6)
+		_check(not soon.visible, "%s: walking away from the chest closes its panel" % lang)
+		await _until_still(_avatar(world))
+	_app().call("set_lang", "th")
+	hall.call("refresh")
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	await _settle()
 
 
 func _check_touch(hall: Node) -> void:
@@ -386,9 +492,27 @@ func _check_touch(hall: Node) -> void:
 	_check(stick.visible, "touch on: the stick shows")
 	_check(use.visible and use.text.ends_with("· แตะเพื่อใช้") and use.size.y >= 64.0, "touch on: the big touch prompt (%s, %.0f px)" % [use.text, use.size.y])
 	_check(stick.get_global_rect().intersection(use.get_global_rect()).get_area() < 1.0, "the stick and the use button do not overlap")
+	# 0.3: the touch use button opens the chest's coming-soon panel too
+	world.call("place_avatar", _front("vault"), PI)
+	await _settle()
+	_check(use.visible and use.text == "หีบสมบัติ · แตะเพื่อใช้", "touch on: the chest's prompt is %s" % use.text)
+	use.pressed.emit()
+	await _frames(2)
+	_check((hall.get_node("%SoonPanel") as Control).visible and _app().call("current") == hall, "tapping the use button at the chest opens its coming-soon panel")
+	# review of 12 Nov: the panel has nothing to tap, so a one-finger drag that starts on it still orbits the camera
 	var rig: Node3D = world.get("camera_rig")
+	var on_panel := (hall.get_node("%SoonPanel") as Control).get_global_rect().get_center()
+	var yaw_p := float(rig.get("yaw"))
+	_touch(1, on_panel, true)
+	_drag(1, on_panel + Vector2(-100.0, 0.0), Vector2(-100.0, 0.0))
+	_touch(1, on_panel + Vector2(-100.0, 0.0), false)
+	await _frames(2)
+	_check(absf(float(rig.get("yaw")) - yaw_p - 100.0 * 0.006) < 0.01 and (hall.get_node("%SoonPanel") as Control).visible,
+		"a one-finger drag that starts on the open coming-soon panel orbits the camera (%.3f -> %.3f)" % [yaw_p, float(rig.get("yaw"))])
+	hall.call("close_soon")
 	rig.call("set_view", 0.0, -0.45, 6.5)
-	world.call("place_avatar", Vector3(4.0, 0.0, 7.0), PI)
+	# 0.3: start at x 2, not 4: running forward from (4, 7) now reaches the treasure chest at (5, 4)
+	world.call("place_avatar", Vector3(2.0, 0.0, 7.0), PI)
 	await _settle()
 	var centre := stick.get_global_rect().get_center()
 	var p0 := av.global_position
@@ -443,6 +567,10 @@ func _check_touch(hall: Node) -> void:
 func _check_levels(hall: Node) -> void:
 	var world: Node3D = hall.get("world")
 	var rig: Node3D = world.get("camera_rig")
+	# review of 12 Nov: a 72 px plaque font allocated two more glyph caches (about 4 MB); it now reuses the signs' size
+	var title := world.get_node("Signs/Sign_title") as Label3D
+	_check(title.font_size == HallWorld.SIGN_FONT_SIZE and absf(title.pixel_size * title.font_size - HallWorld.SIGN_PIXEL * 72.0) < 0.000001,
+		"the title plaque uses the signs' font size %d (no extra glyph cache) and is drawn as large as size 72" % title.font_size)
 	world.call("place_avatar", Vector3(0.0, 0.0, 3.5), PI)
 	rig.call("set_view", 0.0, -0.6, 9.0)
 	for level in LEVELS:
@@ -459,11 +587,41 @@ func _check_levels(hall: Node) -> void:
 			prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 		OS.low_processor_usage_mode = idle
 		var c: Dictionary = world.call("counts")
-		print("hall level %-4s draw calls %4d  primitives %7d  (flames %d, sides %d, static tris %d)" % [level, draws, prims,
-			int(c["flames"]), int(c["sides"]), int(c["static_tris"])])
+		print("hall level %-4s draw calls %4d  primitives %7d  (flames %d, sides %d, static tris %d, space tris %d, stars %d, ships %d)" % [level, draws, prims,
+			int(c["flames"]), int(c["sides"]), int(c["static_tris"]), int(c["space_tris"]), int(c["stars"]), int(c["ships"])])
 		var b: Array = BUDGET[level]
 		_check(draws <= int(b[0]) and prims <= int(b[1]), "%s: %d draw calls, %d primitives within %d / %d" % [level, draws, prims, int(b[0]), int(b[1])])
-		_check(int(c["flames"]) == (12 if level == "min" else 24), "%s: %d flames" % [level, int(c["flames"])])
+		var t: Array = SHIP_TARGET[level]
+		_check(draws <= int(t[0]) and prims <= int(t[1]), "%s: within the deck target %d / %d too" % [level, int(t[0]), int(t[1])])
+		# 0.3: the two vault candles light on hi/mid/lo (24 -> 26); min keeps its 12
+		_check(int(c["flames"]) == (12 if level == "min" else 26), "%s: %d flames" % [level, int(c["flames"])])
+		var dk: Array = DECK[level]
+		_check(int(c["ships"]) == int(dk[0]) and bool(c["ship_drift"]) == bool(dk[1]) and bool(c["holo_flicker"]) == bool(dk[2]) and int(c["stars"]) == int(dk[3]),
+			"%s: %d ships (drift %s), holo flicker %s, %d stars" % [level, int(c["ships"]), str(c["ship_drift"]), str(c["holo_flicker"]), int(c["stars"])])
+		var ships := world.get_node("Ships") as GeometryInstance3D
+		var space := world.get_node("Static/Space") as MeshInstance3D
+		_check(ships.visible == (level != "min"), "%s: the distant ships are %s" % [level, "hidden" if level == "min" else "shown"])
+		# review of 12 Nov: the shader moves the ships far from their instance points, so the culling box covers the dome
+		if bool(dk[1]):
+			var box := ships.custom_aabb
+			var outside := 0
+			for d in HallSpace.ship_instances(level):
+				for at in [0.0, float(d["span"])]:
+					if not box.has_point(HallSpace.ship_pos(d, at)):
+						outside += 1
+			_check(box.size.x > 0.0 and outside == 0, "%s: the drifting ships' culling box %s holds both ends of every drift" % [level, str(box)])
+		# sign outlines cost one draw call per sign: only on hi/mid
+		var with_outline := level == "hi" or level == "mid"
+		var wrong := PackedStringArray()
+		for l: Label3D in world.call("labels"):
+			if (l.outline_size > 0) != with_outline:
+				wrong.append("%s %d" % [l.name, l.outline_size])
+		_check(wrong.is_empty(), "%s: sign outlines %s" % [level, "on" if with_outline else "off"], ", ".join(wrong))
+		_check(space.visible and space.mesh != null and int(c["space_tris"]) > 0, "%s: the space behind the viewport is drawn (%d triangles)" % [level, int(c["space_tris"])])
+		if level == "lo" or level == "min":
+			var shaders := _shader_materials(world)
+			_check(shaders.is_empty(), "%s: no ShaderMaterial under the hall (no TIME work)" % level, ", ".join(shaders))
+		_save("hall_deck_%s.png" % level)
 		var flicker := (world.get_node("Flames") as GeometryInstance3D).material_override is ShaderMaterial
 		_check(flicker == (level == "hi" or level == "mid"), "%s: flames flicker only on hi/mid" % level)
 		_check(bool(world.get("avatar").get("bob")) == (level == "hi" or level == "mid"), "%s: the avatar bobs only on hi/mid" % level)
@@ -480,6 +638,153 @@ func _check_levels(hall: Node) -> void:
 	hall.call("refresh")
 	rig.call("set_view", 0.0, -0.45, 6.5)
 	await _frames(2)
+
+
+## Review of 12 Nov: the phone layout's worst view stays within the §2.6 budget and the deck target on every level:
+## a 20:9 window (2400x1080 is 1600x720 logical), touch on (%Stick and the big prompt), the first-entry hint showing
+## (it hides on the first step, but the camera can orbit before that), the avatar at the war table's ring, the camera
+## looking across the deck towards either back corner (the most signs and HUD in view: about 40 draw calls before the
+## stick's arcs lost their anti-aliasing and lo/min lost the sign outlines). Saves hall_touch_worst_<level>.png.
+func _check_touch_budget(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var rig: Node3D = world.get("camera_rig")
+	var hint := hall.get_node("%Hint") as CanvasItem
+	var hint_visible := hint.visible
+	var hint_modulate := hint.modulate
+	var size0 := root.size
+	_app().call("set_touch", "on")
+	hall.call("refresh")
+	await _resize(Vector2i(1600, 720))
+	world.call("place_avatar", Vector3(0.0, 0.0, 0.85), PI)
+	for level in LEVELS:
+		_app().call("set_gfx", level)
+		hall.call("refresh")
+		hint.visible = true
+		hint.modulate = Color.WHITE
+		var idle := OS.low_processor_usage_mode
+		OS.low_processor_usage_mode = false   # draw every frame while measuring
+		var draws := 0
+		var prims := 0
+		for yaw in [PI * 1.75, PI * 1.25]:
+			rig.call("set_view", yaw, -0.3, 9.0)
+			await _frames(4)
+			for i in 3:
+				await process_frame
+				draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+				prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+		rig.call("set_view", PI * 1.75, -0.3, 9.0)
+		await _frames(3)
+		_save("hall_touch_worst_%s.png" % level)
+		OS.low_processor_usage_mode = idle
+		print("hall touch worst view %-4s draw calls %4d  primitives %7d" % [level, draws, prims])
+		var b: Array = BUDGET[level]
+		var t: Array = SHIP_TARGET[level]
+		_check(draws <= int(b[0]) and prims <= int(b[1]) and draws <= int(t[0]) and prims <= int(t[1]),
+			"%s, phone layout worst view (20:9, touch, hint): %d draw calls, %d primitives within the deck target %d / %d" % [level, draws, prims, int(t[0]), int(t[1])])
+	hint.visible = hint_visible
+	hint.modulate = hint_modulate
+	_app().call("set_gfx", "mid")
+	_app().call("set_touch", "off")
+	hall.call("refresh")
+	await _resize(size0)
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	await _frames(2)
+
+
+# ---- no holes into the void ----
+
+## SHIP_LOBBY_SPEC §9.3: with the background pure magenta, nothing of it may show: the vault closes the top, the reveals
+## close the window sides and the space dome fills every window. 4 spots x 4 yaws x 2 pitches x 2 arms on mid, the
+## widest half (arm 9) on min (fewer dome segments). Also saves hall_viewport.png (spawn, pitch -0.15) on mid.
+func _check_void(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var rig: Node3D = world.get("camera_rig")
+	var env: Environment = _camera(world).environment
+	var bg := env.background_color
+	world.call("place_avatar", HallLayout.SPAWN, PI)
+	rig.call("set_view", 0.0, -0.15, 6.5)
+	await _settle()
+	await _frames(3)
+	_save("hall_viewport.png")
+	await _resize(VOID_SIZE)
+	var hint := hall.get_node("%Hint") as CanvasItem
+	var hint_was := hint.visible
+	hint.visible = false
+	env.background_color = MAGENTA
+	for level in ["mid", "min"]:
+		_app().call("set_gfx", level)
+		hall.call("refresh")
+		var idle := OS.low_processor_usage_mode
+		OS.low_processor_usage_mode = false
+		var bad := PackedStringArray()
+		var n := 0
+		for spot in VOID_SPOTS:
+			world.call("place_avatar", spot, PI)
+			await _physics(2)
+			for yaw in [0.0, PI * 0.5, PI, PI * 1.5]:
+				for pitch in [-0.15, -0.45]:
+					for arm in [6.5, 9.0]:
+						if level == "min" and arm < 9.0:
+							continue
+						rig.call("set_view", yaw, pitch, arm)
+						await _physics(3)
+						await _frames(3)
+						n += 1
+						var m := _magenta_pixels(root.get_viewport().get_texture().get_image())
+						if m > 0:
+							bad.append("%s yaw %d pitch %.2f arm %.1f: %d px" % [str(spot), int(round(rad_to_deg(yaw))), pitch, arm, m])
+							if bad.size() == 1:
+								_save("hall_void_%s.png" % level)
+		OS.low_processor_usage_mode = idle
+		_check(bad.is_empty(), "%s: no hole into the void in %d views (magenta background, %dx%d)" % [level, n, VOID_SIZE.x, VOID_SIZE.y], "\n".join(bad))
+	env.background_color = bg
+	_check(env.background_color == HallWorld.BG, "the hall's background colour is restored")
+	hint.visible = hint_was
+	_app().call("set_gfx", "mid")
+	hall.call("refresh")
+	await _resize(SIZES[0])
+	world.call("place_avatar", HallLayout.SPAWN, PI)
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	await _settle()
+
+
+## Pixels that are still the magenta background (a hole); bilinear upscaling on min may blend an edge, so near-magenta
+## counts too.
+static func _magenta_pixels(img: Image) -> int:
+	var n := 0
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.r > 0.75 and c.b > 0.75 and c.g < 0.3:
+				n += 1
+	return n
+
+
+## GeometryInstance3D nodes under the hall that carry a ShaderMaterial (override, overlay, surface override or mesh).
+func _shader_materials(node: Node) -> PackedStringArray:
+	var out := PackedStringArray()
+	var stack: Array[Node] = [node]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		stack.append_array(n.get_children())
+		if not n is GeometryInstance3D:
+			continue
+		var g := n as GeometryInstance3D
+		var mats: Array = [g.material_override, g.material_overlay]
+		if g is MeshInstance3D and (g as MeshInstance3D).mesh != null:
+			var mi := g as MeshInstance3D
+			for i in mi.mesh.get_surface_count():
+				mats.append(mi.get_surface_override_material(i))
+				mats.append(mi.mesh.surface_get_material(i))
+		if g is MultiMeshInstance3D and (g as MultiMeshInstance3D).multimesh != null and (g as MultiMeshInstance3D).multimesh.mesh != null:
+			var mm := (g as MultiMeshInstance3D).multimesh.mesh
+			for i in mm.get_surface_count():
+				mats.append(mm.surface_get_material(i))
+		for m in mats:
+			if m is ShaderMaterial:
+				out.append(String(g.name))
+				break
+	return out
 
 
 # ---- ways out ----

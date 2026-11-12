@@ -21,7 +21,7 @@
 | `ui/theme/candle_style.gd` | `CandleStyle`: สีและสไตล์ธีมห้องแสงเทียน (ปุ่ม กล่อง หัวข้อ กลุ่มปุ่มเลือก ขอบจอปลอดภัย) ใช้ร่วมทุกหน้าใหม่ |
 | `ui/screens/main_menu.tscn`, `ui/widgets/title_art.gd` | หน้าแรก: ภาพหัวโต๊ะไม้กับเทียนวาดจากรูปทรงล้วน (เปลวไหวด้วย Timer เฉพาะ hi/mid), ปุ่ม เล่นกับบอท / ออนไลน์ (เร็วๆ นี้) / ตั้งค่า / ENGLISH / ออก (เฉพาะคอม), รุ่นแอป, กล่องถามก่อนออก |
 | `ui/screens/settings.tscn` | หน้าตั้งค่า: ภาษา ระดับกราฟิก รูปตัวละคร (ตัวไข่ / โมเดลชุดเดิม — ปิดเมื่อไม่มีชุดโมเดลในเครื่อง) ปุ่มบนจอ และปุ่มไปหน้าตรวจการ์ดจอ |
-| `scenes/hall/`, `ui/screens/hall_screen.tscn`, `ui/widgets/touch_stick.gd` | ห้องโถง (ในโค้ดชื่อ hall บนจอชื่อ "ล็อบบี้"): ห้องเดินได้ด้วย WASD/จอยสติ๊ก กล้องตาม สถานีโต๊ะรบ ตู้โชว์กองทัพ ตั้งค่า ออนไลน์ โต๊ะผจญภัย ประตูทางออก — แบบใน `docs/LOBBY_SPEC.md` §2 |
+| `scenes/hall/`, `ui/screens/hall_screen.tscn`, `ui/widgets/touch_stick.gd` | ล็อบบี้ "ดาดฟ้ายานรบ" (ในโค้ดชื่อ hall บนจอชื่อ "ล็อบบี้"): ดาดฟ้ายานอวกาศแบบโบสถ์ที่ออกแบบเอง เดินได้ด้วย WASD/จอยสติ๊ก กล้องตาม หน้าต่างใหญ่เห็นดาว ดาวเคราะห์ และยานลอยผ่าน; เจ็ดสถานี: โต๊ะรบ (โฮโลแกรม) คลังแสงกองทัพ ตั้งค่า (คอนโซล) ประตูเทียบยาน (ออนไลน์ เร็วๆ นี้) โต๊ะผจญภัย (เร็วๆ นี้) หีบสมบัติ (ระบบสุ่มของรางวัล เร็วๆ นี้) ประตูทางออก — แบบใน `docs/SHIP_LOBBY_SPEC.md` (และ `docs/LOBBY_SPEC.md` §2.3–2.5) |
 | `ui/screens/battle_setup.tscn`, `ui/screens/battle_screen.tscn`, `ui/battle/`, `table/figures/egg_shapes.gd` | ตั้งเกมกับบอท การรบ (ทุกการกระทำผ่าน `Battle` ใน `core/`) และฟิกเกอร์ตัวไข่ขนาดตามชนิดหน่วย — แบบใน `docs/LOBBY_SPEC.md` §3–4 |
 | `core/` | แกนกติกา: เลขคณิตจำนวนเต็ม (`fx.gd`), ตัวสุ่ม PCG32 (`rng.gd`), แฮช (`hash.gd`), บันทึกการกระทำ (`actlog.gd`), โครง `Table` และ `version.gd` — ห้ามมีทศนิยม ตรีโกณ หรือตัวสุ่มของเอนจิน (`tests/unit/test_core_purity.gd` ตรวจ) |
 | `table/camera_rig.gd` | `CameraRig`: ลาก/สองนิ้วหมุนและซูม, ล้อเมาส์, WASD, ปรับให้พอดีโต๊ะ (กล้องร่วมของทั้งสองโต๊ะ) |
@@ -104,6 +104,7 @@ timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --renderin
 ```bash
 godot --headless --path godot --audio-driver Dummy -s tests/flow/test_lobby_flow.gd      # หน้าแรก → ห้องโถง → เกมบอทจนจบ → กลับ (กด W ค้างตอนออก แล้วเกมที่สองกล้องไม่ไหลเอง)
 godot --headless --path godot --audio-driver Dummy -s tests/flow/test_settings_flow.gd   # ตั้งค่า (ภาษา ระดับกราฟิก ปุ่มบนจอ โมเดล) มีผลทุกหน้า
+godot --headless --path godot --audio-driver Dummy -s tests/flow/test_hall_reach.gd      # เดินจริงจากจุดเกิดไปถึงทั้ง 7 จุดของดาดฟ้ายานรบ แล้วแผงหีบสมบัติไทย/อังกฤษ
 ```
 เทสทุกชุดใช้ไฟล์ตั้งค่าของตัวเอง (`App.settings_file = "user://test_<ชื่อ>.cfg"`) ไม่เขียนทับ `settings.cfg` ของเครื่อง
 

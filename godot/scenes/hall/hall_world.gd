@@ -1,26 +1,33 @@
 class_name HallWorld
 extends Node3D
-## ห้องโถง 3 มิติ (ล็อบบี้ที่เดินได้, LOBBY_SPEC §2): เมชนิ่ง เปลวเทียน ตัวชน ป้าย วงแหวน ตัวผู้เล่น กล้องตาม
+## ดาดฟ้ายานรบ 3 มิติ (ล็อบบี้ที่เดินได้, SHIP_LOBBY_SPEC): เมชนิ่ง 4 ชิ้น (โครงยาน เฟอร์นิเจอร์ ผ้า อวกาศ) เปลวเทียน
+## ชั้นโฮโลแกรมบนโต๊ะรบ ยานไกลนอกหน้าต่าง ตัวชน ป้าย (สถานี + ป้ายชื่อสถานที่ "title") วงแหวน ตัวผู้เล่น กล้องตาม
 ## ข้อความบนป้ายมาจากหน้าห้องโถงผ่าน set_sign_text (ไฟล์นี้ไม่มีข้อความไทย)
 ## สภาพแวดล้อมตั้งบน Camera3D (โลกเดียวกับโต๊ะรบที่มี WorldEnvironment ของมันเอง) ไม่มีไฟจริง ไม่มีเงา
 ## งานต่อเฟรม: ไม่มีในสคริปต์นี้; ตัวผู้เล่นกับกล้องเปิดงานต่อเฟรมเองเฉพาะตอนขยับ
+## การขยับบน hi/mid (เปลวไฟไหว โฮโลแกรมกะพริบ ยานลอย) อยู่ใน shader ทั้งหมด; lo/min ไม่มี shader ที่ใช้ TIME
 
 signal station_changed(id: String)
 
 const TEAMS_PATH := "res://data/teams.json"
 const TABLE_VIEW := "res://table/table_view.gd"
-const BG := Color("120c08")
+const BG := Color("06070d")
 const AVATAR_RING_R := 0.68
 const STATION_RING_R := 0.55
 const RING_ACTIVE := Color(1.0, 0.78, 0.34)
-## ต่อระดับกราฟิก (§2.6): จำนวนเปลวไฟ ไฟไหว ตัวโยก จำนวนเหลี่ยมของเสา/ไข่
+## ต่อระดับกราฟิก (SHIP_LOBBY_SPEC §6): จำนวนเปลวไฟ ไฟไหว ตัวโยก จำนวนเหลี่ยมของเสา/ไข่
+## holo = โฮโลแกรมกะพริบ (shader) ไม่งั้นทึบนิ่ง, ships = ยานลอย (shader) / จอดนิ่ง / ไม่มี, stars = จำนวนดาว
+## outline = ป้ายมีขอบ (ขอบป้ายละ 1 draw call: lo/min ไม่มีขอบ ให้อยู่ในงบตอนเปิดจอยบนมือถือ)
 const LEVELS := {
-	"hi": {"flames": 24, "flicker": true, "bob": true, "sides": 14},
-	"mid": {"flames": 24, "flicker": true, "bob": true, "sides": 12},
-	"lo": {"flames": 24, "flicker": false, "bob": false, "sides": 10},
-	"min": {"flames": 12, "flicker": false, "bob": false, "sides": 8},
+	"hi": {"flames": 26, "flicker": true, "bob": true, "sides": 14, "holo": true, "ships": "drift", "stars": 700, "outline": true},
+	"mid": {"flames": 26, "flicker": true, "bob": true, "sides": 12, "holo": true, "ships": "drift", "stars": 500, "outline": true},
+	"lo": {"flames": 26, "flicker": false, "bob": false, "sides": 10, "holo": false, "ships": "parked", "stars": 320, "outline": false},
+	"min": {"flames": 12, "flicker": false, "bob": false, "sides": 8, "holo": false, "ships": "none", "stars": 180, "outline": false},
 }
+const STATIC_NAMES: PackedStringArray = ["Shell", "Furniture", "Cloth", "Space"]
 const FLAME_SHADER := "res://scenes/hall/flame.gdshader"
+const HOLO_SHADER := "res://scenes/hall/holo.gdshader"
+const SHIP_SHADER := "res://scenes/hall/ship_drift.gdshader"
 const SIGN_FONT_SIZE := 88
 const SIGN_PIXEL := 0.005
 const SIGN_WIDTH := 860.0
@@ -37,6 +44,8 @@ static var _table_levels: Dictionary = {}
 @onready var blockers_body: StaticBody3D = $Blockers
 @onready var props_body: StaticBody3D = $PropBlockers
 @onready var flames_node: MultiMeshInstance3D = $Flames
+@onready var holo_node: MeshInstance3D = $Holo
+@onready var ships_node: MultiMeshInstance3D = $Ships
 @onready var static_root: Node3D = $Static
 @onready var signs_root: Node3D = $Signs
 
@@ -46,6 +55,7 @@ var team_colour := Color(0.28, 0.52, 0.84)
 
 var _static: Array[MeshInstance3D] = []
 var _signs: Dictionary = {}            # id → Label3D (สถานี + "you" ป้ายเหนือตัวผู้เล่น)
+var _outline: Dictionary = {}          # id → ขนาดขอบเดิมของป้าย (คืนค่าบน hi/mid)
 var _station := ""
 var _avatar_ring := -1
 var _station_rings: Dictionary = {}    # id → ดัชนีวงแหวน
@@ -53,6 +63,12 @@ var _blockers := 0
 var _sides := 0
 var _flame_count := 0
 var _flame_shader: ShaderMaterial
+var _holo_shader: ShaderMaterial
+var _holo_plain: StandardMaterial3D
+var _ship_shader: ShaderMaterial
+var _ship_count := 0
+var _holo_flicker := false
+var _ship_drift := false
 var _env: Environment
 var _fade_mat: StandardMaterial3D
 var _alpha := 1.0
@@ -64,14 +80,16 @@ func _ready() -> void:
 	if teams is Array and not (teams as Array).is_empty() and (teams[0] as Dictionary).has("rgb"):
 		var rgb: Array = teams[0]["rgb"]
 		team_colour = Color8(int(rgb[0]), int(rgb[1]), int(rgb[2]))
-	for i in 3:
+	for i in STATIC_NAMES.size():
 		var mi := MeshInstance3D.new()
-		mi.name = ["Shell", "Furniture", "Cloth"][i]
+		mi.name = STATIC_NAMES[i]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.material_override = HallBuilder.material()
 		static_root.add_child(mi)
 		_static.append(mi)
 	flames_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holo_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ships_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_blockers = HallBuilder.build_colliders(blockers_body, props_body)
 	_build_signs()
 	rings.setup(1 + HallLayout.IDS.size() + 2)
@@ -99,7 +117,7 @@ func _ready() -> void:
 
 
 ## ใช้ระดับกราฟิก hi/mid/lo/min: ค่ารวมของแอปแบบเดียวกับ TableView.apply_level (render scale, fps, วาดตอนนิ่ง)
-## แล้วเมชนิ่งตามจำนวนเหลี่ยม เปลวไฟ (จำนวน + ไหว/ไม่ไหว) ไข่ตัวผู้เล่น การโยกตัว
+## แล้วเมชนิ่งตามจำนวนเหลี่ยม อวกาศ เปลวไฟ (จำนวน + ไหว/ไม่ไหว) โฮโลแกรม ยานไกล ไข่ตัวผู้เล่น การโยกตัว
 func apply_level(l: String) -> void:
 	if not LEVELS.has(l):
 		l = "mid"
@@ -118,11 +136,16 @@ func apply_level(l: String) -> void:
 	if sides != _sides:
 		_sides = sides
 		var ms := HallBuilder.meshes(sides)
-		for i in _static.size():
+		for i in ms.size():
 			_static[i].mesh = ms[i]
 		avatar.egg.mesh = HallBuilder.avatar_mesh(team_colour, sides)
+	_static[3].mesh = HallSpace.mesh(l)
 	_build_flames(int(cfg["flames"]), bool(cfg["flicker"]))
+	_build_holo(l, bool(cfg["holo"]))
+	_build_ships(l, str(cfg["ships"]))
 	avatar.bob = bool(cfg["bob"])
+	for id in _signs:
+		(_signs[id] as Label3D).outline_size = int(_outline[id]) if bool(cfg["outline"]) else 0
 
 
 ## ค่าต่อระดับของโต๊ะ (TableView.LEVELS) อ่านจากสคริปต์ตอนใช้ (แหล่งเดียวกับโต๊ะรบ)
@@ -188,8 +211,11 @@ func counts() -> Dictionary:
 	for mi in _static:
 		if mi.mesh != null:
 			tris += HallBuilder.tris(mi.mesh as ArrayMesh)
+	var space := HallBuilder.tris(_static[3].mesh as ArrayMesh) if _static.size() > 3 and _static[3].mesh != null else 0
 	return {"flames": _flame_count, "blockers": _blockers, "signs": _signs.size(), "level": level,
-		"static_meshes": _static.size(), "static_tris": tris, "rings": rings.count(), "sides": _sides}
+		"static_meshes": _static.size(), "static_tris": tris, "rings": rings.count(), "sides": _sides,
+		"stars": int(HallSpace.STARS.get(level, 0)), "ships": _ship_count, "ship_drift": _ship_drift,
+		"holo_flicker": _holo_flicker, "space_tris": space}
 
 
 # ---- ภายใน ----
@@ -241,7 +267,7 @@ func _build_flames(n: int, flicker: bool) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2601
 	for i in n:
-		var big := 1.5 if pts[i].is_equal_approx(HallLayout.LECTERN_FLAME) else 1.0
+		var big := 1.5 if pts[i].is_equal_approx(HallLayout.CONSOLE_FLAME) else 1.0
 		var s := big * rng.randf_range(0.9, 1.12)
 		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * s), pts[i]))
 		mm.set_instance_color(i, Color.WHITE)
@@ -257,6 +283,62 @@ func _build_flames(n: int, flicker: bool) -> void:
 	_flame_count = n
 
 
+## ชั้นโฮโลแกรมเหนือโต๊ะรบ: hi/mid shader กะพริบ (บวกสี ไม่เขียนความลึก), lo/min วัสดุทึบธรรมดา 0.8 เท่า ไม่มี TIME
+func _build_holo(l: String, flicker: bool) -> void:
+	holo_node.mesh = HallBuilder.holo_mesh(l)
+	if flicker:
+		if _holo_shader == null:
+			_holo_shader = ShaderMaterial.new()
+			_holo_shader.shader = load(HOLO_SHADER)
+		holo_node.material_override = _holo_shader
+	else:
+		if _holo_plain == null:
+			_holo_plain = StandardMaterial3D.new()
+			_holo_plain.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_holo_plain.vertex_color_use_as_albedo = true
+			_holo_plain.vertex_color_is_srgb = true
+			_holo_plain.albedo_color = Color(0.8, 0.8, 0.8)
+			_holo_plain.cull_mode = BaseMaterial3D.CULL_DISABLED
+		holo_node.material_override = _holo_plain
+	_holo_flicker = flicker
+
+
+## ยานไกลใน MultiMesh เดียว: drift = shader ลอย (ตำแหน่ง instance = กลางช่วงลอย), parked = จอดที่ตำแหน่งเฟส
+## วัสดุธรรมดา, none = ไม่มียาน ซ่อนโหนด (ไม่มี draw call)
+func _build_ships(l: String, mode: String) -> void:
+	var list: Array[Dictionary] = []
+	if mode != "none":
+		list = HallSpace.ship_instances(l)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = mode == "drift"
+	mm.mesh = HallSpace.ship_mesh()
+	mm.instance_count = list.size()
+	for i in list.size():
+		var d: Dictionary = list[i]
+		var p := HallSpace.ship_pos(d, float(d["span"]) * 0.5) if mode == "drift" else HallSpace.ship_pos(d, float(d["phase"]))
+		mm.set_instance_transform(i, HallSpace.ship_transform(d, p))
+		if mode == "drift":
+			mm.set_instance_custom_data(i, Color(float(d["speed"]), float(d["phase"]), float(d["span"]), float(d["len"])))
+	ships_node.multimesh = mm
+	ships_node.visible = mode != "none"
+	# ยานลอยไปไกลจากตำแหน่ง instance (shader): กล่องตัดภาพครอบทั้งโดม ไม่งั้นยานหายตอนกล่องเดิมหลุดจอ
+	if mode == "drift":
+		var r := Vector3.ONE * HallSpace.DOME_R
+		ships_node.custom_aabb = AABB(HallSpace.DOME_C - r, Vector3(2.0 * r.x, 2.0 * r.y, r.z))
+	else:
+		ships_node.custom_aabb = AABB()
+	if mode == "drift":
+		if _ship_shader == null:
+			_ship_shader = ShaderMaterial.new()
+			_ship_shader.shader = load(SHIP_SHADER)
+		ships_node.material_override = _ship_shader
+	else:
+		ships_node.material_override = HallBuilder.material()
+	_ship_count = list.size()
+	_ship_drift = mode == "drift" and _ship_count > 0
+
+
 func _build_signs() -> void:
 	for id in HallLayout.IDS:
 		var s: Dictionary = HallLayout.STATIONS[id]
@@ -269,7 +351,19 @@ func _build_signs() -> void:
 		l.width = SIGN_WIDTH
 		signs_root.add_child(l)
 		_signs[id] = l
+	# ป้ายชื่อสถานที่บนแผ่นบรอนซ์ใต้หน้าต่างกลาง (ไม่ใช่สถานี)
+	var t := _make_label("Sign_title")
+	t.position = HallLayout.TITLE_SIGN
+	t.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	t.double_sided = false
+	# ขนาดบนจอเท่าตัวอักษร 72 แต่ใช้ขนาด 88 ของป้ายสถานี (ใช้แคชตัวอักษรชุดเดิม ไม่จองหน่วยความจำเพิ่ม ~4 MB)
+	t.pixel_size = SIGN_PIXEL * 72.0 / SIGN_FONT_SIZE
+	t.modulate = Color(1.0, 0.86, 0.55)
+	signs_root.add_child(t)
+	_signs["title"] = t
 	_signs["you"] = avatar.name_label
+	for id in _signs:
+		_outline[id] = (_signs[id] as Label3D).outline_size
 
 
 func _make_label(n: String) -> Label3D:

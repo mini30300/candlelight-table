@@ -19,6 +19,12 @@ script = ExtResource("1_world")
 
 [node name="Flames" type="MultiMeshInstance3D" parent="."]
 
+[node name="Holo" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+
+[node name="Ships" type="MultiMeshInstance3D" parent="."]
+cast_shadow = 0
+
 [node name="Blockers" type="StaticBody3D" parent="."]
 collision_mask = 0
 

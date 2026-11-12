@@ -1,5 +1,5 @@
 extends "res://tests/testing.gd"
-## HallLayout (scenes/hall/hall_layout.gd, LOBBY_SPEC §2.1): the walkable lobby hall's plan, pure data.
+## HallLayout (scenes/hall/hall_layout.gd, SHIP_LOBBY_SPEC §2, LOBBY_SPEC §2.1): the walkable warship deck's plan, pure data.
 ## Station footprints, pillars and candle stands do not overlap and stay inside the hall; the spawn is in no trigger;
 ## a flood fill on a 0.25 m grid with the avatar radius reaches every station's trigger from the spawn; station_at
 ## gives the expected id at sample points, "" in the open, and the nearest station where two triggers meet.
@@ -12,8 +12,9 @@ func _circle_rect_gap(p: Vector2, r: float, rect: Rect2) -> float:
 	return HallLayout.dist_to_rect(p, rect) - r
 
 
-func test_stations_are_the_six_of_the_spec() -> void:
-	assert_eq(HallLayout.IDS, PackedStringArray(["battle", "army", "settings", "online", "adventure", "exit"]), "six station ids")
+func test_stations_are_the_seven_of_the_spec() -> void:
+	# 0.3 (SHIP_LOBBY_SPEC §2.2): the treasure-chest station "vault" is appended on purpose (six -> seven ids)
+	assert_eq(HallLayout.IDS, PackedStringArray(["battle", "army", "settings", "online", "adventure", "exit", "vault"]), "seven station ids")
 	for id in HallLayout.IDS:
 		assert_true(HallLayout.STATIONS.has(id), "station %s has a footprint" % id)
 	assert_eq(HallLayout.rect_of("battle"), Rect2(-3.0, -4.0, 6.0, 4.0), "the war table is 6 x 4 m at (0, -2)")
@@ -118,6 +119,7 @@ func test_flood_fill_reaches_every_station() -> void:
 			picked[at] = true
 	for c in free.size():
 		free_n += free[c]
+	assert_eq(HallLayout.IDS.size(), 7, "seven stations to reach, the moved airlock and the vault included")
 	for id in HallLayout.IDS:
 		assert_true(reached.has(id), "the flood fill from the spawn reaches the %s trigger" % id)
 		assert_true(picked.has(id), "station_at gives %s somewhere the avatar can walk" % id)
@@ -125,11 +127,13 @@ func test_flood_fill_reaches_every_station() -> void:
 
 
 func test_station_at_samples() -> void:
+	# 0.3 (SHIP_LOBBY_SPEC §2.2): the online gate moved from the back wall (now the great viewport) to the right wall
+	# as the docking airlock, so (0, -6.5) is open floor and (10.6, 3.0) is the airlock; the vault sits at (5, 4)
 	var samples := {
 		Vector2(0.0, 1.0): "battle", Vector2(2.0, 0.5): "battle", Vector2(-10.0, -1.0): "army",
-		Vector2(9.0, -1.0): "settings", Vector2(0.0, -6.5): "online", Vector2(-3.0, 4.0): "adventure",
-		Vector2(0.0, 7.0): "exit", Vector2(0.0, 4.0): "", Vector2(6.0, 4.0): "", Vector2(-6.0, -1.0): "",
-		Vector2(5.5, -6.0): "",
+		Vector2(9.0, -1.0): "settings", Vector2(10.6, 3.0): "online", Vector2(0.0, -6.5): "", Vector2(-3.0, 4.0): "adventure",
+		Vector2(0.0, 7.0): "exit", Vector2(0.0, 4.0): "", Vector2(6.0, 4.0): "vault", Vector2(3.15, 4.0): "vault",
+		Vector2(-6.0, -1.0): "", Vector2(5.5, -6.0): "",
 	}
 	for p in samples:
 		assert_eq(HallLayout.station_at(p), str(samples[p]), "station_at %s" % str(p))
@@ -154,7 +158,8 @@ func test_blockers_and_flames() -> void:
 	var tags := {}
 	for b in HallLayout.blockers():
 		tags[str(b["tag"])] = true
-	for t in ["wall_back", "wall_front", "wall_left", "wall_right", "ceiling", "battle", "army", "settings", "online", "adventure", "exit"]:
+	for t in ["wall_back", "wall_front", "wall_left", "wall_right", "ceiling", "battle", "army", "settings", "online", "adventure", "exit",
+			"vault"]:
 		assert_true(tags.has(t), "blocker " + t)
 	assert_true(HallLayout.inside_solid(Vector3(0.0, 6.2, 0.0)), "above y = 6 is solid (the invisible ceiling)")
 	assert_true(HallLayout.inside_solid(Vector3(0.0, 0.5, -2.0)), "inside the war table is solid")
@@ -162,7 +167,9 @@ func test_blockers_and_flames() -> void:
 	assert_eq(HallLayout.blocker_at(Vector2(8.5, -4.3), HallLayout.AVATAR_R), "pillar_1", "the avatar against a pillar names it")
 	var f := HallLayout.flames()
 	var fm := HallLayout.flames(true)
-	assert_eq(f.size(), HallLayout.MAX_FLAMES, "24 flames on hi/mid/lo")
+	# 0.3: two candles at the front of the vault's dais (24 -> 26); min keeps the same 12
+	assert_eq(f.size(), 26, "26 flames on hi/mid/lo")
+	assert_eq(f.size(), HallLayout.MAX_FLAMES, "MAX_FLAMES is the full set")
 	assert_eq(fm.size(), HallLayout.MAX_FLAMES_MIN, "12 flames on min")
 	var same := true
 	for i in fm.size():
@@ -204,6 +211,94 @@ func test_camera_clearance() -> void:
 		if t > room + 0.001 or HallLayout.inside_solid(p + d * t, 0.1):
 			bad += 1
 	assert_eq(bad, 0, "400 random camera rays from free spots end inside the hall and out of every blocker")
+	# review of 12 Nov: the no-jump design along the right wall rests on this (SHIP_LOBBY_SPEC §12, airlock row)
+	assert_true(HallLayout.rect_of("online").position.x - HallLayout.CAM_PAD > HallLayout.HALF.x - HallCamera.WALL_PAD,
+		"the airlock stays inside the wall pad: a camera pushed off the right wall never enters it")
+
+
+func test_front_rings_sit_in_their_own_trigger_only() -> void:
+	for id in HallLayout.IDS:
+		var f: Vector2 = HallLayout.STATIONS[id]["front"]
+		var others := PackedStringArray()
+		for o in HallLayout.IDS:
+			if o != id and HallLayout.dist_to_station(f, o) <= HallLayout.reach_of(o):
+				others.append(o)
+		assert_eq(others, PackedStringArray(), "the %s ring is inside no other station's trigger" % id)
+
+
+func test_the_viewport_floor_is_free() -> void:
+	# nothing but the two candle stands on the piers stands in front of the great window
+	var zone := Rect2(-7.4, -8.0, 14.8, 1.1)
+	var bad := PackedStringArray()
+	for b in HallLayout.blockers():
+		if HallLayout.is_shell(b):
+			continue
+		var tag := str(b["tag"])
+		var hit := false
+		if str(b["kind"]) == "box":
+			var c: Vector3 = b["c"]
+			var h: Vector3 = b["h"]
+			hit = zone.intersects(Rect2(c.x - h.x, c.z - h.z, h.x * 2.0, h.z * 2.0))
+		else:
+			hit = HallLayout.dist_to_rect(b["c"], zone) < float(b["r"])
+		if hit and not (tag.begins_with("stand_") and absf(absf((b["c"] as Vector2).x) - 4.0) < 0.01):
+			bad.append(tag)
+	assert_eq(bad, PackedStringArray(), "x in [-7.4, 7.4], z in [-8, -6.9] holds only the stands at (+-4, -7.5)")
+
+
+func test_windows_and_vault_profile() -> void:
+	var prof := HallLayout.VAULT_PROFILE
+	assert_eq(prof[0], Vector2(8.5, 6.0), "the vault springs from the column tops at (8.5, 6.0)")
+	var rising := true
+	for i in prof.size() - 1:
+		rising = rising and prof[i + 1].x < prof[i].x and prof[i + 1].y > prof[i].y
+	assert_true(rising, "the vault profile rises monotonically to the ridge")
+	assert_eq(HallLayout.WINDOWS.size(), 3, "three lancets in the back wall")
+	var spans: Array[Vector2] = []
+	for w in HallLayout.WINDOWS:
+		var x0 := float(w["x0"])
+		var x1 := float(w["x1"])
+		var cx := (x0 + x1) * 0.5
+		var a := (x1 - x0) * 0.5
+		assert_true(x0 > -HallLayout.HALF.x and x1 < HallLayout.HALF.x and x0 < x1, "lancet [%.1f, %.1f] lies inside the back wall" % [x0, x1])
+		assert_true(float(w["sill"]) >= 0.6, "lancet sill at least 0.6 m")
+		assert_true(float(w["spring"]) > float(w["sill"]) and float(w["apex"]) > float(w["spring"]), "sill < spring < apex")
+		assert_true(float(w["apex"]) - float(w["spring"]) > a, "lancet at x %.1f is pointed (rise > half width)" % cx)
+		assert_true(float(w["apex"]) < HallLayout.vault_y(cx) - 0.3, "lancet at x %.1f stays under the vault" % cx)
+		assert_within(HallLayout.window_half(w, float(w["spring"])), a, 0.0001, "full width at the spring")
+		assert_within(HallLayout.window_half(w, float(w["apex"])), 0.0, 0.0001, "zero width at the apex")
+		for sp in spans:
+			assert_true(x1 <= sp.x or x0 >= sp.y, "lancets do not overlap")
+		spans.append(Vector2(x0, x1))
+	# review of 12 Nov: the 0.18 m ledge cut through the egg standing at the viewport (§2.3: at most 0.08 m below 1.9 m)
+	assert_true(HallLayout.SILL_DEPTH > 0.0 and HallLayout.SILL_DEPTH <= 0.08, "the window sill stands out %.2f m (<= 0.08)" % HallLayout.SILL_DEPTH)
+	for s in HallLayout.STANDS:
+		if s.y < -7.0:
+			var on_pier := true
+			for sp in spans:
+				on_pier = on_pier and (s.x + HallLayout.STAND_R <= sp.x or s.x - HallLayout.STAND_R >= sp.y)
+			assert_true(on_pier, "the stand at %s stands on a pier between lancets" % str(s))
+
+
+func test_signs_and_cool_lights() -> void:
+	for id in HallLayout.IDS:
+		var s: Dictionary = HallLayout.STATIONS[id]
+		var p: Vector3 = s["sign"]
+		assert_true(p.y > float(s["height"]) + 0.3, "the %s sign floats above its blocker" % id)
+		assert_true(absf(p.x) < HallLayout.HALF.x and absf(p.z) < HallLayout.HALF.y and p.y < HallLayout.CEIL_Y,
+			"the %s sign is inside the room" % id)
+	var t := HallLayout.TITLE_SIGN
+	var w: Dictionary = HallLayout.WINDOWS[0]
+	assert_true(t.y > float(w["sill"]) and t.y < float(w["apex"]) and absf(t.x) < HallLayout.window_half(w, t.y), "the title sign sits under the centre lancet's arch")
+	assert_true(t.z > -HallLayout.HALF.y and t.z < -HallLayout.HALF.y + 0.2, "the title sign hangs at the back wall")
+	for l in HallLayout.COOL_LIGHTS:
+		var p: Vector3 = l["p"]
+		assert_true(float(l["k"]) > 0.0 and float(l["d"]) > 0.0, "cool light %s has k > 0 and D > 0" % str(p))
+		assert_true(absf(p.x) <= HallLayout.HALF.x and absf(p.z) <= HallLayout.HALF.y and p.y > 0.0 and p.y < HallLayout.CEIL_Y,
+			"cool light %s is inside the room" % str(p))
+	for f in HallLayout.VAULT_FLAMES:
+		var c: Vector2 = HallLayout.STATIONS["vault"]["c"]
+		assert_true(Vector2(f.x, f.z).distance_to(c) < 1.2, "vault candle %s stands inside the dais blocker" % str(f))
 
 
 func _cell(i: int, k: int) -> Vector2:

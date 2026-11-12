@@ -128,8 +128,58 @@ flow `test_lobby_flow` 33 and `test_settings_flow` 30, oracle 155, render probe,
 army_screen 62, battle_screen 120, budgets 112, field_look 213, hall 155, lineup 29, main_screens 40, menu_screens 118;
 data lint PASS (15 fixture checks).
 
+## 12 Nov: warship deck lobby (`docs/SHIP_LOBBY_SPEC.md`), APP_VER ใหม่ 0.3
+The owner asked for the lobby aboard a gothic starship and plans random rewards (gun parts, decorations) later. The
+walkable hall became **ดาดฟ้ายานรบ / Warship Deck**, our own design (no franchise names or marks; the only emblem is our
+candle): pointed vault with ribs and cables, clustered steel columns, deck plating, pipes, green / amber wall screens,
+three pointed viewport lancets onto a space dome (nebula, stars, planet, moon, our own ships drifting on hi/mid, parked
+on lo, absent on min), the title plaque. Stations keep their jobs: holo war table (setup), armoury (army picker),
+command console (settings), docking airlock on the right wall (online, coming soon), adventure table (coming soon), blast
+door (exit) and the new **vault**, a treasure chest at (5, 4) that only shows "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและ
+ของตกแต่ง" (no reward code yet). Controls, camera, spawn, HUD and flows are unchanged. Built in two parts (world;
+screen + release); where the build differs from the spec, its §12 records why (lancet springs, airlock depth, ship
+places, holo grid, a cool fill light, moved test starts).
+- New: `scenes/hall/hall_space.gd`, `holo.gdshader`, `ship_drift.gdshader` (hi/mid only), `tests/unit/test_hall_space.gd`,
+  `tests/flow/test_hall_reach.gd` (walks from the spawn to all 7 stations with the real colliders, then the chest's panel).
+- Measured before the review (`test_hall` overview only: avatar (0, 0, 3.5), yaw 0, pitch −0.6, arm 9, touch off,
+  1280×720): 20 draw calls on every level; primitives hi 16,279, mid 15,094, lo 13,734, min 13,012; no ShaderMaterial on
+  lo/min; no hole into the void (magenta background: 64 views on mid, 32 on min, zero pixels). The phone layout was not
+  measured then (the review found 41 draw calls on min there), and the two "vault / airlock" camera walks kept the camera
+  at the front wall, so they tested neither; both are fixed below.
+- Runs (12 Nov 17:30–18:00 Bangkok): unit 4,769 checks in 53 scripts; flow `test_lobby_flow` 33, `test_settings_flow`
+  30, `test_hall_reach` 31; render `test_hall` 243; data lint PASS.
+- Integration (12 Nov, 17:40–18:05 Bangkok): the whole flow walked by script under xvfb (menu → เล่นกับบอท → the deck →
+  on foot to all 7 stations and used each: armoury and console open and return, airlock / adventure / chest panels, the
+  blast door to the menu → back → W to the war table → setup → a bot game to the end → กลับล็อบบี้ (same spot, table
+  hidden) → Esc → menu), 44 checks, no failure. `HallBuilder.bake` now reads the cool lights from packed arrays: the
+  meshes are byte-identical and the deck builds in about half the time. `run.sh full` PASS: unit 4,769 in 53 scripts,
+  flow 31 / 33 / 30, oracle 155, render probe, anim_footslide 54, army_screen 62, battle_screen 120, budgets 112,
+  field_look 213, hall 243, lineup 29, main_screens 40, menu_screens 118; data lint PASS.
+- Review fixes (12 Nov, three reviews: look and rules, phones and performance, correctness and tests; no must-fix):
+  window sill 0.18 → 0.06 m (`HallLayout.SILL_DEPTH`, unit check ≤ 0.08: it cut through an egg standing at the
+  viewport); the chest no longer clips to (255, 193, 82) (vault light k 0.6 → 0.25, darker bronze: about (170, 115, 50));
+  viewport mullions in dark steel (they read as wooden window frames); darker holo-table glass; the moon with the planet's
+  segments and a blue-grey night side; sign outlines only on hi/mid (`HallWorld.LEVELS[l].outline`) and the touch
+  stick's arcs without anti-aliasing; the title plaque on the signs' font size 88 with a smaller pixel size (no extra
+  4 MB of glyph pages); the drifting ships' culling box covers the dome (a ship in view could be culled with its node);
+  `%SoonPanel` ignores the mouse (it swallowed camera drags on touch); `HallBuilder.bake` caches the light per vertex
+  position (the deck builds in 60–70 ms of CPU per level instead of 120–170, bit-identical: a new unit check compares
+  every vertex with `lit_cool(glow, cool_at)`); camera walks get their own yaw, the airlock walk runs along its front with
+  the camera between the avatar and the right wall (passes 0.25 m from it, arm change 0.00 m a frame), and a unit check
+  guards airlock front − `CAM_PAD` > `HALF.x` − `HallCamera.WALL_PAD`. New `test_hall` checks: the phone layout's worst
+  view (20:9, touch on, first-entry hint showing, at the war table looking to a back corner) within the deck targets on
+  every level, outlines per level, the plaque's font size, the ships' culling box, a drag on the open panel orbits.
+  Measured: overview hi 21 / mid 21 / lo 16 / min 16 draw calls (primitives 16,647 / 15,382 / 13,678 / 12,956); phone
+  worst view hi 38 / mid 38 / lo 30 / min 29 (targets 40 / 40 / 35 / 30). Owner stills and the walk clip re-rendered.
+  Not done: letting the camera tilt up to the vault (the spec fixes the camera; the Thai note asks the owner) and
+  building the deck's meshes ahead of the tap from the main menu (optional).
+- Full run after the review fixes (12 Nov): `run.sh full` PASS: unit 4,775 in 53 scripts, flow `test_hall_reach` 31,
+  `test_lobby_flow` 33, `test_settings_flow` 30, oracle 155, render probe, anim_footslide 54, army_screen 62,
+  battle_screen 120, budgets 112, field_look 213, hall 264, lineup 29, main_screens 40, menu_screens 118; data lint PASS.
+
 ## Next steps, in order
-1. Owner feedback on ใหม่ 0.2 (the lobby on his phone, one bot game, eggs vs old models), then online rooms (R3: the room
+1. Owner feedback on ใหม่ 0.3 (the warship deck on his phone; where the chest stands; what the random rewards should
+   hold) and on ใหม่ 0.2 (one bot game, eggs vs old models), then online rooms (R3: the room
    screen is `ui/screens/lobby.tscn`, distinct from the walkable hall) and the human turn UI polish (a custom army list
    for the human seat, deploy by hand, healing and grenades by tap, flyers lifted by `fly.json`).
 2. Wave 6: reviewed allowlist, v10 gate memo (`docs/GODOT.md` now maps the lobby files; keep it current).

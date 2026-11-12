@@ -150,6 +150,8 @@ Full-screen, opaque, 2D only (no 3D is drawn behind it).
 
 ## 2. Lobby hall (lobby track)
 
+0.3: §2.1, §2.2 and §2.6 are replaced by `SHIP_LOBBY_SPEC.md` (the warship deck); §2.3–§2.5 still hold.
+
 ### 2.1 Layout (world units are metres; y is up; the camera starts looking toward −z)
 
 Interior box: x ∈ [−12, 12], z ∈ [−8, 8], floor at y = 0.

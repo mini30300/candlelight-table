@@ -3,10 +3,13 @@ extends "res://tests/testing.gd"
 ## key of the I18n dictionaries (I18n.t matches whole strings only), every station has a Thai name and sign with an
 ## English pair, the 3D hall scripts under scenes/hall/ carry no Thai strings (their signs get text from the screen),
 ## and ui/i18n/hall.json is a clean Thai -> English fragment whose keys the hall screen really uses.
+## 0.3 (SHIP_LOBBY_SPEC §1, §9.2): the warship deck adds the vault station (treasure chest, coming soon), its one-line
+## coming-soon text and the place name PLACE on the title plaque; each is a whole key with an English pair.
 
 const SCRIPTS := ["res://ui/screens/hall_screen.gd", "res://ui/screens/hall_screen.tscn", "res://ui/widgets/touch_stick.gd"]
 const WORLD_SCRIPTS := ["res://scenes/hall/hall_layout.gd", "res://scenes/hall/hall_builder.gd", "res://scenes/hall/hall_world.gd",
-	"res://scenes/hall/hall_avatar.gd", "res://scenes/hall/hall_camera.gd", "res://scenes/hall/hall_world.tscn"]
+	"res://scenes/hall/hall_avatar.gd", "res://scenes/hall/hall_camera.gd", "res://scenes/hall/hall_world.tscn",
+	"res://scenes/hall/hall_space.gd"]
 const SCREEN := "res://ui/screens/hall_screen.gd"
 const FRAGMENT := "res://ui/i18n/hall.json"
 
@@ -51,8 +54,20 @@ func test_every_station_has_thai_and_english() -> void:
 			assert_true(thai_re.search(th) != null, "station %s has a Thai text (%s)" % [id, th])
 			var en := I18n.lookup(th)
 			assert_true(en != "" and thai_re.search(en) == null, "and an English pair without Thai (%s -> %s)" % [th, en])
-	for id in ["online", "adventure"]:
+	# 0.3: the vault (treasure chest) is a coming-soon station too (SHIP_LOBBY_SPEC §5)
+	for id in ["online", "adventure", "vault"]:
 		assert_true(soon.has(id) and I18n.has_key(str(soon[id])), "the coming-soon panel of %s is translated" % id)
+	assert_eq(soon.size(), 3, "exactly three coming-soon stations: online, adventure, vault")
+	var vault_en := I18n.lookup(str(soon.get("vault", "")))
+	assert_true(vault_en != "" and thai_re.search(vault_en) == null and not vault_en.contains("{"),
+		"the vault line has a plain English pair (%s)" % vault_en)
+	assert_true(str(soon.get("vault", "")).contains("ชิ้นส่วนปืน") and vault_en.contains("gun parts"),
+		"the vault line names the future random rewards (gun parts and decorations)")
+	var place := str(consts.get("PLACE", ""))
+	var place_en := I18n.lookup(place)
+	assert_true(thai_re.search(place) != null and place_en != "" and thai_re.search(place_en) == null,
+		"the title plaque's place name is Thai with an English pair (%s -> %s)" % [place, place_en])
+	assert_eq(place_en, "Warship Deck", "the place is the Warship Deck")
 	I18n.english = true
 	for key in [consts["PROMPT_KEYS"], consts["PROMPT_TOUCH"]]:
 		for id in HallLayout.IDS:

@@ -13,9 +13,11 @@ const SETTINGS_FILE := "user://test_lobby_flow.cfg"
 const WALK_CAP_MS := 15000
 const GAME_CAP_MS := 60000
 ## the hall's blockers from LOBBY_SPEC §2.1 (centre x, z, half x, half z) and its pillars (x, z, r)
+## 0.3 (SHIP_LOBBY_SPEC §2.2, §12): the airlock (online) moved to the right wall and the treasure chest (round) was added
 const RECTS := {"battle": [0.0, -2.0, 3.0, 2.0], "army": [-11.4, -1.0, 0.5, 2.6], "settings": [10.0, -1.0, 0.4, 0.4],
-	"online": [0.0, -7.8, 1.7, 0.3], "exit": [0.0, 7.9, 1.2, 0.2]}
+	"online": [11.95, 3.0, 0.15, 1.7], "exit": [0.0, 7.9, 1.2, 0.2]}
 const ROUND_TABLE := [-5.0, 4.0, 1.3]
+const VAULT := [5.0, 4.0, 1.2]
 const PILLARS := [[-8.5, -5.0], [8.5, -5.0], [-8.5, 0.5], [8.5, 0.5], [-8.5, 5.5], [8.5, 5.5]]
 const PILLAR_R := 0.45
 const CLEAR := 0.25   # the avatar's centre stays at least this far from any blocker (its capsule is 0.35)
@@ -268,6 +270,8 @@ func _blocker_at(p: Vector3) -> String:
 			return "%s at %s" % [id, _xz(p)]
 	if Vector2(p.x - ROUND_TABLE[0], p.z - ROUND_TABLE[1]).length() < ROUND_TABLE[2] + CLEAR:
 		return "adventure table at " + _xz(p)
+	if Vector2(p.x - VAULT[0], p.z - VAULT[1]).length() < VAULT[2] + CLEAR:
+		return "treasure chest at " + _xz(p)
 	for q in PILLARS:
 		if Vector2(p.x - float(q[0]), p.z - float(q[1])).length() < PILLAR_R + CLEAR:
 			return "pillar %s at %s" % [str(q), _xz(p)]

@@ -77,13 +77,14 @@ func running() -> bool:
 	return value.length() > RUN
 
 
+## เส้นวงไม่ลบรอยหยัก (antialiased = false): แบบลบรอยหยักเพิ่ม draw call ละ 2 ต่อเส้น เกินงบ min ในห้องโถง
 func _draw() -> void:
 	var c := size * 0.5
 	draw_circle(c, BASE_R, FILL)
-	draw_arc(c, BASE_R - 2.0, 0.0, TAU, 48, RIM, 3.0, true)
-	draw_arc(c, BASE_R * RUN, 0.0, TAU, 40, Color(RIM, 0.3), 2.0, true)
+	draw_arc(c, BASE_R - 2.0, 0.0, TAU, 48, RIM, 3.0, false)
+	draw_arc(c, BASE_R * RUN, 0.0, TAU, 40, Color(RIM, 0.3), 2.0, false)
 	draw_circle(c + _knob, KNOB_R, KNOB)
-	draw_arc(c + _knob, KNOB_R, 0.0, TAU, 32, Color(0.3, 0.18, 0.08, 0.9), 2.0, true)
+	draw_arc(c + _knob, KNOB_R, 0.0, TAU, 32, Color(0.3, 0.18, 0.08, 0.9), 2.0, false)
 
 
 ## ตำแหน่งนิ้ว/เมาส์ในพิกัดของจอย → ค่าจอย (เขตตายเป็นศูนย์)

@@ -1,8 +1,8 @@
 extends Control
-## หน้าห้องโถง (ล็อบบี้ที่เดินได้, LOBBY_SPEC §2.5): ปุ่มและข้อความบนห้อง 3 มิติ (HallWorld ลูกชื่อ HallWorld)
-## ข้อความไทยทั้งหมดของห้องโถงอยู่ในไฟล์นี้ (ป้าย 3 มิติรับข้อความผ่าน world.set_sign_text)
-## เดินถึงสถานีแล้วกด E หรือแตะ %UseButton: โต๊ะรบ → ตั้งเกม, ตู้โชว์ → หน้าจัดกองทัพ, แท่นอ่าน → ตั้งค่า,
-## ประตูออนไลน์ / โต๊ะผจญภัย → แผง "เร็วๆ นี้", ประตูทางออก (หรือ ‹ หน้าแรก) → กลับหน้าแรก
+## หน้าล็อบบี้ "ดาดฟ้ายานรบ" (ล็อบบี้ที่เดินได้, LOBBY_SPEC §2.5, SHIP_LOBBY_SPEC): ปุ่มและข้อความบนห้อง 3 มิติ (HallWorld)
+## ข้อความไทยทั้งหมดของล็อบบี้อยู่ในไฟล์นี้ (ป้าย 3 มิติรวมป้ายชื่อสถานที่ "title" รับข้อความผ่าน world.set_sign_text)
+## เดินถึงสถานีแล้วกด E หรือแตะ %UseButton: โต๊ะรบโฮโลแกรม → ตั้งเกม, คลังแสง → หน้าจัดกองทัพ, คอนโซล → ตั้งค่า,
+## ประตูเทียบยาน / โต๊ะผจญภัย / หีบสมบัติ → แผง "เร็วๆ นี้", ประตูทางออก (หรือ ‹ หน้าแรก) → กลับหน้าแรก
 ## ถูกหน้าอื่นทับ: ซ่อนห้อง หยุดงาน คืนกล้อง; กลับมาโชว์: อ่าน App.gfx / lang / touch ใหม่ทุกครั้ง
 ## งานต่อเฟรม: ไม่มี (ข้อความเปลี่ยนตามสัญญาณ แผง "เร็วๆ นี้" ปิดด้วย Timer)
 
@@ -14,25 +14,31 @@ const SETTINGS_SCREEN := "res://ui/screens/settings.tscn"
 ## ชื่อสถานีบนปุ่มใช้งาน
 const NAMES := {
 	"battle": "โต๊ะรบ",
-	"army": "ตู้โชว์กองทัพ",
+	"army": "คลังแสงกองทัพ",
 	"settings": "ตั้งค่า",
-	"online": "ประตูออนไลน์",
+	"online": "ประตูเทียบยาน",
 	"adventure": "โต๊ะผจญภัย",
 	"exit": "ทางออก",
+	"vault": "หีบสมบัติ",
 }
 ## ป้าย 3 มิติเหนือสถานี
 const SIGNS := {
 	"battle": "โต๊ะรบ",
-	"army": "ตู้โชว์กองทัพ",
+	"army": "คลังแสงกองทัพ",
 	"settings": "ตั้งค่า",
 	"online": "ออนไลน์ · เร็วๆ นี้",
 	"adventure": "โต๊ะผจญภัย · เร็วๆ นี้",
 	"exit": "ทางออก",
+	"vault": "หีบสมบัติ · เร็วๆ นี้",
 }
+## แผง "เร็วๆ นี้" ของสถานีที่ยังไม่เปิด (หีบสมบัติ = ระบบสุ่มของรางวัลรอบหน้า ตอนนี้ยังไม่มีของรางวัลจริง)
 const SOON := {
 	"online": "ออนไลน์กับเพื่อน — เร็วๆ นี้",
 	"adventure": "โต๊ะผจญภัย — เร็วๆ นี้",
+	"vault": "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง",
 }
+## ชื่อสถานที่บนแผ่นป้ายใต้หน้าต่างกลาง
+const PLACE := "ดาดฟ้ายานรบ"
 const YOU := "คุณ"
 const MENU_TEXT := "‹ หน้าแรก"
 const SETTINGS_TEXT := "ตั้งค่า"
@@ -104,6 +110,7 @@ func refresh() -> void:
 	settings_button.text = I18n.t(SETTINGS_TEXT)
 	for id in SIGNS:
 		world.set_sign_text(id, I18n.t(SIGNS[id]))
+	world.set_sign_text("title", I18n.t(PLACE))
 	world.set_sign_text("you", I18n.t(YOU))
 	hint.text = I18n.t(HINT_TOUCH if touch_mode else HINT_KEYS)
 	hint.visible = not _hint_done
@@ -129,7 +136,7 @@ func use_station() -> void:
 			_push(ARMY)
 		"settings":
 			_push(SETTINGS_SCREEN)
-		"online", "adventure":
+		"online", "adventure", "vault":
 			show_soon(station())
 		"exit":
 			_go_menu()

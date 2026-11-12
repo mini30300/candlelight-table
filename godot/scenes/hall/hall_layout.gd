@@ -1,7 +1,8 @@
 class_name HallLayout
 extends RefCounted
-## ผังห้องโถง (ล็อบบี้ที่เดินได้, LOBBY_SPEC §2.1): ข้อมูลล้วน ไม่มีโหนด ไม่มีข้อความบนจอ
+## ผังดาดฟ้ายานรบ (ล็อบบี้ที่เดินได้, SHIP_LOBBY_SPEC §2): ข้อมูลล้วน ไม่มีโหนด ไม่มีข้อความบนจอ
 ## หน่วยเมตร y ชี้ขึ้น กล้องเริ่มมองไปทาง -z · ด้านในห้อง x ∈ [-12, 12], z ∈ [-8, 8] พื้นที่ y = 0
+## เหนือ y = 6 (เพดานโค้ง หน้าต่างส่วนบน ป้ายชื่อ) วาดอย่างเดียว กล้องขึ้นไปไม่ถึง ไม่ต้องมีตัวชน
 ## จุดใช้งาน (station) = สี่เหลี่ยมรอยเท้า + ระยะเอื้อม: ตัวผู้เล่นอยู่ห่างขอบสี่เหลี่ยมไม่เกิน reach ก็ใช้ได้ (ใกล้สุดชนะ)
 ## ที่กัน (blockers) ทุกชิ้นมาจากที่นี่ ทั้งตัวชนของฉากและเทสเดินทั่วห้อง
 
@@ -24,10 +25,10 @@ const PILLARS: PackedVector2Array = [Vector2(-8.5, -5.0), Vector2(8.5, -5.0), Ve
 ## เชิงเทียนตั้งพื้นชิดผนัง: ตำแหน่ง รัศมีที่กัน ความสูงถึงถาด
 const STAND_R := 0.28
 const STAND_H := 1.72
-const STANDS: PackedVector2Array = [Vector2(-11.3, -6.0), Vector2(11.3, -6.0), Vector2(-11.3, 3.0), Vector2(11.3, 3.0),
+const STANDS: PackedVector2Array = [Vector2(-11.3, -6.0), Vector2(11.3, -6.0), Vector2(-11.3, 3.0), Vector2(11.3, 6.0),
 	Vector2(-4.0, -7.5), Vector2(4.0, -7.5)]
 
-const IDS: PackedStringArray = ["battle", "army", "settings", "online", "adventure", "exit"]
+const IDS: PackedStringArray = ["battle", "army", "settings", "online", "adventure", "exit", "vault"]
 ## c = กลางรอยเท้า (x, z), h = ครึ่งขนาด, reach = ระยะเอื้อมจากขอบ, height = ความสูงของที่กัน,
 ## round = ที่กันเป็นวงกลม (รัศมี h.x), front = จุดวงแหวนหน้าที่ใช้งาน (x, z), sign = ตำแหน่งป้าย, face = yaw ของป้าย
 const STATIONS := {
@@ -37,27 +38,75 @@ const STATIONS := {
 		"front": Vector2(-10.0, -1.0), "sign": Vector3(-10.75, 3.15, -1.0), "face": PI * 0.5},
 	"settings": {"c": Vector2(10.0, -1.0), "h": Vector2(0.4, 0.4), "reach": 1.6, "height": 1.2, "round": false,
 		"front": Vector2(9.0, -1.0), "sign": Vector3(10.0, 2.45, -1.0), "face": -PI * 0.5},
-	"online": {"c": Vector2(0.0, -7.8), "h": Vector2(1.7, 0.3), "reach": 1.8, "height": 5.2, "round": false,
-		"front": Vector2(0.0, -6.6), "sign": Vector3(0.0, 5.55, -7.45), "face": 0.0},
+	# ช่องเทียบยานยื่นจากผนังแค่ 0.2 ม. (สูง 5.2 ม.): กล้องที่ถูกผนังดันมาไม่เกิน x 11.55 จึงไม่เข้าไปในที่กัน ไม่กระตุก
+	"online": {"c": Vector2(11.95, 3.0), "h": Vector2(0.15, 1.7), "reach": 1.8, "height": 5.2, "round": false,
+		"front": Vector2(10.6, 3.0), "sign": Vector3(11.45, 5.55, 3.0), "face": -PI * 0.5},
 	"adventure": {"c": Vector2(-5.0, 4.0), "h": Vector2(1.3, 1.3), "reach": 1.5, "height": 0.8, "round": true,
 		"front": Vector2(-2.95, 4.0), "sign": Vector3(-5.0, 2.2, 4.0), "face": PI * 0.5},
 	"exit": {"c": Vector2(0.0, 7.9), "h": Vector2(1.2, 0.2), "reach": 1.4, "height": 3.2, "round": false,
 		"front": Vector2(0.0, 6.95), "sign": Vector3(0.0, 3.75, 7.62), "face": PI},
+	"vault": {"c": Vector2(5.0, 4.0), "h": Vector2(1.2, 1.2), "reach": 1.5, "height": 1.4, "round": true,
+		"front": Vector2(3.15, 4.0), "sign": Vector3(5.0, 2.3, 4.0), "face": -PI * 0.5},
 }
 ## ม้านั่งกลมสี่ตัวรอบโต๊ะผจญภัย (ในกรอบสี่เหลี่ยมของมัน): ระยะทแยงจากกลาง รัศมี สูง
 const STOOL_D := 1.06
 const STOOL_R := 0.2
 const STOOL_H := 0.46
 
-## ธงผ้าบนผนัง: จุดกลางบนผิวผนัง, ทิศที่หันเข้าห้อง (x, z), ดัชนีสี 0 แดงเข้ม 1 เหลืองดิน 2 เขียวน้ำทะเล
+## ธงผ้าบนผนัง: จุดกลางบนผิวผนัง, ทิศที่หันเข้าห้อง (x, z), ดัชนีสี 0 แดงเข้ม 1 ดำอมม่วง 2 บรอนซ์
 const BANNERS := [
-	{"p": Vector3(-6.0, 4.3, -8.0), "n": Vector2(0.0, 1.0), "col": 0},
-	{"p": Vector3(6.0, 4.3, -8.0), "n": Vector2(0.0, 1.0), "col": 0},
+	{"p": Vector3(-4.0, 4.3, 8.0), "n": Vector2(0.0, -1.0), "col": 0},
+	{"p": Vector3(4.0, 4.3, 8.0), "n": Vector2(0.0, -1.0), "col": 0},
 	{"p": Vector3(-12.0, 4.3, -2.25), "n": Vector2(1.0, 0.0), "col": 1},
 	{"p": Vector3(12.0, 4.3, -2.25), "n": Vector2(-1.0, 0.0), "col": 1},
 	{"p": Vector3(-12.0, 4.3, 3.0), "n": Vector2(1.0, 0.0), "col": 2},
-	{"p": Vector3(12.0, 4.3, 3.0), "n": Vector2(-1.0, 0.0), "col": 2},
+	{"p": Vector3(12.0, 4.3, 6.0), "n": Vector2(-1.0, 0.0), "col": 2},
 ]
+
+## หน้าต่างบานใหญ่สามช่องในผนังหลัง (โค้งแหลม): ช่วง x, ขอบล่าง, จุดเริ่มโค้ง, ยอดโค้ง (ตัวชนผนังไม่เปลี่ยน)
+## จุดเริ่มโค้งต่ำกว่ายอดมากกว่าครึ่งความกว้าง โค้งจึงแหลมจริง (ไม่ใช่ครึ่งวงกลม)
+const WINDOWS := [
+	{"x0": -3.2, "x1": 3.2, "sill": 0.9, "spring": 5.6, "apex": 9.4},
+	{"x0": -7.4, "x1": -4.6, "sill": 0.9, "spring": 4.2, "apex": 6.0},
+	{"x0": 4.6, "x1": 7.4, "sill": 0.9, "spring": 4.2, "apex": 6.0},
+]
+## ขอบหน้าต่างด้านในยื่นจากผนังเท่านี้ (ม.): ไม่เกิน 0.08 ไม่งั้นตัดผ่านไข่ที่เดินชิดหน้าต่าง (SHIP_LOBBY_SPEC §2.3)
+const SILL_DEPTH := 0.06
+## โปรไฟล์เพดานโค้งแหลมเหนือโถงกลาง (x, y) จากหัวเสาถึงสัน (ซีกขวา สะท้อนเป็นซีกซ้าย)
+const VAULT_PROFILE: PackedVector2Array = [Vector2(8.5, 6.0), Vector2(7.6, 7.6), Vector2(6.0, 8.9), Vector2(3.8, 9.9),
+	Vector2(1.6, 10.5), Vector2(0.0, 10.8)]
+const AISLE_Y := 6.3                    # เพดานเรียบของทางเดินข้าง
+## จอบนผนังข้าง: กลางจอบนผิวผนัง, ทิศเข้าห้อง (x, z), amber = จออำพัน (ไม่งั้นเขียว)
+const SCREENS := [
+	{"p": Vector3(-12.0, 2.3, -7.0), "n": Vector2(1.0, 0.0), "amber": false},
+	{"p": Vector3(-12.0, 2.3, 6.75), "n": Vector2(1.0, 0.0), "amber": true},
+	{"p": Vector3(12.0, 2.3, -7.0), "n": Vector2(-1.0, 0.0), "amber": false},
+	{"p": Vector3(12.0, 2.3, -2.25), "n": Vector2(-1.0, 0.0), "amber": true},
+]
+const SCREEN_GREEN := Color("7dffa6")
+const SCREEN_AMBER := Color("ffbb55")
+const HOLO := Color("59f0b4")
+const GOLD := Color(0.90, 0.70, 0.34)
+## แสงเย็นที่อบลงสีจุดยอด: ตำแหน่ง, k, D, สี (ความสว่าง = k / (1 + d²/D))
+const COOL_LIGHTS := [
+	{"p": Vector3(0.0, 1.4, -2.0), "k": 1.1, "d": 4.0, "col": HOLO},
+	{"p": Vector3(-6.0, 3.0, -7.4), "k": 0.35, "d": 6.0, "col": Color("9fb8ff")},
+	{"p": Vector3(-3.0, 3.0, -7.4), "k": 0.35, "d": 6.0, "col": Color("9fb8ff")},
+	{"p": Vector3(0.0, 3.0, -7.4), "k": 0.35, "d": 6.0, "col": Color("9fb8ff")},
+	{"p": Vector3(3.0, 3.0, -7.4), "k": 0.35, "d": 6.0, "col": Color("9fb8ff")},
+	{"p": Vector3(6.0, 3.0, -7.4), "k": 0.35, "d": 6.0, "col": Color("9fb8ff")},
+	{"p": Vector3(-11.9, 2.3, -7.0), "k": 0.3, "d": 1.5, "col": SCREEN_GREEN},
+	{"p": Vector3(-11.9, 2.3, 6.75), "k": 0.3, "d": 1.5, "col": SCREEN_AMBER},
+	{"p": Vector3(11.9, 2.3, -7.0), "k": 0.3, "d": 1.5, "col": SCREEN_GREEN},
+	{"p": Vector3(11.9, 2.3, -2.25), "k": 0.3, "d": 1.5, "col": SCREEN_AMBER},
+	{"p": Vector3(11.4, 2.5, 3.0), "k": 0.5, "d": 3.0, "col": Color("7fb8ff")},
+	# แสงทองจากร่องฝาหีบ: อ่อน (k 0.25) ไม่ให้หีบบรอนซ์สว่างจนสีแดงล้น
+	{"p": Vector3(5.0, 1.3, 4.0), "k": 0.25, "d": 2.0, "col": GOLD},
+	# แสงดาวจากหน้าต่างกระจายทั่วดาดฟ้า (D ใหญ่มาก = เกือบคงที่ทั้งห้อง) ให้เหล็กอมฟ้า ไม่เป็นสีหินอุ่น
+	{"p": Vector3(0.0, 3.0, 0.0), "k": 0.14, "d": 1.0e6, "col": Color("9fb8ff")},
+]
+## ป้ายชื่อสถานที่ใต้โค้งหน้าต่างกลาง (แผ่นบรอนซ์อยู่หลังป้าย 7 ซม.)
+const TITLE_SIGN := Vector3(0.0, 6.45, -7.9)
 
 ## เทียนบนเชิงเทียน: เล่มกลางสูง (ติดทุกระดับ) สองเล่มข้างเตี้ยกว่า (ไม่ติดบน min)
 const STAND_ARM := 0.22
@@ -66,9 +115,11 @@ const STAND_FLAME_SIDE := 1.86
 ## โต๊ะรบ: เทียนสี่มุม ห่างขอบเข้ามา, ยอดเทียน (= ฐานเปลวไฟ)
 const TABLE_CANDLE_IN := 0.28
 const TABLE_FLAME_Y := 1.2
-const LECTERN_FLAME := Vector3(10.22, 1.62, -0.72)
+const CONSOLE_FLAME := Vector3(10.22, 1.62, -0.72)
 const ADVENTURE_FLAME := Vector3(-5.0, 1.0, 4.0)
-const MAX_FLAMES := 24
+## เทียนสองเล่มหน้าแท่นหีบสมบัติ (บนขั้นแท่น ในวงกันรัศมี 1.2)
+const VAULT_FLAMES: PackedVector3Array = [Vector3(4.05, 0.78, 3.45), Vector3(4.05, 0.78, 4.55)]
+const MAX_FLAMES := 26
 const MAX_FLAMES_MIN := 12
 
 
@@ -297,7 +348,8 @@ static func _hits_circle(b: Dictionary, p: Vector2, r: float) -> bool:
 	return p.distance_to(b["c"] as Vector2) < float(b["r"]) + r
 
 
-## ฐานเปลวไฟทุกดวง (บน min เหลือเล่มกลางของเชิงเทียน + เทียนบนโต๊ะ/แท่นอ่าน = 12 ดวง) เรียงคงที่
+## ฐานเปลวไฟทุกดวง (บน min เหลือเล่มกลางของเชิงเทียน + เทียนบนโต๊ะ/คอนโซล = 12 ดวง) เรียงคงที่
+## ครบชุด 26 = 12 ดวงแรก + เล่มข้างของเชิงเทียน 12 + เทียนหน้าหีบ 2
 static func flames(min_level: bool = false) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	for s in STANDS:
@@ -307,7 +359,7 @@ static func flames(min_level: bool = false) -> PackedVector3Array:
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			out.append(Vector3(bc.x + sx * (bh.x - TABLE_CANDLE_IN), TABLE_FLAME_Y, bc.y + sz * (bh.y - TABLE_CANDLE_IN)))
-	out.append(LECTERN_FLAME)
+	out.append(CONSOLE_FLAME)
 	out.append(ADVENTURE_FLAME)
 	if min_level:
 		return out
@@ -315,6 +367,7 @@ static func flames(min_level: bool = false) -> PackedVector3Array:
 		var arm := stand_arm(s)
 		out.append(Vector3(s.x, STAND_FLAME_SIDE, s.y) + arm * STAND_ARM)
 		out.append(Vector3(s.x, STAND_FLAME_SIDE, s.y) - arm * STAND_ARM)
+	out.append_array(VAULT_FLAMES)
 	return out
 
 
@@ -327,3 +380,30 @@ static func stand_arm(s: Vector2) -> Vector3:
 static func sign_normal(id: String) -> Vector2:
 	var yaw := float(STATIONS[id]["face"])
 	return Vector2(sin(yaw), cos(yaw))
+
+
+## ความสูงของเพดานโค้งโถงกลางที่ x (ด้านล่างของแผ่นเพดาน); นอกโถงกลางคืนเพดานทางเดินข้าง
+static func vault_y(x: float) -> float:
+	var ax := absf(x)
+	if ax >= VAULT_PROFILE[0].x:
+		return AISLE_Y
+	for i in VAULT_PROFILE.size() - 1:
+		var a := VAULT_PROFILE[i]
+		var b := VAULT_PROFILE[i + 1]
+		if ax <= a.x and ax >= b.x:
+			return lerpf(a.y, b.y, (a.x - ax) / (a.x - b.x))
+	return VAULT_PROFILE[VAULT_PROFILE.size() - 1].y
+
+
+## ขอบโค้งแหลมของหน้าต่าง w ที่ความสูง y: ครึ่งกว้างของช่อง (วัดจากกลางช่อง) ; ต่ำกว่าจุดเริ่มโค้ง = ครึ่งกว้างเต็ม
+static func window_half(w: Dictionary, y: float) -> float:
+	var a := (float(w["x1"]) - float(w["x0"])) * 0.5
+	var sp := float(w["spring"])
+	var h := float(w["apex"]) - sp
+	if y <= sp:
+		return a
+	if y >= sp + h:
+		return 0.0
+	var xc := (a * a - h * h) / (2.0 * a)         # จุดศูนย์กลางโค้งขวาอยู่ฝั่งซ้าย (x < 0 = โค้งแหลม)
+	var r := a - xc
+	return maxf(xc + sqrt(maxf(r * r - (y - sp) * (y - sp), 0.0)), 0.0)
