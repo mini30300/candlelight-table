@@ -66,6 +66,8 @@ var _aim_dirty := false
 var _aim_beast := false
 var _captured := false
 var _alpha := 1.0
+var _fig_dir := false        # ตัวละครมี set_move_dir (H6) · ตรวจครั้งเดียวตอน setup ไม่ใช่ทุกเฟรม
+var _fig_switch := false     # ตัวละครมี begin_switch (H7)
 
 
 func _ready() -> void:
@@ -103,6 +105,8 @@ func setup(w: Node3D, opts: Dictionary) -> void:
 		fig.call("setup", {"role": &"player", "level": str(opts.get("level", level)),
 			"team_colour": opts.get("team_colour", Color(0.28, 0.52, 0.84)), "seed": int(ArenaData.RANGE["seed"])})
 	fig.rotation = Vector3.ZERO
+	_fig_dir = fig.has_method("set_move_dir")
+	_fig_switch = fig.has_method("begin_switch")
 	apply_level(str(opts.get("level", level)))
 	_call_fig("set_weapon", [&"none"])
 	_call_fig("play", [&"idle", 1.0])
@@ -184,6 +188,8 @@ func press(action: StringName, on: bool) -> void:
 		return
 	if not _input_on or _paused or _down > 0.0 or _mode != &"shoot":
 		return
+	var was_sw := weapons.switching()
+	var was_held := weapons.held()
 	match action:
 		&"fire":
 			_handle(weapons.set_trigger(true))
@@ -197,6 +203,9 @@ func press(action: StringName, on: bool) -> void:
 			_handle(weapons.switch_to(&"gun"))
 		&"weapon_2":
 			_handle(weapons.switch_to(&"sword"))
+	# H7: บอกตัวละครตอนเริ่มเปลี่ยนอาวุธ (เริ่มใหม่ หรือกลับใจไปอีกอัน) set_weapon ยังมาหลัง holster วิเหมือนเดิม
+	if _fig_switch and weapons.switching() and (not was_sw or weapons.held() != was_held):
+		_figure.call("begin_switch", weapons.held(), float(ArenaData.PLAYER["holster"]), float(ArenaData.PLAYER["draw"]))
 	set_physics_process(true)
 
 
@@ -348,6 +357,27 @@ func speed() -> float:
 	return Vector2(_vel.x, _vel.z).length()
 
 
+## H6 (ARENA_SPEC §9.4): ทิศความเร็วจริงในกรอบตัวละครที่หัน face_yaw (x = ขวามือของตัว = −X ของตัว, y = หน้า +Z)
+## ยาว 1 หรือศูนย์เมื่อช้ากว่า 0.05 ม./วิ
+static func local_dir(vel: Vector3, face_yaw: float) -> Vector2:
+	var v := Vector2(vel.x, vel.z)
+	if v.length() < 0.05:
+		return Vector2.ZERO
+	var fwd := Vector2(sin(face_yaw), cos(face_yaw))
+	var right := Vector2(-cos(face_yaw), sin(face_yaw))
+	return Vector2(v.dot(right), v.dot(fwd)).normalized()
+
+
+## H6: ตัวละครที่มี set_move_dir ได้ทิศด้วย (แทน set_move) ไม่มีก็ได้ set_move แบบเดิม
+static func move_figure(fig: Object, has_dir: bool, dir: Vector2, spd: float, run: bool) -> void:
+	if fig == null:
+		return
+	if has_dir:
+		fig.call("set_move_dir", dir, spd, run)
+	elif fig.has_method("set_move"):
+		fig.call("set_move", spd, run)
+
+
 ## เมาส์ถูกจับอยู่ (เล็งด้วยเมาส์แบบเกมยิง)
 func mouse_captured() -> bool:
 	return _captured
@@ -453,7 +483,7 @@ func _physics_process(delta: float) -> void:
 		elif want.length_squared() > 0.0001:
 			face = lerp_angle(face, atan2(want.x, want.z), 1.0 - exp(-TURN * delta))
 			rotation.y = face
-	_call_fig("set_move", [speed(), running()])
+	move_figure(_figure, _fig_dir, local_dir(_vel, face), speed(), running())
 	if moving:
 		rig.follow(global_position)
 		moved.emit(global_position)

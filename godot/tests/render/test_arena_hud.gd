@@ -6,7 +6,8 @@ extends SceneTree
 ## Walk mode at the spawn: corridor hint, no ammo line, no shooter buttons, mouse visible. Shoot mode (placed past the
 ## shoot line): the rifle is drawn, ammo 30 / 30, the crosshair rect is centred on the viewport (±1 px), the mouse is
 ## captured (desktop), the keyboard hint shows. Holding the fire action 1 s fires 8 ± 1 shots (tracers alive), the ammo
-## line follows, R shows the reloading line, 2 switches to the saw sword (ammo line = its name, weapon button = the rifle),
+## line follows, R shows the reloading line, 2 switches to the saw sword (ammo line = its name, weapon button = the rifle,
+## the rifle slung on the egg's back, ARENA_SPEC §9.4),
 ## Esc pauses (mouse visible), resume (the free cursor does not aim), the next left click only re-captures; captured
 ## mouse look reads screen pixels (screen_relative). Back in the corridor: walk mode, weapon none,
 ## mouse visible. Layout at 640x360, 1280x720 and 1280x576, Thai and English, walk and shoot, desktop and touch: no
@@ -158,6 +159,8 @@ func _check_shoot(screen: Node, hud: Control, player: Node3D) -> void:
 	await _physics(4)
 	_mouse_button(MOUSE_BUTTON_LEFT, false)
 	await _frames(3)
+	var stowed := (player.call("figure") as Node).get_node_or_null("Egg/Stowed") as Node3D
+	_check(stowed != null and stowed.is_visible_in_tree(), "with the saw sword in hand the rifle is slung on the egg's back (mid)")
 	_save("arena_sword.png")
 	await _physics(30)
 	await _press(KEY_1)

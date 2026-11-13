@@ -8,6 +8,8 @@ extends SceneTree
 ##     current, no Tween created on min;
 ##  3. hold W down the corridor: past z -11.3 shoot mode, the rifle, ammo (30, 30), aim_active(), the mouse captured;
 ##     the app going to the background pauses the fight, resume and one click re-captures;
+## 3b. (ARENA_SPEC §9.4, H6) at (0, -14): holding D, S and A in shoot mode tells the egg it moves right, back and left
+##     (move_dir() x > 0.9, y < -0.9, x < -0.9); standing again gives (0, 0) and nothing processes on min;
 ##  4. aim at the beast's chest and hold the left button: shots land, the beast dies after 25 hits and 300 damage (5
 ##     rounds left: no shot missed), the board says ล้มแล้ว · กดรีเซ็ต, the HUD showed the rifle's merged damage number;
 ##     the empty magazine reloads by itself with the button still held, R reloads a part-used one;
@@ -16,7 +18,8 @@ extends SceneTree
 ##  7. standing still, the beast reaches the player within 8 s and winds up for >= 0.5 s before the player loses 18 HP,
 ##     then 0.4 s of invulnerability;
 ##  8. F with the beast in reach: a punch lands, it slides >= 0.25 m within 0.4 s and flinches (state hit);
-##  9. weapon 2 and the left button: a saw-sword swing lands for 45;
+##  9. weapon 2 (the egg hears begin_switch(sword) while the rifle is still in hand, H7) and the left button: a
+##     saw-sword swing lands for 45;
 ## 10a. walk mode at the room's edge (z -10.75, gun holstered): the beast stops chasing and never claws;
 ## 10b. downed (HP 0): the Downed overlay, no movement, fire ignored, the beast idle through the grace; after 2 s the
 ##      player gets up at RESPAWN with 100 HP, shoot mode, a full magazine, the overlay hidden, the beast still idle;
@@ -125,6 +128,29 @@ func _run() -> void:
 	_check(not bool(arena.call("paused")) and bool(player.call("mouse_captured")) and player.call("ammo") == Vector2i(30, 30),
 		"3. resumed: the first click only re-captures the mouse (no shot)")
 	await _physics(20)
+	# 3b: H6, moving while aiming tells the figure its own move direction
+	var p3 := player.global_position
+	world.call("place_player", Vector3(0.0, 0.0, -14.0), PI, 0.0)
+	await _physics(6)
+	var fig3: Node3D = player.call("figure")
+	var dirs := {}
+	for k: Array in [[KEY_D, "D"], [KEY_S, "S"], [KEY_A, "A"]]:
+		_key(k[0], true)
+		await _physics(int(0.4 * Engine.physics_ticks_per_second))
+		dirs[k[1]] = fig3.call("move_dir") if fig3 != null and fig3.has_method("move_dir") else Vector2.ZERO
+		_key(k[0], false)
+		await _physics(int(0.3 * Engine.physics_ticks_per_second))
+	_check((dirs["D"] as Vector2).x > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).x < -0.9 and str(world.call("mode")) == "shoot",
+		"3b. shoot mode: D, S and A tell the egg it moves right, back and left", str(dirs))
+	await _physics(int(0.5 * Engine.physics_ticks_per_second))
+	await _frames(12)
+	# move_dir() is an extra of the egg (not in FIGURE_API): read it once, guarded, so a figure without it fails the check
+	var md3: Vector2 = fig3.call("move_dir") if fig3 != null and fig3.has_method("move_dir") else Vector2(9, 9)
+	_check(fig3 != null and md3 == Vector2.ZERO and not player.is_physics_processing() and not fig3.is_processing(),
+		"3b. standing again: direction (0, 0), and on min neither the player nor the egg processes",
+		"%s, player %s, egg %s" % [str(md3), str(player.is_physics_processing()), str(fig3 != null and fig3.is_processing())])
+	world.call("place_player", p3, PI, 0.0)
+	await _physics(6)
 	# 4
 	await _aim_at(player, enemy.global_position + Vector3(0.0, 1.4, 0.0))
 	var hp0 := int(enemy.call("hp"))
@@ -242,8 +268,16 @@ func _run() -> void:
 		flinched = flinched or str(enemy.call("state")) == "hit"
 	_check(slid >= 0.25 and flinched, "8. the punch knocks the beast back %.2f m and makes it flinch" % slid)
 	# 9
+	var fig9: Node3D = player.call("figure")
 	await _press(KEY_2)
+	# last_switch() is an extra of the egg (not in FIGURE_API), guarded so a figure without it fails this check instead of
+	# stopping the run; the weapon in hand is the player's (ArenaWeapons.current: still the rifle until the swap point)
+	var has9 := fig9 != null and fig9.has_method("last_switch")
+	var heard := [fig9.call("last_switch"), player.call("weapon")] if has9 else []
 	await _physics(int(0.4 * Engine.physics_ticks_per_second))
+	var fw9: StringName = fig9.call("weapon") if has9 and fig9.has_method("weapon") else player.call("weapon")
+	_check(has9 and heard == [&"sword", &"gun"] and player.call("weapon") == &"sword" and fw9 == &"sword",
+		"9. weapon 2: the egg hears begin_switch(sword) with the rifle still in hand, then set_weapon(sword)", str(heard))
 	await _aim_at(player, enemy.global_position + Vector3(0.0, 1.2, 0.0))
 	var amounts: Array = []
 	var cb2 := func(info: Dictionary) -> void: amounts.append(int(info.get("amount", 0)))

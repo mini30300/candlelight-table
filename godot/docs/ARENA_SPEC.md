@@ -459,11 +459,12 @@ The default player figure (a script-built Node3D implementing the figure contrac
   a short box magazine, a skeletal stock with our candle-flame emblem in brass; `Muzzle` (Marker3D) at the barrel's end.
   Recoil kick 6 cm per shot; reload = the rifle tips down and the magazine drops and returns over 1.6 s.
 - **Saw sword** (ours): a 1.0 m steel blade with 18 triangular teeth along one edge, a boxy motor housing with brass
-  vents and our candle emblem, a grip; swing arc from upper right to lower left in 0.25 s; the teeth do not animate.
+  vents and our candle emblem, a grip; the swing is two alternating arcs in 0.45 s (§9.4; first built as one 0.25 s arc
+  from upper right to lower left); the teeth do not animate.
 - The weapon and the right gauntlet follow the aim pitch (`set_aim`); the egg leans ±0.15 rad with it.
 - Procedural clips (an `AnimationPlayer` with animations built in code, or tweens): `idle`, `walk`, `run`, `fire`,
   `reload`, `punch`, `swing`, `hit`, `die` (the egg tips over 0.6 s). `play()` returns each clip's length. Draw calls:
-  egg 1 + gauntlets 1 + weapon 1.
+  egg 1 + gauntlets 1 + weapon 1 (+ the slung rifle 1 while the saw sword is in hand on hi / mid / lo, §9.4).
 
 ## 7. The switch, the reset button and the board (ROOM)
 
@@ -617,6 +618,76 @@ describes the owner's private figures.
 
 Extended by `PACK_SPEC.md` (12 Nov): an optional `deck` key for the warship deck's figure, the reserved `army` key, the
 public presets' `exclude_filter="packs/*"` and the primitive fixture pack `tests/fixtures/figure_pack/`.
+
+### 9.4 Optional figure methods and melee timing (13 Nov; hooks H6, H7)
+
+Both methods are optional: they are **not** in `FIGURE_API`, `ArenaActors` never requires them, and a figure without
+them behaves exactly as before. `ArenaPlayer` checks for them once, when the figure is set (`setup`), not every frame.
+
+```gdscript
+func set_move_dir(local_dir: Vector2, speed: float, running: bool) -> void   # H6
+func begin_switch(to: StringName, holster: float, draw: float) -> void       # H7
+```
+
+**H6 `set_move_dir`.** Called by `ArenaPlayer._physics_process` **instead of** `set_move`, at the same point, every
+physics tick in which `set_move` would be called today, in both walk and shoot modes.
+- `local_dir`: the direction of the body's actual horizontal velocity (after `move_and_slide`) in the figure's own frame:
+  x = the figure's right (its −X side, ARENA_SPEC conventions), y = its forward (+Z). Unit length, or `Vector2.ZERO`
+  below 0.05 m/s. Computed by a pure static `ArenaPlayer.local_dir(vel: Vector3, face_yaw: float) -> Vector2`.
+- `speed`, `running`: exactly what `set_move` gets (horizontal speed in m/s; the run input).
+- Meaning: `set_move(s, r)` is the same as `set_move_dir(Vector2(0, 1), s, r)`. A figure that has `set_move_dir`
+  resets its stored direction to (0, 1) whenever `set_move` is called (the deck only ever calls `set_move`).
+- A figure without it gets `set_move(speed, running)` as today. The dispatch is one static helper,
+  `ArenaPlayer.move_figure(fig, has_dir, local_dir, speed, running)`, so it is unit-testable.
+- In walk mode the body faces where it walks, so `local_dir` is close to (0, 1) except while turning.
+- Use: a figure may choose side-step and back-step cycles, a lean, or nothing. The gameplay speeds stay `ArenaData`'s.
+- Default figure (`EggGunner`): stores the direction (`move_dir()` returns the last one; (0, 1) after `set_move`). On hi
+  and mid, where it already leans and bobs while moving, the lean follows the direction: forward lean 0.08 × k × y
+  (k = min(speed / 5, 1); y < 0 leans back) and a side roll 0.10 × k × x with the egg's top toward the side it moves
+  to. With (0, 1) the pose is identical to today's. On lo and min it only stores the value: no lean, nothing new per
+  frame.
+
+**H7 `begin_switch`.** Called once by `ArenaPlayer.press` when a weapon switch **starts** (`weapons.switch_to` began
+a new switch, or redirected one in progress to the other weapon), with `to` = the weapon being drawn,
+`holster` = `ArenaData.PLAYER["holster"]` (0.15 s) and `draw` = `ArenaData.PLAYER["draw"]` (0.2 s). `set_weapon(to)`
+still follows `holster` seconds later, when the new weapon is in hand, and fire stays blocked for `draw` more seconds.
+Not called for the draw from walk to shoot mode (`set_weapon(&"gun")` arrives at once there) or for the holster back
+to walk mode. Without H7 a figure fits its whole change of weapon into the `draw` window after `set_weapon`. Default
+figure: on hi and mid it shrinks the held weapon over `holster` seconds (it already grows the new one over 0.2 s); on lo
+and min it does nothing.
+
+**Melee timing (unchanged rules, stated for figure makers).** On a melee press `ArenaPlayer` calls
+`play(&"punch")` or `play(&"swing")` at once; the hit is decided `ArenaData.WEAPONS[id]["active"]` seconds later
+(punch 0.12 s, saw sword 0.18 s) from `ArenaData` and `melee_targets()`, never from the clip. A figure should put the
+visible contact (fist at full reach, blade crossing the front centreline) at that time when played at speed 1.0, and
+may emit `clip_event(&"shot")` there. Repeats: a held fire button swings the saw sword every `cooldown` 0.8 s; punches
+are at least 0.55 s apart; so a swing clip up to 0.8 s and a punch clip up to 0.55 s finish before the next call **of
+the same kind**. The two kinds can cut each other once the pending hit is decided: `ArenaWeapons.melee()` allows a
+punch as soon as a swing's hit has been decided (0.18 s in), a held fire button starts the next swing 0.12 s into a
+punch, and a held rifle trigger keeps firing (`play(&"fire")`) through a punch. A figure should then start the new clip
+from the pose on screen, not snap back to its guard (the default figure blends its grip, blade angle, twist, lean and
+left gauntlet from the cut pose over 0.08 s). Successive `play(&"swing")` calls may alternate between two arcs (the
+figure's choice); `clip()`, where a figure has it, still reports the logical name. The default figure's swing becomes 0.45 s with two alternating arcs whose blade
+points straight ahead at 0.18 s (supersedes the 0.25 s single arc of §6.6): A from high right to low left, B back from
+left to right at chest height; a swing more than 1.2 s after the previous one starts with A again (`swing_arc()`; the
+figure reads game time, `Engine.get_physics_frames()`, for this choice only, which is visual and not a rule, so movie
+mode and a capped slow device agree with real-time play; unit tests set its `clock`). The grip
+travels around the egg (angle, radius, height), never through it. Its punch already peaks at 0.12 s. While the saw
+sword is out it shows the rifle slung on its back (`Egg/Stowed`, child of the egg: the rifle's side against the back,
+the muzzle up behind the left shoulder, the stock above 0.55 m; one more mesh while the sword is in hand, hidden on min,
+with the rifle or no weapon, and from the moment H7 starts the switch back to the rifle).
+
+Tests: `tests/unit/test_arena_figure_hooks.gd` (`local_dir` for the four directions at two facings and below
+0.05 m/s; `move_figure` with the primitive fixture, which lacks H6, and with `tests/fixtures/figure_pack/dir_figure.gd`,
+which has it; a real `ArenaPlayer` caching the check in `setup` and driving both figures, and `press` sending H7; the
+default figure's lean, swing and punch timing, the blend when a punch cuts a swing or a swing cuts a punch, slung rifle
+per level (no vertex inside the egg) and H7 per level; `FIGURE_API` still has twelve names), added checks in
+`tests/flow/test_arena_flow.gd` (shoot mode: D, S and A give `move_dir()` x > 0.9, y < −0.9 and x < −0.9; standing
+gives (0, 0) and nothing processes on min; weapon 2 reaches `begin_switch` before `set_weapon`; the extras `move_dir()`
+and `last_switch()` are read only where a figure has them, so a figure without them fails those checks instead of
+stopping the run), one in `tests/render/test_arena_hud.gd` (the slung rifle shows with the sword) and a second phone
+worst view in `tests/render/test_arena.gd`: the saw sword landing a hit (sword in hand, the rifle slung on the back on
+hi / mid / lo, the impact sparks), held to the same limits as the rifle view.
 
 ## 10. Screens, flow and transitions (ROOM)
 
@@ -1081,7 +1152,8 @@ suggestions. Where the build now differs from the sections above:
 | §10.4 "focus loss on desktop opens the pause panel in shoot mode" | focus loss or `NOTIFICATION_APPLICATION_PAUSED` opens it in shoot mode on every input mode | on a phone a call or an app switch let the fight run on with the bot on (review) |
 | §3 / §10 build ≤ 150 ms target | reaching the arena door on the deck starts loading the arena screen, the player and beast scenes, the clip library, the `warrior` kit and both figure scripts on a thread (`HallScreen.preload_arena`, kept for later entries); the longest frame on entering measured 206 ms in the final full run (was 364–447) on the test machine; the black fade hides it | the whole build ran in one main-thread frame: about 0.4 s here, likely 1.5–2 s on a weak phone (review) |
 | §9.3 the pack drives the arena only | `PACK_SPEC.md` H1–H4: the deck avatar takes the pack's `deck` figure (`HallWorld.set_figure` → `HallAvatar.set_figure`, optional `deck_speeds()`, `set_fade`), the arena door preloads the pack's player and enemy figures, both public presets exclude `packs/*` and the data lint fails without it; with no pack nothing changes on screen | the owner tries his own figures in a private build (figure packs) |
-| §11.2 budgets | measured, all within the limits: overview 25 / 25 / 21 / 21 draw calls (hi / mid / lo / min); corridor 29 / 29 / 22 / 22; phone worst view, now with four damage numbers **and** the red hurt edge, 38 / 38 / 35 / 34 (limits 70 / 60 / 45 / 40); the deck's views unchanged | the HUD and touch batching above |
+| §6.6 saw sword swing: one arc in 0.25 s | §9.4 (13 Nov): two alternating arcs in 0.45 s, the blade straight ahead at the 0.18 s hit; the rifle slung on the egg's back while the sword is out (not on min); optional H6 `set_move_dir` (the egg leans toward where it moves on hi / mid) and H7 `begin_switch` (the held weapon shrinks before the swap on hi / mid) | owner request 13 Nov (เติมอารีน่าให้ครบ): a real swing, the rifle put away while the sword is out, and moving-while-aiming legs for pack figures; the old arc was already 81 % through at the hit |
+| §11.2 budgets | measured, all within the limits: overview 25 / 25 / 21 / 21 draw calls (hi / mid / lo / min); corridor 29 / 29 / 22 / 22; phone worst view, now with four damage numbers **and** the red hurt edge, 38 / 38 / 35 / 34 (limits 70 / 60 / 45 / 40); the same view with the saw sword landing a hit instead (sword in hand, the rifle slung on the back on hi / mid / lo, the impact sparks; 13 Nov) 37 / 37 / 33 / 32, held to the same limits; the deck's views unchanged | the HUD and touch batching above |
 
 Questions left for the owner (also in the Thai note): the beast's toughness and speed (steady rifle fire kills it in about
 3.1 s, before its 4.8 s charge from the pad arrives, unless the player misses), whether reset should also turn the bot

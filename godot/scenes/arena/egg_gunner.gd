@@ -4,6 +4,8 @@ extends Node3D
 ## (MultiMesh 2 ชิ้น = 1 draw call) ถือปืนไรเฟิลหรือดาบเลื่อยที่ออกแบบเอง (เมชเดียว = 1 draw call) ตราเทียนของเราเท่านั้น
 ## หน้าตัวอยู่ทาง +z (yaw 0) ขวามือของตัว = −x · ท่าทางสร้างด้วยโค้ด: idle walk run fire reload punch swing hit die
 ## play() คืนความยาวท่า · จังหวะเกมมาจาก ArenaData ไม่ใช่ความยาวท่า · แมกที่หล่นตอนบรรจุเป็นเมชแยก โชว์เฉพาะตอนบรรจุ
+## เมธอดเสริม (§9.4): set_move_dir (H6 เอนตามทิศที่เดิน hi/mid) begin_switch (H7 ย่ออาวุธเก่า hi/mid)
+## ฟันดาบสองจังหวะสลับกัน ใบผ่านหน้าตรงตอน 0.18 วิ · ถือดาบอยู่เห็นปืนสะพายหลัง (เมชแยก ไม่โชว์บน min)
 ## งานต่อเฟรม: _process เฉพาะตอนมีท่าครั้งเดียวกำลังเล่น ชักอาวุธ หรือโยกตัวตอนเดิน (hi/mid) แล้วปิดตัวเอง
 
 signal clip_event(kind: StringName)
@@ -26,11 +28,24 @@ const LEAN := 0.15
 const BOB_H := 0.05
 const RECOIL := 0.06
 ## ท่าครั้งเดียว: ความยาว (วินาที)
-const CLIPS := {"fire": 0.08, "reload": 1.6, "punch": 0.25, "swing": 0.25, "hit": 0.25, "die": 0.6}
+const CLIPS := {"fire": 0.08, "reload": 1.6, "punch": 0.25, "swing": 0.45, "hit": 0.25, "die": 0.6}
 const LOOPS := {"idle": 2.0, "walk": 0.8, "run": 0.55}
 const BLADE := Color("8d949c")
 const TEETH := Color("5d636b")
 const GRIP_COL := Color("23262b")
+## ท่าฟัน: [เวลา, ด้าม (พิกัดตัว), มุมดาบ (x = −เงย, y = หันไปซ้าย, z = หมุนให้สันฟันนำ), บิดไข่] ก่อน/หลังเป็นท่าตั้งดาบ
+## A = ฟันเฉียงจากบนขวาลงล่างซ้าย · B = ฟันกวาดกลับจากซ้ายไปขวาระดับอก · ทั้งสองแบบใบดาบชี้ตรงหน้าตอน 0.18 วิ (จังหวะโดน)
+const SWING_A := [[0.10, Vector3(-0.50, 1.32, 0.08), Vector3(-1.1, -2.3, -1.9), -0.25],
+	[0.18, Vector3(-0.18, 1.05, 0.52), Vector3(0.15, 0.0, -1.9), 0.0],
+	[0.26, Vector3(0.25, 0.85, 0.48), Vector3(0.6, 1.3, -1.9), 0.30]]
+const SWING_B := [[0.10, Vector3(0.30, 1.12, 0.42), Vector3(-0.15, 2.2, 1.5), 0.25],
+	[0.18, Vector3(-0.10, 1.15, 0.52), Vector3(-0.05, 0.0, 1.5), 0.0],
+	[0.26, Vector3(-0.55, 1.18, 0.18), Vector3(-0.1, -2.0, 1.5), -0.30]]
+const SWING_GAP := 1.2      # ฟันครั้งก่อนเกินนี้ (วินาที) เริ่มที่ A ใหม่
+const CUT_BLEND := 0.08     # ท่าใหม่ตัดท่าต่อย/ฟันกลางคัน: ผสมจากท่าเดิมช่วงนี้ (วินาที) ไม่กระตุก
+## ปืนสะพายหลังตอนถือดาบ (พิกัดไข่): ด้ามกลางหลัง ลำกล้องเฉียงขึ้นไปทางไหล่ซ้าย ข้างปืนแนบหลัง
+const STOW_AT := Vector3(0.0, 1.07, -0.455)
+const STOW_UP := Vector3(0.55, 0.83, 0.0)
 
 static var _mesh_cache: Dictionary = {}
 
@@ -45,6 +60,9 @@ var weapon_root: Node3D
 var weapon_mesh: MeshInstance3D
 var mag: MeshInstance3D
 var muzzle_node: Marker3D
+var stowed: MeshInstance3D
+## เทสตั้งเวลาเอง (วินาที) · ติดลบ = เวลาเกมจากเฟรมฟิสิกส์ (ใช้เลือกท่าฟัน A/B เท่านั้น ไม่เกี่ยวกับกติกา)
+var clock := -1.0
 
 var _weapon: StringName = &"none"
 var _pitch := 0.0
@@ -63,6 +81,26 @@ var _sides := 0
 var _anchors: Dictionary = {}
 var _flash_mat: StandardMaterial3D
 var _fade_mat: StandardMaterial3D
+var _dir := Vector2(0.0, 1.0)   # H6 ทิศที่เดินในกรอบตัว (x ขวา, y หน้า)
+var _stow := -1.0               # H7 0..1 ย่ออาวุธเก่าลง (−1 = ไม่ได้ย่อ)
+var _stow_len := 0.15
+var _last_switch: StringName = &""
+var _arc: StringName = &"a"
+var _swing_at := -INF
+var _sw_grip := Vector3.ZERO    # ผลของ _swing_pose (ไม่สร้าง Array ทุกเฟรม)
+var _sw_rot := Vector3.ZERO
+var _sw_twist := 0.0
+var _cut := false               # ท่าครั้งเดียวนี้ตัดท่าต่อย/ฟันกลางคัน: ผสมจากท่าล่าสุดช่วง CUT_BLEND
+var _last_grip := Vector3.ZERO  # ท่าล่าสุดที่วาด
+var _last_rot := Vector3.ZERO
+var _last_twist := 0.0
+var _last_left := Vector3.ZERO
+var _last_lean := 0.0
+var _cut_grip := Vector3.ZERO   # ท่าตอนถูกตัด (จุดเริ่มผสม)
+var _cut_rot := Vector3.ZERO
+var _cut_twist := 0.0
+var _cut_left := Vector3.ZERO
+var _cut_lean := 0.0
 
 
 func _ready() -> void:
@@ -106,19 +144,46 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 		return 0.0
 	if _dead and k != "die":
 		return 0.0
+	# ต่อย/ฟันยังไม่จบแล้วมีท่าใหม่ (ต่างชนิดกันตัดกันได้หลังจังหวะโดน §9.4): ผสมจากท่าล่าสุด ไม่ดีดกลับ
+	_cut = (_clip == "swing" or _clip == "punch") and _clip_t < _clip_len and k != "die"
+	if _cut:
+		_cut_grip = _last_grip
+		_cut_rot = _last_rot
+		_cut_twist = _last_twist
+		_cut_left = _last_left
+		_cut_lean = _last_lean
 	_clip = k
 	_clip_t = 0.0
 	_clip_speed = speed
 	_clip_len = float(CLIPS[k])
 	if k == "fire":
 		clip_event.emit(&"shot")
+	elif k == "swing":
+		var now := clock if clock >= 0.0 else float(Engine.get_physics_frames()) / float(maxi(Engine.physics_ticks_per_second, 1))
+		_arc = &"a" if now - _swing_at > SWING_GAP or _arc == &"b" else &"b"
+		_swing_at = now
 	set_process(true)
 	_pose()
 	return _clip_len / speed
 
 
-## ความเร็ว (ม./วิ) ตามทิศหน้า: เลือก idle/walk/run และจังหวะโยก
+## ความเร็ว (ม./วิ) ตามทิศหน้า: เลือก idle/walk/run และจังหวะโยก (ทิศกลับเป็นเดินหน้า)
 func set_move(speed: float, running: bool) -> void:
+	_dir = Vector2(0.0, 1.0)
+	_apply_move(speed, running)
+
+
+## H6 (ARENA_SPEC §9.4): ทิศที่เดินจริงในกรอบตัว (ยาว 1 หรือศูนย์) · hi/mid เอนตามทิศ lo/min แค่จำไว้
+func set_move_dir(local_dir: Vector2, speed: float, running: bool) -> void:
+	_dir = local_dir
+	_apply_move(speed, running)
+
+
+func move_dir() -> Vector2:
+	return _dir
+
+
+func _apply_move(speed: float, running: bool) -> void:
 	_speed = maxf(speed, 0.0)
 	_running = running
 	if bob and _speed > 0.05:
@@ -144,6 +209,7 @@ func set_weapon(id: StringName) -> void:
 		weapon_mesh.mesh = _weapon_mesh(id, true)
 		weapon_root.visible = id != &"none"
 		muzzle_node.position = Vector3(0.0, 0.035, 0.82) if id == &"gun" else Vector3(0.0, 0.0, 1.24)
+	_stow = -1.0
 	if id != &"none" and bob and was != id:
 		_draw_t = 0.0
 		set_process(true)
@@ -156,6 +222,33 @@ func set_weapon(id: StringName) -> void:
 
 func weapon() -> StringName:
 	return _weapon
+
+
+## H7 (ARENA_SPEC §9.4): เริ่มเปลี่ยนเป็น to · hi/mid ย่ออาวุธในมือลงใน holster วิ (set_weapon ขยายอันใหม่ตามมา)
+## กลับใจมาอันที่ถืออยู่ = ขยายกลับ · lo/min ไม่ทำอะไร
+func begin_switch(to: StringName, holster: float, _draw: float) -> void:
+	_last_switch = to
+	if not bob or _weapon == &"none":
+		return
+	if to == _weapon:
+		if _stow >= 0.0:
+			_draw_t = minf(_draw_t, 1.0 - _stow)
+			_stow = -1.0
+			set_process(true)
+		return
+	_stow = 0.0
+	_stow_len = maxf(holster, 0.01)
+	set_process(true)
+	_pose()
+
+
+func last_switch() -> StringName:
+	return _last_switch
+
+
+## ท่าฟันล่าสุด &"a" / &"b"
+func swing_arc() -> StringName:
+	return _arc
 
 
 ## แสงวาบตอนโดน 0..1 (ไข่สว่างขึ้น)
@@ -203,6 +296,7 @@ func apply_level(l: String) -> void:
 	if not bob:
 		_draw_t = 1.0
 		_phase = 0.0
+		_stow = -1.0
 	_pose()
 
 
@@ -230,6 +324,9 @@ func _process(delta: float) -> void:
 	if _draw_t < 1.0:
 		_draw_t = minf(_draw_t + delta / 0.2, 1.0)
 		active = active or _draw_t < 1.0
+	if _stow >= 0.0 and _stow < 1.0:
+		_stow = minf(_stow + delta / _stow_len, 1.0)
+		active = active or _stow < 1.0
 	if bob and _speed > 0.05 and not _dead:
 		_phase += delta * _speed * (3.2 if _running else 2.8)
 		active = true
@@ -249,9 +346,15 @@ func _pose() -> void:
 	var lean := clampf(-_pitch * 0.25, -LEAN, LEAN)
 	var tip := 0.0
 	var bob_y := 0.0
+	var roll := 0.0
+	var twist := 0.0
 	if bob and _phase > 0.0:
 		bob_y = absf(sin(_phase)) * BOB_H * minf(_speed / 3.0, 1.0)
-		lean += 0.08 * minf(_speed / 5.0, 1.0)
+		# H6: เอนหน้า/หลังตามทิศ y และเอียงยอดไข่ไปทางที่เดินตามทิศ x (ขวามือ = −x ของตัว → หมุน z บวก)
+		var k := minf(_speed / 5.0, 1.0)
+		var d := _dir if _dir != Vector2.ZERO else Vector2(0.0, 1.0)
+		lean += 0.08 * k * d.y
+		roll = 0.10 * k * d.x
 	var aim_fwd := Vector3(0.0, sin(_pitch), cos(_pitch))
 	# อาวุธและมือขวา
 	var grip := GRIP_GUN if _weapon == &"gun" else GRIP_SWORD
@@ -264,6 +367,7 @@ func _pose() -> void:
 	var left := REST_L
 	var right := REST_R
 	var punch := 0.0
+	var lean_c := 0.0   # เอนจากท่าครั้งเดียว
 	if _dead or _clip == "die":
 		var s := 1.0 if _dead else smoothstep(0.0, 1.0, t / CLIPS["die"])
 		tip = 1.45 * s
@@ -284,15 +388,30 @@ func _pose() -> void:
 					mag_pos = MAG_IN + Vector3(0.0, -0.38 * (1.0 - smoothstep(0.9, 1.3, t)), 0.0)
 		"punch":
 			punch = sin(PI * clampf(t / CLIPS["punch"], 0.0, 1.0))
-			lean += LEAN * punch
+			lean_c = LEAN * punch
 		"swing":
-			var s := smoothstep(0.0, 1.0, t / CLIPS["swing"])
-			grip = Vector3(-0.45, 1.25, 0.15).lerp(Vector3(-0.05, 0.85, 0.38), s)
-			rot = Vector3(lerpf(-1.15, 0.55, s), lerpf(-0.9, 0.8, s), lerpf(-0.4, 0.5, s))
+			_swing_pose(t, grip, rot)
+			grip = _sw_grip
+			rot = _sw_rot
+			twist = _sw_twist
+			lean_c = 0.08 * sin(PI * clampf((t - 0.08) / 0.2, 0.0, 1.0))
 		"hit":
-			lean -= 0.22 * sin(PI * clampf(t / CLIPS["hit"], 0.0, 1.0))
+			lean_c = -0.22 * sin(PI * clampf(t / CLIPS["hit"], 0.0, 1.0))
+	var cut_k := 1.0
+	if _cut:
+		if _clip != "" and t < CUT_BLEND:
+			cut_k = smoothstep(0.0, CUT_BLEND, t)
+			grip = _cut_grip.lerp(grip, cut_k)
+			rot = _cut_rot.lerp(rot, cut_k)
+			twist = lerpf(_cut_twist, twist, cut_k)
+			lean_c = lerpf(_cut_lean, lean_c, cut_k)
+		else:
+			_cut = false
+	lean += lean_c
 	var wb := Basis.from_euler(rot)
 	var scale_k := 0.05 + 0.95 * smoothstep(0.0, 1.0, _draw_t)
+	if _stow >= 0.0:
+		scale_k *= 1.0 - 0.95 * smoothstep(0.0, 1.0, _stow)
 	var wpos := grip + Vector3(0.0, bob_y, 0.0) - wb.z * recoil
 	if tip > 0.0:
 		wpos = wpos.lerp(Vector3(grip.x * 1.4, 0.2, grip.z), tip / 1.45)
@@ -309,12 +428,22 @@ func _pose() -> void:
 		right += Vector3(0.0, bob_y, 0.0)
 	if punch > 0.0:
 		left = REST_L.lerp(Vector3(0.12, 1.05, 0.25), punch) + aim_fwd * PUNCH_OUT * punch
+	if cut_k < 1.0:
+		left = _cut_left.lerp(left, cut_k)
+	_last_grip = grip
+	_last_rot = rot
+	_last_twist = twist
+	_last_left = left
+	_last_lean = lean_c
 	if tip > 0.0:
 		var k := tip / 1.45
 		left = left.lerp(Vector3(0.55, 0.15, 0.1), k)
 		right = right.lerp(Vector3(-0.55, 0.15, 0.1), k)
 	egg.position = Vector3(0.0, bob_y, 0.0)
-	egg.rotation = Vector3(lean, 0.0, tip)
+	if _dead or _clip == "die":
+		roll = 0.0
+	egg.rotation = Vector3(lean, twist, tip + roll)
+	stowed.visible = _weapon == &"sword" and level != "min" and _stow < 0.0
 	var mm := gauntlets.multimesh
 	mm.set_instance_transform(0, Transform3D(Basis.from_euler(Vector3(-_pitch if _weapon == &"gun" else 0.0, 0.0, 0.0)), right))
 	mm.set_instance_transform(1, Transform3D(Basis.from_euler(Vector3(-_pitch * punch, 0.0, 0.0)), left))
@@ -326,11 +455,55 @@ func _pose() -> void:
 	(_anchors[&"hand_l"] as Node3D).position = left
 
 
+## ท่าฟัน ณ เวลา t -> _sw_grip (ด้าม) _sw_rot (มุมดาบ) _sw_twist (บิดไข่) · ด้ามเลื่อนรอบแกนไข่ (มุม รัศมี ความสูง)
+## จึงไม่ผ่านเข้าในตัวไข่ · ช่วงง้างและกลับท่าค่อย ๆ เร่ง-ผ่อน ช่วงฟันเร่งเข้าหาจังหวะโดนแล้วผ่อนหลังโดน
+## ช่วง i: ท่าตั้ง -> คีย์ 0 -> 1 -> 2 -> ท่าตั้ง (อ่านจากค่าคงที่ตรง ๆ ไม่สร้าง Array ทุกเฟรม แม้บน min)
+func _swing_pose(t: float, guard: Vector3, guard_rot: Vector3) -> void:
+	var keys: Array = SWING_A if _arc == &"a" else SWING_B
+	var n := keys.size()
+	var i := 0
+	while i < n and t >= float(keys[i][0]):
+		i += 1
+	var ta := 0.0
+	var pa := guard
+	var ra := guard_rot
+	var wa := 0.0
+	if i > 0:
+		var ka: Array = keys[i - 1]
+		ta = ka[0]
+		pa = ka[1]
+		ra = ka[2]
+		wa = ka[3]
+	var tb: float = CLIPS["swing"]
+	var pb := guard
+	var rb := guard_rot
+	var wb := 0.0
+	if i < n:
+		var kb: Array = keys[i]
+		tb = kb[0]
+		pb = kb[1]
+		rb = kb[2]
+		wb = kb[3]
+	var s := clampf((t - ta) / (tb - ta), 0.0, 1.0)
+	if i == 1:
+		s = s * s
+	elif i == 2:
+		s = 1.0 - (1.0 - s) * (1.0 - s)
+	else:
+		s = smoothstep(0.0, 1.0, s)
+	var ang := lerpf(atan2(pa.x, pa.z), atan2(pb.x, pb.z), s)
+	var rad := lerpf(Vector2(pa.x, pa.z).length(), Vector2(pb.x, pb.z).length(), s)
+	_sw_grip = Vector3(sin(ang) * rad, lerpf(pa.y, pb.y, s), cos(ang) * rad)
+	_sw_rot = ra.lerp(rb, s)
+	_sw_twist = lerpf(wa, wb, s)
+
+
 func _update_material() -> void:
 	if egg == null:
 		return
 	if _flash <= 0.001 and _fade >= 0.999:
 		egg.material_override = HallBuilder.material()
+		stowed.material_override = egg.material_override
 		return
 	if _flash > 0.001:
 		if _flash_mat == null:
@@ -339,12 +512,14 @@ func _update_material() -> void:
 		var k := 1.0 + 2.2 * _flash
 		_flash_mat.albedo_color = Color(k, k, k, _fade)
 		egg.material_override = _flash_mat
+		stowed.material_override = _flash_mat
 		return
 	if _fade_mat == null:
 		_fade_mat = HallBuilder.material().duplicate() as StandardMaterial3D
 		_fade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_fade_mat.albedo_color = Color(1.0, 1.0, 1.0, _fade)
 	egg.material_override = _fade_mat
+	stowed.material_override = _fade_mat
 
 
 # ---- โหนดและเมช ----
@@ -387,6 +562,16 @@ func _build_nodes() -> void:
 	muzzle_node.position = Vector3(0.0, 0.035, 0.82)
 	weapon_root.add_child(muzzle_node)
 	weapon_root.visible = false
+	stowed = MeshInstance3D.new()
+	stowed.name = "Stowed"
+	stowed.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	stowed.material_override = HallBuilder.material()
+	stowed.mesh = rifle_mesh(true)
+	var up := STOW_UP.normalized()
+	var side := Vector3(0.0, 0.0, -1.0)
+	stowed.transform = Transform3D(Basis(side, up.cross(side), up), STOW_AT)
+	stowed.visible = false
+	egg.add_child(stowed)
 	for a in [[&"head", Vector3(0.0, 1.6, 0.0)], [&"chest", Vector3(0.0, 1.1, 0.0)], [&"hand_r", REST_R], [&"hand_l", REST_L]]:
 		var m := Marker3D.new()
 		m.name = "Anchor_" + String(a[0])

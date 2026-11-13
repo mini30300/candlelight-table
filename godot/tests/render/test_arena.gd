@@ -7,7 +7,8 @@ extends SceneTree
 ## (shader code is scanned), and the three budget views of §11.2 printed and asserted: the overview (desktop, shoot mode
 ## at (0, 0, -12.5)), the corridor (20:9, touch on, walk mode at SPAWN) and the phone worst view (20:9, touch on, hint,
 ## firing, four damage numbers, the red hurt edge, the beast winding up, a toast and the use button, at the switch
-## looking across the room). The switch sign's lowest line stays above the beacon in Thai and English, keyboard and touch. No holes into the void: with a magenta background no magenta pixel shows from 3 corridor and 6 arena spots
+## looking across the room), measured again with the saw sword landing a hit there (the sword in hand, the rifle slung on
+## the figure's back, the impact sparks; ARENA_SPEC §9.4) against the same limits. The switch sign's lowest line stays above the beacon in Thai and English, keyboard and touch. No holes into the void: with a magenta background no magenta pixel shows from 3 corridor and 6 arena spots
 ## x 4 yaws x 2 pitches in both camera framings on mid, the walk framing on min (640x360). The camera never enters a
 ## solid (ArenaLayout.inside_solid, 0.1 m) on corridor walks with orbits, through the arch, beside each pillar and in the
 ## four corners in shoot mode. The board and the signs in Thai and in English (no Thai left in English); the pause
@@ -321,6 +322,8 @@ func _check_phone_worst(arena: Node, world: Node3D) -> void:
 		_check(m.x <= int(t[0]) and m.y <= int(t[1]), "%s: the phone worst view, %d draw calls, %d primitives within %d / %d" % [level, m.x, m.y, int(t[0]), int(t[1])])
 		await _frames(2)   # the last measured frame had the screen hidden: draw the full view again before saving it
 		_save("arena_phone_worst_%s.png" % level)
+		if player != null and player.has_method("press"):
+			await _sword_worst(level, arena, player, enemy, foot, yaw)
 		if bool(world.get("state").get("bot_on")):
 			await _physics(int(Engine.physics_ticks_per_second * 1.05))
 			world.call("toggle_bot", &"use")
@@ -330,6 +333,55 @@ func _check_phone_worst(arena: Node, world: Node3D) -> void:
 	_app().call("set_touch", "off")
 	arena.call("refresh")
 	await _resize(size0)
+
+
+## The phone worst view with the saw sword landing a hit instead of the rifle firing (one more mesh on hi / mid / lo: the
+## rifle slung on the back): weapon 2, a swing at the beast in front, the same four numbers and hurt edge, the impact
+## sparks kept alive while measuring (they live 0.15 s); then back to the rifle for the next level.
+func _sword_worst(level: String, arena: Node, player: Node3D, enemy: Node3D, foot: Vector3, yaw: float) -> void:
+	var hud: Control = arena.get("hud")
+	if enemy != null and enemy.has_method("reset_to"):
+		# the rifle's knockback pushed it back: in reach again (2 m in front)
+		enemy.call("reset_to", foot + Vector3(-sin(yaw), 0.0, -cos(yaw)) * 2.0, yaw)
+	var landed: Array = []
+	var cb := func(info: Dictionary) -> void:
+		if info.get("kind") == &"sword":
+			landed.append(info.get("point"))
+	player.connect("hit_landed", cb)
+	player.call("press", &"weapon_2", true)
+	await _physics(int(Engine.physics_ticks_per_second * 0.45))
+	player.call("press", &"fire", true)
+	await _physics(int(Engine.physics_ticks_per_second * 0.22))
+	player.call("press", &"fire", false)
+	player.disconnect("hit_landed", cb)
+	var kinds := [&"sword", &"punch", &"sword", &"punch"]
+	for i in 4:
+		player.emit_signal("hit_landed", {"point": foot + Vector3(-1.5 - i * 0.4, 1.5, 0.0), "amount": 12 + i * 10, "target": &"beast", "kind": kinds[i], "killed": false})
+	if hud != null:
+		hud.set("_hurt", 5.0)
+	var fx: Node = player.get("fx")
+	var at: Vector3 = landed[0] if not landed.is_empty() else foot + Vector3(0.0, 1.2, 0.0)
+	var idle := OS.low_processor_usage_mode
+	OS.low_processor_usage_mode = false
+	var draws := 0
+	var prims := 0
+	for i in 7:
+		if fx != null and fx.has_method("impact"):
+			fx.call("impact", at, Vector3.UP)
+		await process_frame
+		if i >= 3:
+			draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+			prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	OS.low_processor_usage_mode = idle
+	var fig: Node = player.call("figure")
+	var stowed := fig.get_node_or_null("Egg/Stowed") as Node3D if fig != null else null
+	print("arena phone worst %-4s sword hit: draw calls %4d  primitives %7d  (hits %d, weapon %s, slung rifle %s)" % [level, draws, prims,
+		landed.size(), str(player.call("weapon")), str(stowed.is_visible_in_tree()) if stowed != null else "-"])
+	_check(not landed.is_empty() and player.call("weapon") == &"sword", "%s: the saw sword lands on the beast in the phone worst view" % level)
+	var t: Array = WORST[level]
+	_check(draws <= int(t[0]) and prims <= int(t[1]), "%s: the phone worst view with the saw sword landing, %d draw calls, %d primitives within %d / %d" % [level, draws, prims, int(t[0]), int(t[1])])
+	player.call("press", &"weapon_1", true)
+	await _physics(int(Engine.physics_ticks_per_second * 0.45))
 
 
 ## The switch sign sits on the beacon: its lowest line stays above the lamp's top (review: the wrapped English sign and
