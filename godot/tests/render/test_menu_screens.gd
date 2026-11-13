@@ -230,6 +230,18 @@ func _check_settings_controls(menu: Node) -> void:
 ## top (depth 3), no badge; back returns to the deck at the airlock (camera current), back again to the main menu.
 func _check_online(menu: Node) -> void:
 	var app := _app()
+	# 0.6 (PACK_SPEC §5.1): the public app hides the online button; a private build's res://packs/features.json
+	# {"online": true} (here the test flag) shows it again
+	Features.set_flag(&"online", false)
+	menu.call("refresh")
+	_check(not (menu.get_node("%OnlineButton") as CanvasItem).visible, "the public app hides the online button")
+	_check(menu.call("open_online") != null and int(app.call("depth")) == 2 and str(app.call("current").scene_file_path).ends_with("hall_screen.tscn"),
+		"open_online without the flag opens only the deck (depth %d)" % int(app.call("depth")))
+	app.call("back")
+	await _frames(4)
+	Features.set_flag(&"online", true)
+	menu.call("refresh")
+	_check((menu.get_node("%OnlineButton") as CanvasItem).visible, "the online flag shows the online button")
 	_check(not (menu.get_node("%OnlineBadge") as CanvasItem).visible, "the online button has no coming-soon badge")
 	menu.get_node("%OnlineButton").pressed.emit()
 	await _frames(4)
@@ -252,6 +264,8 @@ func _check_online(menu: Node) -> void:
 	app.call("back")
 	await _frames(4)
 	_check(app.call("current") == menu and int(app.call("depth")) == 1, "back again returns to the main menu")
+	Features.set_flag(&"online", false)
+	menu.call("refresh")
 
 
 ## The toast (kept for messages; the online button no longer uses it) shows for 2.5 s, in the current language.

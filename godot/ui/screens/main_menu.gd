@@ -82,6 +82,8 @@ func _ready() -> void:
 	refresh()
 	_apply_idle()
 	_drop_camera.call_deferred()   # หลัง READY ของวิวพอร์ตราก (มันเลือกกล้องตัวแรกให้เองถ้ายังไม่มี)
+	if visible:
+		_music()
 
 
 ## วาดข้อความทุกชิ้นใหม่ตามภาษา และอ่านระดับกราฟิกใหม่
@@ -92,6 +94,7 @@ func refresh() -> void:
 	online_button.text = I18n.t("ออนไลน์")
 	online_badge.text = I18n.t("เร็วๆ นี้")
 	online_badge.visible = false   # ออนไลน์เปิดแล้ว (NET_SPEC §7.1)
+	online_button.visible = Features.on(&"online")   # แอปสาธารณะซ่อน: ออนไลน์อยู่ในแอปรุ่นส่วนตัว (PACK_SPEC §5.1)
 	settings_button.text = I18n.t("ตั้งค่า")
 	lang_button.text = BUTTON_TO_THAI if I18n.english else BUTTON_TO_ENGLISH
 	quit_button.text = I18n.t("ออก")
@@ -134,7 +137,7 @@ func open_hall() -> Node:
 ## ออนไลน์: เปิดห้องโถง ยืนหน้าประตูเทียบยาน แล้วเปิดหน้าเล่นกับเพื่อนทับ (ลึก 3; ย้อนกลับ = ดาดฟ้าหน้าประตู)
 func open_online() -> Node:
 	var hall := open_hall()
-	if hall == null or not hall.has_method("open_online"):
+	if hall == null or not hall.has_method("open_online") or not Features.on(&"online"):
 		return hall
 	hall.call("enter_airlock")
 	return hall.call("open_online")
@@ -230,6 +233,7 @@ func _on_visibility() -> void:
 		refresh()
 		_apply_idle()
 		_drop_camera()
+		_music()
 		# บอกห้องว่ากลับมาอยู่หน้าแรก (NET_SPEC §6.1; ออฟไลน์ Net แค่จำไว้)
 		var net := get_node_or_null(^"/root/Net")
 		if net != null and net.has_method("set_where"):
@@ -238,3 +242,10 @@ func _on_visibility() -> void:
 		hide_toast()
 		close_quit_confirm()
 	art.set_active(visible)
+
+
+## เพลงหน้าแรก (เพลงเดิมช้า ๆ ของหน้าเก่า)
+func _music() -> void:
+	var music := get_node_or_null(^"/root/Music")
+	if music != null:
+		music.call("set_mood", &"menu")

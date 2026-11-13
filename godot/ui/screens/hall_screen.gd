@@ -52,6 +52,9 @@ const SOON := {
 	"adventure": "โต๊ะผจญภัย — เร็วๆ นี้",
 	"vault": "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง",
 }
+## แอปสาธารณะ (ไม่มีสวิตช์ online ใน res://packs/features.json): ประตูเทียบยานกลับเป็น "เร็วๆ นี้"
+const SIGN_SOON_ONLINE := "ประตูเทียบยาน · เร็วๆ นี้"
+const SOON_ONLINE := "ประตูเทียบยาน — เร็วๆ นี้: ลานปล่อยยานและเล่นกับเพื่อน"
 ## ชื่อสถานที่บนแผ่นป้ายใต้หน้าต่างกลาง
 const PLACE := "ดาดฟ้ายานรบ"
 const YOU := "คุณ"
@@ -73,6 +76,8 @@ const POSE_MS := 100          # ส่งท่าตอนเดินไม่
 const MAX_PLAYERS := 6        # NetSession.MAX_PLAYERS
 const USE_H := 64.0
 const USE_H_TOUCH := 80.0
+const STEP_WALK := 1.15       # ระยะต่อก้าว (ม.) ของเสียงเท้าตอนเดิน / วิ่ง
+const STEP_RUN := 1.7
 
 @onready var world: HallWorld = $HallWorld
 @onready var margin: MarginContainer = $Safe
@@ -112,6 +117,8 @@ var _members_known := false
 var _setup_open := false
 var _pose_ms := -100000
 var _net_state := &"off"             # สถานะ Net ล่าสุด (เข้าห้องใหม่ ≠ ต่อกลับ)
+var _step_d := 0.0                    # ระยะเดินสะสมของเสียงเท้า
+var _step_p := Vector3.INF
 
 
 func _ready() -> void:
@@ -162,13 +169,13 @@ func refresh() -> void:
 	menu_button.text = I18n.t(MENU_TEXT)
 	settings_button.text = I18n.t(SETTINGS_TEXT)
 	for id in SIGNS:
-		world.set_sign_text(id, I18n.t(SIGNS[id]))
+		world.set_sign_text(id, I18n.t(sign_of(id)))
 	world.set_sign_text("title", I18n.t(PLACE))
 	world.set_sign_text("you", I18n.t(YOU))
 	hint.text = I18n.t(HINT_TOUCH if touch_mode else HINT_KEYS)
 	hint.visible = not _hint_done
 	if _soon != "":
-		soon_label.text = I18n.t(SOON[_soon])
+		soon_label.text = I18n.t(soon_of(_soon))
 	elif _note != "":
 		soon_label.text = I18n.t(_note).format(_note_args)
 	_update_prompt()
@@ -185,6 +192,7 @@ func station() -> String:
 func use_station() -> void:
 	if not active:
 		return
+	_sfx(&"heal")   # เสียงติ๊งตอนใช้สถานี
 	match station():
 		"battle":
 			# ออนไลน์บนเครื่องเพื่อน: เจ้าห้องเป็นคนตั้งเกม (NET_SPEC §7.1)
@@ -197,7 +205,10 @@ func use_station() -> void:
 		"settings":
 			_push(SETTINGS_SCREEN)
 		"online":
-			open_online()
+			if Features.on(&"online"):
+				open_online()
+			else:
+				show_soon("online")
 		"adventure", "vault":
 			show_soon(station())
 		"exit":
@@ -208,13 +219,27 @@ func use_station() -> void:
 
 ## แผง "เร็วๆ นี้" ของสถานีที่ยังไม่เปิด ปิดเองใน 2.5 วิ เมื่อเดิน หรือเมื่อกดย้อนกลับ
 func show_soon(id: String) -> void:
-	if not SOON.has(id):
+	if soon_of(id) == "":
 		return
 	_soon = id
 	_note = ""
-	soon_label.text = I18n.t(SOON[id])
+	soon_label.text = I18n.t(soon_of(id))
 	soon_panel.show()
 	soon_timer.start(SOON_SECONDS)
+
+
+## ข้อความไทยของแผง "เร็วๆ นี้" ("" = สถานีนี้เปิดแล้ว)
+static func soon_of(id: String) -> String:
+	if id == "online" and not Features.on(&"online"):
+		return SOON_ONLINE
+	return str(SOON.get(id, ""))
+
+
+## ป้าย 3 มิติของสถานี (ประตูเทียบยานขึ้นกับสวิตช์ online)
+static func sign_of(id: String) -> String:
+	if id == "online" and not Features.on(&"online"):
+		return SIGN_SOON_ONLINE
+	return str(SIGNS.get(id, ""))
 
 
 ## แจ้งเรื่องออนไลน์ในแผงเดียวกัน (key = ข้อความไทยทั้งก้อน แปลแล้วค่อยเติม args) ปิดเองใน 2.5 วิ
@@ -268,6 +293,9 @@ func _activate(on: bool) -> void:
 		# กลับมาบนดาดฟ้า: บอกห้องว่าอยู่ที่ไหน (ออฟไลน์ Net จำไว้ใช้ตอนเปิดห้อง) แล้วส่งท่ายืนหนึ่งครั้ง (NET_SPEC §6.1)
 		_set_where(&"deck")
 		_send_pose(true)
+		var music := get_node_or_null(^"/root/Music")
+		if music != null:
+			music.call("set_mood", &"deck")
 	else:
 		pose_timer.stop()
 		stick.release()
@@ -288,6 +316,8 @@ func _on_resize() -> void:
 
 func _on_station(id: String) -> void:
 	_update_prompt()
+	if id != "" and active:
+		_sfx(&"ui")
 	if id == "arena":
 		preload_arena()
 	station_changed.emit(id)
@@ -312,7 +342,9 @@ func _on_avatar_moved(p: Vector3) -> void:
 		if tags.visible:
 			tags.refresh()
 	if world.avatar.input_vector() == Vector2.ZERO:
+		_step_p = Vector3.INF
 		return
+	_footstep(p)
 	if world.station() == "arena" and HallLayout.in_arena_doorway(Vector2(p.x, p.z)):
 		enter_arena()
 		return
@@ -327,6 +359,26 @@ func _on_avatar_moved(p: Vector3) -> void:
 			_hint_tween.tween_property(hint, ^"modulate:a", 0.0, 0.4)
 			_hint_tween.tween_callback(hint.hide)
 		_place_status.call_deferred()
+
+
+## เสียงเท้าบนดาดฟ้า: ทุกระยะหนึ่งก้าว (วิ่งก้าวยาวกว่า) เสียงกระทืบเบา ๆ แหลมขึ้นนิด ตามจุดที่ยืน
+func _footstep(p: Vector3) -> void:
+	if _step_p != Vector3.INF:
+		_step_d += Vector2(p.x - _step_p.x, p.z - _step_p.z).length()
+	_step_p = p
+	var stride := STEP_RUN if world.avatar.running() else STEP_WALK
+	if _step_d < stride:
+		return
+	_step_d = fmod(_step_d, stride)
+	var sfx := get_node_or_null(^"/root/Sfx")
+	if sfx != null:
+		sfx.call("play", &"stomp", p, 0.3, randf_range(1.55, 1.75))
+
+
+func _sfx(kind: StringName) -> void:
+	var sfx := get_node_or_null(^"/root/Sfx")
+	if sfx != null:
+		sfx.call("play_ui", kind)
 
 
 func hint_done() -> bool:
@@ -448,7 +500,7 @@ func _push(path: String) -> Node:
 
 ## เปิดหน้าเล่นกับเพื่อน (ประตูเทียบยาน) ทับห้องโถง
 func open_online() -> Node:
-	if not active:
+	if not active or not Features.on(&"online"):
 		return null
 	return _push(LOBBY_SCREEN)
 

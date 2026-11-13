@@ -471,10 +471,19 @@ func _check_stations(hall: Node) -> void:
 		_check(not timer.is_stopped() and timer.wait_time <= 2.6, "the panel closes itself after 2.5 s")
 		await _press(KEY_ESCAPE)
 		_check(not soon.visible and _app().call("current") == hall, "Esc closes the %s panel first and stays in the hall" % id)
-	# 0.5 (NET_SPEC §7.1): E at the docking airlock pushes the play-with-friends screen (depth 3); back returns to the
-	# deck at the airlock with the hall active and its camera current
+	# 0.6 (PACK_SPEC §5.1): in the public app (no online flag) the airlock is a coming-soon station again
+	Features.set_flag(&"online", false)
+	hall.call("refresh")
 	world.call("place_avatar", _front("online"), PI)
 	await _settle()
+	await _press(KEY_E)
+	_check(_app().call("current") == hall and soon.visible and str(hall.get_node("%SoonLabel").text) == "ประตูเทียบยาน — เร็วๆ นี้: ลานปล่อยยานและเล่นกับเพื่อน",
+		"public app: E at the docking airlock shows its coming-soon panel, no lobby")
+	await _press(KEY_ESCAPE)
+	# 0.5 (NET_SPEC §7.1), with the online flag of a private build: E at the docking airlock pushes the play-with-friends
+	# screen (depth 3); back returns to the deck at the airlock with the hall active and its camera current
+	Features.set_flag(&"online", true)
+	hall.call("refresh")
 	await _press(KEY_E)
 	var lobby: Node = _app().call("current")
 	_check(lobby != hall and lobby != null and lobby.scene_file_path == LOBBY_SCREEN and int(_app().call("depth")) == 3 and not soon.visible,
@@ -488,7 +497,9 @@ func _check_stations(hall: Node) -> void:
 	await _frames(3)
 	_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and world.visible and _camera(world).current
 		and str(hall.call("station")) == "online", "back returns to the deck at the airlock (hall active, camera current)")
-	# walking away closes the coming-soon panel (0.5: at the adventure table, the airlock has no panel any more)
+	Features.set_flag(&"online", false)
+	hall.call("refresh")
+	# walking away closes the coming-soon panel (at the adventure table)
 	world.call("place_avatar", _front("adventure"), PI)
 	await _settle()
 	hall.call("use_station")

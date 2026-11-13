@@ -58,13 +58,26 @@ func test_every_station_has_thai_and_english() -> void:
 			var en := I18n.lookup(th)
 			assert_true(en != "" and thai_re.search(en) == null, "and an English pair without Thai (%s -> %s)" % [th, en])
 	# 0.3: the vault (treasure chest) is a coming-soon station too (SHIP_LOBBY_SPEC §5)
-	# 0.5 (NET_SPEC §12.1): the airlock opens the online screen on purpose, so online left the coming-soon stations
+	# 0.5 (NET_SPEC §12.1): with the online flag the airlock opens the online screen, so online left the SOON table;
+	# 0.6 (PACK_SPEC §5.1): without the flag (the public app) the airlock is coming soon again (sign_of / soon_of)
 	for id in ["adventure", "vault"]:
 		assert_true(soon.has(id) and I18n.has_key(str(soon[id])), "the coming-soon panel of %s is translated" % id)
 	assert_eq(soon.size(), 2, "exactly two coming-soon stations: adventure, vault")
 	assert_false(soon.has("online"), "the docking airlock is not coming soon any more")
 	assert_eq(str(signs.get("online", "")), "ประตูเทียบยาน · เล่นกับเพื่อน", "the airlock's sign names play with friends")
 	assert_eq(I18n.lookup(str(signs.get("online", ""))), "Docking Airlock · Play with friends", "and translates")
+	var hall_script: GDScript = load("res://ui/screens/hall_screen.gd")
+	Features.set_flag(&"online", false)
+	var sign_off := str(hall_script.call("sign_of", "online"))
+	var soon_off := str(hall_script.call("soon_of", "online"))
+	assert_eq(sign_off, "ประตูเทียบยาน · เร็วๆ นี้", "public app: the airlock's sign is coming soon")
+	assert_true(I18n.has_key(sign_off) and I18n.has_key(soon_off) and thai_re.search(I18n.lookup(soon_off)) == null,
+		"and its sign and panel translate (%s)" % I18n.lookup(soon_off))
+	assert_eq(str(hall_script.call("soon_of", "vault")), str(soon["vault"]), "other stations keep their panel")
+	Features.set_flag(&"online", true)
+	assert_eq(str(hall_script.call("sign_of", "online")), str(signs["online"]), "online flag: the sign names play with friends")
+	assert_eq(str(hall_script.call("soon_of", "online")), "", "online flag: no coming-soon panel at the airlock")
+	Features.reset()
 	var vault_en := I18n.lookup(str(soon.get("vault", "")))
 	assert_true(vault_en != "" and thai_re.search(vault_en) == null and not vault_en.contains("{"),
 		"the vault line has a plain English pair (%s)" % vault_en)

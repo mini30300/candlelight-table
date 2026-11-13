@@ -49,6 +49,7 @@ var _host_steps := 0          # frames where the host's egg moved a small step (
 
 
 func _initialize() -> void:
+	Features.set_flag(&"online", true)   # ออนไลน์เปิดเฉพาะแอปส่วนตัว (PACK_SPEC §5.1): เทสเปิดเอง
 	Engine.max_fps = 60
 	for a: String in OS.get_cmdline_user_args():
 		if a.begins_with("--status="):

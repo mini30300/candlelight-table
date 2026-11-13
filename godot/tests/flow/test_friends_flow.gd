@@ -57,6 +57,7 @@ var _cfg_before := {}
 
 
 func _initialize() -> void:
+	Features.set_flag(&"online", true)   # ออนไลน์เปิดเฉพาะแอปส่วนตัว (PACK_SPEC §5.1): เทสเปิดเอง
 	Engine.max_fps = 60
 	_out = OS.get_environment("TEST_OUT")
 	if _out == "":
