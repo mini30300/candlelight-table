@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "id": "prim_test",
+  "player": "prim_figure.gd",
+  "enemy": "prim_figure.gd",
+  "deck": "prim_figure.gd",
+  "enemy_name": {"th": "หุ่นทดสอบ", "en": "Test dummy"},
+  "army": {"warrior": "missing.tscn"}
+}

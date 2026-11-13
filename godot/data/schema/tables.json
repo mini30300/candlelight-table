@@ -1,0 +1,2514 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tables.json",
+  "title": "The smaller data tables, version.json and the generated server payloads",
+  "description": "One $def per file: terrains, teams, phases, chapters, variants, skins, fly, strats, anim, fx, natural, unit_colours, sky, dust, constants (data/README.md documents each), version (written by validate_data.py --write-version), bt2_snapshot (gen_bt_data.py from the Worker) and bt_data (gen_bt_data.py --snapshot).",
+  "$defs": {
+    "terrains": {
+      "type": "object",
+      "description": "relief choice -> Thai name; what it does is code",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[\\u0e00-\\u0e7f]"
+          }
+        }
+      }
+    },
+    "teams": {
+      "type": "array",
+      "description": "the 8 team colours in order (team index mod 8)",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "nm",
+          "ui",
+          "rgb"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "nm": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[\\u0e00-\\u0e7f]"
+          },
+          "ui": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "rgb": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          }
+        }
+      }
+    },
+    "phases": {
+      "type": "object",
+      "required": [
+        "order",
+        "nm"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "enum": [
+                "cmd"
+              ]
+            },
+            {
+              "enum": [
+                "move"
+              ]
+            },
+            {
+              "enum": [
+                "shoot"
+              ]
+            },
+            {
+              "enum": [
+                "charge"
+              ]
+            },
+            {
+              "enum": [
+                "fight"
+              ]
+            }
+          ],
+          "minItems": 5,
+          "maxItems": 5,
+          "items": false,
+          "description": "the five phases of a team's turn"
+        },
+        "nm": {
+          "type": "object",
+          "required": [
+            "cmd",
+            "move",
+            "shoot",
+            "charge",
+            "fight"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[\\u0e00-\\u0e7f]"
+            },
+            "move": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[\\u0e00-\\u0e7f]"
+            },
+            "shoot": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[\\u0e00-\\u0e7f]"
+            },
+            "charge": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[\\u0e00-\\u0e7f]"
+            },
+            "fight": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[\\u0e00-\\u0e7f]"
+            }
+          }
+        }
+      }
+    },
+    "chapters": {
+      "type": "object",
+      "description": "Thai chapter name (the value of a knight's ch) -> colours",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "[\\u0e00-\\u0e7f]"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[\\u0e00-\\u0e7f]",
+            "description": "Thai colour description"
+          }
+        ],
+        "minItems": 3,
+        "maxItems": 3,
+        "items": false,
+        "description": "[plate, trim, description]"
+      }
+    },
+    "variants": {
+      "type": "object",
+      "description": "unit key -> kit cycle (cosmetic)",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "description": "model j of the squad uses kit list[j % length]",
+        "minItems": 1,
+        "maxItems": 20,
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "figure kit key (kits.json; a unit key or a variant/skin kit)"
+        }
+      }
+    },
+    "skins": {
+      "type": "object",
+      "description": "unit key -> alternative looks; index 0 is the default; the index travels with the army list",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "required": [
+            "k",
+            "nm"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "description": "figure kit key (kits.json; a unit key or a variant/skin kit)"
+            },
+            "nm": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[\\u0e00-\\u0e7f]"
+            }
+          }
+        }
+      }
+    },
+    "fly": {
+      "type": "object",
+      "description": "kit key -> flight look (cosmetic; rules use the base on the ground)",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "alt",
+          "hz"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "hover height in metres"
+          },
+          "hz": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "wing beats per second, 0 = glides"
+          },
+          "legs": {
+            "type": "integer",
+            "enum": [
+              1
+            ],
+            "description": "legs dangle while airborne"
+          }
+        }
+      }
+    },
+    "strats": {
+      "type": "object",
+      "description": "stratagem code -> name and command-point cost",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "nm",
+          "cp"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "nm": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "[\\u0e00-\\u0e7f]"
+          },
+          "cp": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          }
+        }
+      }
+    },
+    "anim": {
+      "type": "object",
+      "required": [
+        "anim",
+        "tracer",
+        "flame"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "anim": {
+          "type": "object",
+          "description": "kit key -> how the figure attacks",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "r": {
+                "enum": [
+                  "fire",
+                  "bow",
+                  "throw",
+                  "hurl",
+                  "cast",
+                  "beam",
+                  "gaze",
+                  "spray",
+                  "flame",
+                  "breath",
+                  "lob",
+                  "turret",
+                  "zap"
+                ],
+                "description": "ranged style"
+              },
+              "g": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+$",
+                "description": "gun name (anim.json g; tracer and fx_gun key)"
+              },
+              "m": {
+                "enum": [
+                  "bash",
+                  "swing",
+                  "swing2",
+                  "thrust",
+                  "lunge",
+                  "claw",
+                  "twin"
+                ],
+                "description": "melee style"
+              },
+              "sh": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "carries a shield"
+              },
+              "hand": {
+                "enum": [
+                  "L",
+                  "R"
+                ],
+                "description": "hand that holds the gun"
+              }
+            }
+          }
+        },
+        "tracer": {
+          "type": "object",
+          "description": "gun name -> tracer look",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "description": "#RRGGBB"
+              },
+              {
+                "type": "string",
+                "pattern": "^rgba\\(\\d{1,3},\\d{1,3},\\d{1,3},(0|1|0?\\.\\d+)\\)$"
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 20
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "[core hex, glow rgba, width px]"
+          }
+        },
+        "flame": {
+          "type": "object",
+          "description": "flame kind -> colours",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]+$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,3},\\d{1,3},\\d{1,3}$",
+                "description": "\"r,g,b\" string as the page wrote it"
+              },
+              {
+                "type": "string",
+                "pattern": "^\\d{1,3},\\d{1,3},\\d{1,3}$",
+                "description": "\"r,g,b\" string as the page wrote it"
+              },
+              {
+                "type": "string",
+                "pattern": "^\\d{1,3},\\d{1,3},\\d{1,3}$",
+                "description": "\"r,g,b\" string as the page wrote it"
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "[core, edge, mid]"
+          }
+        }
+      }
+    },
+    "fx": {
+      "type": "object",
+      "required": [
+        "fxs",
+        "fx_st",
+        "fx_gun",
+        "fx_generic",
+        "mach8",
+        "beast8"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fxs": {
+          "type": "object",
+          "description": "effect kind -> look and sound",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "description": "one effect kind (visual + sound)",
+            "required": [
+              "snd"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "snd": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+$",
+                "description": "sound key"
+              },
+              "pr": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+$",
+                "description": "projectile kind"
+              },
+              "spd": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 500,
+                "description": "m/s, 0 = instant"
+              },
+              "hit": {
+                "type": "string",
+                "pattern": "^[a-z]+$",
+                "description": "impact kind"
+              },
+              "fl": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5,
+                "description": "muzzle flash seconds"
+              },
+              "sm": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20,
+                "description": "smoke puffs"
+              },
+              "cas": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "ejected casings"
+              },
+              "big": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "en": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "energy weapon"
+              },
+              "back": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "backblast"
+              },
+              "wp": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "warp"
+              },
+              "m": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "melee kind"
+              },
+              "tr": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{1,3},\\d{1,3},\\d{1,3}$",
+                    "description": "\"r,g,b\" string as the page wrote it"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "melee trail colour or null"
+              },
+              "mhit": {
+                "type": "string",
+                "pattern": "^[a-z]+$",
+                "description": "melee impact kind"
+              },
+              "gl": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "wide": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "thin": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              }
+            }
+          }
+        },
+        "fx_st": {
+          "type": "object",
+          "description": "effect kind -> default tracer when the gun has none",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]+$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "description": "#RRGGBB"
+              },
+              {
+                "type": "string",
+                "pattern": "^rgba\\(\\d{1,3},\\d{1,3},\\d{1,3},(0|1|0?\\.\\d+)\\)$"
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 20
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "[core hex, glow rgba, width px]"
+          }
+        },
+        "fx_gun": {
+          "type": "object",
+          "description": "gun name -> effect kind",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z]+$",
+            "description": "a key of fxs"
+          }
+        },
+        "fx_generic": {
+          "type": "object",
+          "description": "gun names whose kind comes from the weapon's Thai name",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "enum": [
+              1
+            ]
+          }
+        },
+        "mach8": {
+          "type": "object",
+          "description": "kit keys that explode when destroyed",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "enum": [
+              1
+            ]
+          }
+        },
+        "beast8": {
+          "type": "object",
+          "description": "kit keys excluded from mach8 although they carry a turret",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "enum": [
+              1
+            ]
+          }
+        }
+      }
+    },
+    "natural": {
+      "type": "object",
+      "description": "material names that keep their own colour instead of the team tint (use the key set)",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "enum": [
+          1
+        ]
+      }
+    },
+    "unit_colours": {
+      "type": "object",
+      "description": "explicit palettes for older kits",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "plate",
+          "trim",
+          "visor",
+          "base"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "plate": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          },
+          "trim": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          },
+          "visor": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          },
+          "base": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "description": "RGB triplet 0..255"
+          }
+        }
+      }
+    },
+    "sky": {
+      "type": "object",
+      "description": "theme -> backdrop",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "top",
+          "hor",
+          "sun",
+          "glow",
+          "far",
+          "near",
+          "fog",
+          "plain",
+          "kind"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "top": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "hor": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "sun": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 7
+              },
+              {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false,
+            "description": "[azimuth rad, elevation rad]"
+          },
+          "glow": {
+            "type": "string",
+            "pattern": "^\\d{1,3},\\d{1,3},\\d{1,3}$",
+            "description": "\"r,g,b\" string as the page wrote it"
+          },
+          "far": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "near": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "fog": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "plain": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "#RRGGBB"
+          },
+          "kind": {
+            "enum": [
+              "city",
+              "trees",
+              "dunes",
+              "peaks"
+            ]
+          }
+        }
+      }
+    },
+    "dust": {
+      "type": "object",
+      "description": "theme -> dust colour",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^\\d{1,3},\\d{1,3},\\d{1,3}$",
+        "description": "\"r,g,b\" string as the page wrote it"
+      }
+    },
+    "constants": {
+      "type": "object",
+      "required": [
+        "ENGAGE",
+        "CHARGE_R",
+        "AURA_R",
+        "OBJ_R",
+        "SLOT_MAX",
+        "SPEC_TOTAL",
+        "PROP_CAP",
+        "RULES_V",
+        "APP_VER",
+        "GREN_R",
+        "HEAL_ON",
+        "PAIN_ROUND",
+        "VP_PER",
+        "VP_CAP",
+        "MAX_ROUND",
+        "KILL_ROUNDS",
+        "DEP_FOE",
+        "DEP_MATE",
+        "BLESS_INV",
+        "REZ_AURA",
+        "FLY_V",
+        "FLY_A",
+        "LODS",
+        "PANO_N",
+        "SEED",
+        "theme",
+        "terrain",
+        "buildings",
+        "density",
+        "table",
+        "BUDGETS"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ENGAGE": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "CHARGE_R": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48
+        },
+        "AURA_R": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48
+        },
+        "OBJ_R": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48
+        },
+        "SLOT_MAX": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999
+        },
+        "SPEC_TOTAL": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "PROP_CAP": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "RULES_V": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "the page's rules version; the Worker gates on it (BT_RULES)"
+        },
+        "APP_VER": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+$",
+          "description": "the page's APP_VER the export came from"
+        },
+        "GREN_R": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48,
+          "description": "grenade range in inches, centre to centre between the closest models of the two squads"
+        },
+        "HEAL_ON": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6,
+          "description": "a heal roll succeeds on HEAL_ON+ (one d6)"
+        },
+        "PAIN_ROUND": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "from this round on the dark elves (de) get +1 to hit in melee and may charge after advancing"
+        },
+        "VP_PER": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "VP_CAP": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "MAX_ROUND": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "KILL_ROUNDS": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "DEP_FOE": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "DEP_MATE": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "BLESS_INV": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6
+        },
+        "REZ_AURA": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6
+        },
+        "FLY_V": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "FLY_A": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "LODS": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "PANO_N": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "SEED": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99999
+        },
+        "theme": {
+          "type": "string",
+          "pattern": "^[a-z]+$"
+        },
+        "terrain": {
+          "type": "string",
+          "pattern": "^[a-z]+$"
+        },
+        "buildings": {
+          "type": "boolean"
+        },
+        "density": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "table": {
+          "type": "object",
+          "description": "default table size in metres",
+          "required": [
+            "w",
+            "d"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "w": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300
+            },
+            "d": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300
+            }
+          }
+        },
+        "BUDGETS": {
+          "type": "array",
+          "description": "the points slider steps, ascending",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          }
+        }
+      }
+    },
+    "version": {
+      "type": "object",
+      "required": [
+        "rules_ver",
+        "page_app_ver",
+        "page_rules_v",
+        "data_hash",
+        "generated_by"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rules_ver": {
+          "type": "integer",
+          "minimum": 10,
+          "description": "the new app's rules version (core/version.gd RULES_V)"
+        },
+        "page_app_ver": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+$",
+          "description": "constants.json APP_VER"
+        },
+        "page_rules_v": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "constants.json RULES_V"
+        },
+        "data_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of every data/*.json except this file, concatenated in sorted file-name order"
+        },
+        "generated_by": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "bt2_snapshot": {
+      "type": "object",
+      "required": [
+        "source",
+        "worker_sha256",
+        "bt_rules",
+        "bt_army_en",
+        "bt2"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worker_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bt_rules": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "the Worker's BT_RULES gate"
+        },
+        "bt_list_len": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bt_max_acts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bt_max_players": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bt_army_en": {
+          "type": "object",
+          "description": "army code -> English name the server uses",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(\\*|[a-z]{2,3})$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0e00-\\u0e7f]*$"
+          }
+        },
+        "bt_themes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+$"
+          }
+        },
+        "bt_terrains": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+$"
+          }
+        },
+        "bt2": {
+          "type": "object",
+          "description": "the Worker's copy of every datasheet keyed by k (stats identical to types.json, weapon names in English)",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9]*$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "nm",
+              "fac",
+              "n",
+              "pts",
+              "mv",
+              "T",
+              "sv",
+              "w",
+              "ld",
+              "oc",
+              "gun",
+              "mel"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "fac": {
+                "type": "string",
+                "pattern": "^(\\*|[a-z]{2,3})$",
+                "description": "army code from facs.json, or '*' = every army"
+              },
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]",
+                "description": "Thai unit name; must be a key of data/i18n_en.json"
+              },
+              "n": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "models per squad"
+              },
+              "pts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000,
+                "description": "points per squad"
+              },
+              "mv": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40,
+                "description": "move in inches"
+              },
+              "T": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "toughness"
+              },
+              "sv": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 7,
+                "description": "armour save n+ (7 = none)"
+              },
+              "inv": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 6,
+                "description": "invulnerable save n++ (AP does not apply)"
+              },
+              "w": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 999,
+                "description": "wounds per model"
+              },
+              "ld": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 12,
+                "description": "leadership: nerve test passes on 2d6 >= ld"
+              },
+              "oc": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99,
+                "description": "objective control per model"
+              },
+              "r": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 20,
+                "description": "base radius in inches (default 0.8 when absent). The one non-integer field in a datasheet; core converts it once to MI (r*1000) and never uses the float"
+              },
+              "hero": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "character"
+              },
+              "brave": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "always passes the nerve test"
+              },
+              "aoc": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "armour of faith: incoming AP is 1 lower"
+              },
+              "aura": {
+                "enum": [
+                  "hit",
+                  "ld",
+                  "bless",
+                  "rez",
+                  "veil"
+                ],
+                "description": "aura within AURA_R (6\"): hit +1 / pass nerve / 5++ save / reanimate on REZ_AURA+ / -1 to be hit by shooting"
+              },
+              "ca": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "+1 attack per model in melee on the turn it charged"
+              },
+              "ac": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "may charge after advancing"
+              },
+              "fly": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "flies: may shoot and charge after falling back (flight height is visual, fly.json)"
+              },
+              "st": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "stealth: -1 to hit it with ranged attacks"
+              },
+              "rez": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 6,
+                "description": "reanimates: fallen models stand up on rez+ in the command phase"
+              },
+              "heel": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "an unmodified 6 to wound slays him"
+              },
+              "wind": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 6,
+                "description": "stands up at the next command phase; first time for sure, later on wind+"
+              },
+              "spawn": {
+                "type": "object",
+                "description": "a squad carried inside, comes out from round 2 or when destroyed",
+                "required": [
+                  "k",
+                  "n"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "k": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*$",
+                    "description": "unit key carried inside"
+                  },
+                  "n": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "models that come out"
+                  }
+                }
+              },
+              "heal": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "description": "heals a friendly squad within heal\" instead of shooting"
+              },
+              "ttn": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "titanic: shoots while engaged, acts after falling back"
+              },
+              "veh": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "vehicle"
+              },
+              "vsh": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "description": "void shield layers; each swallows one failed save's damage, all return at the command phase"
+              },
+              "gk": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "glory: every model it slays in melee heals it one wound"
+              },
+              "hd": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "takes half damage, rounded up"
+              },
+              "ch": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]",
+                "description": "chapter heading (power-armour knights): a key of chapters.json"
+              },
+              "sec": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "opaque hidden-unit flag"
+              },
+              "lk": {
+                "type": "string",
+                "minLength": 1,
+                "description": "opaque hidden-unit flag"
+              },
+              "gun": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "nm",
+                      "rng",
+                      "a",
+                      "s",
+                      "ap",
+                      "d"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "nm": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[^\\u0e00-\\u0e7f]*$",
+                        "description": "English weapon name as the server tells Claude"
+                      },
+                      "a": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 30,
+                        "description": "attacks per model (dice in the hit roll = models x a; the lint caps one roll at 60 dice)"
+                      },
+                      "s": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 30,
+                        "description": "strength (wound roll against T)"
+                      },
+                      "ap": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9,
+                        "description": "armour penetration (target's save is worse by this)"
+                      },
+                      "d": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 30,
+                        "description": "damage per unsaved wound"
+                      },
+                      "lh": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "hit roll 6 wounds automatically"
+                      },
+                      "dw": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "wound roll 6 = damage that ignores saves"
+                      },
+                      "po": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 6,
+                        "description": "poison: wounds infantry on po+ regardless of T"
+                      },
+                      "fx": {
+                        "type": "string",
+                        "pattern": "^[a-z]+$",
+                        "description": "effect kind: a key of fx.json fxs (visual + sound only)"
+                      },
+                      "trail": {
+                        "type": "string",
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                        "description": "melee swing trail colour (visual only)"
+                      },
+                      "rng": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 200,
+                        "description": "range in inches"
+                      },
+                      "bs": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6,
+                        "description": "ballistic skill: hit on bs+; 0 or absent only with tr (auto-hit)"
+                      },
+                      "rf": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 3,
+                        "description": "rapid fire: +rf attacks per model within half range"
+                      },
+                      "as": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "may shoot after advancing"
+                      },
+                      "pi": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "pistol: may shoot while engaged"
+                      },
+                      "hv": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "heavy: +1 to hit when the squad stood still"
+                      },
+                      "su": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "sustained: hit roll 6 = one extra hit"
+                      },
+                      "tr": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "torrent: hits automatically, no hit roll"
+                      },
+                      "bl": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "blast: +1 attack per 5 models in the target squad"
+                      },
+                      "mk": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "markerlight: a hit marks the target, friendly shooting at it is +1 to hit this turn"
+                      }
+                    }
+                  }
+                ]
+              },
+              "mel": {
+                "type": "object",
+                "required": [
+                  "nm",
+                  "a",
+                  "ws",
+                  "s",
+                  "ap",
+                  "d"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "nm": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0e00-\\u0e7f]*$",
+                    "description": "English weapon name as the server tells Claude"
+                  },
+                  "a": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "attacks per model (dice in the hit roll = models x a; the lint caps one roll at 60 dice)"
+                  },
+                  "s": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "strength (wound roll against T)"
+                  },
+                  "ap": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9,
+                    "description": "armour penetration (target's save is worse by this)"
+                  },
+                  "d": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "damage per unsaved wound"
+                  },
+                  "lh": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "hit roll 6 wounds automatically"
+                  },
+                  "dw": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "wound roll 6 = damage that ignores saves"
+                  },
+                  "po": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 6,
+                    "description": "poison: wounds infantry on po+ regardless of T"
+                  },
+                  "fx": {
+                    "type": "string",
+                    "pattern": "^[a-z]+$",
+                    "description": "effect kind: a key of fx.json fxs (visual + sound only)"
+                  },
+                  "trail": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$",
+                    "description": "melee swing trail colour (visual only)"
+                  },
+                  "ws": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 6,
+                    "description": "weapon skill: hit on ws+"
+                  },
+                  "la": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "lance: +1 to wound on the turn the squad charged"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "bt_data": {
+      "type": "object",
+      "required": [
+        "rules_ver",
+        "page_app_ver",
+        "page_rules_v",
+        "generated_by",
+        "armies",
+        "order",
+        "types",
+        "abilities",
+        "themes",
+        "terrains",
+        "phases",
+        "strats"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rules_ver": {
+          "type": "integer",
+          "minimum": 10
+        },
+        "page_app_ver": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+$"
+        },
+        "page_rules_v": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "generated_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "armies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "k",
+              "nm",
+              "en"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "k": {
+                "type": "string",
+                "pattern": "^(\\*|[a-z]{2,3})$"
+              },
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]"
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$"
+              },
+              "d": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]"
+              },
+              "d_en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$"
+              }
+            }
+          }
+        },
+        "order": {
+          "type": "array",
+          "description": "unit keys in types.json order (the protocol)",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*$"
+          }
+        },
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "k",
+              "fac",
+              "nm",
+              "en",
+              "d",
+              "d_en",
+              "n",
+              "pts",
+              "mv",
+              "T",
+              "sv",
+              "w",
+              "ld",
+              "oc",
+              "gun",
+              "mel",
+              "abilities",
+              "abilities_th"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "k": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]*$",
+                "description": "unique key; also the figure kit key and the server's datasheet key"
+              },
+              "fac": {
+                "type": "string",
+                "pattern": "^(\\*|[a-z]{2,3})$",
+                "description": "army code from facs.json, or '*' = every army"
+              },
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]",
+                "description": "Thai unit name; must be a key of data/i18n_en.json"
+              },
+              "d": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]",
+                "description": "Thai description; must be a key of data/i18n_en.json"
+              },
+              "n": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "models per squad"
+              },
+              "pts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000,
+                "description": "points per squad"
+              },
+              "mv": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40,
+                "description": "move in inches"
+              },
+              "T": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "toughness"
+              },
+              "sv": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 7,
+                "description": "armour save n+ (7 = none)"
+              },
+              "inv": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 6,
+                "description": "invulnerable save n++ (AP does not apply)"
+              },
+              "w": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 999,
+                "description": "wounds per model"
+              },
+              "ld": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 12,
+                "description": "leadership: nerve test passes on 2d6 >= ld"
+              },
+              "oc": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99,
+                "description": "objective control per model"
+              },
+              "r": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 20,
+                "description": "base radius in inches (default 0.8 when absent). The one non-integer field in a datasheet; core converts it once to MI (r*1000) and never uses the float"
+              },
+              "gun": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "nm",
+                      "en",
+                      "rng",
+                      "a",
+                      "s",
+                      "ap",
+                      "d"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "nm": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "[\\u0e00-\\u0e7f]",
+                        "description": "Thai weapon name; must be a key of data/i18n_en.json"
+                      },
+                      "a": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 30,
+                        "description": "attacks per model (dice in the hit roll = models x a; the lint caps one roll at 60 dice)"
+                      },
+                      "s": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 30,
+                        "description": "strength (wound roll against T)"
+                      },
+                      "ap": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9,
+                        "description": "armour penetration (target's save is worse by this)"
+                      },
+                      "d": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 30,
+                        "description": "damage per unsaved wound"
+                      },
+                      "lh": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "hit roll 6 wounds automatically"
+                      },
+                      "dw": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "wound roll 6 = damage that ignores saves"
+                      },
+                      "po": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 6,
+                        "description": "poison: wounds infantry on po+ regardless of T"
+                      },
+                      "fx": {
+                        "type": "string",
+                        "pattern": "^[a-z]+$",
+                        "description": "effect kind: a key of fx.json fxs (visual + sound only)"
+                      },
+                      "trail": {
+                        "type": "string",
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                        "description": "melee swing trail colour (visual only)"
+                      },
+                      "rng": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 200,
+                        "description": "range in inches"
+                      },
+                      "bs": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6,
+                        "description": "ballistic skill: hit on bs+; 0 or absent only with tr (auto-hit)"
+                      },
+                      "rf": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 3,
+                        "description": "rapid fire: +rf attacks per model within half range"
+                      },
+                      "as": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "may shoot after advancing"
+                      },
+                      "pi": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "pistol: may shoot while engaged"
+                      },
+                      "hv": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "heavy: +1 to hit when the squad stood still"
+                      },
+                      "su": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "sustained: hit roll 6 = one extra hit"
+                      },
+                      "tr": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "torrent: hits automatically, no hit roll"
+                      },
+                      "bl": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "blast: +1 attack per 5 models in the target squad"
+                      },
+                      "mk": {
+                        "type": "integer",
+                        "enum": [
+                          1
+                        ],
+                        "description": "markerlight: a hit marks the target, friendly shooting at it is +1 to hit this turn"
+                      },
+                      "en": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[^\\u0e00-\\u0e7f]*$",
+                        "description": "English weapon name"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "tr"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "bs"
+                        ],
+                        "properties": {
+                          "bs": {
+                            "minimum": 2
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              "mel": {
+                "type": "object",
+                "required": [
+                  "nm",
+                  "en",
+                  "a",
+                  "ws",
+                  "s",
+                  "ap",
+                  "d"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "nm": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "[\\u0e00-\\u0e7f]",
+                    "description": "Thai weapon name; must be a key of data/i18n_en.json"
+                  },
+                  "a": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "attacks per model (dice in the hit roll = models x a; the lint caps one roll at 60 dice)"
+                  },
+                  "s": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "strength (wound roll against T)"
+                  },
+                  "ap": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9,
+                    "description": "armour penetration (target's save is worse by this)"
+                  },
+                  "d": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "damage per unsaved wound"
+                  },
+                  "lh": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "hit roll 6 wounds automatically"
+                  },
+                  "dw": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "wound roll 6 = damage that ignores saves"
+                  },
+                  "po": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 6,
+                    "description": "poison: wounds infantry on po+ regardless of T"
+                  },
+                  "fx": {
+                    "type": "string",
+                    "pattern": "^[a-z]+$",
+                    "description": "effect kind: a key of fx.json fxs (visual + sound only)"
+                  },
+                  "trail": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$",
+                    "description": "melee swing trail colour (visual only)"
+                  },
+                  "ws": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 6,
+                    "description": "weapon skill: hit on ws+"
+                  },
+                  "la": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "lance: +1 to wound on the turn the squad charged"
+                  },
+                  "en": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0e00-\\u0e7f]*$",
+                    "description": "English weapon name"
+                  }
+                }
+              },
+              "hero": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "character"
+              },
+              "brave": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "always passes the nerve test"
+              },
+              "aoc": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "armour of faith: incoming AP is 1 lower"
+              },
+              "aura": {
+                "enum": [
+                  "hit",
+                  "ld",
+                  "bless",
+                  "rez",
+                  "veil"
+                ],
+                "description": "aura within AURA_R (6\"): hit +1 / pass nerve / 5++ save / reanimate on REZ_AURA+ / -1 to be hit by shooting"
+              },
+              "ca": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "+1 attack per model in melee on the turn it charged"
+              },
+              "ac": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "may charge after advancing"
+              },
+              "fly": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "flies: may shoot and charge after falling back (flight height is visual, fly.json)"
+              },
+              "st": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "stealth: -1 to hit it with ranged attacks"
+              },
+              "rez": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 6,
+                "description": "reanimates: fallen models stand up on rez+ in the command phase"
+              },
+              "heel": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "an unmodified 6 to wound slays him"
+              },
+              "wind": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 6,
+                "description": "stands up at the next command phase; first time for sure, later on wind+"
+              },
+              "spawn": {
+                "type": "object",
+                "description": "a squad carried inside, comes out from round 2 or when destroyed",
+                "required": [
+                  "k",
+                  "n"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "k": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*$",
+                    "description": "unit key carried inside"
+                  },
+                  "n": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "description": "models that come out"
+                  }
+                }
+              },
+              "heal": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "description": "heals a friendly squad within heal\" instead of shooting"
+              },
+              "ttn": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "titanic: shoots while engaged, acts after falling back"
+              },
+              "veh": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "vehicle"
+              },
+              "vsh": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "description": "void shield layers; each swallows one failed save's damage, all return at the command phase"
+              },
+              "gk": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "glory: every model it slays in melee heals it one wound"
+              },
+              "hd": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "takes half damage, rounded up"
+              },
+              "ch": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]",
+                "description": "chapter heading (power-armour knights): a key of chapters.json"
+              },
+              "sec": {
+                "type": "integer",
+                "enum": [
+                  1
+                ],
+                "description": "opaque hidden-unit flag"
+              },
+              "lk": {
+                "type": "string",
+                "minLength": 1,
+                "description": "opaque hidden-unit flag"
+              },
+              "inf": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "foot soldier, 1 or 0: the page's INF(k) (not a vehicle, not a beast or mount, figure kit scale below 1.5), derived by tools/export_data.js; poison po wounds it, it may throw grenades and go to ground. Every exported datasheet carries it"
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$",
+                "description": "English unit name (i18n_en.json)"
+              },
+              "d_en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$",
+                "description": "English description (i18n_en.json)"
+              },
+              "abilities": {
+                "type": "array",
+                "description": "English ability lines, like the server's bt2Abilities",
+                "minItems": 0,
+                "maxItems": 32,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[^\\u0e00-\\u0e7f]*$"
+                }
+              },
+              "abilities_th": {
+                "type": "array",
+                "description": "Thai ability lines, like the page's abilityText",
+                "minItems": 0,
+                "maxItems": 32,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "[\\u0e00-\\u0e7f]"
+                }
+              }
+            }
+          }
+        },
+        "abilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "ability.json"
+          }
+        },
+        "themes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "nm",
+              "en"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]"
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$"
+              }
+            }
+          }
+        },
+        "terrains": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "nm",
+              "en"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]"
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$"
+              }
+            }
+          }
+        },
+        "phases": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "required": [
+              "k",
+              "nm",
+              "en"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "k": {
+                "enum": [
+                  "cmd",
+                  "move",
+                  "shoot",
+                  "charge",
+                  "fight"
+                ]
+              },
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]"
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$"
+              }
+            }
+          }
+        },
+        "strats": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "nm",
+              "en",
+              "cp"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "nm": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "[\\u0e00-\\u0e7f]"
+              },
+              "en": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0e00-\\u0e7f]*$"
+              },
+              "cp": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

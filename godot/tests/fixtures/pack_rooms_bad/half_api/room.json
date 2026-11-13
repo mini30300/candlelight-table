@@ -1,0 +1,147 @@
+{
+ "format": 1,
+ "id": "half_api",
+ "door": "online",
+ "title": {
+  "th": "ห้องทดสอบ",
+  "en": "Test room"
+ },
+ "door_sign": {
+  "th": "ประตูเทียบยาน · ห้องทดสอบ",
+  "en": "Docking Airlock · Test room"
+ },
+ "script": "room.gd",
+ "half": [
+  6.0,
+  8.0
+ ],
+ "ceil": 5.0,
+ "spawn": [
+  0.0,
+  6.0,
+  0.0
+ ],
+ "bg": "06070d",
+ "stations": [
+  {
+   "id": "soon_box",
+   "name": {
+    "th": "กล่องเร็วๆ นี้",
+    "en": "Soon box"
+   },
+   "c": [
+    -3.0,
+    -3.0
+   ],
+   "h": [
+    0.6,
+    0.6
+   ],
+   "round": false,
+   "height": 1.0,
+   "reach": 1.5,
+   "front": [
+    -3.0,
+    -1.6
+   ],
+   "sign": [
+    -3.0,
+    2.2,
+    -3.0
+   ],
+   "face": 0.0,
+   "action": "soon",
+   "soon": {
+    "th": "กล่องนี้ — เร็วๆ นี้",
+    "en": "This box — coming soon"
+   }
+  },
+  {
+   "id": "cards_box",
+   "name": {
+    "th": "โต๊ะเลือกโหมด",
+    "en": "Mode table"
+   },
+   "c": [
+    3.0,
+    -3.0
+   ],
+   "h": [
+    0.8,
+    0.8
+   ],
+   "round": true,
+   "height": 1.0,
+   "reach": 1.5,
+   "front": [
+    3.0,
+    -1.4
+   ],
+   "sign": [
+    3.0,
+    2.2,
+    -3.0
+   ],
+   "face": 0.0,
+   "action": "cards",
+   "cards": [
+    {
+     "title": {
+      "th": "โหมดทดสอบ",
+      "en": "Test mode"
+     },
+     "text": {
+      "th": "ยังไม่เปิด",
+      "en": "Not open yet"
+     },
+     "action": "soon",
+     "soon": {
+      "th": "โหมดทดสอบ — เร็วๆ นี้",
+      "en": "Test mode — coming soon"
+     }
+    },
+    {
+     "title": {
+      "th": "เล่นกับเพื่อน",
+      "en": "Play with friends"
+     },
+     "text": {
+      "th": "เปิดห้องหรือเข้าห้องเพื่อน",
+      "en": "Host a room or join a friend"
+     },
+     "action": "online"
+    }
+   ]
+  },
+  {
+   "id": "door",
+   "name": {
+    "th": "กลับดาดฟ้า",
+    "en": "Back to the deck"
+   },
+   "c": [
+    0.0,
+    7.9
+   ],
+   "h": [
+    1.2,
+    0.2
+   ],
+   "round": false,
+   "height": 3.2,
+   "reach": 1.4,
+   "front": [
+    0.0,
+    6.95
+   ],
+   "sign": [
+    0.0,
+    3.6,
+    7.6
+   ],
+   "face": 3.14159,
+   "action": "back",
+   "walk_in": true
+  }
+ ]
+}

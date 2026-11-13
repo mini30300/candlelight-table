@@ -1,0 +1,17 @@
+{
+  "สวิตช์บอท": "Bot switch",
+  "สวิตช์บอท · ยิงหรือกด E": "Bot switch · shoot it or press E",
+  "สวิตช์บอท · ยิงหรือแตะใช้": "Bot switch · shoot it or tap use",
+  "รีเซ็ต": "Reset",
+  "กลับดาดฟ้ายานรบ": "Back to the Warship Deck",
+  "บอท: เปิด": "Bot: ON",
+  "บอท: ปิด": "Bot: OFF",
+  "พลังชีวิต {hp}/{max}": "HP {hp}/{max}",
+  "โดน {n} ครั้ง · ความเสียหายรวม {d}": "{n} hits · {d} damage dealt",
+  "ล้มแล้ว · กดรีเซ็ต": "Down · press reset",
+  "บอทเปิด — {name}ไล่ตามคุณแล้ว": "Bot ON — {name} is coming for you",
+  "บอทเปิด — มีผลหลังรีเซ็ต": "Bot ON — takes effect after reset",
+  "บอทปิด — ยืนเป็นเป้านิ่ง": "Bot OFF — it stands still as a target",
+  "รีเซ็ตแล้ว": "Reset done",
+  "หยุดชั่วคราว": "Paused"
+}

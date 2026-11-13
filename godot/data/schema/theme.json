@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "theme.json",
+  "title": "Map theme (one value of data/themes.json); $defs/table is the whole file",
+  "description": "Colours and relief of a map. relief and rough feed the heightfield, which rules never read (visual), so they may be floats. The server allowlists the theme names (BT_THEMES, see bt2_snapshot.json).",
+  "type": "object",
+  "required": [
+    "sky",
+    "ground",
+    "ground2",
+    "rock",
+    "relief",
+    "rough",
+    "wood",
+    "name"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "sky": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "#RRGGBB"
+        },
+        {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "#RRGGBB"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": false,
+      "description": "sky gradient top and bottom"
+    },
+    "ground": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3,
+      "items": false,
+      "description": "RGB triplet 0..255"
+    },
+    "ground2": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3,
+      "items": false,
+      "description": "RGB triplet 0..255"
+    },
+    "rock": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3,
+      "items": false,
+      "description": "RGB triplet 0..255"
+    },
+    "wood": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3,
+      "items": false,
+      "description": "RGB triplet 0..255"
+    },
+    "relief": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "height amplitude of the heightfield in metres (visual)"
+    },
+    "rough": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 5,
+      "description": "noise roughness (visual)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "Thai theme name; a key of data/i18n_en.json"
+    }
+  },
+  "$defs": {
+    "table": {
+      "type": "object",
+      "description": "data/themes.json: theme name -> theme",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#"
+      }
+    }
+  }
+}

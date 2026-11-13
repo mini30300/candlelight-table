@@ -1,0 +1,9 @@
+# Godot's import cache and editor state
+.godot/
+# render probe output (tests/render_probe.gd)
+tests/out/
+# exported builds land outside the project (../dist-godot); see export_presets.cfg
+# private figure packs (ARENA_SPEC §9.3): never committed here
+packs/
+# the flock file agents take around Godot imports of this project
+.import.lock

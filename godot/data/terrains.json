@@ -1,0 +1,14 @@
+{
+  "flat": {
+    "name": "ราบ"
+  },
+  "hills": {
+    "name": "เนิน"
+  },
+  "mountain": {
+    "name": "สูง"
+  },
+  "forest": {
+    "name": "ป่าทึบ"
+  }
+}

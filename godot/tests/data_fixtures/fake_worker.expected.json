@@ -1,0 +1,21 @@
+{
+  "bt_rules": 9,
+  "bt_list_len": 512,
+  "bt_max_acts": 500,
+  "bt_max_players": 24,
+  "bt_army_en": {"gr": "Greek", "mod": "soldiers", "*": "secret hero"},
+  "bt_themes": ["ruin", "forest"],
+  "bt_terrains": ["flat", "hills"],
+  "bt2": {
+    "heavy": {"nm": "เกราะหนัก", "fac": "mod", "n": 3, "pts": 90, "mv": 6, "T": 4, "sv": 3, "w": 2, "ld": 6, "oc": 1,
+              "gun": {"nm": "heavy carbine", "rng": 24, "a": 2, "bs": 3, "s": 4, "ap": 1, "d": 1},
+              "mel": {"nm": "armoured fists", "a": 3, "ws": 3, "s": 4, "ap": 0, "d": 1}},
+    "hoplite": {"nm": "โฮพไลต์", "fac": "gr", "n": 5, "pts": 65, "mv": 6, "T": 3, "sv": 4, "w": 1, "ld": 7, "oc": 2,
+                "gun": null, "mel": {"nm": "long spear", "a": 2, "ws": 3, "s": 4, "ap": 0, "d": 1}},
+    "cavalry": {"nm": "ทหารม้า", "fac": "gr", "n": 3, "pts": 105, "mv": 12, "T": 5, "sv": 4, "w": 3, "ld": 7, "oc": 2, "r": 1.1,
+                "gun": null, "mel": {"nm": "lance", "a": 3, "ws": 3, "s": 5, "ap": 1, "d": 2, "la": 1}},
+    "sniper": {"nm": "พลซุ่มยิง", "fac": "mod", "n": 1, "pts": 40, "mv": 6, "T": 3, "sv": 5, "w": 2, "ld": 7, "oc": 1, "hero": 1,
+               "gun": {"nm": "sniper rifle \"long\"", "rng": 36, "a": 1, "bs": 2, "s": 5, "ap": 2, "d": 3, "hv": 1},
+               "mel": {"nm": "knife", "a": 1, "ws": 4, "s": 3, "ap": 0, "d": 1}}
+  }
+}

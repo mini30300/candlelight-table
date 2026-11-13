@@ -1,0 +1,39 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/arena/arena_world.gd" id="1_world"]
+[ext_resource type="Script" path="res://table/rings.gd" id="2_rings"]
+
+[node name="ArenaWorld" type="Node3D"]
+script = ExtResource("1_world")
+
+[node name="Static" type="Node3D" parent="."]
+
+[node name="Flames" type="MultiMeshInstance3D" parent="."]
+cast_shadow = 0
+
+[node name="SwitchHead" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+
+[node name="Beacon" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+
+[node name="Blockers" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="PropBlockers" type="StaticBody3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="SwitchTarget" type="StaticBody3D" parent="."]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Signs" type="Node3D" parent="."]
+
+[node name="Rings" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("2_rings")
+
+[node name="FallbackCamera" type="Camera3D" parent="."]
+fov = 60.0
+near = 0.05
+far = 80.0

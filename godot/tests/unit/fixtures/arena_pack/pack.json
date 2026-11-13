@@ -1,0 +1,6 @@
+{
+  "format": 1,
+  "id": "test_pack",
+  "enemy": "fake_figure.gd",
+  "enemy_name": {"th": "ตัวทดสอบ", "en": "Test figure"}
+}

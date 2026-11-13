@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "army.json",
+  "title": "Army (one entry of data/facs.json); $defs/core is data/core.json",
+  "description": "facs.json lists the armies in UI order: k is the value of fac in types.json and the key of core.json. core.json gives, per army code, the ordered unit-key pool the bot and Claude seats build from (autoList walks it with the seeded armies stream). The server's English army names are in bt2_snapshot.json (bt_army_en); i18n_en.json translates nm and d.",
+  "type": "object",
+  "required": [
+    "k",
+    "nm",
+    "d"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "k": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}$",
+      "description": "army code"
+    },
+    "nm": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "Thai army name; a key of data/i18n_en.json"
+    },
+    "d": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "[\\u0e00-\\u0e7f]",
+      "description": "Thai blurb; a key of data/i18n_en.json"
+    }
+  },
+  "$defs": {
+    "core": {
+      "type": "object",
+      "description": "data/core.json: army code -> bot pool",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z]{2,3}$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "description": "unit keys of types.json in pool order; hidden units never appear here",
+        "minItems": 1,
+        "maxItems": 200,
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# tests/data_fixtures — inputs for `tools/validate_data.py --fixtures` and `tools/gen_bt_data.py --self-test`
+
+`python3 godot/tools/validate_data.py` runs these at the end of every lint run; `--fixtures` runs only them. Each
+folder mimics the `godot/` layout (`data/`, `ui/`, `app/`) and is linted on its own with the real schemas from
+`godot/data/schema/`.
+
+| Fixture | Expected | What is planted |
+| --- | --- | --- |
+| `fail_banned_name/` | **fails** the banned-name scan | a GDScript constant carrying a name from AGENTS.md rule 1. The file is stored as `planted.gd.rot13` (ROT13), so the repository never contains the word itself; the runner decodes it into a temporary folder and scans that |
+| `fail_float_dice/data/types.json` | **fails** the `unit.json` schema and the dice check | a gun with `"a": 2.5` (dice counts must be integers) |
+| `fail_i18n_missing/` | **fails** the Thai → English check | `ui/screens/sample.gd` shows `"ยังไม่มีคำแปล"`, which is in neither `ui/i18n_extra.json` nor a page string |
+| `fail_i18n_fragment/` | **fails** the Thai → English check | `ui/screens/sample.gd` shows `"เมนูลับใหม่"`, whose only English entry is in `ui/i18n/extra_screen.json`, a fragment that `FRAGMENTS` in its `ui/i18n.gd` does not list (the app would never load it) |
+| `fail_pack_filter/export_presets.cfg` | **fails** the pack filter check | two presets: the first excludes `packs/*` (after another pattern) and passes, the second has an empty `exclude_filter`, so a private figure pack under `res://packs/` would ship (PACK_SPEC §5); only the second may be reported |
+| `fail_secret/` | **fails** the secrets guard | `notes.txt.rot13` decodes to a private-key header line (ROT13 for the same reason as above) |
+| `ok/data/map_layout_sample.json` | passes `map_layout.json` | an 8×6 dungeon with every section filled (RLE runs add up to 48 cells; see docs/DATA.md) |
+| `ok/data/monster_sample.json` | passes `monster.json` | a bestiary entry in the battle datasheet shape |
+| `fail_anim_clips/clips.json` | **fails** the animation-clip check | a clip at 24 fps and a clip with no `heelR` rotations (every clip must carry all 23 joints at 30 fps) |
+| `fail_anim_mount/clips.json` | **fails** the animation-clip check | a mount's ride clip whose foot sits on a bone the clip does not move, one contact flag short, and a listed mount bone without rotations |
+| `ok/anim/clips.json` | passes the animation-clip check | the smallest complete `tools/bake_anim.js` output: a 3-frame loop and a 2-frame clip, all 23 joints, pelvis translation, contact flags, three kinds of hold, and a 4-frame ride clip with two mount bones and one foot |
+| `fail_i18n_joined/` | **fails** the Thai → English check | `ui/screens/sample.gd` shows `"ยกเลิก · ตกลง"`: both pieces are keys, but `I18n.t` matches whole strings only, so the joined literal would stay Thai |
+| `ok/ui/`, `ok/app/` | pass the Thai → English check and the name scan | Thai literals (plain, triple-quoted, with `{n}` and `%d` placeholders, two keys joined at runtime) that `ok/ui/i18n_extra.json` covers as whole keys |
+| `fake_worker.js` + `fake_worker.expected.json` | `gen_bt_data.py --self-test` passes | a tiny Worker with the real anchors (`const BT_RULES = 9;`, `const BT2 = {`, `const BT_ARMY_EN = {`, comma-joined constants), a one-line embedded page that must not win an anchor, bare and quoted keys, single quotes, trailing commas and comments inside the table |
+
+Keep the numbers in the fixtures made up (they are not datasheets) and never put a real secret or a plain banned word
+here: the `.rot13` files exist so the planted inputs stay unreadable at rest.
