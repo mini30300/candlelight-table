@@ -164,7 +164,7 @@ Interior box: x ∈ [−12, 12], z ∈ [−8, 8], floor at y = 0.
 | `battle` | The war table: 6 × 4 m, top at 0.95 m, a miniature field on top (green/ochre patches, a few tiny eggs), 4 candles at the corners | (0, −2), (3.0, 2.0) | 1.6 | โต๊ะรบ | push setup |
 | `army` | Display shelves against the left wall: 3 tiers, 15 small ivory eggs, 15 plain-colour pennants (no emblems) | (−11.4, −1), (0.5, 2.6) | 1.6 | ตู้โชว์กองทัพ | push the army picker |
 | `settings` | A lectern with an open book and one big candle | (10.0, −1), (0.4, 0.4) | 1.6 | ตั้งค่า | push settings |
-| `online` | A tall arch in the back wall, closed by a grille | (0, −7.8), (1.7, 0.3) | 1.8 | ออนไลน์ · เร็วๆ นี้ | "เร็วๆ นี้" panel |
+| `online` | A tall arch in the back wall, closed by a grille | (0, −7.8), (1.7, 0.3) | 1.8 | ออนไลน์ · เร็วๆ นี้ | "เร็วๆ นี้" panel (superseded in 0.5: the airlock opens the play-with-friends screen, `NET_SPEC.md` §7.1) |
 | `adventure` | A round table (r 1.3) with 4 stools and a rolled map | (−5, 4), (1.3, 1.3) | 1.5 | โต๊ะผจญภัย · เร็วๆ นี้ | "เร็วๆ นี้" panel |
 | `exit` | The entrance door in the front wall | (0, 7.9), (1.2, 0.2) | 1.4 | ทางออก | pop to the main menu |
 
@@ -262,7 +262,7 @@ Interior box: x ∈ [−12, 12], z ∈ [−8, 8], floor at y = 0.
   - Desktop: "WASD หรือลูกศร เดิน · Shift วิ่ง · ลากเมาส์หมุนกล้อง".
   - Touch: "ใช้ปุ่มซ้ายล่างเดิน · ลากจอหมุนกล้อง".
   - It hides on the first move (on min it simply hides; no tween).
-- `%SoonPanel`: "ออนไลน์กับเพื่อน — เร็วๆ นี้" or "โต๊ะผจญภัย — เร็วๆ นี้". It closes after 2.5 s (Timer), on a move, or on
+- `%SoonPanel`: "ออนไลน์กับเพื่อน — เร็วๆ นี้" (until 0.4; superseded by `NET_SPEC.md` §7.1) or "โต๊ะผจญภัย — เร็วๆ นี้". It closes after 2.5 s (Timer), on a move, or on
   Back.
 - **Touch controls**: shown when `App.touch_active()`, re-read on every show.
   - `%Stick` (`TouchStick`), bottom left: base radius 90 px, knob 40 px, dead zone 0.15, past 0.85 = run.

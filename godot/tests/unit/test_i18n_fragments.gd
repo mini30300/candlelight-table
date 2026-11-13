@@ -1,5 +1,5 @@
 extends "res://tests/testing.gd"
-## The i18n fragment files ui/i18n/{menu,hall,battle,arena,arena_hud,arena_data}.json (LOBBY_SPEC §0.7, ARENA_SPEC §1): each is a flat Thai → English
+## The i18n fragment files ui/i18n/{menu,hall,battle,arena,arena_hud,arena_data,online,online_battle}.json (LOBBY_SPEC §0.7, ARENA_SPEC §1, NET_SPEC §7.3): each is a flat Thai → English
 ## object with English-only values, no key is in two fragments or already in another source (reuse a key that
 ## exists instead), and the I18n autoload finds every fragment key without overwriting i18n_extra.json.
 
@@ -17,7 +17,8 @@ func _raw(path: String) -> Variant:
 
 func test_fragment_list() -> void:
 	# the three arena fragments were added on purpose (ARENA_SPEC §12.1 R0), in the spec's order
-	assert_eq(Array(I18nScript.FRAGMENTS), ["res://ui/i18n/menu.json", "res://ui/i18n/hall.json", "res://ui/i18n/battle.json", "res://ui/i18n/arena.json", "res://ui/i18n/arena_hud.json", "res://ui/i18n/arena_data.json"], "I18n loads the six fragments in this order")
+	# NET_SPEC §11.1 D0: the two online fragments (deck + airlock, online battle) were added on purpose, after arena_data
+	assert_eq(Array(I18nScript.FRAGMENTS), ["res://ui/i18n/menu.json", "res://ui/i18n/hall.json", "res://ui/i18n/battle.json", "res://ui/i18n/arena.json", "res://ui/i18n/arena_hud.json", "res://ui/i18n/arena_data.json", "res://ui/i18n/online.json", "res://ui/i18n/online_battle.json"], "I18n loads the eight fragments in this order")
 	for path in I18nScript.FRAGMENTS:
 		assert_true(FileAccess.file_exists(path), "fragment exists: " + path)
 	# a file in the folder that FRAGMENTS does not list would never load (the data lint fails on it as well)

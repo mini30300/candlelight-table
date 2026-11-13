@@ -1,0 +1,22 @@
+{
+  "เพื่อนคนหนึ่งนั่งได้ที่เดียว": "Each friend can take only one seat",
+  "เพื่อนคนนี้ออกจากห้องไปแล้ว": "That friend has left the room",
+  "แตะเพื่อสลับ: บอท · คุณ · เพื่อน": "Tap to switch: bot · you · friends",
+  "รอ {name}…": "Waiting for {name}…",
+  "เจ้าห้อง": "Host",
+  "ดูอยู่ (ไม่มีที่นั่ง)": "Watching (no seat)",
+  "บอทเล่นแทน {name} (หลุดจากห้อง)": "A bot is playing for {name} (disconnected)",
+  "บอทเล่นแทน {name} จนจบเกมนี้": "A bot plays for {name} until this game ends",
+  "{name} กลับมาแล้ว": "{name} is back",
+  "ทำไม่ได้ตอนนี้ — เกมขยับไปแล้ว": "Not now — the game moved on",
+  "ออกจากการรบ? บอทจะเล่นแทนคุณจนจบเกมนี้": "Leave the battle? A bot will play your seat until this game ends",
+  "ออกจากการรบ? เกมนี้จะจบสำหรับทุกคน": "Leave the battle? This game ends for everyone",
+  "เจ้าห้องออกจากการรบ เกมนี้จบแล้ว": "The host left the battle — this game is over",
+  "รอเจ้าห้องเริ่มเกมใหม่": "Waiting for the host to start a new game",
+  "เกมไม่ตรงกับเจ้าห้อง — กำลังโหลดเกมใหม่จากเจ้าห้อง…": "Out of sync with the host — reloading the game from the host…",
+  "ซ่อมแล้ว เกมตรงกับเจ้าห้องแล้ว": "Repaired — the game matches the host again",
+  "เกมไม่ตรงกับเจ้าห้อง — บันทึกไว้ในล็อกแล้ว ต้องออกจากเกมนี้": "Out of sync with the host — written to the log; this game has to stop",
+  "เครื่องของ {name} ไม่ตรงกัน — กำลังส่งเกมให้ใหม่": "{name}'s game is out of sync — resending it",
+  "การเชื่อมต่อหลุด — เกมนี้จบสำหรับเครื่องนี้": "Connection lost — the game ended on this device",
+  "บอทเล่นแทนคุณอยู่ตอนนี้": "A bot is playing your seat for now"
+}

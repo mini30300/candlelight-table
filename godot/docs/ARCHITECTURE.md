@@ -217,7 +217,8 @@ One-way flow: **core (RefCounted) → events → table/ui (Nodes)**. Nodes never
 bot, remote act — is an `Act` applied through `core/battle/acts.gd` exactly as a remote act would be, so offline and
 online are one code path and tests capture acts like `BT.capture`.
 
-- Autoloads: `App` (settings + router), `I18n`, `Audio`, `Log`, `Clock`, `Net` (room client host node). Nothing else is
+- Autoloads: `App` (settings + router), `I18n`, `Audio`, `Log`, `Clock`, `Net` (LAN rooms as built in `NET_SPEC.md`; the
+  Worker room client joins it in R3). Nothing else is
   global. Settings live in `user://settings.cfg` (keys `gfx`, `lang`, `snd`, `server`), read/written with error checks;
   the app always renders without them.
 - `scenes/main.tscn`: `World` (SubViewport holding the active table scene) + `UI` (ScreenStack: one screen Control at a

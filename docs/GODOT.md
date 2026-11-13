@@ -20,7 +20,7 @@ creates them, so nobody invents a second place for the same thing.
 
 | Path | What it is | Anchor / entry point | Track |
 | --- | --- | --- | --- |
-| `project.godot` | Godot 4.7 project: `gl_compatibility` on desktop and mobile, 1280×720 `canvas_items`/`expand`, landscape, Sarabun theme, **autoloads in the order App, I18n, Log, Clock**; an `[input]` map on **physical** keys (`move_forward/back/left/right` = WASD + arrows, `run` = Shift, `interact` = E, `back` = Esc), so WASD works with a Thai keyboard layout; `include_text_server_data` (Thai line breaks in exports) | `[autoload]` · `[input]` · `run/main_scene` (`scenes/main.tscn`) · `[importer_defaults]` (the kit post-import) | tools/tests |
+| `project.godot` | Godot 4.7 project: `gl_compatibility` on desktop and mobile, 1280×720 `canvas_items`/`expand`, landscape, Sarabun theme, **autoloads in the order App, I18n, Log, Clock, Net**; an `[input]` map on **physical** keys (`move_forward/back/left/right` = WASD + arrows, `run` = Shift, `interact` = E, `back` = Esc), so WASD works with a Thai keyboard layout; `include_text_server_data` (Thai line breaks in exports) | `[autoload]` · `[input]` · `run/main_scene` (`scenes/main.tscn`) · `[importer_defaults]` (the kit post-import) | tools/tests |
 | `export_presets.cfg` | "Windows Desktop" (x86_64) and "Android" (arm64-v8a + armeabi-v7a, min SDK 24); keystore fields EMPTY on purpose — release signing comes from `GODOT_ANDROID_KEYSTORE_RELEASE_*` env vars in CI | `[preset.0]`, `[preset.1]` | CI (R0-C) |
 | `icon.svg`, `README.md` | app icon; the Thai README: setup, tests, render probe, exports | — | tools/tests |
 | `app/app.gd` | **`App`** autoload: settings `gfx` (hi/mid/lo/min), `lang` (th/en), `snd`, `server`, `fig` (egg/kit figure style), `touch` (auto/on/off on-screen controls) in `settings_file` (default `user://settings.cfg`; tests point it at their own file; ConfigFile, section `app`, defaults when the file is missing or corrupt); `last_choice` (the last battle setup, in memory only; the setup screen reopens with it and a new seed); the ScreenStack router (`push`, `pop`, `replace` = swap the top screen without showing the one below); Android back / Esc (`back` action): asks the top screen's `handle_back()` first, then pops, quits at depth 1 | `func load_settings(`, `func save_settings(`, `func set_lang(`, `func set_fig(`, `func touch_active(`, `func push(`, `func replace(`, `func pop(`, `func current(`, `func back(` | ui/ (owner), app/ |
@@ -92,7 +92,7 @@ under xvfb), `windows`, `android`; extended in R0-C) and this file.
 | `tests/unit/test_army_roster.gd` | headless: rosters per army without hidden units, points and budget steps, the seeded pick, English for every datasheet text, every Thai literal of the army screen files a whole I18n key | `func test_` | ui |
 | `tests/render/test_anim_footslide.gd` | the clips on imported kits moving at the clip's speed (motion_scale = kit scale): planted-foot slide ≤ 15 mm on the humanoid, the page's walker and the biggest walker, the horse's hooves and every other ride clip (mount bones in the skeleton, loops close), wrong-speed controls, the holds; with a display `tests/out/anim_walk_*.png` strips and `anim_actions_*.png` sheets; `apply_holds` is the reference of the holds layer | `func slide(`, `func mount_slide(`, `func _ride_loops(`, `static func apply_holds(`, `static func planted(` | tools + table/figures |
 
-Still planned (ARCHITECTURE §1): `core/field/`, `core/battle/` (R1), `net/` (R3), `app/audio.gd` (R2), `app/selftest.gd` screen (R1), `tests/golden/`, `tests/net/`, `core/dnd/` (R4+).
+Still planned (ARCHITECTURE §1): `core/field/`, `core/battle/` (R1), the Worker room client in `net/` (R3; the LAN room is in, §1.4), `app/audio.gd` (R2), `app/selftest.gd` screen (R1), `tests/golden/`, `tests/net/`, `core/dnd/` (R4+).
 
 ### 1.3 Front page, walkable lobby and games against bots (12 Nov 2026, `godot/docs/LOBBY_SPEC.md`, APP_VER ใหม่ 0.4; the deck: `godot/docs/SHIP_LOBBY_SPEC.md`; the arena: `godot/docs/ARENA_SPEC.md`)
 
@@ -107,7 +107,7 @@ when shown again, so Settings never reaches into a live 3D scene. Cross-screen r
 | --- | --- | --- | --- |
 | `ui/theme/candle_style.gd` | `CandleStyle`: the candle-lit palette (BG, PANEL, EDGE, GOLD, TEXT, MUTED, DANGER), buttons, panels, titles, toggle groups, safe-area margins, dropdown popups with rows of at least 48 px (`popup`) | `static func button(`, `static func popup(`, `static func toggle_group(`, `static func safe_margins(` | ui |
 | `ui/widgets/title_art.gd` | `TitleArt`: the main menu's art drawn from shapes (gradient, wooden table, five candles, layered flames, glow; our own design); flicker on a Timer ≤ 6 Hz on hi/mid only, drawn once on lo/min | `func set_level(`, `func set_active(` | ui |
-| `ui/screens/main_menu.tscn` + `.gd` | the first screen: `%PlayButton` (pushes the hall), `%OnlineButton` (coming-soon toast), `%SettingsButton`, `LangButton`, `%QuitButton` (desktop only), `%VersionLabel`; Back/Esc opens the quit confirm; re-applies the level's frame cap and idle mode on show | `func open_hall(`, `func handle_back(`, `static func version_text(` | ui |
+| `ui/screens/main_menu.tscn` + `.gd` | the first screen: `%PlayButton` (pushes the hall), `%OnlineButton` (the deck at the docking airlock, then the play-with-friends screen, §1.4), `%SettingsButton`, `LangButton`, `%QuitButton` (desktop only), `%VersionLabel`; Back/Esc opens the quit confirm; re-applies the level's frame cap and idle mode on show | `func open_hall(`, `func handle_back(`, `static func version_text(` | ui |
 | `ui/screens/settings.tscn` + `.gd` | Settings: language, graphics level (`%GfxHi/Mid/Lo/Min`), figure style (`%FigEgg` / `%FigKit`, kit disabled without kits on disk), touch controls (`%TouchAuto/On/Off`), `%GpuCheckButton`; every change calls the App setter and saves | `func set_fig(`, `func set_touch(`, `func open_gpu_check(` | ui |
 | `ui/i18n/menu.json`, `hall.json`, `battle.json` | the English of every new Thai string, one fragment per screen group (flat Thai → English); a key may live in one source only (`test_i18n_fragments`) | — | ui |
 | `scenes/hall/hall_layout.gd` | `HallLayout` (pure data, no Thai): the 24 × 16 m warship deck (ใหม่ 0.3), 8 station rects + reach (`battle`, `army`, `settings`, `online` on the right wall, `adventure`, `exit`, `vault`, and since 0.4 `arena`, the arena door in the front wall left of the exit: `ARENA_DOOR`, `ARENA_RETURN`, `in_arena_doorway`), pillars, candle stands, banners, the viewport `WINDOWS`, `VAULT_PROFILE`, wall `SCREENS`, `COOL_LIGHTS`, `TITLE_SIGN`, flames (26 / 12 on min), spawn (0, 0, 5), `station_at` (nearest wins), blockers (walls/ceiling on `SHELL_LAYER`, props on `PROP_LAYER`), the camera's clearance along its ray (`room_clear`, `camera_clear`) | `const STATIONS`, `const WINDOWS`, `const COOL_LIGHTS`, `const SPAWN`, `static func station_at(`, `static func blockers(`, `static func camera_clear(` | lobby |
@@ -156,11 +156,24 @@ git-ignored) behind the figure contract (§9.1). Local single-player: seeded RNG
 | `tests/flow/test_arena_flow.gd` | menu → deck → walk into the arena door → corridor → shoot mode → kill the beast → reset → bot switch by a 1.5 s burst → the beast's claw → punch, saw sword → walk mode at the room edge is safe → downed and up, reset while downed → bot off → walk out → deck → enter again → back → Esc | `func _run(` | arena |
 | `tests/render/test_arena.gd`, `test_arena_hud.gd`, `test_hive_beast.gd` | xvfb: entry timing, per-level table and budgets (overview, corridor, phone worst with numbers and the hurt edge), no void, camera never in a solid, signs (the switch sign above its beacon), fade, idle on min; the HUD and touch layout and input; the kit, clips, foot slide, telegraph shape and timing, reset during a wind-up, sleep on the pad, flash, death, levels, fallback | `func _check_` | arena |
 
+### 1.4 Play with friends on the LAN (13 Nov 2026, `godot/docs/NET_SPEC.md`, APP_VER ใหม่ 0.5)
+
+One player hosts on the local network, friends join by discovery or IP; friends walk on the deck; the battle runs in
+lockstep over the deterministic core (only acts travel, digest checks, a bot plays a dropped seat). No server.
+
+| File | What | Anchors | Track |
+| --- | --- | --- | --- |
+| `net/net_session.gd` | `NetSession` = autoload `Net`: the only socket owner (ENet server/client bound to IPv4, slots, members, HB, reconnect, version gate, rate limits, direction check before decoding, seated slots kept during a battle) | `func host(`, `func join(`, `func _host_auth(`, `func _pick_slot(`, `func _host_packet(`, `static func lan_addresses(` | net |
+| `net/net_proto.gd`, `net/net_gate.gd`, `net/net_discovery.gd` | the message codec (kinds, schemas, caps, `clean_name`), the version gate and private-address check, UDP discovery (≤ 16 rows) | `static func decode(`, `static func from_member_ok(`, `static func check_hello(`, `func poll(` | net |
+| `ui/battle/net_match_runner.gd`, `lockstep.gd`, `net_battle_link.gd`, `net_seats.gd` | the online runner (host sequencer, one-entry rolls for silent/gone friends, request budgets), the lockstep (gate, ACT queue, digests, desync), the link (START/RESYNC → battle screen, seat gone/back, `LEAVE`, wake Timer), seats and owners | `class NetRec`, `func _host_step(`, `static func gate(`, `func _on_members(`, `func client_left(` | battle |
+| `ui/screens/lobby.tscn` + `.gd`, `ui/online_text.gd`, `ui/widgets/friend_tags.gd`, `scenes/hall/hall_friends.gd` | the airlock screen (host / list / IP / room card / seats), reason texts, name tags (glyphs the font lacks skipped), friends' eggs with interpolation | `func host_room(`, `func join_ip(`, `func _drawable(`, `static func interp(` | deck |
+| `tests/flow/test_friends_flow.gd` + `tests/net/friends_peer.gd`; `test_lan_flow.gd` + `lan_peer.gd` | two Godot processes: the whole flow with the real UI; the session layer | `func _run(` | tests |
+
 ## 2. Autoloads — the only global state
 
 Registered in `project.godot` in this order (an autoload's `_init()` runs in this order too): **`App`** (`app/app.gd`),
-**`I18n`** (`ui/i18n.gd`), **`Log`** (`app/log.gd`), **`Clock`** (`app/clock.gd`). ARCHITECTURE §3 adds `Audio` (R2) and
-`Net` (R3). Nothing else is global; `core/` never touches them.
+**`I18n`** (`ui/i18n.gd`), **`Log`** (`app/log.gd`), **`Clock`** (`app/clock.gd`), **`Net`** (`net/net_session.gd`, LAN
+rooms, §1.4). ARCHITECTURE §3 adds `Audio` (R2). Nothing else is global; `core/` never touches them.
 
 | Autoload | Read | Write / call |
 | --- | --- | --- |
@@ -168,6 +181,7 @@ Registered in `project.godot` in this order (an autoload's `_init()` runs in thi
 | `I18n` | `I18n.english`, `I18n.t(th)`, `I18n.has_key(th)`, `I18n.missing(keys)` | `I18n.english = true` (prefer `App.set_lang`) |
 | `Log` | `Log.lines()`, `Log.dump()`, `Log.size()` | `Log.info(msg)`, `Log.warn(msg)`, `Log.error(msg)`, `Log.clear()`, `Log.echo` |
 | `Clock` | `Clock.now_ms()`, `Clock.frozen` | `Clock.frozen = true`, `Clock.step(ms)` (tests), never from rules code |
+| `Net` | `Net.state()`, `Net.is_online()`, `Net.is_host()`, `Net.my_slot()`, `Net.members()`, `Net.found()`, `Net.local_ips()`, `Net.has_lan()`; signals `state_changed`, `members_changed`, `found_changed`, `message`, `pose`, `refused`, `lost`, `reconnected` | `Net.host()`, `Net.join(ip)`, `Net.leave()`, `Net.find(on)`, `Net.send(kind, body, to_slot)`, `Net.send_pose(p, stop)`, `Net.set_where(w)`, `Net.set_pick(fac)`, `Net.claim(k)`; idle offline (no socket, no Timer) |
 
 Facts verified in 4.7.1 (the runner relies on them): autoloads **are** instantiated when Godot runs a `SceneTree`
 script with `-s` headless; their `_init()` has run before the script's `_initialize()`, but their `_ready()` runs

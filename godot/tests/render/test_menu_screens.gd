@@ -3,8 +3,12 @@ extends SceneTree
 ## 640x360 (a logical 1280x720 canvas), 1280x720 and 1280x576 (20:9, a logical 1600x720), in Thai and English:
 ## nothing sticks out of the canvas or its parent, no two sibling buttons overlap, every button is at least 44x44,
 ## English mode shows no Thai (the LangButton's "ไทย" excepted) and Thai mode shows Thai titles. Every settings control
-## changes App and persists through a test settings file (never this machine's settings.cfg). The online button shows
-## the toast, Back and Esc open the quit confirm and close it again, and on the min level nothing runs per frame.
+## changes App and persists through a test settings file (never this machine's settings.cfg). The toast shows and hides,
+## Back and Esc open the quit confirm and close it again, and on the min level nothing runs per frame.
+## 0.5 (NET_SPEC §7.1, §12.1): the online button no longer shows a coming-soon toast or badge: it opens the deck with the
+## avatar at the docking airlock and the play-with-friends screen on top (depth 3); back returns to the deck at the
+## airlock, back again to the menu. A fake Net (tests/unit/fixtures/fake_net.gd) stands in for /root/Net for the run, so
+## the airlock screen's join list opens no socket.
 ## Saves menu_th.png, menu_en.png, settings_th.png, settings_en.png (_<w>x<h> added for the other sizes). Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_menu_screens.gd
@@ -28,6 +32,8 @@ var _done := false
 var _passed := 0
 var _failed := 0
 var _thai_re := RegEx.create_from_string("[฀-๿]")
+var _fake_net: Node
+var _real_net: Node
 var _machine_cfg := ""   # this machine's settings.cfg at the start (must be the same at the end)
 
 
@@ -43,6 +49,13 @@ func _initialize() -> void:
 	app.call("set_gfx", "mid")
 	app.call("set_fig", "egg")
 	app.call("set_touch", "auto")
+	# 0.5: the airlock screen reads /root/Net; a fake takes its place (the real one is renamed aside, put back at the end)
+	_real_net = root.get_node_or_null(^"Net")
+	if _real_net != null:
+		_real_net.name = "NetReal"
+	_fake_net = (load("res://tests/unit/fixtures/fake_net.gd") as GDScript).new()
+	_fake_net.name = "Net"
+	root.add_child(_fake_net)
 	var scene: PackedScene = load(SCENE)
 	if scene == null:
 		print("FAIL  cannot load " + SCENE)
@@ -86,6 +99,7 @@ func _run() -> void:
 	await _resize(SIZES[0])
 
 	await _check_settings_controls(menu)
+	await _check_online(menu)
 	await _check_toast(menu)
 	await _check_back(menu)
 	await _check_idle_levels(menu)
@@ -212,14 +226,43 @@ func _check_settings_controls(menu: Node) -> void:
 	await _frames(2)
 
 
-## The online button shows "coming soon" for 2.5 s, in the current language.
+## 0.5 (NET_SPEC §7.1): the online button opens the deck at the docking airlock with the play-with-friends screen on
+## top (depth 3), no badge; back returns to the deck at the airlock (camera current), back again to the main menu.
+func _check_online(menu: Node) -> void:
+	var app := _app()
+	_check(not (menu.get_node("%OnlineBadge") as CanvasItem).visible, "the online button has no coming-soon badge")
+	menu.get_node("%OnlineButton").pressed.emit()
+	await _frames(4)
+	var lobby: Node = app.call("current")
+	_check(int(app.call("depth")) == 3 and lobby != null and lobby.scene_file_path == "res://ui/screens/lobby.tscn",
+		"the online button opens the deck and the play-with-friends screen on top (depth 3)")
+	_check(not (menu.get_node("%Toast") as CanvasItem).visible, "no coming-soon toast")
+	_check(_fake_net.call("calls_of", "find") == [["find", true]], "the screen opens the join list on the (fake) Net")
+	app.call("back")
+	await _frames(4)
+	var hall: Node = app.call("current")
+	var world: Node3D = hall.get("world") if hall != null else null
+	_check(int(app.call("depth")) == 2 and world != null and world.visible and (world.get("camera_rig").get("camera") as Camera3D).current,
+		"back returns to the deck with its camera current (depth 2)")
+	if world != null:
+		var f: Vector2 = HallLayout.STATIONS["online"]["front"]
+		var av := world.get("avatar") as Node3D
+		_check(av.global_position.distance_to(Vector3(f.x, 0.0, f.y)) < 0.05 and str(hall.call("station")) == "online",
+			"the avatar stands at the airlock's ring, at the airlock (%s)" % str(av.global_position))
+	app.call("back")
+	await _frames(4)
+	_check(app.call("current") == menu and int(app.call("depth")) == 1, "back again returns to the main menu")
+
+
+## The toast (kept for messages; the online button no longer uses it) shows for 2.5 s, in the current language.
 func _check_toast(menu: Node) -> void:
 	var toast: Control = menu.get_node("%Toast")
 	_check(not toast.visible, "no toast at first")
-	menu.get_node("%OnlineButton").pressed.emit()
+	# 0.5: the online button opens the airlock now, so the toast is shown directly with a menu key
+	menu.call("show_toast", "ออนไลน์กับเพื่อน เร็วๆ นี้")
 	await _frames(2)
 	var text := str(menu.get_node("%ToastText").get("text"))
-	_check(toast.visible and text == "ออนไลน์กับเพื่อน เร็วๆ นี้", "the online button shows the coming-soon toast (%s)" % text)
+	_check(toast.visible and text == "ออนไลน์กับเพื่อน เร็วๆ นี้", "the toast shows its line (%s)" % text)
 	var timer: Timer = menu.get_node("%ToastTimer")
 	_check(not timer.is_stopped() and absf(timer.wait_time - 2.5) < 0.01, "the toast closes after 2.5 s (timer %.2f)" % timer.wait_time)
 	_check(_layout_problems(menu).is_empty(), "the toast fits the screen", str(_layout_problems(menu).slice(0, 4)))
@@ -433,6 +476,11 @@ func _finish() -> void:
 	app.call("set_lang", "th")
 	app.set("settings_file", str(app.get("SETTINGS_PATH")))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_FILE))
+	if _fake_net != null:
+		_fake_net.name = "FakeNet"
+		_fake_net.queue_free()
+	if _real_net != null:
+		_real_net.name = "Net"
 	print("%s  %d passed, %d failed" % ["PASS " if _failed == 0 else "FAIL ", _passed, _failed])
 	_done = true
 	quit(0 if _failed == 0 else 1)

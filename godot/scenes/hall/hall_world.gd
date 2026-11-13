@@ -7,6 +7,7 @@ extends Node3D
 ## งานต่อเฟรม: ไม่มีในสคริปต์นี้; ตัวผู้เล่นกับกล้องเปิดงานต่อเฟรมเองเฉพาะตอนขยับ
 ## การขยับบน hi/mid (เปลวไฟไหว โฮโลแกรมกะพริบ ยานลอย) อยู่ใน shader ทั้งหมด; lo/min ไม่มี shader ที่ใช้ TIME
 ## ตัวเดินบนดาดฟ้าเปลี่ยนได้ด้วยชุดเสริม (PACK_SPEC §4 H2: ArenaActors role "deck"); ไม่มีชุดเสริม = ไข่
+## เพื่อนตอนออนไลน์ (NET_SPEC §6): ลูก Friends (HallFriends) ว่างและซ่อนตอนออฟไลน์ วงแหวนของเพื่อนอยู่ใน Rings เดียวกัน
 
 signal station_changed(id: String)
 
@@ -53,6 +54,8 @@ static var _table_levels: Dictionary = {}
 var level := ""
 var active := true
 var team_colour := Color(0.28, 0.52, 0.84)
+## ไข่ของเพื่อนตอนออนไลน์ (NET_SPEC §6.1): ว่างและซ่อนตอนออฟไลน์
+var friends: HallFriends
 
 var _static: Array[MeshInstance3D] = []
 var _signs: Dictionary = {}            # id → Label3D (สถานี + "you" ป้ายเหนือตัวผู้เล่น)
@@ -93,7 +96,11 @@ func _ready() -> void:
 	ships_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_blockers = HallBuilder.build_colliders(blockers_body, props_body)
 	_build_signs()
-	rings.setup(1 + HallLayout.IDS.size() + 2)
+	rings.setup(ring_capacity())
+	friends = HallFriends.new()
+	friends.name = "Friends"
+	add_child(friends)
+	friends.setup(self, rings)
 	_avatar_ring = rings.add_ring(HallLayout.SPAWN, Vector3.UP, AVATAR_RING_R, team_colour)
 	for id in HallLayout.IDS:
 		var f: Vector2 = HallLayout.STATIONS[id]["front"]
@@ -149,8 +156,48 @@ func apply_level(l: String) -> void:
 	avatar.bob = bool(cfg["bob"])
 	if avatar.figure != null:
 		avatar.figure.call("apply_level", l)
+	if friends != null:
+		friends.apply_level(l)
 	for id in _signs:
 		(_signs[id] as Label3D).outline_size = int(_outline[id]) if bool(cfg["outline"]) else 0
+
+
+## จำนวนวงแหวน: ตัวผู้เล่น + สถานี + 2 สำรอง + เพื่อน (NET_SPEC §6.2: 16)
+static func ring_capacity() -> int:
+	return 1 + HallLayout.IDS.size() + 2 + HallFriends.MAX
+
+
+## ป้าย "คุณ" 3 มิติเหนือตัวผู้เล่น (ตอนออนไลน์มีเพื่อน FriendTags วาดแทน: ซ่อนป้ายนี้)
+func set_you_tag_visible(on: bool) -> void:
+	avatar.name_label.visible = on
+
+
+func you_tag_visible() -> bool:
+	return avatar.name_label.visible
+
+
+## สีของตัวเอง (ไข่ + วงแหวน): ออนไลน์ใช้สีของช่องตัวเอง ออฟไลน์สีทีมแรก
+func set_slot_colour(c: Color) -> void:
+	if c == team_colour:
+		return
+	team_colour = c
+	if _sides > 0:
+		avatar.egg.mesh = HallBuilder.avatar_mesh(team_colour, _sides)
+	rings.set_ring(_avatar_ring, avatar.global_position, Vector3.UP, AVATAR_RING_R, team_colour)
+
+
+## จุดเหนือหัวของตัวเอง (ป้ายของ FriendTags): ยอดไข่ + 0.35 ม.
+func head_point() -> Vector3:
+	return avatar.global_position + Vector3(0.0, HallFriends.EGG_H + HallFriends.HEAD_UP, 0.0)
+
+
+## สีของทีม/ช่อง i จาก data/teams.json (ไม่มีไฟล์ = สีน้ำเงินเดิม)
+static func slot_colour(i: int) -> Color:
+	var teams: Variant = JSON.parse_string(FileAccess.get_file_as_string(TEAMS_PATH)) if FileAccess.file_exists(TEAMS_PATH) else null
+	if teams is Array and i >= 0 and i < (teams as Array).size() and (teams[i] as Dictionary).has("rgb"):
+		var rgb: Array = teams[i]["rgb"]
+		return Color8(int(rgb[0]), int(rgb[1]), int(rgb[2]))
+	return Color(0.28, 0.52, 0.84)
 
 
 ## ค่าต่อระดับของโต๊ะ (TableView.LEVELS) อ่านจากสคริปต์ตอนใช้ (แหล่งเดียวกับโต๊ะรบ)

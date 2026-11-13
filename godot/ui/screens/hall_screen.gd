@@ -2,7 +2,10 @@ extends Control
 ## หน้าล็อบบี้ "ดาดฟ้ายานรบ" (ล็อบบี้ที่เดินได้, LOBBY_SPEC §2.5, SHIP_LOBBY_SPEC): ปุ่มและข้อความบนห้อง 3 มิติ (HallWorld)
 ## ข้อความไทยทั้งหมดของล็อบบี้อยู่ในไฟล์นี้ (ป้าย 3 มิติรวมป้ายชื่อสถานที่ "title" รับข้อความผ่าน world.set_sign_text)
 ## เดินถึงสถานีแล้วกด E หรือแตะ %UseButton: โต๊ะรบโฮโลแกรม → ตั้งเกม, คลังแสง → หน้าจัดกองทัพ, คอนโซล → ตั้งค่า,
-## ประตูเทียบยาน / โต๊ะผจญภัย / หีบสมบัติ → แผง "เร็วๆ นี้", ประตูทางออก (หรือ ‹ หน้าแรก) → กลับหน้าแรก
+## ประตูเทียบยาน → หน้าเล่นกับเพื่อน (lobby.tscn, NET_SPEC §7), โต๊ะผจญภัย / หีบสมบัติ → แผง "เร็วๆ นี้",
+## ประตูทางออก (หรือ ‹ หน้าแรก) → กลับหน้าแรก
+## ออนไลน์ (NET_SPEC §6): ส่งท่าตัวเองผ่าน Net (≤ 1 ครั้ง / 100 มิลลิวิ ตอนเดิน + ท่าหยุดหนึ่งครั้ง) ไข่เพื่อนบนดาดฟ้า
+## ป้ายชื่อและบรรทัดสถานะใน %FriendTags แผง "เร็วๆ นี้" ใช้แจ้งเพื่อนเข้า/ออก · ออฟไลน์ทุกอย่างเหมือนเดิม
 ## ประตูอารีน่า (เดินเข้าช่องประตูหรือกด E) → จอมืดแวบหนึ่งแล้วเปิดหน้าอารีน่า; กลับมายืนที่ ARENA_RETURN (ARENA_SPEC §2.3)
 ## เดินถึงประตูอารีน่า: เริ่มโหลดไฟล์หนักของอารีน่าในเธรด (หน้า ตัวผู้เล่น สัตว์รัง ท่าทาง โมเดล) ตอนจอมืดเหลือแค่สร้างฉาก
 ## เก็บไว้ในหน้านี้ให้รอบต่อไปเข้าเร็ว (ไม่ใช่งานต่อเฟรม)
@@ -15,6 +18,7 @@ const BATTLE_SETUP := "res://ui/screens/battle_setup.tscn"
 const ARMY := "res://ui/screens/army.tscn"
 const SETTINGS_SCREEN := "res://ui/screens/settings.tscn"
 const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
+const LOBBY_SCREEN := "res://ui/screens/lobby.tscn"
 const FADE_TIME := 0.25
 ## ไฟล์ที่โหลดล่วงหน้าตอนถึงประตูอารีน่า (+ โมเดลของสัตว์รัง KitLibrary.kit_path(ArenaData.BEAST.kit))
 const ARENA_PRELOAD: PackedStringArray = ["res://ui/screens/arena_screen.tscn", "res://scenes/arena/arena_player.tscn",
@@ -36,15 +40,15 @@ const SIGNS := {
 	"battle": "โต๊ะรบ",
 	"army": "คลังแสงกองทัพ",
 	"settings": "ตั้งค่า",
-	"online": "ออนไลน์ · เร็วๆ นี้",
+	"online": "ประตูเทียบยาน · เล่นกับเพื่อน",
 	"adventure": "โต๊ะผจญภัย · เร็วๆ นี้",
 	"exit": "ทางออก",
 	"vault": "หีบสมบัติ · เร็วๆ นี้",
 	"arena": "อารีน่าทดสอบอาวุธ",
 }
 ## แผง "เร็วๆ นี้" ของสถานีที่ยังไม่เปิด (หีบสมบัติ = ระบบสุ่มของรางวัลรอบหน้า ตอนนี้ยังไม่มีของรางวัลจริง)
+## ประตูเทียบยานเปิดแล้ว (NET_SPEC §7.1): ไม่อยู่ในนี้
 const SOON := {
-	"online": "ออนไลน์กับเพื่อน — เร็วๆ นี้",
 	"adventure": "โต๊ะผจญภัย — เร็วๆ นี้",
 	"vault": "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง",
 }
@@ -58,6 +62,15 @@ const PROMPT_TOUCH := "{name} · แตะเพื่อใช้"
 const HINT_KEYS := "WASD หรือลูกศร เดิน · Shift วิ่ง · ลากเมาส์หมุนกล้อง"
 const HINT_TOUCH := "ใช้ปุ่มซ้ายล่างเดิน · ลากจอหมุนกล้อง"
 const SOON_SECONDS := 2.5
+## ตอนออนไลน์ (NET_SPEC §7.1): โต๊ะรบบนเครื่องเพื่อน, เพื่อนเข้า/ออก, เจ้าห้องเปิดหน้าตั้งเกม
+const CLIENT_TABLE := "เจ้าห้องเป็นคนตั้งเกม — รอเจ้าห้องกดเริ่ม"
+const JOINED := "{name} เข้าห้องแล้ว"
+const LEFT := "{name} ออกจากห้อง"
+const DROPPED := "{name} หลุดจากห้อง — รอต่อใหม่"
+const BACK := "{name} กลับมาแล้ว"
+const SETUP_OPEN := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่ประตูเทียบยาน"
+const POSE_MS := 100          # ส่งท่าตอนเดินไม่ถี่กว่านี้
+const MAX_PLAYERS := 6        # NetSession.MAX_PLAYERS
 const USE_H := 64.0
 const USE_H_TOUCH := 80.0
 
@@ -72,6 +85,8 @@ const USE_H_TOUCH := 80.0
 @onready var hint: Label = %Hint
 @onready var soon_timer: Timer = %SoonTimer
 @onready var fade: ColorRect = %Fade
+@onready var tags: FriendTags = %FriendTags
+@onready var pose_timer: Timer = %PoseTimer
 
 var touch_mode := false
 var active := false
@@ -86,6 +101,17 @@ var _fade_tween: Tween
 var _arena_res: Dictionary = {}      # path → Resource ที่โหลดแล้ว (null = ขอโหลดในเธรดอยู่)
 ## manifest ของชุดเสริมที่ preload_arena อ่าน (เทสชี้ไปที่ชุดทดสอบได้)
 var pack_manifest := ArenaActors.PACK_MANIFEST
+## ระบบออนไลน์ (autoload Net; เทสใส่ของปลอมผ่าน use_net) · null = ไม่มี ออฟไลน์เสมอ
+var net: Node
+
+var _note := ""                      # แผง "เร็วๆ นี้" ที่ใช้แจ้งเรื่องออนไลน์ (คีย์ไทย + ตัวแปร)
+var _note_args: Dictionary = {}
+var _members: Dictionary = {}        # slot → ชื่อ ของสมาชิกที่รู้จักล่าสุด (แจ้งเข้า/ออก)
+var _here: Dictionary = {}           # slot → here ล่าสุด (แจ้งหลุด/กลับมา)
+var _members_known := false
+var _setup_open := false
+var _pose_ms := -100000
+var _net_state := &"off"             # สถานะ Net ล่าสุด (เข้าห้องใหม่ ≠ ต่อกลับ)
 
 
 func _ready() -> void:
@@ -111,10 +137,18 @@ func _ready() -> void:
 	soon_timer.timeout.connect(close_soon)
 	world.station_changed.connect(_on_station)
 	world.avatar.moved.connect(_on_avatar_moved)
+	tags.bind(world)
+	world.friends.moved.connect(tags.refresh)
+	world.camera_rig.view_changed.connect(_on_view)
+	pose_timer.one_shot = true
+	pose_timer.timeout.connect(_send_pose.bind(true))
 	soon_panel.hide()
 	use_button.hide()
 	visibility_changed.connect(_on_visibility)
 	get_viewport().size_changed.connect(_on_resize)
+	use_net(net if net != null else get_node_or_null(^"/root/Net"))
+	if online():
+		world.place_avatar(HallFriends.spawn_for(_my_slot()), PI)
 	_activate(is_visible_in_tree())
 
 
@@ -135,8 +169,11 @@ func refresh() -> void:
 	hint.visible = not _hint_done
 	if _soon != "":
 		soon_label.text = I18n.t(SOON[_soon])
+	elif _note != "":
+		soon_label.text = I18n.t(_note).format(_note_args)
 	_update_prompt()
 	CandleStyle.safe_margins(margin)
+	sync_online()
 
 
 ## สถานีที่ตัวผู้เล่นเอื้อมถึงตอนนี้ ("" = ไม่มี)
@@ -150,12 +187,18 @@ func use_station() -> void:
 		return
 	match station():
 		"battle":
-			_push(BATTLE_SETUP)
+			# ออนไลน์บนเครื่องเพื่อน: เจ้าห้องเป็นคนตั้งเกม (NET_SPEC §7.1)
+			if online() and not bool(net.call("is_host")):
+				show_note(CLIENT_TABLE)
+			else:
+				_push(BATTLE_SETUP)
 		"army":
 			_push(ARMY)
 		"settings":
 			_push(SETTINGS_SCREEN)
-		"online", "adventure", "vault":
+		"online":
+			open_online()
+		"adventure", "vault":
 			show_soon(station())
 		"exit":
 			_go_menu()
@@ -168,7 +211,18 @@ func show_soon(id: String) -> void:
 	if not SOON.has(id):
 		return
 	_soon = id
+	_note = ""
 	soon_label.text = I18n.t(SOON[id])
+	soon_panel.show()
+	soon_timer.start(SOON_SECONDS)
+
+
+## แจ้งเรื่องออนไลน์ในแผงเดียวกัน (key = ข้อความไทยทั้งก้อน แปลแล้วค่อยเติม args) ปิดเองใน 2.5 วิ
+func show_note(key: String, args: Dictionary = {}) -> void:
+	_soon = ""
+	_note = key
+	_note_args = args
+	soon_label.text = I18n.t(key).format(args)
 	soon_panel.show()
 	soon_timer.start(SOON_SECONDS)
 
@@ -177,6 +231,7 @@ func close_soon() -> void:
 	soon_timer.stop()
 	soon_panel.hide()
 	_soon = ""
+	_note = ""
 
 
 ## ปุ่มย้อนกลับ / Esc: ปิดแผง "เร็วๆ นี้" ก่อน ไม่มีแผงก็ให้ App ถอยกลับหน้าแรก
@@ -210,7 +265,11 @@ func _activate(on: bool) -> void:
 			world.place_avatar(HallLayout.ARENA_RETURN, PI)
 			world.camera_rig.set_view(0.0, -0.45, 6.5)
 			_fade_in_back()
+		# กลับมาบนดาดฟ้า: บอกห้องว่าอยู่ที่ไหน (ออฟไลน์ Net จำไว้ใช้ตอนเปิดห้อง) แล้วส่งท่ายืนหนึ่งครั้ง (NET_SPEC §6.1)
+		_set_where(&"deck")
+		_send_pose(true)
 	else:
+		pose_timer.stop()
 		stick.release()
 		close_soon()
 		use_button.hide()
@@ -224,6 +283,7 @@ func _on_visibility() -> void:
 func _on_resize() -> void:
 	if active:
 		CandleStyle.safe_margins(margin)
+		_place_status.call_deferred()
 
 
 func _on_station(id: String) -> void:
@@ -241,7 +301,16 @@ func _update_prompt() -> void:
 
 
 ## ผู้เล่นเริ่มเดิน (มีคำสั่งเดินจริง ไม่ใช่แค่ชะลอตัว): ซ่อนคำแนะนำครั้งแรก และปิดแผง "เร็วๆ นี้"
+## ออนไลน์: ส่งท่าทุกการขยับ (รวมตอนชะลอ) ไม่ถี่กว่า 100 มิลลิวิ แล้วท่าหยุดเมื่อนิ่งครบ 0.25 วิ
 func _on_avatar_moved(p: Vector3) -> void:
+	if online():
+		var now := Time.get_ticks_msec()
+		if now - _pose_ms >= POSE_MS:
+			_pose_ms = now
+			_send_pose(false)
+		pose_timer.start()
+		if tags.visible:
+			tags.refresh()
 	if world.avatar.input_vector() == Vector2.ZERO:
 		return
 	if world.station() == "arena" and HallLayout.in_arena_doorway(Vector2(p.x, p.z)):
@@ -257,6 +326,7 @@ func _on_avatar_moved(p: Vector3) -> void:
 			_hint_tween = create_tween()
 			_hint_tween.tween_property(hint, ^"modulate:a", 0.0, 0.4)
 			_hint_tween.tween_callback(hint.hide)
+		_place_status.call_deferred()
 
 
 func hint_done() -> bool:
@@ -269,6 +339,7 @@ func enter_arena() -> void:
 		return
 	_entering = true
 	preload_arena()
+	_set_where(&"arena")
 	world.avatar.halt()
 	world.avatar.process_mode = Node.PROCESS_MODE_DISABLED
 	stick.release()
@@ -363,7 +434,194 @@ func _push(path: String) -> Node:
 	if not ResourceLoader.exists(path):
 		push_warning("hall: no screen at " + path)
 		return null
+	match path:
+		BATTLE_SETUP:
+			_set_where(&"setup")
+		ARMY:
+			_set_where(&"army")
+		SETTINGS_SCREEN:
+			_set_where(&"settings")
 	return App.push(load(path))
+
+
+# ---- ออนไลน์ (NET_SPEC §6, §7.1) ----
+
+## เปิดหน้าเล่นกับเพื่อน (ประตูเทียบยาน) ทับห้องโถง
+func open_online() -> Node:
+	if not active:
+		return null
+	return _push(LOBBY_SCREEN)
+
+
+## ยืนหน้าประตูเทียบยาน หันเข้าประตู กล้องอยู่ข้างหลัง (หน้าแรก → ออนไลน์)
+func enter_airlock() -> void:
+	var f: Vector2 = HallLayout.STATIONS["online"]["front"]
+	world.place_avatar(Vector3(f.x, 0.0, f.y), PI * 0.5)
+	world.camera_rig.set_view(-PI * 0.5, -0.35, 5.5)
+
+
+## ต่อกับระบบออนไลน์ n (autoload Net หรือของปลอมในเทส; null = ออฟไลน์) แล้ววาดสถานะใหม่
+func use_net(n: Node) -> void:
+	var handlers := {"members_changed": _on_members, "state_changed": _on_net_state, "pose": _on_pose,
+		"message": _on_net_message, "reconnected": _on_reconnected}
+	if net != null and is_instance_valid(net):
+		for sig: String in handlers:
+			if net.has_signal(sig) and net.is_connected(sig, handlers[sig]):
+				net.disconnect(sig, handlers[sig])
+	net = n
+	if net != null:
+		for sig: String in handlers:
+			if net.has_signal(sig) and not net.is_connected(sig, handlers[sig]):
+				net.connect(sig, handlers[sig])
+	_members_known = false
+	if is_node_ready():
+		sync_online()
+
+
+func online() -> bool:
+	return net != null and is_instance_valid(net) and bool(net.call("is_online"))
+
+
+## เพื่อนบนดาดฟ้า สีของตัวเอง ป้ายชื่อ และบรรทัดสถานะตามรายชื่อในห้อง; ออฟไลน์ล้างทั้งหมด (หน้าตาเหมือนเดิม)
+func sync_online() -> void:
+	var on := online()
+	var me := _my_slot() if on else -1
+	world.set_slot_colour(HallWorld.slot_colour(maxi(me, 0)))
+	var seen := {}
+	var here := {}
+	if on:
+		for m: Dictionary in net.call("members"):
+			var s := int(m.get("slot", -1))
+			if s < 0 or s == me:
+				continue
+			var nm := str(m.get("nm", ""))
+			seen[s] = nm
+			here[s] = bool(m.get("here", true))
+			if str(m.get("where", "")) == "deck" and bool(m.get("here", true)):
+				world.friends.set_friend(s, nm, HallWorld.slot_colour(s))
+			else:
+				world.friends.remove_friend(s)
+	for s in world.friends.slots():
+		if not seen.has(s):
+			world.friends.remove_friend(s)
+	if on and _members_known and active:
+		for s in seen:
+			if not _members.has(s):
+				show_note(JOINED, {"name": seen[s]})
+		for s in _members:
+			if not seen.has(s):
+				show_note(LEFT, {"name": _members[s]})
+		# หลุดตอนนี้ (ช่องยังเก็บไว้ 60 วินาที) / กลับมาแล้ว
+		for s in here:
+			if _here.has(s) and bool(_here[s]) != bool(here[s]):
+				show_note(BACK if bool(here[s]) else DROPPED, {"name": seen[s]})
+	_members = seen
+	_here = here
+	_members_known = on
+	if not on:
+		_setup_open = false
+	var with_friends := on and world.friends.friend_count() > 0
+	world.set_you_tag_visible(not with_friends)
+	tags.set_you(I18n.t(YOU) if with_friends else "")
+	tags.set_status(_status_text() if on else "")
+	_place_status()
+	tags.refresh()
+
+
+func _status_text() -> String:
+	# หลุดจากเจ้าห้องอยู่: บรรทัดสถานะบอกค้างไว้จนต่อได้หรือเลิก (ไม่ใช่แค่ป้าย 2.5 วินาที)
+	if str(net.call("state")) == "reconnecting":
+		return I18n.t(OnlineText.REASONS["reconnecting"])
+	var host := net.call("member", 0) as Dictionary
+	var n := (net.call("members") as Array).size()
+	var cap: Variant = net.get("max_players")
+	return OnlineText.status(str(host.get("nm", "")) if host != null else "", n, int(cap) if cap != null else MAX_PLAYERS)
+
+
+## บรรทัดสถานะ: ระหว่างปุ่มบนสุดถ้าพอ ไม่งั้นใต้ปุ่ม (และใต้คำแนะนำครั้งแรกถ้ายังโชว์)
+func _place_status() -> void:
+	var text := tags.status_text()
+	if text == "":
+		return
+	var origin := tags.get_global_rect().position
+	var left := menu_button.get_global_rect()
+	var right := settings_button.get_global_rect()
+	var w := CandleStyle.BOLD.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FriendTags.FONT_SIZE).x
+	var line_h := CandleStyle.BOLD.get_height(FriendTags.FONT_SIZE)
+	var centre := tags.size.x * 0.5
+	if centre - w * 0.5 >= left.end.x - origin.x + 12.0 and centre + w * 0.5 <= right.position.x - origin.x - 12.0:
+		tags.status_y = left.position.y - origin.y + (left.size.y - line_h) * 0.5
+	else:
+		var below := left.end.y
+		if hint.visible:
+			below = maxf(below, hint.get_global_rect().end.y)
+		tags.status_y = below - origin.y + 6.0
+	tags.refresh()
+
+
+func _my_slot() -> int:
+	return int(net.call("my_slot")) if net != null else -1
+
+
+func _set_where(w: StringName) -> void:
+	if net != null and is_instance_valid(net):
+		net.call("set_where", w)
+
+
+## ท่าของตัวเอง (ซม. มิลลิเรเดียน ซม./วิ) ไปให้ห้อง; stop = ท่าหยุด (ส่งแบบไม่หาย)
+func _send_pose(stop: bool) -> void:
+	if not online():
+		return
+	var av := world.avatar
+	var p := av.global_position
+	var pose := {"x": clampi(roundi(p.x * 100.0), -5000, 5000), "z": clampi(roundi(p.z * 100.0), -5000, 5000),
+		"yaw": roundi(wrapf(av.face, -PI, PI) * 1000.0), "sp": 0 if stop else clampi(roundi(av.speed() * 100.0), 0, 2000),
+		"run": false if stop else av.running(), "t": Time.get_ticks_msec()}
+	net.call("send_pose", pose, stop)
+
+
+func _on_members() -> void:
+	sync_online()
+
+
+func _on_net_state(_state: StringName) -> void:
+	sync_online()
+	var st := str(_state)
+	# เพิ่งเข้าห้องเพื่อน (ไม่ใช่ต่อกลับ): ยืนที่จุดของช่องตัวเองบนดาดฟ้า หันไปทางโต๊ะรบ (NET_SPEC §6.1) ไม่ซ้อนกับใคร
+	if st == "joined" and _net_state == &"connecting":
+		world.place_avatar(HallFriends.spawn_for(_my_slot()), PI)
+		world.camera_rig.set_view(HallLayout.SPAWN_YAW, -0.45, 6.5)
+	_net_state = _state
+	# เพิ่งเปิดห้อง/เข้าห้อง (หน้าเล่นกับเพื่อนอาจบังอยู่): ส่งท่ายืนตอนนี้ให้ห้องเห็นตัวเราทันที
+	if st == "hosting" or st == "joined":
+		_send_pose(true)
+	if active and st == "reconnecting":
+		show_note(OnlineText.REASONS["reconnecting"])
+
+
+func _on_reconnected() -> void:
+	if active:
+		show_note(OnlineText.REASONS["reconnected"])
+
+
+func _on_pose(slot: int, pose: Dictionary) -> void:
+	if slot != _my_slot():
+		world.friends.push_pose(slot, pose, Time.get_ticks_msec())
+
+
+## เจ้าห้องเปิดหน้าตั้งเกม: บอกเพื่อนบนดาดฟ้าว่าไปเลือกที่นั่งได้ที่ประตูเทียบยาน (ครั้งเดียวต่อการเปิด)
+func _on_net_message(_from: int, kind: int, body: Dictionary) -> void:
+	if kind != NetProto.SETUP:
+		return
+	var open := bool(body.get("open", false))
+	if open and not _setup_open and active and online() and not bool(net.call("is_host")):
+		show_note(SETUP_OPEN)
+	_setup_open = open
+
+
+func _on_view() -> void:
+	if tags.visible:
+		tags.refresh()
 
 
 ## โต๊ะรบ (โลกเดียวกัน) ต้องซ่อนและหยุดเสมอขณะห้องโถงอยู่บนสุด

@@ -21,6 +21,7 @@ App="*res://app/app.gd"
 I18n="*res://ui/i18n.gd"
 Log="*res://app/log.gd"
 Clock="*res://app/clock.gd"
+Net="*res://net/net_session.gd"
 
 [display]
 

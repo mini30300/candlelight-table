@@ -1,5 +1,6 @@
 extends Control
-## หน้าแรก (LOBBY_SPEC §1.1): ภาพหัวธีมเทียน (TitleArt) + คอลัมน์ปุ่มขวา: เล่นกับบอท → ห้องโถง, ออนไลน์ (เร็วๆ นี้),
+## หน้าแรก (LOBBY_SPEC §1.1): ภาพหัวธีมเทียน (TitleArt) + คอลัมน์ปุ่มขวา: เล่นกับบอท → ห้องโถง,
+## ออนไลน์ → ห้องโถงยืนหน้าประตูเทียบยาน แล้วเปิดหน้าเล่นกับเพื่อนทับ (NET_SPEC §7.1, ไม่มีป้าย "เร็วๆ นี้" แล้ว),
 ## ตั้งค่า, ENGLISH/ไทย, ออก (เฉพาะคอม) · ปุ่มย้อนกลับ/Esc เปิดกล่องถามก่อนออก กดซ้ำปิดกล่อง
 ## ทึบเต็มจอ 2 มิติล้วน (ไม่มีกล้อง 3 มิติทำงานใต้หน้านี้) · ไม่มี _process: เปลวเทียนขยับด้วย Timer เฉพาะ hi/mid, ป้ายแจ้งเตือนปิดด้วย Timer
 
@@ -10,7 +11,7 @@ const SETTINGS_SCREEN := "res://ui/screens/settings.tscn"
 const TOAST_SECONDS := 2.5
 const BUTTON_TO_ENGLISH := "ENGLISH"   # ป้ายปุ่มตอนเป็นไทย — อังกฤษตั้งใจ เหมือนหน้าเก่า
 const BUTTON_TO_THAI := "ไทย"
-const ONLINE_SOON := "ออนไลน์กับเพื่อน เร็วๆ นี้"
+const QUIT_HOSTING := "ออกจากเกม? ห้องจะปิด เพื่อนทุกคนจะหลุดจากห้อง"
 
 @onready var art: TitleArt = %Art
 @onready var margin: MarginContainer = %Margin
@@ -64,7 +65,7 @@ func _ready() -> void:
 	quit_yes.custom_minimum_size = Vector2(160, 64)
 	quit_no.custom_minimum_size = Vector2(160, 64)
 	play_button.pressed.connect(open_hall)
-	online_button.pressed.connect(func() -> void: show_toast(ONLINE_SOON))
+	online_button.pressed.connect(open_online)
 	settings_button.pressed.connect(open_settings)
 	lang_button.pressed.connect(func() -> void: set_language(not I18n.english))
 	quit_button.pressed.connect(open_quit_confirm)
@@ -90,15 +91,16 @@ func refresh() -> void:
 	play_button.text = I18n.t("เล่นกับบอท")
 	online_button.text = I18n.t("ออนไลน์")
 	online_badge.text = I18n.t("เร็วๆ นี้")
+	online_badge.visible = false   # ออนไลน์เปิดแล้ว (NET_SPEC §7.1)
 	settings_button.text = I18n.t("ตั้งค่า")
 	lang_button.text = BUTTON_TO_THAI if I18n.english else BUTTON_TO_ENGLISH
 	quit_button.text = I18n.t("ออก")
 	quit_button.visible = _quit_shown()
 	version_label.text = version_text()
-	quit_text.text = I18n.t("ออกจากเกม?")
+	quit_text.text = I18n.t(QUIT_HOSTING if _hosting() else "ออกจากเกม?")
 	quit_yes.text = I18n.t("ออก")
 	quit_no.text = I18n.t("ยกเลิก")
-	toast_text.text = I18n.t(_toast_key if _toast_key != "" else ONLINE_SOON)   # ซ่อนอยู่ก็แปลไว้ ไม่ค้างไทย
+	toast_text.text = I18n.t(_toast_key) if _toast_key != "" else ""   # ซ่อนอยู่ก็แปลไว้ ไม่ค้างไทย
 	art.set_level(App.gfx)
 	art.set_active(is_visible_in_tree())
 
@@ -129,6 +131,15 @@ func open_hall() -> Node:
 	return App.push(load(HALL_SCREEN))
 
 
+## ออนไลน์: เปิดห้องโถง ยืนหน้าประตูเทียบยาน แล้วเปิดหน้าเล่นกับเพื่อนทับ (ลึก 3; ย้อนกลับ = ดาดฟ้าหน้าประตู)
+func open_online() -> Node:
+	var hall := open_hall()
+	if hall == null or not hall.has_method("open_online"):
+		return hall
+	hall.call("enter_airlock")
+	return hall.call("open_online")
+
+
 func open_settings() -> Node:
 	hide_toast()
 	return App.push(load(SETTINGS_SCREEN))
@@ -150,7 +161,13 @@ func hide_toast() -> void:
 
 func open_quit_confirm() -> void:
 	hide_toast()
+	quit_text.text = I18n.t(QUIT_HOSTING if _hosting() else "ออกจากเกม?")   # เปิดห้องอยู่: บอกว่าเพื่อนจะหลุด
 	quit_confirm.show()
+
+
+func _hosting() -> bool:
+	var net := get_node_or_null(^"/root/Net")
+	return net != null and net.has_method("is_host") and bool(net.call("is_host"))
 
 
 func close_quit_confirm() -> void:
@@ -213,6 +230,10 @@ func _on_visibility() -> void:
 		refresh()
 		_apply_idle()
 		_drop_camera()
+		# บอกห้องว่ากลับมาอยู่หน้าแรก (NET_SPEC §6.1; ออฟไลน์ Net แค่จำไว้)
+		var net := get_node_or_null(^"/root/Net")
+		if net != null and net.has_method("set_where"):
+			net.call("set_where", &"menu")
 	else:
 		hide_toast()
 		close_quit_confirm()
