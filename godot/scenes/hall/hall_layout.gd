@@ -57,6 +57,8 @@ const ARENA_DOOR := {"x0": -10.8, "x1": -8.8, "spring": 2.5, "apex": 3.8, "stub"
 const ARENA_AUTO := 0.12
 ## จุดที่กลับมาจากอารีน่า หันไป -z (ว่าง ไม่อยู่ในวงสถานีไหน)
 const ARENA_RETURN := Vector3(-9.8, 0.0, 5.2)
+## จุดที่กลับมาจากห้องเสริมหลังประตูเทียบยาน (PACK_SPEC §9) หันไป -x (ว่าง ไม่อยู่ในวงสถานีไหน)
+const AIRLOCK_RETURN := Vector3(9.6, 0.0, 3.0)
 ## ม้านั่งกลมสี่ตัวรอบโต๊ะผจญภัย (ในกรอบสี่เหลี่ยมของมัน): ระยะทแยงจากกลาง รัศมี สูง
 const STOOL_D := 1.06
 const STOOL_R := 0.2
@@ -180,6 +182,13 @@ static func in_arena_doorway(p: Vector2) -> bool:
 	return absf(p.x - c.x) <= 0.75 and p.y >= c.y - h.y - AVATAR_R - ARENA_AUTO
 
 
+## กลางตัวผู้เล่น p (x, z) เดินชนช่องประตูเทียบยานแล้ว (ใช้เมื่อมีห้องเสริม PACK_SPEC §9)
+static func in_airlock(p: Vector2) -> bool:
+	var c: Vector2 = STATIONS["online"]["c"]
+	var h: Vector2 = STATIONS["online"]["h"]
+	return absf(p.y - c.y) <= h.y - 0.4 and p.x >= c.x - h.x - AVATAR_R - ARENA_AUTO
+
+
 static func spawn_xz() -> Vector2:
 	return Vector2(SPAWN.x, SPAWN.z)
 
@@ -300,6 +309,15 @@ static func camera_clear(o: Vector3, d: Vector3, length: float, pad: float = CAM
 		if not moved:
 			return t
 	return camera_clear(o, d, length, pad) if far > 0.0 else t
+
+
+## ตัวช่วยสาธารณะของ RoomLayout (คณิตเดียวกับห้องโถง)
+static func ray_span(b: Dictionary, o: Vector3, d: Vector3, pad: float) -> Vector2:
+	return _ray_span(b, o, d, pad)
+
+
+static func hits_circle(b: Dictionary, p: Vector2, r: float) -> bool:
+	return _hits_circle(b, p, r)
 
 
 static var _prop_list: Array[Dictionary] = []

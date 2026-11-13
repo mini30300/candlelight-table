@@ -55,7 +55,9 @@ func test_version_label_never_shows_thai() -> void:
 	# 0.4 (ARENA_SPEC §15): the weapons arena is a user-visible release, so APP_VER moved on purpose (0.3 -> 0.4)
 	# 0.5 (NET_SPEC §15): play with friends on the local network is a user-visible release (0.4 -> 0.5)
 	# 0.6: battle sounds and animations from the old game, the arena dodge, online only in the personal build (0.5 -> 0.6)
-	assert_eq(v, "0.6", "this release is ใหม่ 0.6")
+	# 0.7 (PACK_SPEC §9): pack rooms behind the docking airlock; room poses use the +30 m band, which both devices must
+	# understand, so the wrong_app gate has to keep 0.6 and 0.7 apart (0.6 -> 0.7)
+	assert_eq(v, "0.7", "this release is ใหม่ 0.7")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 

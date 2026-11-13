@@ -224,7 +224,7 @@ Some features ship only in the private build. A private build drops one more fil
 
 | Key | Off (the public app: no file) | On |
 | --- | --- | --- |
-| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7) |
+| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7); 0.7: with a pack room for the airlock (§9) the airlock is a walk-in door into that room instead, and the online button lands in the room with host/join on top |
 
 - Unknown keys and non-boolean values are ignored; a broken file is the same as no file (a warning, never a crash).
 - Only the entry points are switched. The network code (`net/`, the `Net` autoload, lockstep, discovery) is unchanged and
@@ -273,3 +273,63 @@ No model files, no textures, no names of anything real.
 
 The two private tracks never touch this repo, and this repo never names them. The private pack's manifest can name
 every role from the start: until a file exists, step 4 of §1 falls back to the public figure.
+
+## 9. Pack rooms (0.7, 13 Nov 2026)
+
+A pack may put one walk-in room behind a door of the deck. v1 has one door: the docking airlock (`"online"`). The room is
+used only when `Features.on(&"online")` is on **and** a valid room exists; otherwise the deck is exactly as before.
+
+- **Where**: `res://packs/rooms/<id>/room.json` (format 1) + one GDScript room script in the same folder.
+  `PackRooms` (`scenes/hall/pack_rooms.gd`) lists and validates them (`list`, `for_door`, `validate`, `missing_api`);
+  an invalid room is skipped with a warning, never a crash. Tests point the root elsewhere (`PackRooms.test_root`,
+  `hall_screen.rooms_root`).
+- **`room.json`**: `format` 1; `id` (`^[a-z][a-z0-9_]{0,23}$`, the folder name); `door` (`"online"`); `title` ≤ 40 and
+  `door_sign` ≤ 48 as `{th, en}` (`en` without Thai letters); `script` (relative `.gd` inside the folder, no `..`);
+  `half` `[x, z]` with x in [4, 15], z in [4, 20]; `ceil` in [3.5, 14] (invisible collision ceiling); `spawn`
+  `[x, z, camera yaw]` (clear, in no station's reach); optional `bg` (6 hex); `stations`: 1–8 with unique ids and exactly
+  one `"back"`. A station has `name {th, en}` ≤ 32, `c`, `h`, `round`, `height` 0.1–14, `reach` 0.8–2.5 (as
+  `HallLayout.STATIONS`; the footprint may reach into the wall, never past it), `front` (clear, within reach), optional
+  `sign [x, y, z]` + `face`, `action` = `soon` (`soon {th, en}` ≤ 120) / `cards` (1–4 cards: `title` ≤ 24, `text` ≤ 80,
+  `action` `soon` + `soon`, or `online`) / `online` / `back`; `walk_in` (only on `back`: walking into it leaves);
+  `solid` false = the footprint adds no blocker. Unknown keys are ignored. The test room
+  `tests/fixtures/pack_rooms/test_room/room.json` is a complete example.
+- **Room script contract** (`extends Node3D`, no `class_name`): required `setup(ctx)` (once, before the first frame;
+  `ctx = {data, dir, level, english, team_colour}`; build meshes here, no lights, shadows, physics bodies, UI, network,
+  `App`/`Net` calls), `apply_level(l)` (after setup and on every graphics change), `blockers() -> Array` (extra props
+  in the `HallLayout.blockers()` format, room-local, inside the room, each with a non-empty String `tag` that is never
+`wall_*` / `ceiling`, box `h` > 0 on every axis; one bad entry drops the whole list with a warning; if the list covers
+the spawn or a station front the room is refused at open, `RoomLayout.clear_problems()`). Optional:
+  `station_near(id)`, `station_used(id)`, `set_active(on)` (stop all processing while off; also called before the
+  room is freed), `set_english(on)`, `counts()` (`static_meshes`, `static_tris`, `anim_parts`, `shaders`).
+- **Stable public kit** (guarded by `test_pack_rooms.gd`): `HallBuilder.material()`, `bake(geo, lights, cool)`,
+  `lit(col, b)`, `glow(p, lights)`, `tube(geo, a, b, r, sides, col)`, `tris(mesh)`, `arch_pts(a, spring, apex, k)`, the
+  `HallBuilder` colour constants (incl. `BANNER_COLS`), `append(a, b)`, `flame_mesh()`, `flame_plain_material()`,
+  `res://scenes/hall/flame.gdshader`, `PropsLayer.Geo` (`box`, `prism`, `band`, `poly`, `mesh`), `HallLayout.AVATAR_R`,
+  `HallLayout.COOL_LIGHTS`, `HallWorld.FADE_*`. Anything else of the public code is not a contract.
+- **Public side**: `PackRoomScreen` (`ui/screens/pack_room_screen.gd`) pushed over the deck with the deck's fade;
+  `PackRoomWorld` (`scenes/hall/pack_room_world.gd`) instances the script and draws collision (`RoomLayout`), rings,
+  signs, the deck figure (H1/H2), friends and the camera from `room.json`; the screen draws the prompt, use button,
+  stick, coming-soon panel and the cards panel; `‹ ดาดฟ้า`, Esc or the `walk_in` door go back to the deck at
+  `HallLayout.AIRLOCK_RETURN` facing −x. Main menu "online" lands in the room in front of its play-with-friends station
+  with host/join on top. Camera rule: as on the deck the camera never ends inside a blocker; in a room a big blocker
+  (half-size ≥ `RoomLayout.OCCLUDE_HALF` = 0.75 m on both floor axes, or radius ≥ 0.75 m) that only hides the line also
+  pulls it to its front, so it never parks behind a booth next to a wall.
+- **Presence without a protocol change**: in the room `where` stays `"deck"` and poses are sent with x + 30 m
+  (`PackRooms.to_band`); a pose with x ≥ 13.5 m is "in the room": the deck hides that friend and the room draws it at
+  x − 30. `NetProto` and its `VERSION` are unchanged; `APP_VER` moved to ใหม่ 0.7 so the `wrong_app` gate keeps 0.6
+  out of a 0.7 room. A newcomer gets everyone's standing pose (each screen re-sends its stop pose when a member joins);
+  a slot that leaves the member list forgets its room pose, so a reused slot starts on the deck. A friend already in
+  the room when you enter is drawn at once (`seed_poses` from the deck's `band_poses`). The host's SETUP-open note also
+  shows in the room, naming `PackRooms.setup_place(room)`.
+- **Failure paths**: a room that does not open (bad script, blocked spawn/front) pops at once and the deck opens host/join
+  instead, then shows `ROOM_FAILED` on return. A screen pushed during the leave fade (a net battle starting) leaves the
+  room flagged: when that screen closes the room pops itself and the deck shows, never a black room.
+- **Budgets**: the deck's limits for every room, measured by `tests/render/room_budget.gd` (spawn overview, in front of
+  each station, phone worst view): hi 140 / 250k, mid 100 / 150k, lo 60 / 80k, min 40 / 40k draw calls / primitives;
+  on min and lo nothing under the room processes after 10 idle frames and no `TIME` shader; hi/mid may animate.
+  The private build runs `room_budget.gd -- --root res://packs/rooms` under xvfb as its gate.
+- **Tests**: `tests/unit/test_pack_rooms.gd` (listing, 13 broken cases under `tests/fixtures/pack_rooms_bad/`,
+  `RoomLayout` incl. blocker checks and `clear_problems`, `bg` hex, pose band, kit, airlock return),
+  `tests/render/test_pack_room.gd` (the whole walk with the test room, a second visit, the failure paths with
+  `tests/fixtures/pack_rooms_refused/`),
+  added checks in `tests/flow/test_hall_reach.gd`.

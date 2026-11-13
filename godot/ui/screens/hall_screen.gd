@@ -11,6 +11,8 @@ extends Control
 ## เก็บไว้ในหน้านี้ให้รอบต่อไปเข้าเร็ว (ไม่ใช่งานต่อเฟรม)
 ## ถูกหน้าอื่นทับ: ซ่อนห้อง หยุดงาน คืนกล้อง; กลับมาโชว์: อ่าน App.gfx / lang / touch ใหม่ทุกครั้ง
 ## งานต่อเฟรม: ไม่มี (ข้อความเปลี่ยนตามสัญญาณ แผง "เร็วๆ นี้" ปิดด้วย Timer)
+## ห้องเสริม (PACK_SPEC §9): ชุดเสริมมีห้องของประตูเทียบยานและสวิตช์ online เปิด → เดินเข้าประตู/กด E = จอมืดแล้วเปิดห้อง
+## กลับมายืนที่ AIRLOCK_RETURN · เพื่อนที่ท่าอยู่ในแถบห้อง (PackRooms.in_band) ไม่วาดบนดาดฟ้า · ไม่มีห้อง = เหมือนเดิม
 
 signal station_changed(id: String)
 
@@ -19,6 +21,7 @@ const ARMY := "res://ui/screens/army.tscn"
 const SETTINGS_SCREEN := "res://ui/screens/settings.tscn"
 const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
 const LOBBY_SCREEN := "res://ui/screens/lobby.tscn"
+const PACK_ROOM_SCREEN := "res://ui/screens/pack_room_screen.tscn"
 const FADE_TIME := 0.25
 ## ไฟล์ที่โหลดล่วงหน้าตอนถึงประตูอารีน่า (+ โมเดลของสัตว์รัง KitLibrary.kit_path(ArenaData.BEAST.kit))
 const ARENA_PRELOAD: PackedStringArray = ["res://ui/screens/arena_screen.tscn", "res://scenes/arena/arena_player.tscn",
@@ -72,6 +75,9 @@ const LEFT := "{name} ออกจากห้อง"
 const DROPPED := "{name} หลุดจากห้อง — รอต่อใหม่"
 const BACK := "{name} กลับมาแล้ว"
 const SETUP_OPEN := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่ประตูเทียบยาน"
+## มีห้องเสริม: บอกที่เลือกที่นั่งเป็นชื่อสถานีในห้อง ({place} จาก room.json) · เปิดห้องไม่ได้ = เปิดหน้าเล่นกับเพื่อนแทน
+const SETUP_OPEN_AT := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่{place}"
+const ROOM_FAILED := "เปิดห้องไม่ได้ — เปิดหน้าเล่นกับเพื่อนแทน"
 const POSE_MS := 100          # ส่งท่าตอนเดินไม่ถี่กว่านี้
 const MAX_PLAYERS := 6        # NetSession.MAX_PLAYERS
 const USE_H := 64.0
@@ -101,6 +107,12 @@ var _soon := ""
 var _hint_tween: Tween
 var _entering := false
 var _from_arena := false
+var _from_room := false              # อยู่ในห้องเสริม (หน้าห้องทับอยู่): ไม่ส่งท่าของดาดฟ้า
+var _room_failed := false            # เปิดห้องไม่ได้: แจ้งเมื่อกลับมาบนดาดฟ้า
+## รากของห้องเสริม (เทสชี้ไปที่ห้องทดสอบได้)
+var rooms_root := PackRooms.root()
+var _away: Dictionary = {}           # slot → ท่าล่าสุดของเพื่อนอยู่ในแถบห้องเสริม (ไม่วาดบนดาดฟ้า)
+var _band_pose: Dictionary = {}      # slot → ท่าล่าสุดในแถบห้อง (ส่งต่อให้ห้องตอนเราเข้า)
 var _fading := false
 var _fade_tween: Tween
 var _arena_res: Dictionary = {}      # path → Resource ที่โหลดแล้ว (null = ขอโหลดในเธรดอยู่)
@@ -168,8 +180,9 @@ func refresh() -> void:
 	use_button.add_theme_font_size_override(&"font_size", 26 if touch_mode else 22)
 	menu_button.text = I18n.t(MENU_TEXT)
 	settings_button.text = I18n.t(SETTINGS_TEXT)
+	var room := door_room()
 	for id in SIGNS:
-		world.set_sign_text(id, I18n.t(sign_of(id)))
+		world.set_sign_text(id, PackRooms.text(room["door_sign"]) if id == "online" and not room.is_empty() else I18n.t(sign_of(id)))
 	world.set_sign_text("title", I18n.t(PLACE))
 	world.set_sign_text("you", I18n.t(YOU))
 	hint.text = I18n.t(HINT_TOUCH if touch_mode else HINT_KEYS)
@@ -205,7 +218,9 @@ func use_station() -> void:
 		"settings":
 			_push(SETTINGS_SCREEN)
 		"online":
-			if Features.on(&"online"):
+			if not door_room().is_empty():
+				enter_room()
+			elif Features.on(&"online"):
 				open_online()
 			else:
 				show_soon("online")
@@ -290,6 +305,14 @@ func _activate(on: bool) -> void:
 			world.place_avatar(HallLayout.ARENA_RETURN, PI)
 			world.camera_rig.set_view(0.0, -0.45, 6.5)
 			_fade_in_back()
+		elif _from_room:
+			_from_room = false
+			world.place_avatar(HallLayout.AIRLOCK_RETURN, -PI * 0.5)
+			world.camera_rig.set_view(PI * 0.5, -0.45, 6.5)
+			_fade_in_back()
+		if _room_failed:
+			_room_failed = false
+			show_note(ROOM_FAILED)
 		# กลับมาบนดาดฟ้า: บอกห้องว่าอยู่ที่ไหน (ออฟไลน์ Net จำไว้ใช้ตอนเปิดห้อง) แล้วส่งท่ายืนหนึ่งครั้ง (NET_SPEC §6.1)
 		_set_where(&"deck")
 		_send_pose(true)
@@ -327,7 +350,9 @@ func _update_prompt() -> void:
 	var id := world.station()
 	use_button.visible = active and id != ""
 	if id != "":
-		use_button.text = I18n.t(PROMPT_TOUCH if touch_mode else PROMPT_KEYS).format({"name": I18n.t(NAMES[id])})
+		var room := door_room() if id == "online" else {}
+		var nm := PackRooms.text(room["title"]) if not room.is_empty() else I18n.t(NAMES[id])
+		use_button.text = I18n.t(PROMPT_TOUCH if touch_mode else PROMPT_KEYS).format({"name": nm})
 
 
 ## ผู้เล่นเริ่มเดิน (มีคำสั่งเดินจริง ไม่ใช่แค่ชะลอตัว): ซ่อนคำแนะนำครั้งแรก และปิดแผง "เร็วๆ นี้"
@@ -347,6 +372,9 @@ func _on_avatar_moved(p: Vector3) -> void:
 	_footstep(p)
 	if world.station() == "arena" and HallLayout.in_arena_doorway(Vector2(p.x, p.z)):
 		enter_arena()
+		return
+	if world.station() == "online" and HallLayout.in_airlock(Vector2(p.x, p.z)) and not door_room().is_empty():
+		enter_room()
 		return
 	if soon_panel.visible:
 		close_soon()
@@ -408,6 +436,65 @@ func enter_arena() -> void:
 
 func fading() -> bool:
 	return _fading or _entering
+
+
+## ห้องเสริมของประตูเทียบยาน ({} = ไม่มี หรือสวิตช์ online ปิด: ดาดฟ้าเหมือนเดิม)
+func door_room() -> Dictionary:
+	return PackRooms.for_door("online", rooms_root)
+
+
+## เข้าห้องเสริม: instant = เปิดทันทีหน้าสถานีที่พาไปเล่นกับเพื่อน (หน้าแรก → ออนไลน์) คืนหน้าห้อง
+## ไม่งั้นหยุดตัวผู้เล่น จอมืด แล้วเปิดห้องที่จุดเกิด (คืน null; หน้าห้องเปิดหลังจอมืด) · เปิดไม่ได้ = หน้าเล่นกับเพื่อน
+func enter_room(instant := false) -> Node:
+	if not active or _entering or _fading or door_room().is_empty():
+		return null
+	if instant:
+		return _open_room(PackRooms.online_station(door_room()))
+	_enter_room_faded()
+	return null
+
+
+func _enter_room_faded() -> void:
+	_entering = true
+	world.avatar.halt()
+	world.avatar.process_mode = Node.PROCESS_MODE_DISABLED
+	stick.release()
+	close_soon()
+	await _fade_to(1.0)
+	_entering = false
+	if not active or _open_room("") == null:
+		world.avatar.process_mode = Node.PROCESS_MODE_INHERIT
+		if fade.visible and not _fading:
+			await _fade_to(0.0)
+
+
+## เปิดหน้าห้องทับดาดฟ้า (คืนหน้าห้อง) · เปิดไม่ได้: ปิดหน้าห้อง จอสว่าง แล้วเปิดหน้าเล่นกับเพื่อนแทน (คืนหน้านั้น)
+func _open_room(at_station: String) -> Node:
+	var room := door_room()
+	if not active or room.is_empty() or not ResourceLoader.exists(PACK_ROOM_SCREEN):
+		return null
+	_from_room = true
+	var screen := App.push(load(PACK_ROOM_SCREEN))
+	if screen != null and screen.call("open", room, at_station):
+		screen.call("seed_poses", _band_pose.duplicate())
+		return screen
+	push_warning("hall: the pack room %s did not open" % str(room.get("id", "")))
+	if screen != null and App.current() == screen:
+		App.pop()
+	_from_room = false
+	world.avatar.process_mode = Node.PROCESS_MODE_INHERIT
+	if _fade_tween != null:
+		_fade_tween.kill()
+	_fading = false
+	fade.hide()
+	fade.color.a = 0.0
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lobby := open_online()
+	if lobby == null:
+		show_note(ROOM_FAILED)
+	else:
+		_room_failed = true
+	return lobby
 
 
 ## เริ่มโหลดไฟล์ของอารีน่าในเธรด (ครั้งเดียวต่อไฟล์; เรียกซ้ำได้)
@@ -549,13 +636,18 @@ func sync_online() -> void:
 			var nm := str(m.get("nm", ""))
 			seen[s] = nm
 			here[s] = bool(m.get("here", true))
-			if str(m.get("where", "")) == "deck" and bool(m.get("here", true)):
+			if str(m.get("where", "")) == "deck" and bool(m.get("here", true)) and not bool(_away.get(s, false)):
 				world.friends.set_friend(s, nm, HallWorld.slot_colour(s))
 			else:
 				world.friends.remove_friend(s)
 	for s in world.friends.slots():
 		if not seen.has(s):
 			world.friends.remove_friend(s)
+	var fresh := false
+	if on and _members_known:
+		for s in seen:
+			if not _members.has(s):
+				fresh = true
 	if on and _members_known and active:
 		for s in seen:
 			if not _members.has(s):
@@ -572,6 +664,19 @@ func sync_online() -> void:
 	_members_known = on
 	if not on:
 		_setup_open = false
+		_away.clear()
+		_band_pose.clear()
+	else:
+		# ช่องที่ไม่อยู่ในรายชื่อแล้ว: ลืมท่าในห้องเสริม (คนใหม่ที่ได้ช่องนี้เริ่มที่ดาดฟ้า)
+		for s in _away.keys():
+			if not seen.has(s):
+				_away.erase(s)
+		for s in _band_pose.keys():
+			if not seen.has(s):
+				_band_pose.erase(s)
+	# คนใหม่เข้าห้อง: ส่งท่ายืนของเราอีกครั้งให้เขารู้ว่าเรายืนตรงไหน
+	if fresh and active:
+		_send_pose(true)
 	var with_friends := on and world.friends.friend_count() > 0
 	world.set_you_tag_visible(not with_friends)
 	tags.set_you(I18n.t(YOU) if with_friends else "")
@@ -622,7 +727,7 @@ func _set_where(w: StringName) -> void:
 
 ## ท่าของตัวเอง (ซม. มิลลิเรเดียน ซม./วิ) ไปให้ห้อง; stop = ท่าหยุด (ส่งแบบไม่หาย)
 func _send_pose(stop: bool) -> void:
-	if not online():
+	if not online() or _from_room:
 		return
 	var av := world.avatar
 	var p := av.global_position
@@ -657,8 +762,24 @@ func _on_reconnected() -> void:
 
 
 func _on_pose(slot: int, pose: Dictionary) -> void:
-	if slot != _my_slot():
+	if slot == _my_slot():
+		return
+	# ท่าในแถบห้องเสริม: เพื่อนอยู่ในห้อง ไม่วาดบนดาดฟ้า (จำท่าไว้ให้ห้องตอนเราเข้า)
+	var away := PackRooms.in_band(pose)
+	if away:
+		_band_pose[slot] = pose
+	else:
+		_band_pose.erase(slot)
+	if away != bool(_away.get(slot, false)):
+		_away[slot] = away
+		sync_online()
+	if not away:
 		world.friends.push_pose(slot, pose, Time.get_ticks_msec())
+
+
+## ท่าล่าสุดของเพื่อนที่อยู่ในห้องเสริม (slot → pose ในแถบห้อง)
+func band_poses() -> Dictionary:
+	return _band_pose.duplicate()
 
 
 ## เจ้าห้องเปิดหน้าตั้งเกม: บอกเพื่อนบนดาดฟ้าว่าไปเลือกที่นั่งได้ที่ประตูเทียบยาน (ครั้งเดียวต่อการเปิด)
@@ -667,7 +788,11 @@ func _on_net_message(_from: int, kind: int, body: Dictionary) -> void:
 		return
 	var open := bool(body.get("open", false))
 	if open and not _setup_open and active and online() and not bool(net.call("is_host")):
-		show_note(SETUP_OPEN)
+		var room := door_room()
+		if room.is_empty():
+			show_note(SETUP_OPEN)
+		else:
+			show_note(SETUP_OPEN_AT, {"place": PackRooms.setup_place(room)})
 	_setup_open = open
 
 

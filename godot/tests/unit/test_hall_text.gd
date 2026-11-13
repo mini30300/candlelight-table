@@ -8,11 +8,15 @@ extends "res://tests/testing.gd"
 ## 0.5 (NET_SPEC §7.1, §12.1): the docking airlock opens the play-with-friends screen, so it is no longer a coming-soon
 ## station (two remain: adventure, vault) and its sign reads "ประตูเทียบยาน · เล่นกับเพื่อน"; the friends on the deck
 ## (scenes/hall/hall_friends.gd) carry no Thai either.
+## 0.7 (PACK_SPEC §9): the pack room's screen joins the hall screen files (its Thai keys live in hall.json; the room's own
+## names come from room.json) and the pack-room scripts under scenes/hall/ carry no Thai.
 
-const SCRIPTS := ["res://ui/screens/hall_screen.gd", "res://ui/screens/hall_screen.tscn", "res://ui/widgets/touch_stick.gd"]
+const SCRIPTS := ["res://ui/screens/hall_screen.gd", "res://ui/screens/hall_screen.tscn", "res://ui/widgets/touch_stick.gd",
+	"res://ui/screens/pack_room_screen.gd", "res://ui/screens/pack_room_screen.tscn"]
 const WORLD_SCRIPTS := ["res://scenes/hall/hall_layout.gd", "res://scenes/hall/hall_builder.gd", "res://scenes/hall/hall_world.gd",
 	"res://scenes/hall/hall_avatar.gd", "res://scenes/hall/hall_camera.gd", "res://scenes/hall/hall_world.tscn",
-	"res://scenes/hall/hall_space.gd", "res://scenes/hall/hall_friends.gd"]
+	"res://scenes/hall/hall_space.gd", "res://scenes/hall/hall_friends.gd", "res://scenes/hall/pack_rooms.gd",
+	"res://scenes/hall/room_layout.gd", "res://scenes/hall/pack_room_world.gd", "res://scenes/hall/pack_room_world.tscn"]
 const SCREEN := "res://ui/screens/hall_screen.gd"
 const FRAGMENT := "res://ui/i18n/hall.json"
 

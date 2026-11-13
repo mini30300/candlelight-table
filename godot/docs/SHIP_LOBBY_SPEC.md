@@ -502,3 +502,9 @@ its tests are the record:
 | `%SoonPanel` default mouse filter | `mouse_filter` ignore | review of 12 Nov: the wider panel swallowed camera drags on touch; it has nothing to tap |
 | Camera walks "around the vault and to the airlock", §9.3 | each walk has its own camera yaw; the airlock walk runs along its front with the camera between the avatar and the right wall and must pass within 0.5 m of the footprint; the vault walk stays as a smoke walk; a unit check guards airlock front − `CAM_PAD` > `HALF.x` − `HallCamera.WALL_PAD` | review of 12 Nov: with yaw 0 the camera stayed at the front wall, 2.9 m from the airlock, so the walks tested nothing there; the chest's padded top (1.55 m) never reaches the camera (≥ 1.75 m) |
 | — | `HallBuilder.bake` caches the light per vertex position (about two thirds of the vertices repeat a position) | the deck's meshes now build in about 60–70 ms of CPU per level (120–170 ms before, 30–60 ms for the 0.2 hall); a unit check compares every baked vertex with `lit_cool(glow, cool_at)` bit for bit |
+
+## 13. Pack room behind the airlock (0.7)
+
+With a personal pack that ships a room for the docking airlock and the online switch on, the airlock is a walk-in
+door (same fade as the arena door) into that room; coming back places the avatar at `HallLayout.AIRLOCK_RETURN`
+(9.6, 0, 3.0) facing −x. Without such a room the deck is unchanged. See `PACK_SPEC.md` §9.

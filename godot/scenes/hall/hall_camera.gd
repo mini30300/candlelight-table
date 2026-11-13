@@ -34,6 +34,8 @@ const EXTEND := 4.0         # แขนยืดกลับออกไม่�
 @onready var camera: Camera3D = $Arm/Camera3D
 
 var target := Vector3.ZERO
+## ผังห้องที่กล้องอยู่ (null = HallLayout ของดาดฟ้า; ห้องเสริมใส่ RoomLayout, PACK_SPEC §9)
+var layout: Object = null
 
 var _touches: Dictionary = {}          # นิ้ว index → ตำแหน่ง
 var _pinch := 0.0
@@ -188,6 +190,9 @@ func clear_length() -> float:
 func clear_at(length: float) -> float:
 	var d := global_basis.z.normalized()
 	var o := global_position
+	if layout != null:
+		var r: float = layout.room_clear(o, d, WALL_PAD)
+		return layout.camera_clear(o, d, minf(length, r), HallLayout.CAM_PAD, minf(r, ARM_MAX))
 	var room := HallLayout.room_clear(o, d, WALL_PAD)
 	return HallLayout.camera_clear(o, d, minf(length, room), HallLayout.CAM_PAD, minf(room, ARM_MAX))
 

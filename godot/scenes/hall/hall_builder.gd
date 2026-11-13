@@ -1601,7 +1601,7 @@ static func avatar_mesh(team: Color, sides: int) -> ArrayMesh:
 
 ## ใส่รูปทรงชนทุกชิ้นจาก HallLayout.blockers() คืนจำนวนรูปทรง: ผนังกับเพดานลง body (SHELL_LAYER)
 ## ของในห้องลง props (PROP_LAYER ที่แขนกล้องไม่ชน); ไม่ให้ props ก็ลง body ทั้งหมด
-static func build_colliders(body: StaticBody3D, props: StaticBody3D = null) -> int:
+static func build_colliders(body: StaticBody3D, props: StaticBody3D = null, list: Array[Dictionary] = []) -> int:
 	for holder: StaticBody3D in [body, props]:
 		if holder == null:
 			continue
@@ -1613,7 +1613,7 @@ static func build_colliders(body: StaticBody3D, props: StaticBody3D = null) -> i
 	if props != null:
 		props.collision_layer = HallLayout.PROP_LAYER
 	var n := 0
-	for b in HallLayout.blockers():
+	for b in (list if not list.is_empty() else HallLayout.blockers()):
 		var cs := CollisionShape3D.new()
 		cs.name = "Shape_%s_%d" % [str(b["tag"]), n]
 		if str(b["kind"]) == "box":

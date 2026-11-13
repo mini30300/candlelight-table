@@ -135,10 +135,17 @@ func open_hall() -> Node:
 
 
 ## ออนไลน์: เปิดห้องโถง ยืนหน้าประตูเทียบยาน แล้วเปิดหน้าเล่นกับเพื่อนทับ (ลึก 3; ย้อนกลับ = ดาดฟ้าหน้าประตู)
+## มีห้องเสริม (PACK_SPEC §9): เข้าห้องทันทีหน้าสถานีเล่นกับเพื่อนแล้วเปิดหน้าเล่นกับเพื่อนทับ (ย้อนกลับ = ในห้อง)
 func open_online() -> Node:
 	var hall := open_hall()
 	if hall == null or not hall.has_method("open_online") or not Features.on(&"online"):
 		return hall
+	if hall.has_method("door_room") and not (hall.call("door_room") as Dictionary).is_empty():
+		var room: Node = hall.call("enter_room", true)
+		if room != null and room.has_method("open_online"):
+			return room.call("open_online")
+		if room != null:
+			return room
 	hall.call("enter_airlock")
 	return hall.call("open_online")
 

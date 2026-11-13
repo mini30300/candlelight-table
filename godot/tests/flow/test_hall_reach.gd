@@ -10,7 +10,10 @@ extends SceneTree
 ## the avatar walks as the egg (no figure), and the arena door's preload asks for no path beyond its own list (the
 ## player and enemy figures resolve to the defaults already in it); pointed at the primitive fixture pack it also asks
 ## for the pack's figure script and loads it on the thread. Graphics level min, test settings
-## file (never this machine's settings.cfg). Run:
+## file (never this machine's settings.cfg). 0.7 (PACK_SPEC §9): with no pack the airlock still opens host/join (online
+## on) or the coming-soon panel (online off) and walking into it stays on the deck; with the fixture pack room and online
+## off it is still coming-soon; main menu "online" with the fixture room lands in the room in front of cards_box with
+## the lobby on top, and back lands in the room. Run:
 ##   timeout 600 <godot> --headless --path godot --audio-driver Dummy -s tests/flow/test_hall_reach.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL.
 
@@ -111,7 +114,71 @@ func _run() -> void:
 				"the fixture pack: the door's preload also asks for its figure script and loads it (%d requested, %d loaded)" % [int(pre2["requested"]), int(pre2["loaded"])])
 			hall.set("pack_manifest", ArenaActors.PACK_MANIFEST)
 	await _check_vault(world, hall)
+	await _check_airlock_rooms()
 	_finish()
+
+
+## 0.7 (PACK_SPEC §9): the airlock without a pack room, with the fixture room and online off, and main menu → online.
+func _check_airlock_rooms() -> void:
+	var menu: Node = _app().call("current")
+	var f: Vector2 = HallLayout.STATIONS["online"]["front"]
+	for flag in [true, false]:
+		Features.set_flag(&"online", flag)
+		menu.get_node("%PlayButton").pressed.emit()
+		await _frames(3)
+		var hall: Node = _app().call("current")
+		var world: Node3D = hall.get("world")
+		hall.set("rooms_root", PackRooms.ROOT)
+		world.call("place_avatar", Vector3(f.x, 0.0, f.y), PI * 0.5)
+		await _physics(4)
+		await _press(KEY_E)
+		var top: Node = _app().call("current")
+		if flag:
+			_check(top != hall and top != null and top.scene_file_path == "res://ui/screens/lobby.tscn" and int(_app().call("depth")) == 3,
+				"no pack, online on: the airlock opens host/join")
+			_app().call("pop")
+			await _frames(3)
+		else:
+			_check(top == hall and hall.get_node("%SoonPanel").visible, "no pack, online off: the airlock shows the coming-soon panel")
+			await _press(KEY_ESCAPE)
+		(world.get("camera_rig") as Node3D).call("set_view", -PI * 0.5, -0.35, 5.5)
+		world.call("set_stick", Vector2(0.0, 0.84))
+		await _physics(60)
+		world.call("set_stick", Vector2.ZERO)
+		await _frames(10)
+		_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and HallLayout.in_airlock(Vector2(
+			(world.get("avatar") as Node3D).global_position.x, (world.get("avatar") as Node3D).global_position.z)),
+			"no pack, online %s: walking into the airlock stays on the deck" % ("on" if flag else "off"))
+		if flag:
+			# ห้องทดสอบมีอยู่ แต่สวิตช์ online ปิด: ยังเป็น "เร็วๆ นี้"
+			Features.set_flag(&"online", false)
+			hall.set("rooms_root", "res://tests/fixtures/pack_rooms")
+			world.call("place_avatar", Vector3(f.x, 0.0, f.y), PI * 0.5)
+			await _physics(4)
+			await _press(KEY_E)
+			_check(_app().call("current") == hall and hall.get_node("%SoonPanel").visible and (hall.call("door_room") as Dictionary).is_empty(),
+				"the fixture room with online off: the airlock is still coming-soon")
+			await _press(KEY_ESCAPE)
+		await _press(KEY_ESCAPE)
+		menu = _app().call("current")
+	# หน้าแรก → ออนไลน์ ตอนมีห้องทดสอบ: เข้าห้องหน้า cards_box แล้วหน้าเล่นกับเพื่อนทับ; ย้อนกลับ = ในห้อง
+	Features.set_flag(&"online", true)
+	PackRooms.test_root = "res://tests/fixtures/pack_rooms"
+	var lobby: Node = menu.call("open_online")
+	await _frames(3)
+	var stack := int(_app().call("depth"))
+	_check(lobby != null and _app().call("current") == lobby and lobby.scene_file_path == "res://ui/screens/lobby.tscn" and stack == 4,
+		"main menu → online with the fixture room: the lobby on top of the room (depth %d)" % stack)
+	_app().call("pop")
+	await _frames(3)
+	var room: Node = _app().call("current")
+	_check(room != null and room.has_method("room_id") and str(room.call("room_id")) == "test_room" and str(room.call("station")) == "cards_box",
+		"back from the lobby lands in the room in front of cards_box")
+	while int(_app().call("depth")) > 1:
+		_app().call("pop")
+		await _frames(2)
+	PackRooms.reset()
+	Features.reset()
 
 
 ## Walks from the spawn to the station's front ring along a free grid path; returns {len, inside, why}.
