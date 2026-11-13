@@ -43,8 +43,8 @@ the new keys exists yet.
 | `NAMES.army`, `SIGNS.army` | คลังแสงกองทัพ | Armoury | **new** (replaces ตู้โชว์กองทัพ) |
 | `NAMES.settings`, `SIGNS.settings` | ตั้งค่า | Settings | existing key (menu), kept |
 | `NAMES.online` | ประตูเทียบยาน | Docking Airlock | **new** (replaces ประตูออนไลน์) |
-| `SIGNS.online` | ออนไลน์ · เร็วๆ นี้ | Online · Coming soon | existing, kept |
-| `SOON.online` | ออนไลน์กับเพื่อน — เร็วๆ นี้ | Online with friends — coming soon | existing, kept |
+| `SIGNS.online` | ออนไลน์ · เร็วๆ นี้ | Online · Coming soon | existing, kept (0.5: "ประตูเทียบยาน · เล่นกับเพื่อน", `NET_SPEC.md` §7.1) |
+| `SOON.online` | ออนไลน์กับเพื่อน — เร็วๆ นี้ | Online with friends — coming soon | existing, kept (removed in 0.5, `NET_SPEC.md` §7.1) |
 | `NAMES.adventure` | โต๊ะผจญภัย | Adventure Table | existing, kept |
 | `SIGNS.adventure` / `SOON.adventure` | โต๊ะผจญภัย · เร็วๆ นี้ / โต๊ะผจญภัย — เร็วๆ นี้ | (existing) | kept |
 | `NAMES.exit`, `SIGNS.exit` | ทางออก | Exit | existing, kept |

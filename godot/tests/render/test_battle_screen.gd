@@ -10,8 +10,15 @@ extends SceneTree
 ##   synthetic pick on an own squad selects it, a ground pick moves it (MOVE_STEP, an smove with the human pid);
 ##   %DoneButton ends the phase; %AutoButton plays on to the end panel; ดูสนาม / ผลการรบ; เล่นอีกครั้ง restarts;
 ## - with kits on disk, App.set_fig("kit") draws kits.
+## - online (NET_SPEC §12.4; in-memory host + client runners from tests/unit/fixtures/net_battle_pair.gd, no sockets):
+##   the client screen waits for the host with the "รอ {name}…" banner and the timer stopped; a seat-gone toast; the
+##   desync panel (reloading → repaired → final with only the leave button); client and host leave dialogs; the
+##   host's END panel; the client end panel without เล่นอีกครั้ง; a spectator banner; three sizes, Thai and English.
+##   Review fixes: while the client reconnects the banner says so; when the host plays the client's own seat the toast
+##   and banner say a bot plays for you; a connection that could not come back ends the game with that reason (not
+##   "the host left").
 ## PNGs: setup_th.png, setup_en.png (+ _<w>x<h>), battle_eggs_th.png, battle_eggs_en.png, battle_end.png,
-## battle_kits.png. Uses a test settings file, never this machine's settings.cfg. Run like the other render suites:
+## battle_kits.png, battle_online_wait.png, battle_desync.png. Uses a test settings file, never this machine's settings.cfg. Run like the other render suites:
 ##   TEST_OUT=<abs dir> timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_battle_screen.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL.
@@ -24,6 +31,8 @@ const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(640, 360), Vector2
 const SETTLE := 6
 const MIN_TARGET := 44.0
 const GAME_CAP_MS := 90000
+const BATTLE_SCREEN := "res://ui/screens/battle_screen.tscn"
+const NET_PAIR := "res://tests/unit/fixtures/net_battle_pair.gd"
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -70,6 +79,7 @@ func _run() -> void:
 	await _check_bot_game(menu)
 	await _check_stuck_and_touch_log(menu)
 	await _check_human_game(menu)
+	await _check_online(menu)
 	await _check_kits(menu)
 	_finish()
 
@@ -185,6 +195,179 @@ func _new_game(facs: Array, human: int, seed_v: int) -> Node:
 	_check(ok and battle != null and battle.has_method("begin") and int(_app().call("depth")) == depth,
 		"START replaces setup with the battle screen (depth %d)" % int(_app().call("depth")))
 	return battle
+
+
+# ---- online (in-memory host + clients) ----
+
+func _net_room() -> RefCounted:
+	var c := SeatPlan.defaults(321)
+	c["teams"] = 3
+	c["per_team"] = 1
+	c["size"] = "m"
+	c["goal"] = "obj"
+	c["rounds"] = 3
+	c["budget"] = 300
+	c["seats"] = [{"fac": "kn", "human": true, "owner": 0}, {"fac": "or", "human": false, "owner": 1},
+		{"fac": "gr", "human": false, "owner": 2}]
+	var pair: RefCounted = load(NET_PAIR).new()
+	var members := [{"slot": 0, "nm": "Ann"}, {"slot": 1, "nm": "Ben"}, {"slot": 2, "nm": "Cat"}, {"slot": 3, "nm": "Dee"}]
+	var ok: bool = pair.make(c, members, {0: 11, 1: 12, 2: 13, 3: 14})
+	_check(ok, "online: the in-memory room starts", str(pair.bad))
+	return pair
+
+
+func _t(th: String) -> String:
+	return str(root.get_node(^"I18n").call("t", th))
+
+
+func _push_battle(plan: Dictionary, r: MatchRunner) -> Node:
+	var scr: Node = _app().call("push", load(BATTLE_SCREEN))
+	scr.call("begin", plan, r)
+	await _frames(4)
+	return scr
+
+
+func _online_layout(scr: Node, tag: String) -> void:
+	for lang in ["th", "en"]:
+		_app().call("set_lang", lang)
+		scr.call("refresh")
+		for sz in SIZES:
+			await _resize(sz)
+			var probs := _layout_problems(scr)
+			_check(probs.is_empty(), "online %s %s %s: no overflow or overlap, buttons >= 44" % [tag, lang, str(sz)], " | ".join(probs))
+			if lang == "en":
+				var thai := _thai_in(scr, ["TurnLabel", "LogText"])
+				_check(thai.is_empty(), "online %s en %s: no Thai on screen" % [tag, str(sz)], " | ".join(thai))
+	_app().call("set_lang", "th")
+	scr.call("refresh")
+	await _resize(SIZES[0])
+
+
+func _check_online(_menu: Node) -> void:
+	var pair := _net_room()
+	var cli: NetMatchRunner = pair.clients[1]
+	var scr: Node = await _push_battle(pair.wire_plan, cli)
+	var timer := scr.get_node(^"StepTimer") as Timer
+	await _frames(4)
+	_check(bool(scr.call("is_waiting_remote")), "online client: waits for the host (wait_remote)")
+	_check(timer.is_stopped(), "online client: the step timer is stopped while waiting")
+	var hint := scr.get_node(^"%Hint") as Label
+	# the host's seat is named เจ้าห้อง (NET_SPEC §5.3), not by the host's player name
+	_check(hint.text == _t("รอ {name}…").format({"name": _t("เจ้าห้อง")}), "online client: the banner waits for the host", hint.text)
+	await _online_layout(scr, "wait")
+	_save("battle_online_wait.png")
+	# seat gone toast
+	cli.receive(NetProto.SEAT, {"gen": 1, "k": 2, "on": "gone"}, 0)
+	await _frames(2)
+	var toast := scr.get_node(^"%Toast") as Control
+	var toast_text := (toast.get_child(0) as Label).text
+	_check(toast.visible and toast_text == _t("บอทเล่นแทน {name} (หลุดจากห้อง)").format({"name": "Cat"}), "online client: seat-gone toast", toast_text)
+	cli.receive(NetProto.SEAT, {"gen": 1, "k": 2, "on": "back"}, 0)
+	# desync panel: reloading → repaired → final
+	cli.lockstep._desync(cli.acts().size(), cli.digest(), "0123456789abcdef", "test")
+	cli.changed.emit()
+	await _frames(2)
+	_check(str(scr.call("desync_panel_state")) == "desync", "online client: the desync panel shows while reloading")
+	_check(timer.is_stopped(), "online client: the timer stops on a desync")
+	await _online_layout(scr, "desync")
+	_save("battle_desync.png")
+	pair.deliver()
+	await _frames(2)
+	_check(cli.sync_state() == &"ok" and str(scr.call("desync_panel_state")) == "repaired", "online client: the resync repairs it and the panel says so (%s)" % str(scr.call("desync_panel_state")))
+	cli.lockstep.desync_n = 1
+	cli.lockstep._desync(cli.acts().size(), cli.digest(), "0123456789abcdef", "test")
+	cli.changed.emit()
+	await _frames(2)
+	_check(str(scr.call("desync_panel_state")) == "desync_final", "online client: a second desync leaves the final panel")
+	_check((scr.get_node(^"%DesyncLeave") as Button).is_visible_in_tree(), "online client: the final panel has the leave button")
+	await _online_layout(scr, "desync_final")
+	pair.queue.clear()
+	# client leave dialog
+	scr.call("handle_back")
+	await _frames(1)
+	var lt := scr.get_node(^"%LeaveConfirm").find_child("LeaveText", true, false) as Label
+	_check(lt.text == _t("ออกจากการรบ? บอทจะเล่นแทนคุณจนจบเกมนี้"), "online client: the leave dialog says a bot plays on", lt.text)
+	scr.call("handle_back")
+	_app().call("pop")
+	await _frames(3)
+	# host leave dialog, then the END panel on a client
+	pair = _net_room()
+	var hs: Node = await _push_battle(pair.plan, pair.host)
+	hs.call("handle_back")
+	await _frames(1)
+	lt = hs.get_node(^"%LeaveConfirm").find_child("LeaveText", true, false) as Label
+	_check(lt.text == _t("ออกจากการรบ? เกมนี้จะจบสำหรับทุกคน"), "online host: the leave dialog says the game ends for everyone", lt.text)
+	await _online_layout(hs, "host_leave")
+	hs.call("handle_back")
+	_app().call("pop")
+	await _frames(3)
+	cli = pair.clients[1]
+	scr = await _push_battle(pair.wire_plan, cli)
+	cli.receive(NetProto.END, {"gen": 1, "why": "host_left_battle"}, 0)
+	await _frames(2)
+	var end_title := scr.get_node(^"%EndTitle") as Label
+	_check((scr.get_node(^"%EndPanel") as Control).visible and end_title.text == _t("เจ้าห้องออกจากการรบ เกมนี้จบแล้ว"), "online client: the host's END panel", end_title.text)
+	_check(not (scr.get_node(^"%AgainButton") as Control).visible, "online client: no เล่นอีกครั้ง on the END panel")
+	await _online_layout(scr, "end_host_left")
+	_app().call("pop")
+	await _frames(3)
+	# review: reconnecting banner, my seat played by the host, a lost connection
+	pair = _net_room()
+	cli = pair.clients[1]
+	scr = await _push_battle(pair.wire_plan, cli)
+	hint = scr.get_node(^"%Hint") as Label
+	cli.link_state = &"reconnecting"
+	cli.changed.emit()
+	await _frames(2)
+	_check(hint.visible and hint.text == _t("การเชื่อมต่อหลุด — กำลังต่อใหม่…"), "online client: reconnecting shows in the banner", hint.text)
+	cli.link_state = &"joined"
+	cli.receive(NetProto.SEAT, {"gen": 1, "k": 1, "on": "gone"}, 0)
+	await _frames(2)
+	toast_text = ((scr.get_node(^"%Toast") as Control).get_child(0) as Label).text
+	_check(toast_text == _t("บอทเล่นแทนคุณอยู่ตอนนี้") and hint.text == _t("บอทเล่นแทนคุณอยู่ตอนนี้"), "online client: my seat played by the host: toast and banner say so", "%s | %s" % [toast_text, hint.text])
+	_check(not (scr.get_node(^"%DoneButton") as Control).is_visible_in_tree() or (scr.get_node(^"%DoneButton") as Button).disabled, "online client: no phase end while the host plays my seat")
+	await _online_layout(scr, "mine_gone")
+	cli.ended_why = "lost"
+	cli.changed.emit()
+	await _frames(2)
+	end_title = scr.get_node(^"%EndTitle") as Label
+	_check((scr.get_node(^"%EndPanel") as Control).visible and end_title.text == _t("การเชื่อมต่อหลุด — เกมนี้จบสำหรับเครื่องนี้"), "online client: a lost connection ends the game with its own reason", end_title.text)
+	await _online_layout(scr, "end_lost")
+	_app().call("pop")
+	await _frames(3)
+	# a finished game on a client: the end panel waits for the host instead of เล่นอีกครั้ง
+	pair = _net_room()
+	pair.host.auto_human = true
+	for s: int in pair.clients:
+		pair.clients[s].auto_human = true
+	var res: String = pair.run()
+	_check(res == "over", "online: the in-memory game ends (%s)" % res)
+	cli = pair.clients[1]
+	scr = await _push_battle(pair.wire_plan, cli)
+	cli.changed.emit()
+	await _frames(2)
+	_check((scr.get_node(^"%EndPanel") as Control).visible, "online client: the end panel shows")
+	_check(not (scr.get_node(^"%AgainButton") as Control).visible, "online client: no เล่นอีกครั้ง")
+	_check((scr.get_node(^"%WaitAgain") as Control).visible, "online client: รอเจ้าห้องเริ่มเกมใหม่ instead")
+	await _online_layout(scr, "end_client")
+	_app().call("pop")
+	await _frames(3)
+	# a spectator
+	var spec: NetMatchRunner = pair.add_client(3, 15)
+	scr = await _push_battle(pair.wire_plan, spec)
+	hint = scr.get_node(^"%Hint") as Label
+	_check(spec.human == -1, "online spectator: no seat")
+	_app().call("pop")
+	await _frames(3)
+	pair = _net_room()
+	spec = pair.clients[3]
+	scr = await _push_battle(pair.wire_plan, spec)
+	hint = scr.get_node(^"%Hint") as Label
+	_check(hint.text == _t("ดูอยู่ (ไม่มีที่นั่ง)"), "online spectator: the watching banner", hint.text)
+	_check(not (scr.get_node(^"%AutoButton") as Control).visible and not (scr.get_node(^"%DoneButton") as Control).visible, "online spectator: no seat buttons")
+	await _online_layout(scr, "spectator")
+	_app().call("pop")
+	await _frames(3)
 
 
 # ---- a bot game with eggs ----

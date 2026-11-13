@@ -37,6 +37,16 @@ extends SceneTree
 ## playing; min after 10 frames with nothing processing), the overview stays within the deck targets on every level (no more draw calls than the
 ## egg), and set_figure(null) restores the egg and the 3.0 / 6.0 speeds. Saves hall_pack_figure_<level>.png and
 ## hall_pack_figure_close.png.
+## 0.5 (NET_SPEC §6, §7.1, §12.4): a fake Net (tests/unit/fixtures/fake_net.gd) stands in for /root/Net for the whole run
+## (no socket). The docking airlock opens the play-with-friends screen (depth 3) instead of a coming-soon panel; back
+## returns to the deck at the airlock. Offline nothing changes (no friend drawn, the "you" sign shows, FriendTags hidden).
+## Online with 5 friends (members on the deck, poses pushed, no sockets): one eggs MultiMesh, five rings in the Rings,
+## names and the status line in FriendTags, the "you" sign hidden and its text drawn by FriendTags, my egg and ring in my
+## slot's colour; the overview and the phone worst view with the 5 friends in view within the deck targets on all four
+## levels (min <= 30 / 30k); standing still, 10 idle frames later nothing processes; a walking friend makes only the
+## friends node process until it settles; in English the names stay as typed and the status line is English; join /
+## leave toasts, the war table on a friend's device, the setup-open toast, pose sending (<= 1 per 100 ms, one stop pose),
+## WHERE on screen changes, and going offline clears it all. Saves hall_friends_<level>.png, hall_friends_phone_min.png.
 ## Saves hall_th.png, hall_en.png, hall_min.png, hall_touch.png (_<w>x<h> added for the other sizes), hall_viewport.png,
 ## hall_vault.png, hall_vault_en.png and hall_deck_<level>.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
@@ -73,6 +83,10 @@ const WALK_TICKS := 45
 const FIGURE_FIX := "res://tests/fixtures/figure_pack/pack.json"
 const FIGURE_SPEEDS := Vector2(1.5, 4.0)
 const FIGURE_BAD := "res://tests/fixtures/figure_pack_bad/pack.json"
+const LOBBY_SCREEN := "res://ui/screens/lobby.tscn"
+const FAKE_NET := "res://tests/unit/fixtures/fake_net.gd"
+## friends' names (players' names are never translated)
+const FRIENDS: PackedStringArray = ["เจ้าห้อง", "เพื่อนหนึ่ง", "Friend Two", "เพื่อนสาม", "Friend Four", "เพื่อนห้า"]
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -83,6 +97,8 @@ var _failed := 0
 var _thai_re := RegEx.create_from_string("[฀-๿]")
 var _machine_cfg := ""
 var _deck_draws: Dictionary = {}       # level -> [draw calls, primitives] of the overview with the egg (_check_levels)
+var _fake: Node                        # stands in for /root/Net (0.5)
+var _real_net: Node
 
 
 func _initialize() -> void:
@@ -97,6 +113,13 @@ func _initialize() -> void:
 	app.call("set_gfx", "mid")
 	app.call("set_fig", "egg")
 	app.call("set_touch", "off")
+	# 0.5: the hall and the airlock screen read /root/Net; a fake takes its place (the real one is renamed aside)
+	_real_net = root.get_node_or_null(^"Net")
+	if _real_net != null:
+		_real_net.name = "NetReal"
+	_fake = (load(FAKE_NET) as GDScript).new()
+	_fake.name = "Net"
+	root.add_child(_fake)
 	var scene: PackedScene = load(SCENE)
 	if scene == null:
 		print("FAIL  cannot load " + SCENE)
@@ -153,6 +176,7 @@ func _run() -> void:
 	await _check_levels(hall)
 	await _check_pack_figure(hall)
 	await _check_touch_budget(hall)
+	await _check_friends(hall)
 	await _check_void(hall)
 	await _check_ways_out(hall)
 	_check(_machine_settings() == _machine_cfg, "this machine's settings.cfg was not touched")
@@ -433,10 +457,11 @@ func _check_stations(hall: Node) -> void:
 			"back from %s: the hall is visible, active and owns the camera again" % pair[1])
 		var table := get_first_node_in_group("table_view") as Node3D
 		_check(table == null or not table.visible, "the battle table is still hidden after %s" % pair[1])
-	# online, adventure and (0.3) the vault show the coming-soon panel and stay
+	# adventure and (0.3) the vault show the coming-soon panel and stay
+	# 0.5 (NET_SPEC §12.1): the airlock opens the play-with-friends screen on purpose, so online left this list
 	var soon: Control = hall.get_node("%SoonPanel")
 	var soon_texts: Dictionary = (hall.get_script() as Script).get_script_constant_map()["SOON"]
-	for id in ["online", "adventure", "vault"]:
+	for id in ["adventure", "vault"]:
 		world.call("place_avatar", _front(id), PI)
 		await _settle()
 		await _press(KEY_E)
@@ -446,7 +471,25 @@ func _check_stations(hall: Node) -> void:
 		_check(not timer.is_stopped() and timer.wait_time <= 2.6, "the panel closes itself after 2.5 s")
 		await _press(KEY_ESCAPE)
 		_check(not soon.visible and _app().call("current") == hall, "Esc closes the %s panel first and stays in the hall" % id)
+	# 0.5 (NET_SPEC §7.1): E at the docking airlock pushes the play-with-friends screen (depth 3); back returns to the
+	# deck at the airlock with the hall active and its camera current
 	world.call("place_avatar", _front("online"), PI)
+	await _settle()
+	await _press(KEY_E)
+	var lobby: Node = _app().call("current")
+	_check(lobby != hall and lobby != null and lobby.scene_file_path == LOBBY_SCREEN and int(_app().call("depth")) == 3 and not soon.visible,
+		"E at the docking airlock opens the play-with-friends screen (depth 3), no coming-soon panel")
+	_check(not world.visible and not _camera(world).current, "the hall is hidden under the airlock screen")
+	var back: Button = lobby.get_node_or_null("%BackButton") if lobby != null else null
+	if back != null:
+		back.pressed.emit()
+	else:
+		_app().call("pop")
+	await _frames(3)
+	_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and world.visible and _camera(world).current
+		and str(hall.call("station")) == "online", "back returns to the deck at the airlock (hall active, camera current)")
+	# walking away closes the coming-soon panel (0.5: at the adventure table, the airlock has no panel any more)
+	world.call("place_avatar", _front("adventure"), PI)
 	await _settle()
 	hall.call("use_station")
 	await _frames(1)
@@ -984,6 +1027,287 @@ func _check_touch_budget(hall: Node) -> void:
 	await _frames(2)
 
 
+# ---- friends on the deck (0.5, NET_SPEC §6) ----
+
+## Members on the fake Net: me at slot `me` (the host when me == 0), the others on the deck.
+func _members(me: int, n: int) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	for i in n:
+		list.append({"slot": i, "nm": FRIENDS[i], "where": "deck", "pick": "", "here": true})
+	return list
+
+
+func _go_online(hall: Node, me: int, n: int) -> void:
+	_fake.set("host_flag", me == 0)
+	_fake.set("slot", me)
+	_fake.set("member_list", _members(me, n))
+	_fake.set("st", &"hosting" if me == 0 else &"joined")
+	_fake.emit_signal("state_changed", _fake.get("st"))
+	_fake.emit_signal("members_changed")
+	await _frames(2)
+
+
+func _go_offline() -> void:
+	_fake.set("host_flag", false)
+	_fake.set("slot", -1)
+	_fake.set("member_list", [] as Array[Dictionary])
+	_fake.set("st", &"off")
+	_fake.emit_signal("state_changed", &"off")
+	_fake.emit_signal("members_changed")
+	await _frames(2)
+
+
+## Draw calls / primitives over 4 frames with low-processor mode off (the test_hall way).
+func _measure() -> Array:
+	var idle := OS.low_processor_usage_mode
+	OS.low_processor_usage_mode = false
+	await _frames(4)
+	var draws := 0
+	var prims := 0
+	for i in 4:
+		await process_frame
+		draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+		prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	OS.low_processor_usage_mode = idle
+	return [draws, prims]
+
+
+func _check_friends(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var rig: Node3D = world.get("camera_rig")
+	var friends: Node3D = world.get("friends")
+	var tags: Control = hall.get_node_or_null("%FriendTags")
+	var rings: Node = world.get("rings")
+	var you := world.get_node("Avatar/NameLabel") as Label3D
+	var app := _app()
+	_check(friends != null and friends.name == &"Friends" and tags != null, "the deck has its Friends node and the hall its %FriendTags")
+	if friends == null or tags == null:
+		return
+	# offline: nothing of it shows
+	_check(not friends.visible and int(friends.call("friend_count")) == 0 and not tags.visible and you.visible,
+		"offline: no friend drawn, FriendTags hidden, the 3D you sign shows")
+	_check(int(rings.get("capacity")) == HallWorld.ring_capacity() and HallWorld.ring_capacity() == 16, "the deck's Rings hold 16 (avatar, stations, spares, five friends)")
+	var rings0 := int(rings.call("count"))
+	var colour0: Color = world.get("team_colour")
+	# online: host with five friends on the deck
+	_fake.set("calls", [])
+	await _go_online(hall, 0, 6)
+	var c: Dictionary = friends.call("counts")
+	_check(int(c["friends"]) == 5 and int(c["eggs_visible"]) == 5 and friends.visible, "online: five friends, five eggs in one MultiMesh (%s)" % str(c))
+	_check(world.get_node_or_null("Friends/Eggs") is MultiMeshInstance3D and friends.get_child_count() == 1, "the eggs are one MultiMeshInstance3D Friends/Eggs")
+	_check(int(rings.call("count")) == rings0 + 5, "five friend rings in the deck's Rings (%d -> %d)" % [rings0, int(rings.call("count"))])
+	_check(not you.visible and tags.visible, "the 3D you sign hides and FriendTags draws instead")
+	_check((world.get("team_colour") as Color).is_equal_approx(HallWorld.slot_colour(0)), "my egg and ring take my slot's colour (host = slot 0)")
+	await _frames(2)
+	var texts := []
+	for d: Dictionary in tags.call("drawn"):
+		texts.append(str(d["text"]))
+	var names_ok := true
+	for i in range(1, 6):
+		names_ok = names_ok and texts.has(FRIENDS[i])
+	_check(names_ok and texts.has("คุณ"), "FriendTags draws every friend's name and my คุณ tag", str(texts))
+	var status := str(tags.call("status_text"))
+	_check(status == "ออนไลน์ · ห้องของ เจ้าห้อง · 6/6 คน" and texts.has(status), "the status line reads %s" % status)
+	_check(int(tags.get("FONT_SIZE")) == 22, "one font size (22)")
+	# the two §6.3 online views on every level
+	world.call("place_avatar", Vector3(0.0, 0.0, 3.5), PI)
+	rig.call("set_view", 0.0, -0.6, 9.0)
+	for level in LEVELS:
+		app.call("set_gfx", level)
+		hall.call("refresh")
+		var r: Array = await _measure()
+		var t: Array = SHIP_TARGET[level]
+		print("hall friends overview %-4s draw calls %4d  primitives %7d" % [level, r[0], r[1]])
+		_check(int(r[0]) <= int(t[0]) and int(r[1]) <= int(t[1]), "%s, online with 5 friends, overview: %d draw calls, %d primitives within the deck target %d / %d"
+			% [level, r[0], r[1], int(t[0]), int(t[1])])
+		_save("hall_friends_%s.png" % level)
+		_check(int((friends.call("counts") as Dictionary)["eggs_visible"]) == 5, "%s: still five eggs" % level)
+	var hint := hall.get_node("%Hint") as CanvasItem
+	var hint_visible := hint.visible
+	var hint_modulate := hint.modulate
+	var size0 := root.size
+	app.call("set_touch", "on")
+	hall.call("refresh")
+	await _resize(Vector2i(1600, 720))
+	world.call("place_avatar", Vector3(0.0, 0.0, 0.85), PI)
+	# review: emoji nicknames are common; a glyph Sarabun lacks comes from a system font (another texture) and broke the
+	# tags' single batch (+4 draw calls per name). The phone worst view is measured with two emoji names.
+	var emoji := _members(0, 6)
+	emoji[2]["nm"] = "Noi🔥"
+	emoji[4]["nm"] = "Beam😎"
+	_fake.set("member_list", emoji)
+	_fake.emit_signal("members_changed")
+	await _frames(2)
+	for level in LEVELS:
+		app.call("set_gfx", level)
+		hall.call("refresh")
+		hint.visible = true
+		hint.modulate = Color.WHITE
+		var worst := [0, 0]
+		for yaw in [PI * 1.75, PI * 1.25]:
+			rig.call("set_view", yaw, -0.3, 9.0)
+			await _frames(2)
+			# the five friends stand around the war table, in view
+			var fwd: Vector3 = rig.call("forward_flat")
+			var right: Vector3 = rig.call("right_flat")
+			for sl in range(1, 6):
+				var p := Vector3(0.0, 0.0, 0.85) + fwd * (2.0 + 0.6 * (sl % 2)) + right * (float(sl) - 3.0) * 0.9
+				friends.call("push_pose", sl, {"x": roundi(p.x * 100.0), "z": roundi(p.z * 100.0), "yaw": 0, "sp": 0, "run": false, "t": 0}, Time.get_ticks_msec())
+			await _frames(14)
+			var r: Array = await _measure()
+			worst = [maxi(worst[0], r[0]), maxi(worst[1], r[1])]
+			if level == "min" and yaw == PI * 1.75:
+				_save("hall_friends_phone_min.png")
+		var t: Array = SHIP_TARGET[level]
+		print("hall friends phone worst %-4s draw calls %4d  primitives %7d" % [level, worst[0], worst[1]])
+		_check(int(worst[0]) <= int(t[0]) and int(worst[1]) <= int(t[1]), "%s, online with 5 friends, phone worst view (20:9, touch, hint, status): %d draw calls, %d primitives within %d / %d"
+			% [level, worst[0], worst[1], int(t[0]), int(t[1])])
+	var etexts := []
+	for d: Dictionary in tags.call("drawn"):
+		etexts.append(str(d["text"]))
+	_check(etexts.has("Noi") and etexts.has("Beam") and not str(etexts).contains("🔥") and not str(etexts).contains("😎"),
+		"emoji the font lacks are not drawn (Noi🔥 -> Noi, Beam😎 -> Beam)", str(etexts))
+	_fake.set("member_list", _members(0, 6))
+	_fake.emit_signal("members_changed")
+	await _frames(2)
+	hint.visible = hint_visible
+	hint.modulate = hint_modulate
+	app.call("set_touch", "off")
+	hall.call("refresh")
+	await _resize(size0)
+	# min, everyone still: 10 idle frames later nothing under the hall processes (the stop pose timer has fired)
+	_check(str(app.get("gfx")) == "min", "the idle check runs on min")
+	await create_timer(0.35).timeout
+	await _frames(10)
+	var probs := _idle_problems(hall)
+	_check(probs.is_empty(), "min, online, everyone still: after 10 idle frames nothing under the hall processes", ", ".join(probs))
+	# a walking friend: only the friends node processes, and stops after its stop pose
+	var walker := 3
+	var p0: Vector3 = friends.call("friend_pos", walker)
+	var only_friends := true
+	for i in 6:
+		var p := p0 + Vector3(0.0, 0.0, 0.2 * (i + 1))
+		friends.call("push_pose", walker, {"x": roundi(p.x * 100.0), "z": roundi(p.z * 100.0), "yaw": 0, "sp": 200, "run": false, "t": 0}, Time.get_ticks_msec())
+		for k in 6:
+			await process_frame
+			var pr := _idle_problems(hall)
+			if not (pr.size() == 1 and pr[0] == "Friends processes"):
+				only_friends = false
+	_check(only_friends, "a walking friend makes only the friends node process", ", ".join(_idle_problems(hall)))
+	var p_end: Vector3 = friends.call("friend_pos", walker)
+	_check(p_end.z > p0.z + 0.5, "the friend walked (%.2f -> %.2f)" % [p0.z, p_end.z])
+	friends.call("push_pose", walker, {"x": roundi(p_end.x * 100.0), "z": roundi((p0.z + 1.2) * 100.0), "yaw": 0, "sp": 0, "run": false, "t": 0}, Time.get_ticks_msec())
+	await _frames_until(func() -> bool: return not friends.is_processing(), 60)
+	_check(not friends.is_processing(), "after the stop pose the friends node sleeps again")
+	# English: names as typed, the status line and the you tag in English
+	app.call("set_lang", "en")
+	hall.call("refresh")
+	await _frames(3)
+	texts = []
+	for d: Dictionary in tags.call("drawn"):
+		texts.append(str(d["text"]))
+	_check(str(tags.call("status_text")) == "Online · เจ้าห้อง's room · 6/6 players" and texts.has("You") and texts.has(FRIENDS[1]) and texts.has(FRIENDS[2]),
+		"English: the status line and the You tag are English, the names stay as typed", str(texts))
+	var thai := _thai_in(hall, [])
+	_check(thai.is_empty(), "English: no Thai on screen or on the 3D signs", ", ".join(thai))
+	app.call("set_lang", "th")
+	app.call("set_gfx", "mid")
+	hall.call("refresh")
+	# join / leave toasts
+	var soon_label := hall.get_node("%SoonLabel") as Label
+	var list := _members(0, 6)
+	list.remove_at(5)
+	_fake.set("member_list", list)
+	_fake.emit_signal("members_changed")
+	await _frames(2)
+	_check((hall.get_node("%SoonPanel") as Control).visible and soon_label.text == "เพื่อนห้า ออกจากห้อง" and int(friends.call("friend_count")) == 4,
+		"a member leaves: the toast says so and the egg is gone (%s)" % soon_label.text)
+	_fake.set("member_list", _members(0, 6))
+	_fake.emit_signal("members_changed")
+	await _frames(2)
+	_check(soon_label.text == "เพื่อนห้า เข้าห้องแล้ว" and int(friends.call("friend_count")) == 5, "a member joins: the toast says so and the egg is back (%s)" % soon_label.text)
+	# review: a drop (slot kept 60 s) and the return are said at once, not 60 s later
+	list = _members(0, 6)
+	list[3]["here"] = false
+	_fake.set("member_list", list)
+	_fake.emit_signal("members_changed")
+	await _frames(1)
+	_check(soon_label.text == "เพื่อนสาม หลุดจากห้อง — รอต่อใหม่" and not bool(friends.call("has_friend", 3)), "a member drops: the toast says so at once (%s)" % soon_label.text)
+	_fake.set("member_list", _members(0, 6))
+	_fake.emit_signal("members_changed")
+	await _frames(1)
+	_check(soon_label.text == "เพื่อนสาม กลับมาแล้ว", "and comes back (%s)" % soon_label.text)
+	# review: while this device reconnects, the status line says so until it is back (not only a 2.5 s toast)
+	_fake.set("st", &"reconnecting")
+	_fake.emit_signal("state_changed", &"reconnecting")
+	await _frames(1)
+	_check(str(tags.call("status_text")) == "การเชื่อมต่อหลุด — กำลังต่อใหม่…", "reconnecting: the status line says so (%s)" % str(tags.call("status_text")))
+	_fake.set("st", &"hosting")
+	_fake.emit_signal("state_changed", &"hosting")
+	await _frames(1)
+	_check(str(tags.call("status_text")) == "ออนไลน์ · ห้องของ เจ้าห้อง · 6/6 คน", "back: the room line again")
+	# a member that walks off the deck (setup) disappears at once
+	list = _members(0, 6)
+	list[2]["where"] = "setup"
+	_fake.set("member_list", list)
+	_fake.emit_signal("members_changed")
+	await _frames(1)
+	_check(int(friends.call("friend_count")) == 4 and not bool(friends.call("has_friend", 2)), "a friend who leaves the deck disappears at once")
+	hall.call("close_soon")
+	# pose sending: walking sends at most one pose per 100 ms, then one stop pose; WHERE on screen changes
+	_fake.set("calls", [])
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	world.call("place_avatar", Vector3(2.0, 0.0, 6.5), PI)
+	await _settle()
+	_fake.set("calls", [])
+	var t0 := Time.get_ticks_msec()
+	await _hold([KEY_W], 30)
+	var walked_ms := Time.get_ticks_msec() - t0
+	var moving: Array = []
+	for cl: Array in _fake.call("calls_of", "send_pose"):
+		if not bool(cl[2]):
+			moving.append(cl)
+	_check(moving.size() >= 2 and moving.size() <= walked_ms / 100 + 2, "walking sends poses, at most one per 100 ms (%d in %d ms)" % [moving.size(), walked_ms])
+	var last: Dictionary = moving[moving.size() - 1][1] if not moving.is_empty() else {}
+	_check(not last.is_empty() and typeof(last["x"]) == TYPE_INT and typeof(last["yaw"]) == TYPE_INT and int(last["sp"]) > 0, "a pose is ints (cm, mrad, cm/s): %s" % str(last))
+	await _until_still(_avatar(world))
+	await create_timer(0.35).timeout
+	var stops: Array = []
+	for cl: Array in _fake.call("calls_of", "send_pose"):
+		if bool(cl[2]):
+			stops.append(cl)
+	_check(stops.size() == 1, "one stop pose after the avatar stops (%d)" % stops.size())
+	_fake.set("calls", [])
+	world.call("place_avatar", _front("settings"), PI)
+	await _settle()
+	await _press(KEY_E)
+	_check(_fake.call("calls_of", "set_where").has(["set_where", "settings"]), "opening settings tells the room (WHERE settings)")
+	_app().call("pop")
+	await _frames(3)
+	_check(_fake.call("calls_of", "set_where").back() == ["set_where", "deck"], "back on the deck: WHERE deck")
+	# on a friend's device: the war table belongs to the host; the setup-open toast
+	await _go_online(hall, 2, 6)
+	_check((world.get("team_colour") as Color).is_equal_approx(HallWorld.slot_colour(2)) and not bool(friends.call("has_friend", 2)) and bool(friends.call("has_friend", 0)),
+		"as slot 2: my colour is slot 2's, the host is a friend, I am not")
+	world.call("place_avatar", _front("battle"), PI)
+	await _settle()
+	await _press(KEY_E)
+	_check(_app().call("current") == hall and (hall.get_node("%SoonPanel") as Control).visible and soon_label.text == "เจ้าห้องเป็นคนตั้งเกม — รอเจ้าห้องกดเริ่ม",
+		"E at the war table on a friend's device: the host sets up the game (%s)" % soon_label.text)
+	hall.call("close_soon")
+	_fake.emit_signal("message", 0, NetProto.SETUP, {"open": true, "seats": []})
+	await _frames(1)
+	_check(soon_label.text == "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่ประตูเทียบยาน", "the host opening the setup: pick a seat at the airlock (%s)" % soon_label.text)
+	hall.call("close_soon")
+	# offline again: everything back as before
+	await _go_offline()
+	_check(int(friends.call("friend_count")) == 0 and not friends.visible and you.visible and not tags.visible and int(rings.call("count")) == rings0
+		and (world.get("team_colour") as Color).is_equal_approx(colour0), "offline again: no friends, the you sign, no FriendTags, the first team's colour")
+	world.call("place_avatar", HallLayout.SPAWN, PI)
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	await _settle()
+
+
 # ---- no holes into the void ----
 
 ## SHIP_LOBBY_SPEC §9.3: with the background pure magenta, nothing of it may show: the vault closes the top, the reveals
@@ -1350,6 +1674,11 @@ func _save(name: String) -> void:
 func _finish() -> void:
 	for k in [KEY_W, KEY_A, KEY_S, KEY_D, KEY_SHIFT, KEY_UP]:
 		_key(k, false)
+	if _fake != null:
+		_fake.name = "FakeNet"
+		_fake.queue_free()
+	if _real_net != null:
+		_real_net.name = "Net"
 	var app := _app()
 	app.call("set_lang", "th")
 	app.call("set_touch", "auto")

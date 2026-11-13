@@ -28,6 +28,8 @@ const T_WATCH := "ไม่มีที่นั่งของคุณ — ด
 const THEME_NAMES := {"ruin": "เมืองพัง", "forest": "ป่าไม้", "desert": "ทะเลทราย", "ice": "ทุ่งหิมะ"}
 const TERRAIN_NAMES := {"flat": "ราบ", "hills": "เนิน", "mountain": "ภูเขา", "forest": "ป่าทึบ"}
 const GOAL_NAMES := {"obj": "ยึดจุด", "kill": "ตีกันจนตาย"}
+const T_NET_HINT := "แตะเพื่อสลับ: บอท · คุณ · เพื่อน"
+const NET_LINK := ^"/root/Net/NetBattleLink"
 const TEAMS_PATH := "res://data/teams.json"
 const CHIP_H := 48.0
 const LABEL_W := 150.0
@@ -51,13 +53,31 @@ var _notice := ""
 var _building := false
 var _to_own: Array[Node] = []
 var _page: Control
+## ออนไลน์ (NET_SPEC §5.1): เจ้าห้องที่มีเพื่อนในห้อง · ที่นั่งมี owner (ช่องของสมาชิก หรือ -1 บอท)
+var online := false
+## Net หรือของปลอมในเทส (API แบบ NetSession)
+var net: Node = null
+var _sent_seats: Array = []
+var _setup_sent := false
 
 
 func _ready() -> void:
 	var t: Variant = _json(TEAMS_PATH)
 	_teams_data = t if t is Array else []
-	# เปิดด้วยตัวเลือกของเกมก่อน (เลขสนามใหม่) ถ้ามี ไม่งั้นค่าเริ่มต้น
-	choice = SeatPlan.defaults(_new_seed()) if App.last_choice.is_empty() else SeatPlan.with_seed(App.last_choice, _new_seed())
+	if net == null:
+		net = get_node_or_null(^"/root/Net")
+	online = net != null and bool(net.call("is_host")) and (net.call("members") as Array).size() >= 2
+	if online:
+		# ตัวเลือกออนไลน์ล่าสุด (ในหน่วยความจำ) ไม่งั้นที่นั่งตามสมาชิก
+		var mem: Array = net.call("members")
+		choice = NetSeats.defaults(mem, _new_seed()) if NetSeats.last.is_empty() else SeatPlan.with_seed(NetSeats.last, _new_seed())
+		NetSeats.fit(choice)
+		NetSeats.drop_gone(choice, mem)
+		net.connect(&"message", _on_net_message)
+		net.connect(&"members_changed", _on_members)
+	else:
+		# เปิดด้วยตัวเลือกของเกมก่อน (เลขสนามใหม่) ถ้ามี ไม่งั้นค่าเริ่มต้น
+		choice = SeatPlan.defaults(_new_seed()) if App.last_choice.is_empty() else SeatPlan.with_seed(App.last_choice, _new_seed())
 	_build()
 	_fit_page()
 	get_viewport().size_changed.connect(_fit_page)
@@ -93,7 +113,9 @@ func set_seat(i: int, fac: String, human: bool) -> void:
 	if i < 0 or i >= seats.size():
 		return
 	(seats[i] as Dictionary)["fac"] = fac
-	if human:
+	if online:
+		pass   # ออนไลน์ เจ้าของที่นั่งเปลี่ยนด้วย set_seat_owner เท่านั้น
+	elif human:
 		for k in seats.size():
 			(seats[k] as Dictionary)["human"] = k == i
 	else:
@@ -139,9 +161,56 @@ func set_seed(n: int) -> void:
 	refresh()
 
 
+## ออนไลน์: เจ้าของที่นั่ง i (ช่องของสมาชิก -1 = บอท 0 = คุณ)
+func set_seat_owner(i: int, slot: int) -> void:
+	NetSeats.set_owner(choice, i, slot)
+	_notice = ""
+	refresh()
+
+
+## ออนไลน์: ปุ่มเจ้าของของแถว i (บอท → คุณ → เพื่อนที่ยังไม่มีที่นั่ง → บอท)
+func cycle_owner(i: int) -> void:
+	set_seat_owner(i, NetSeats.next_owner(choice, i, net.call("members")))
+
+
 ## รหัสข้อผิดพลาดของตัวเลือก (ว่าง = เริ่มได้)
 func errors() -> PackedStringArray:
+	if online:
+		return NetSeats.validate(choice, net.call("members"))
 	return SeatPlan.validate(choice)
+
+
+func _on_net_message(from_slot: int, kind: int, body: Dictionary) -> void:
+	if kind == NetProto.CLAIM and online and is_visible_in_tree():
+		if NetSeats.claim(choice, from_slot, int(body.get("k", -2))):
+			refresh()
+
+
+func _on_members() -> void:
+	if not online:
+		return
+	if NetSeats.drop_gone(choice, net.call("members")):
+		refresh()
+	elif is_inside_tree():
+		refresh()
+
+
+## ส่ง SETUP เมื่อที่นั่งเปลี่ยน (เปิดหน้า เปลี่ยนตัวเลือก) · open = false ตอนปิดหรือเริ่ม
+func _send_setup(open: bool) -> void:
+	if not online or net == null:
+		return
+	var seats := NetSeats.seats_body(choice) if open else []
+	if open and _setup_sent and seats == _sent_seats:
+		return
+	if not open and not _setup_sent:
+		return
+	_setup_sent = open
+	_sent_seats = seats
+	net.call("send", NetProto.SETUP, {"open": open, "seats": seats}, -1)
+
+
+func _exit_tree() -> void:
+	_send_setup(false)
 
 
 ## เหมือนกด เริ่มรบ ›: หน้ารบแทนที่หน้านี้ (ห้องโถงไม่โผล่ระหว่างนั้น) แล้วเริ่มนัด
@@ -149,6 +218,8 @@ func start() -> bool:
 	if not errors().is_empty():
 		refresh()
 		return false
+	if online:
+		return _start_online()
 	var plan := SeatPlan.build(choice)
 	if not (plan["errors"] as PackedStringArray).is_empty() or not ResourceLoader.exists(BATTLE_SCREEN):
 		return false
@@ -160,13 +231,32 @@ func start() -> bool:
 	return false
 
 
+## ออนไลน์: แผนพร้อมเจ้าของที่นั่ง → START ถึงทุกคน → หน้ารบแทนที่หน้านี้ด้วยตัวคุมเกมของเจ้าห้อง
+func _start_online() -> bool:
+	var plan := NetSeats.build(choice, net.call("members"))
+	var link := net.get_node_or_null(^"NetBattleLink")
+	if not (plan["errors"] as PackedStringArray).is_empty() or link == null or not ResourceLoader.exists(BATTLE_SCREEN):
+		return false
+	NetSeats.last = choice.duplicate(true)
+	_send_setup(false)
+	var r: Variant = link.call("start_host", plan)
+	var scr: Node = App.replace(load(BATTLE_SCREEN))
+	if scr != null and scr.has_method("begin"):
+		scr.call("begin", plan, r)
+		return true
+	return false
+
+
 func handle_back() -> bool:
+	_send_setup(false)
 	return false   # ถอยกลับห้องโถง (App.pop)
 
 
 # ---- ภายใน ----
 
 func _after_seats() -> void:
+	if online:
+		NetSeats.fit(choice)
 	SeatPlan.fit_seats(choice)
 	_notice = ""
 	_rebuild_seat_rows()
@@ -216,13 +306,23 @@ func refresh() -> void:
 		any_human = any_human or human
 		who.button_pressed = human
 		who.text = I18n.t(T_YOU if human else T_BOT)
+		if online:
+			var o := int(sd.get("owner", -1))
+			who.button_pressed = o >= 0
+			who.clip_text = true
+			who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			who.custom_minimum_size.x = 140.0
+			who.text = I18n.t(T_BOT) if o < 0 else (I18n.t(T_YOU) if o == 0 else str((net.call("member", o) as Dictionary).get("nm", "?")))
 	var errs := errors()
 	var msgs := PackedStringArray()
 	for code in errs:
-		msgs.append(SeatPlan.error_text(code, choice))
+		msgs.append(NetSeats.error_text(code, choice) if online else SeatPlan.error_text(code, choice))
 	if _notice != "":
 		msgs.append(_notice)
-	if msgs.is_empty() and not any_human:
+	if msgs.is_empty() and online:
+		_errors.text = I18n.t(T_NET_HINT)
+		_errors.add_theme_color_override(&"font_color", CandleStyle.MUTED)
+	elif msgs.is_empty() and not any_human:
 		_errors.text = I18n.t(T_WATCH)
 		_errors.add_theme_color_override(&"font_color", CandleStyle.MUTED)
 	else:
@@ -230,6 +330,8 @@ func refresh() -> void:
 		_errors.add_theme_color_override(&"font_color", CandleStyle.DANGER)
 	_start.disabled = not errs.is_empty()
 	_building = false
+	if online and is_inside_tree():
+		_send_setup(true)
 
 
 func _pick(group: String, value: Variant) -> void:
@@ -520,6 +622,9 @@ func _rebuild_seat_rows() -> void:
 		who.custom_minimum_size = Vector2(96, CHIP_H)
 		who.pressed.connect(func() -> void:
 			if _building:
+				return
+			if online:
+				cycle_owner(idx)
 				return
 			var sd: Dictionary = choice["seats"][idx]
 			set_seat(idx, str(sd.get("fac", "")), not bool(sd.get("human", false))))

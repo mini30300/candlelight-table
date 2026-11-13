@@ -205,6 +205,20 @@ three builders in parallel from ARENA_SPEC (room, player, enemy), then integrate
   numbers and the hurt edge) 38 / 38 / 35 / 34; the longest frame entering the arena 206 ms (was 364–447 before the preload).
   Owner media (stills, a 13 s play clip) are in the session scratchpad `godot-arena/fix/media/`, not in the repo.
 
+## 13 Nov: play with friends, round 1 (ใหม่ 0.5, `docs/NET_SPEC.md`)
+The owner asked for play with friends "like Minecraft": one player hosts, friends join directly, the server only for
+items later. Round 1 is LAN only and uses no server: the docking airlock opens the play-with-friends screen (host, room
+list by UDP discovery, join by IP, room card, seat claims); friends walk on the deck as eggs with name tags and rings
+(pose sync with interpolation, visual only); the battle with friends and bots runs in lockstep over the integer core
+(only acts travel, the host sequences, digest checks every 8 seqs, a desync is loud and repaired by a resync); a dropped
+friend's seat is played by the host with that seat's pid until they come back. Built by three builders (NET-CORE, DECK,
+BATTLE), integrated with a two-process flow test, reviewed through three lenses (determinism, security and repo rules,
+phones and UX) and fixed: NET_SPEC §17 lists the integration fixes, every review fix and what stays open (discovery on a
+real phone; an in-process ENet reconnect during a battle is unit-tested only). Round 2 (internet through a relay room on
+the existing Worker) and R7 (server-signed items that work on the LAN) are designed in NET_SPEC §13–§14. APP_VER
+ใหม่ 0.5 (the lead sets the final number at merge); RULES_V, DATA_HASH and the core untouched; no server PR.
+- Full run after the review fixes: `run.sh full` exit 0 (13 Nov Bangkok): unit 6,499 checks in 74 scripts; flow `test_friends_flow` 88 (two processes; 91 with media), `test_lan_flow` 24, `test_arena_flow` 49, `test_hall_reach` 38, `test_lobby_flow` 33, `test_settings_flow` 30; oracle 155; render probe; render suites anim_footslide 54, arena 122, arena_hud 122, army_screen 62, battle_screen 234, budgets 112, field_look 213, hall 399, hive_beast 92, lineup 29, lobby 328, main_screens 40, menu_screens 125; data lint PASS. Deck online with 5 friends (draw calls hi / mid / lo / min): overview 21 / 21 / 17 / 17, phone worst view 38 / 38 / 31 / 30 (two of the names with emoji). Owner media are in the session scratchpad `friends-r1/fix/media/`, not in the repo.
+
 ## Next steps, in order
 1. Owner feedback on ใหม่ 0.4 (the arena: the beast's toughness and speed, reset and the bot, phone buttons, the beast's
    model), ใหม่ 0.3 (the warship deck on his phone; where the chest stands; what the random rewards should

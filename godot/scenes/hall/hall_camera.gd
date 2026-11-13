@@ -8,6 +8,8 @@ extends Node3D
 ## งานต่อเฟรม: _process เฉพาะตอนจุดหมุนยังไล่ตาม (หยุดเมื่อห่างไม่ถึง 1 ซม.); แขนปิดตัวเองเมื่อนิ่งครบ 3 เฟรมฟิสิกส์
 
 signal turned
+## ตำแหน่ง/ทิศของกล้องเปลี่ยน (ป้ายชื่อ 2 มิติของเพื่อนวาดใหม่, NET_SPEC §6.2)
+signal view_changed
 ## ความยาวแขนจริงหลังชน (ส่งเฉพาะตอนแขนยังไม่นิ่ง)
 signal arm_settled(length: float)
 
@@ -106,6 +108,7 @@ func snap(p: Vector3) -> void:
 	_reach = -1.0
 	_clamp_camera()
 	_wake_arm()
+	view_changed.emit()
 
 
 func orbit(d_yaw: float, d_pitch: float) -> void:
@@ -155,6 +158,7 @@ func _process(delta: float) -> void:
 		set_process(false)
 	_clamp_camera()
 	_wake_arm()
+	view_changed.emit()
 
 
 ## ตั้งความยาวแขนก่อนแขนคำนวณ (process_physics_priority ต่ำกว่า) นับเฟรมให้แขนคิดระยะใหม่หลังขยับครั้งสุดท้าย แล้วปิดแขนกับตัวเอง
@@ -168,6 +172,7 @@ func _physics_process(delta: float) -> void:
 	_reach = next
 	arm.spring_length = _reach
 	arm_settled.emit(arm.get_hit_length())
+	view_changed.emit()
 	_settle -= 1
 	if _settle <= 0 and not is_processing() and not moving:
 		arm.process_mode = Node.PROCESS_MODE_DISABLED
@@ -192,6 +197,7 @@ func _apply() -> void:
 	_clamp_camera()
 	_wake_arm()
 	turned.emit()
+	view_changed.emit()
 
 
 ## จุดหมุนกับทิศขยับหลังแขนคิดในเฟรมฟิสิกส์ (เฟรมภาพช้ากว่าฟิสิกส์ได้หลายก้าว): ดึงกล้องเข้าทันทีถ้าจะอยู่ในของหรือผนัง

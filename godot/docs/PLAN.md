@@ -239,6 +239,9 @@ unchanged; old v9 clients keep their own rooms; the owner can switch between app
 **Deliverables.** `net/` complete; lobby and join flow; owner duties; resync; mock Worker and net tests; the server PR;
 Thai release note; both apps on `build-N`.
 
+*13 Nov:* friends-only games of the new app run on the LAN without the server (`docs/NET_SPEC.md`, round 1) and later
+through a relay room (round 2, NET_SPEC §13); R3's Worker path stays the way Claude joins and the bridge to the old page.
+
 **Tasks (parallel; R3-S1 merges first).**
 
 - **R3-S1 · server PR** (candlelight-server, merge first). `worker.js`: `BT_RULES = 10`, `btVer` accepts 2..10 (v9 rooms

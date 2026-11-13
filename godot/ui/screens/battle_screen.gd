@@ -41,6 +41,27 @@ const T_RESULT := "ผลการรบ"
 const T_STATS_ROUNDS := "เล่นไป {r} รอบ"
 const T_STATS_VP := "{team} · แต้มชัย {vp}"
 const T_STUCK := "เกมติด — กดกลับล็อบบี้"
+## ออนไลน์ (NET_SPEC §5.3): รอเพื่อน ผู้ชม ที่นั่งหลุด/กลับ เกมไม่ตรงกับเจ้าห้อง ออกจากการรบ จบเกมโดยเจ้าห้อง
+const T_WAIT_REMOTE := "รอ {name}…"
+const T_HOST := "เจ้าห้อง"
+const T_SPECTATOR := "ดูอยู่ (ไม่มีที่นั่ง)"
+const T_SEAT_GONE := "บอทเล่นแทน {name} (หลุดจากห้อง)"
+const T_SEAT_LEFT := "บอทเล่นแทน {name} จนจบเกมนี้"
+const T_SEAT_BACK := "{name} กลับมาแล้ว"
+const T_STALE := "ทำไม่ได้ตอนนี้ — เกมขยับไปแล้ว"
+const T_LEAVE_CLIENT := "ออกจากการรบ? บอทจะเล่นแทนคุณจนจบเกมนี้"
+const T_LEAVE_HOST := "ออกจากการรบ? เกมนี้จะจบสำหรับทุกคน"
+const T_HOST_LEFT := "เจ้าห้องออกจากการรบ เกมนี้จบแล้ว"
+const T_WAIT_AGAIN := "รอเจ้าห้องเริ่มเกมใหม่"
+const T_DESYNC := "เกมไม่ตรงกับเจ้าห้อง — กำลังโหลดเกมใหม่จากเจ้าห้อง…"
+const T_REPAIRED := "ซ่อมแล้ว เกมตรงกับเจ้าห้องแล้ว"
+const T_DESYNC_FINAL := "เกมไม่ตรงกับเจ้าห้อง — บันทึกไว้ในล็อกแล้ว ต้องออกจากเกมนี้"
+const T_DESYNC_HOST := "เครื่องของ {name} ไม่ตรงกัน — กำลังส่งเกมให้ใหม่"
+const T_LOST := "การเชื่อมต่อหลุด — เกมนี้จบสำหรับเครื่องนี้"
+const T_MINE := "บอทเล่นแทนคุณอยู่ตอนนี้"
+const T_RECONNECTING := "การเชื่อมต่อหลุด — กำลังต่อใหม่…"   # = OnlineText.REASONS.reconnecting
+const NET_LINK := ^"/root/Net/NetBattleLink"
+const REPAIRED_SECONDS := 3.0
 
 var runner: MatchRunner
 var plan: Dictionary = {}
@@ -89,6 +110,14 @@ var _look: Button
 var _result: Button
 var _leave: PanelContainer
 var _log_panel: PanelContainer
+var _leave_text: Label
+var _desync: PanelContainer
+var _desync_text: Label
+var _desync_btn: Button
+var _desync_timer: Timer
+var _remote := false               # รอเพื่อน/เจ้าห้อง (wait_remote): Timer หยุด ปั๊มต่อเมื่อ runner.changed
+var _host_end := false             # เจ้าห้องจบเกม (END)
+var _wait_again: Label
 
 
 func _ready() -> void:
@@ -102,6 +131,10 @@ func _ready() -> void:
 	_toast_timer.one_shot = true
 	_toast_timer.timeout.connect(func() -> void: _toast.visible = false)
 	add_child(_toast_timer)
+	_desync_timer = Timer.new()
+	_desync_timer.one_shot = true
+	_desync_timer.timeout.connect(func() -> void: _desync.visible = false)
+	add_child(_desync_timer)
 	_build()
 	visibility_changed.connect(_on_visibility)
 
@@ -121,15 +154,24 @@ func _exit_tree() -> void:
 # ---- API ----
 
 ## เริ่มนัดจากแผน (SeatPlan.build): ตัวคุมเกม เริ่มนัด วาดสนามและฟิกเกอร์จากกติกา แล้วเริ่ม Timer
-func begin(p: Dictionary) -> void:
+## r = ตัวคุมเกมออนไลน์ (NetMatchRunner) ไม่ใส่ = เล่นคนเดียวกับบอท
+func begin(p: Dictionary, r: MatchRunner = null) -> void:
 	plan = p
 	_ensure_table()
-	runner = MatchRunner.new(plan)
+	if runner != null and runner.has_signal(&"changed") and runner.is_connected(&"changed", _on_changed):
+		runner.disconnect(&"changed", _on_changed)
+	runner = r if r != null else MatchRunner.new(plan)
 	var evs := runner.start()
 	runner.take_events()
+	if _online():
+		runner.connect(&"changed", _on_changed)
+		_set_where(&"battle")
 	_ended = false
 	_stuck = false
 	_waiting = false
+	_remote = false
+	_host_end = false
+	_desync.visible = false
 	_sel = null
 	_fall_back = false
 	_log = PackedStringArray()
@@ -163,6 +205,33 @@ func is_over() -> bool:
 
 func is_waiting() -> bool:
 	return _waiting
+
+
+## ออนไลน์: รอเพื่อนหรือเจ้าห้องอยู่ (wait_remote)
+func is_waiting_remote() -> bool:
+	return _remote
+
+
+func _online() -> bool:
+	return runner != null and runner.has_method("online") and bool(runner.call("online"))
+
+
+func _net_host() -> bool:
+	return _online() and bool(runner.call("is_net_host"))
+
+
+func _set_where(w: StringName) -> void:
+	var net := get_node_or_null(^"/root/Net")
+	if net != null and net.has_method("set_where") and bool(net.call("is_online")):
+		net.call("set_where", w)
+
+
+## ชื่อสมาชิกตามช่อง (ข้อความบนจอ) ไม่มีชื่อ = เจ้าห้อง
+func _name_of_seat(k: int) -> String:
+	if runner == null or k < 0 or k >= runner.st.seats.size():
+		return I18n.t(T_HOST)
+	var nm := runner.st.seats[k].nm
+	return nm if nm != "" else I18n.t(T_HOST)
 
 
 func selected() -> BattleState.Squad:
@@ -209,6 +278,10 @@ func _on_timer() -> void:
 			_waiting = true
 			_auto_select()
 			break
+		if state == "wait_remote":
+			_timer.stop()
+			_remote = true
+			break
 		if state == "over":
 			_timer.stop()
 			break
@@ -240,9 +313,96 @@ func _after_human() -> void:
 		_auto_select()
 	elif state == "over":
 		_show_end()
+	elif state == "wait_remote":
+		_remote = true
 	else:
 		_timer.start()
 	_refresh()
+
+
+## ออนไลน์: act มาถึง คำขอได้คำตอบ หรือถึงเวลาทอยแทน → วาดใหม่แล้วปั๊มต่อ · ป้ายที่นั่ง/เกมไม่ตรง
+func _on_changed() -> void:
+	if runner == null or not is_inside_tree():
+		return
+	for n: Dictionary in runner.call("take_notices"):
+		_notice(n)
+	_add_log(runner.take_events())
+	if table != null and is_instance_valid(table) and table.visible:
+		table.call("sync_battle", runner.st)
+	if str(runner.get("ended_why")) != "" and not _ended:
+		_host_end = true
+		_show_end()
+	elif runner.is_over() and not _ended:
+		_show_end()
+	_sync_panel()
+	if not _ended and not _stuck and not _leave.visible and is_visible_in_tree() and runner.call("sync_state") == &"ok":
+		_remote = false
+		if not _waiting or not runner.is_human_turn():
+			_waiting = false
+			_timer.start()
+	_refresh()
+
+
+## ป้ายของเรื่องออนไลน์ (ที่นั่งหลุด/ออก/กลับ คำขอช้าไป เครื่องเพื่อนไม่ตรง)
+func _notice(n: Dictionary) -> void:
+	var key := str(n.get("key", ""))
+	var nm := _name_of_seat(int(n.get("k", -1)))
+	match key:
+		"mine":
+			_say_t(T_MINE, {})
+		"gone":
+			_say_t(T_SEAT_GONE, {"name": nm})
+		"left":
+			_say_t(T_SEAT_LEFT, {"name": nm})
+		"back":
+			_say_t(T_SEAT_BACK, {"name": nm})
+		"stale":
+			_say_t(T_STALE, {})
+		"desync":
+			var names: Dictionary = runner.get("names")
+			var who := str(names.get(int(n.get("slot", -1)), ""))
+			_say_t(T_DESYNC_HOST, {"name": who if who != "" else "?"})
+
+
+## ป้ายที่แปลใหม่ได้เมื่อเปลี่ยนภาษา (เก็บคีย์ไทยกับค่าไว้)
+func _say_t(th: String, args: Dictionary) -> void:
+	_say(I18n.t(th).format(args))
+	_toast_text.set_meta("tf", [th, args])
+
+
+## แผงเกมไม่ตรงกับเจ้าห้อง: ครั้งแรกขึ้นระหว่างโหลดใหม่ (ซ่อมได้ปิดเองใน 3 วินาที) ครั้งสุดท้ายค้างไว้พร้อมปุ่มออก
+func _sync_panel() -> void:
+	if not _online() or _net_host():
+		return
+	var s: StringName = runner.call("sync_state")
+	if s == &"desync":
+		_timer.stop()
+		_desync_text.set_meta("th", T_DESYNC)
+		_desync_text.text = I18n.t(T_DESYNC)
+		_desync_btn.visible = false
+		_desync.visible = true
+		_desync.set_meta("was", true)
+	elif s == &"desync_final":
+		_timer.stop()
+		_desync_text.set_meta("th", T_DESYNC_FINAL)
+		_desync_text.text = I18n.t(T_DESYNC_FINAL)
+		_desync_btn.visible = true
+		_desync.visible = true
+	elif _desync.visible and _desync.get_meta("was", false):
+		_desync.set_meta("was", false)
+		_desync_text.set_meta("th", T_REPAIRED)
+		_desync_text.text = I18n.t(T_REPAIRED)
+		_desync_btn.visible = false
+		_desync_timer.start(REPAIRED_SECONDS)
+
+
+## สถานะของแผงเกมไม่ตรง (เทส): "" | desync | desync_final | repaired
+func desync_panel_state() -> String:
+	if _desync == null or not _desync.visible:
+		return ""
+	if _desync_btn.visible:
+		return "desync_final"
+	return "repaired" if _desync_text.text == I18n.t(T_REPAIRED) else "desync"
 
 
 # ---- แตะโต๊ะ ----
@@ -400,6 +560,8 @@ func _on_speed(on: bool) -> void:
 
 
 func _open_leave() -> void:
+	_leave_text.set_meta("th", T_LEAVE if not _online() else (T_LEAVE_HOST if _net_host() else T_LEAVE_CLIENT))
+	_leave_text.text = I18n.t(str(_leave_text.get_meta("th")))
 	_leave.visible = true
 	_timer.stop()
 
@@ -412,6 +574,14 @@ func _close_leave() -> void:
 
 func _on_lobby() -> void:
 	_timer.stop()
+	if _online():
+		# เจ้าห้องออก = เกมจบทุกคน (END) · เพื่อนออก = บอทของเจ้าห้องเล่นแทนจนจบเกม (เจ้าห้องเห็นจาก where)
+		var link := get_node_or_null(NET_LINK)
+		if _net_host() and link != null and link.has_method("host_left"):
+			link.call("host_left")
+		elif link != null and link.has_method("client_left"):
+			link.call("client_left")   # LEAVE ของเกมนี้: เจ้าห้องเล่นแทนจนจบเกม
+		_set_where(&"deck")
 	App.pop()
 
 
@@ -420,6 +590,23 @@ func _on_again() -> void:
 	if c.is_empty():
 		return
 	var seed_v := int(c.get("seed", 1)) % 99999 + 1
+	if _online():
+		# เจ้าห้อง: เกมใหม่ (gen + 1) ตัวเลือกเดิม seed ใหม่ ส่ง START ให้ทุกคน
+		var link := get_node_or_null(NET_LINK)
+		var net := get_node_or_null(^"/root/Net")
+		if not _net_host() or link == null or net == null:
+			return
+		# เพื่อนที่ออกจากห้องไปแล้ว: ที่นั่งเป็นบอท (ไม่งั้นเริ่มไม่ได้แบบเงียบ ๆ) · ยังมีข้อผิดพลาด: บอกบนจอ
+		var nc := SeatPlan.with_seed(c.duplicate(true), seed_v)
+		var mem: Array = net.call("members")
+		NetSeats.drop_gone(nc, mem)
+		var np := NetSeats.build(nc, mem)
+		var errs: PackedStringArray = np["errors"]
+		if errs.is_empty():
+			begin(np, link.call("start_host", np))
+		else:
+			_say(NetSeats.error_text(errs[0], nc))
+		return
 	var p := SeatPlan.build(SeatPlan.with_seed(c, seed_v))
 	if (p["errors"] as PackedStringArray).is_empty():
 		begin(p)
@@ -512,6 +699,9 @@ func _end_texts() -> void:
 	if _stuck and not runner.is_over():
 		_end_title.text = I18n.t(T_STUCK)
 		_end_reason.text = ""
+	elif _host_end and not runner.is_over():
+		_end_title.text = I18n.t(T_LOST if str(runner.get("ended_why")) == "lost" else T_HOST_LEFT)
+		_end_reason.text = ""
 	else:
 		_end_title.text = BattleText.end_title(runner.winner(), runner.human_team())
 		_end_reason.text = BattleText.reason(runner.over_why())
@@ -525,6 +715,7 @@ func _end_texts() -> void:
 func _say(msg: String) -> void:
 	if msg == "":
 		return
+	_toast_text.remove_meta("tf")
 	_toast_text.text = msg
 	_toast.visible = true
 	_toast_timer.start(TOAST_SECONDS)
@@ -564,6 +755,9 @@ func _refresh() -> void:
 	for n in _text_nodes(self):
 		n.set("text", I18n.t(str(n.get_meta("th"))))
 	_speed.text = I18n.t(T_NORMAL if speed == "normal" else T_FAST)
+	if _toast_text.has_meta("tf"):
+		var tf: Array = _toast_text.get_meta("tf")
+		_toast_text.text = I18n.t(str(tf[0])).format(tf[1])
 	if runner == null:
 		return
 	var st := runner.st
@@ -605,7 +799,14 @@ func _refresh() -> void:
 		_card_info.text = I18n.t(T_CARD).format({"n": _sel.models.size(), "n0": _sel.n0, "hp": hp})
 	# คำแนะนำ
 	var hint := ""
-	if runner.human < 0:
+	var wait_name := ""
+	if _online() and not _net_host() and str(runner.get("link_state")) == "reconnecting":
+		hint = T_RECONNECTING   # เพื่อน: หลุดอยู่ กำลังต่อใหม่ (คำสั่งยังส่งไม่ได้)
+	elif _online() and bool(runner.call("my_seat_gone")):
+		hint = T_MINE
+	elif _online() and runner.human < 0:
+		hint = T_SPECTATOR
+	elif runner.human < 0:
 		hint = T_HINT_WATCH
 	elif runner.auto_human:
 		hint = T_HINT_AUTO
@@ -617,9 +818,17 @@ func _refresh() -> void:
 				hint = T_HINT_SHOOT
 			BattleState.PH_CHARGE:
 				hint = T_HINT_CHARGE
+	elif _online() and _remote and not st.over:
+		hint = T_WAIT_REMOTE
+		var names := PackedStringArray()
+		for nm: String in runner.call("waiting_for"):
+			var t := nm if nm != "" else I18n.t(T_HOST)
+			if not names.has(t):
+				names.append(t)
+		wait_name = ", ".join(names) if not names.is_empty() else I18n.t(T_HOST)
 	elif not st.over:
 		hint = T_HINT_BOTS
-	_hint.text = I18n.t(hint) if hint != "" else ""
+	_hint.text = (I18n.t(hint).format({"name": wait_name}) if hint == T_WAIT_REMOTE else I18n.t(hint)) if hint != "" else ""
 	_hint.visible = hint != "" and not _ended
 	# ปุ่มคำสั่ง
 	var move := mine and st.phase == BattleState.PH_MOVE
@@ -633,6 +842,10 @@ func _refresh() -> void:
 	_skip.visible = mine and (st.phase == BattleState.PH_SHOOT or st.phase == BattleState.PH_CHARGE)
 	_skip.disabled = _sel == null
 	_log_panel.visible = not _end_panel.visible   # แผงผลบังบันทึกพอดี: ซ่อนไว้ ดูสนามแล้วโชว์อีก
+	# ออนไลน์: เล่นอีกครั้งเฉพาะเจ้าห้อง เพื่อนเห็นข้อความรอแทน · เจ้าห้องจบเกม: ปุ่มกลับอย่างเดียว
+	_again.visible = not _online() or (_net_host() and not _host_end)
+	_wait_again.visible = _online() and not _net_host() and not _host_end
+	_look.visible = not _host_end
 	_done.visible = runner.human >= 0 and not _ended
 	_done.disabled = not (mine and st.pend.is_empty())
 	_auto.visible = runner.human >= 0 and not _ended
@@ -839,6 +1052,15 @@ func _build() -> void:
 	for b in [_lobby, _again, _look]:
 		(b as Button).custom_minimum_size.y = 56.0
 		eb.add_child(b)
+	_wait_again = Label.new()
+	_wait_again.name = "WaitAgain"
+	_wait_again.set_meta("th", T_WAIT_AGAIN)
+	_wait_again.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_wait_again.custom_minimum_size.y = 56.0
+	CandleStyle.text(_wait_again, 18, true)
+	_wait_again.visible = false
+	eb.add_child(_wait_again)
+	_own(_wait_again)
 	_end_panel.visible = false
 	_result = _button("ResultButton", T_RESULT)
 	_result.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -854,10 +1076,13 @@ func _build() -> void:
 	lv.add_theme_constant_override(&"separation", 14)
 	_leave.add_child(lv)
 	var lt := Label.new()
+	lt.name = "LeaveText"
 	lt.set_meta("th", T_LEAVE)
 	lt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	CandleStyle.text(lt, 22)
 	lv.add_child(lt)
+	_leave_text = lt
 	var lb := HBoxContainer.new()
 	lb.alignment = BoxContainer.ALIGNMENT_CENTER
 	lb.add_theme_constant_override(&"separation", 10)
@@ -869,6 +1094,29 @@ func _build() -> void:
 	lb.add_child(yes)
 	lb.add_child(no)
 	_leave.visible = false
+	# แผงเกมไม่ตรงกับเจ้าห้อง (ขอบแดง กลางจอ)
+	_desync = _centre_panel("DesyncPanel")
+	var dsb := _desync.get_theme_stylebox(&"panel")
+	if dsb is StyleBoxFlat:
+		var c := (dsb as StyleBoxFlat).duplicate() as StyleBoxFlat
+		c.border_color = CandleStyle.DANGER
+		c.set_border_width_all(3)
+		_desync.add_theme_stylebox_override(&"panel", c)
+	var dv := VBoxContainer.new()
+	dv.add_theme_constant_override(&"separation", 14)
+	_desync.add_child(dv)
+	_desync_text = Label.new()
+	_desync_text.name = "DesyncText"
+	_desync_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_desync_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	CandleStyle.text(_desync_text, 22)
+	_desync_text.add_theme_color_override(&"font_color", CandleStyle.DANGER)
+	dv.add_child(_desync_text)
+	_desync_btn = _button("DesyncLeave", T_LEAVE_YES)
+	_desync_btn.pressed.connect(_on_lobby)
+	_desync_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	dv.add_child(_desync_btn)
+	_desync.visible = false
 	for n in _to_own:
 		n.unique_name_in_owner = true
 		n.owner = self
