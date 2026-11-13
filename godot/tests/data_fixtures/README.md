@@ -10,6 +10,7 @@ folder mimics the `godot/` layout (`data/`, `ui/`, `app/`) and is linted on its 
 | `fail_float_dice/data/types.json` | **fails** the `unit.json` schema and the dice check | a gun with `"a": 2.5` (dice counts must be integers) |
 | `fail_i18n_missing/` | **fails** the Thai → English check | `ui/screens/sample.gd` shows `"ยังไม่มีคำแปล"`, which is in neither `ui/i18n_extra.json` nor a page string |
 | `fail_i18n_fragment/` | **fails** the Thai → English check | `ui/screens/sample.gd` shows `"เมนูลับใหม่"`, whose only English entry is in `ui/i18n/extra_screen.json`, a fragment that `FRAGMENTS` in its `ui/i18n.gd` does not list (the app would never load it) |
+| `fail_pack_filter/export_presets.cfg` | **fails** the pack filter check | two presets: the first excludes `packs/*` (after another pattern) and passes, the second has an empty `exclude_filter`, so a private figure pack under `res://packs/` would ship (PACK_SPEC §5); only the second may be reported |
 | `fail_secret/` | **fails** the secrets guard | `notes.txt.rot13` decodes to a private-key header line (ROT13 for the same reason as above) |
 | `ok/data/map_layout_sample.json` | passes `map_layout.json` | an 8×6 dungeon with every section filled (RLE runs add up to 48 cells; see docs/DATA.md) |
 | `ok/data/monster_sample.json` | passes `monster.json` | a bestiary entry in the battle datasheet shape |

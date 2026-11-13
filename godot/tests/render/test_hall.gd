@@ -28,6 +28,15 @@ extends SceneTree
 ## the door view (avatar at the door's ring, yaw pi) stays within the deck targets on every level, desktop and phone
 ## layout; the void spots include the return spot looking into the doorway and the stub. Saves hall_arena_door.png and
 ## hall_arena_door_min.png.
+## Figure packs (PACK_SPEC §4.1): with no pack the avatar has no figure and shows its egg on every level; a broken deck
+## entry (tests/fixtures/figure_pack_bad/, half the contract) keeps the egg; then the
+## primitive fixture pack (tests/fixtures/figure_pack/) gives the deck figure: the egg hides, the figure is the avatar's
+## child, W and Shift+W call set_move every physics frame near the figure's deck_speeds (1.5 / 4.0 m/s, its walk and run
+## clips at rate 1), releasing sends one set_move(0, false), the graphics level reaches it, a squeezed arm calls
+## set_fade(a < 1) and a free arm set_fade(1) with avatar_alpha() following, lo and min go idle (no AnimationPlayer
+## playing; min after 10 frames with nothing processing), the overview stays within the deck targets on every level (no more draw calls than the
+## egg), and set_figure(null) restores the egg and the 3.0 / 6.0 speeds. Saves hall_pack_figure_<level>.png and
+## hall_pack_figure_close.png.
 ## Saves hall_th.png, hall_en.png, hall_min.png, hall_touch.png (_<w>x<h> added for the other sizes), hall_viewport.png,
 ## hall_vault.png, hall_vault_en.png and hall_deck_<level>.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
@@ -60,6 +69,10 @@ const VOID_SIZE := Vector2i(640, 360)
 const MAGENTA := Color(1.0, 0.0, 1.0)
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min"]
 const WALK_TICKS := 45
+## the primitive fixture pack of PACK_SPEC §6 and its figure's deck_speeds()
+const FIGURE_FIX := "res://tests/fixtures/figure_pack/pack.json"
+const FIGURE_SPEEDS := Vector2(1.5, 4.0)
+const FIGURE_BAD := "res://tests/fixtures/figure_pack_bad/pack.json"
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -69,6 +82,7 @@ var _passed := 0
 var _failed := 0
 var _thai_re := RegEx.create_from_string("[฀-๿]")
 var _machine_cfg := ""
+var _deck_draws: Dictionary = {}       # level -> [draw calls, primitives] of the overview with the egg (_check_levels)
 
 
 func _initialize() -> void:
@@ -137,6 +151,7 @@ func _run() -> void:
 	await _check_arena_door(hall)
 	await _check_touch(hall)
 	await _check_levels(hall)
+	await _check_pack_figure(hall)
 	await _check_touch_budget(hall)
 	await _check_void(hall)
 	await _check_ways_out(hall)
@@ -731,7 +746,12 @@ func _check_levels(hall: Node) -> void:
 			draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 			prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 		OS.low_processor_usage_mode = idle
+		_deck_draws[level] = [draws, prims]
 		var c: Dictionary = world.call("counts")
+		# PACK_SPEC §1: no pack in this repo -> no deck figure, the egg shows
+		var av := _avatar(world)
+		_check(av.get("figure") == null and (av.get_node("Egg") as MeshInstance3D).visible and av.get_node_or_null("Figure") == null,
+			"%s: no figure pack -> the avatar is the egg (no figure)" % level)
 		print("hall level %-4s draw calls %4d  primitives %7d  (flames %d, sides %d, static tris %d, space tris %d, stars %d, ships %d)" % [level, draws, prims,
 			int(c["flames"]), int(c["sides"]), int(c["static_tris"]), int(c["space_tris"]), int(c["stars"]), int(c["ships"])])
 		var b: Array = BUDGET[level]
@@ -783,6 +803,134 @@ func _check_levels(hall: Node) -> void:
 	hall.call("refresh")
 	rig.call("set_view", 0.0, -0.45, 6.5)
 	await _frames(2)
+
+
+## PACK_SPEC §4.1: the deck figure hook with the primitive fixture pack (one capsule, 1 draw call, deck_speeds 1.5 / 4.0).
+func _check_pack_figure(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var av := _avatar(world)
+	var rig: Node3D = world.get("camera_rig")
+	var egg := av.get_node("Egg") as MeshInstance3D
+	_app().call("set_gfx", "mid")
+	hall.call("refresh")
+	await _frames(2)
+	# PACK_SPEC §1 step 5: a deck entry with half the contract makes no figure, so the deck keeps its egg
+	world.call("set_figure", ArenaActors.make_figure("deck", FIGURE_BAD))
+	await _frames(1)
+	_check(av.get("figure") == null and egg.visible and av.get_node_or_null("Figure") == null
+		and is_equal_approx(float(av.get("walk_speed")), HallAvatar.WALK) and is_equal_approx(float(av.get("run_speed")), HallAvatar.RUN),
+		"a broken deck entry (half contract): no figure, the egg stays with the 3.0 / 6.0 speeds")
+	var fig: Node3D = ArenaActors.make_figure("deck", FIGURE_FIX)
+	_check(fig != null, "the fixture pack makes a deck figure")
+	if fig == null:
+		return
+	var t0 := Time.get_ticks_usec()
+	world.call("set_figure", fig)
+	var set_us := Time.get_ticks_usec() - t0
+	await _frames(2)
+	_check(av.get("figure") == fig and fig.get_parent() == av and fig.name == &"Figure" and not egg.visible,
+		"set_figure: the egg hides and the figure is the avatar's child Figure (%d us)" % set_us)
+	_check(str(fig.get("role")) == "deck" and fig.get("weapon") == &"none" and str(fig.get("level")) == "mid" and fig.position == Vector3.ZERO,
+		"it is set up as the deck figure: role deck, no weapon, the app's level (mid), at the avatar's origin")
+	_check(is_equal_approx(float(av.get("walk_speed")), FIGURE_SPEEDS.x) and is_equal_approx(float(av.get("run_speed")), FIGURE_SPEEDS.y),
+		"the avatar takes the figure's deck_speeds() %s" % str(FIGURE_SPEEDS))
+	var ap: AnimationPlayer = fig.get("ap")
+	# W: set_move every physics frame at the figure's walk speed; release: one set_move(0, false)
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	for run in [false, true]:
+		world.call("place_avatar", Vector3(2.0, 0.0, 7.0), PI)
+		await _settle()
+		var calls0 := int((fig.get("calls") as Dictionary).get("set_move", 0))
+		var d := await _hold([KEY_SHIFT, KEY_W] if run else [KEY_W], WALK_TICKS)
+		var lm: Vector2 = fig.get("last_move")
+		var calls := int((fig.get("calls") as Dictionary).get("set_move", 0)) - calls0
+		var want := FIGURE_SPEEDS.y if run else FIGURE_SPEEDS.x
+		var tag := "Shift+W" if run else "W"
+		_check(calls >= WALK_TICKS - 2 and absf(lm.x - want) < 0.1 and lm.y == (1.0 if run else 0.0),
+			"%s with the figure: set_move on %d of %d physics frames, last %.2f m/s near its %s %.1f, running %s (%.2f m)" % [tag, calls, WALK_TICKS,
+			lm.x, "run" if run else "walk", want, str(lm.y > 0.0), d.length()])
+		var clip := "prim/run" if run else "prim/walk"
+		_check(ap.current_animation == clip and absf(ap.speed_scale - 1.0) < 0.05,
+			"%s: the figure plays %s at rate %.2f (no foot slide)" % [tag, ap.current_animation, ap.speed_scale])
+		if not run:
+			_save("hall_pack_figure_walk.png")
+		var z0 := int(fig.get("zero_moves"))
+		await _until_still(av)
+		_check(int(fig.get("zero_moves")) - z0 == 1 and fig.get("last_move") == Vector2.ZERO and not av.is_physics_processing(),
+			"%s released: exactly one set_move(0, false) and the avatar stops processing" % tag)
+	# the graphics level reaches the figure
+	var lv0 := int((fig.get("calls") as Dictionary).get("apply_level", 0))
+	_app().call("set_gfx", "lo")
+	hall.call("refresh")
+	_check(str(fig.get("level")) == "lo" and int((fig.get("calls") as Dictionary).get("apply_level", 0)) > lv0, "HallWorld.apply_level reaches the figure (lo)")
+	# a squeezed camera arm fades the figure (set_fade), a free arm makes it opaque; avatar_alpha() follows
+	var egg_mat := egg.material_override
+	rig.emit_signal(&"arm_settled", 0.8)
+	var a := float(world.call("avatar_alpha"))
+	_check(a < 1.0 and absf(float(fig.get("fade")) - a) < 0.001 and egg.material_override == egg_mat,
+		"a squeezed arm (0.8 m): set_fade(%.2f) on the figure, avatar_alpha() %.2f, the hidden egg untouched" % [float(fig.get("fade")), a])
+	rig.emit_signal(&"arm_settled", 6.5)
+	_check(float(world.call("avatar_alpha")) >= 0.999 and float(fig.get("fade")) >= 0.999, "a free arm: set_fade(1) and avatar_alpha() 1")
+	# every level: the overview within the deck targets, no more draw calls than with the egg (the figure is 1 draw)
+	world.call("place_avatar", Vector3(0.0, 0.0, 3.5), PI)
+	rig.call("set_view", 0.0, -0.6, 9.0)
+	for level in LEVELS:
+		_app().call("set_gfx", level)
+		hall.call("refresh")
+		var idle := OS.low_processor_usage_mode
+		OS.low_processor_usage_mode = false
+		await _frames(4)
+		var draws := 0
+		var prims := 0
+		for i in 4:
+			await process_frame
+			draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+			prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+		OS.low_processor_usage_mode = idle
+		var egg_draws: Array = _deck_draws.get(level, [draws, prims])
+		print("hall level %-4s with the fixture figure: draw calls %4d  primitives %7d  (egg: %d / %d)" % [level, draws, prims, int(egg_draws[0]), int(egg_draws[1])])
+		var t: Array = SHIP_TARGET[level]
+		_check(draws <= int(t[0]) and prims <= int(t[1]) and draws <= int(egg_draws[0]),
+			"%s with the fixture figure: %d draw calls (egg %d), %d primitives within the deck target %d / %d" % [level, draws, int(egg_draws[0]), prims, int(t[0]), int(t[1])])
+		_save("hall_pack_figure_%s.png" % level)
+		if level == "lo":
+			# PACK_SPEC §3.2: lo is a low-processor level, so the standing deck figure plays nothing either
+			var lo_playing := PackedStringArray()
+			_walk_nodes(av, func(n: Node) -> void:
+				if n is AnimationPlayer and (n as AnimationPlayer).is_playing():
+					lo_playing.append(String(n.get_path())))
+			_check(lo_playing.is_empty(), "lo with the figure: standing, no AnimationPlayer plays", ", ".join(lo_playing))
+	# min: 10 idle frames, then nothing under the hall processes and the figure's AnimationPlayer holds a still pose
+	await _frames(10)
+	var probs := _idle_problems(hall)
+	var playing := PackedStringArray()
+	_walk_nodes(av, func(n: Node) -> void:
+		if n is AnimationPlayer and (n as AnimationPlayer).is_playing():
+			playing.append(String(n.get_path())))
+	_check(probs.is_empty() and playing.is_empty(), "min with the figure: after 10 idle frames nothing processes and no AnimationPlayer plays",
+		", ".join(probs + playing))
+	# close view on mid (for the eye)
+	_app().call("set_gfx", "mid")
+	hall.call("refresh")
+	rig.call("set_view", PI * 0.85, -0.3, 3.2)
+	await _frames(6)
+	_save("hall_pack_figure_close.png")
+	# back to the egg
+	world.call("set_figure", null)
+	await _frames(2)
+	_check(av.get("figure") == null and egg.visible and av.get_node_or_null("Figure") == null and not is_instance_valid(fig),
+		"set_figure(null): the egg is back and the figure is gone")
+	_check(is_equal_approx(float(av.get("walk_speed")), HallAvatar.WALK) and is_equal_approx(float(av.get("run_speed")), HallAvatar.RUN)
+		and egg.material_override == HallBuilder.material(), "and the 3.0 / 6.0 speeds and the opaque egg material")
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	world.call("place_avatar", HallLayout.SPAWN, PI)
+	await _frames(2)
+
+
+func _walk_nodes(node: Node, f: Callable) -> void:
+	f.call(node)
+	for c in node.get_children():
+		_walk_nodes(c, f)
 
 
 ## Review of 12 Nov: the phone layout's worst view stays within the §2.6 budget and the deck target on every level:

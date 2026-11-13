@@ -615,6 +615,9 @@ folder. `godot/.gitignore` gains `packs/` so private files can never be committe
 into `godot/packs/arena/` before its own export; it does not run this repo's data lint. Nothing in this repo names or
 describes the owner's private figures.
 
+Extended by `PACK_SPEC.md` (12 Nov): an optional `deck` key for the warship deck's figure, the reserved `army` key, the
+public presets' `exclude_filter="packs/*"` and the primitive fixture pack `tests/fixtures/figure_pack/`.
+
 ## 10. Screens, flow and transitions (ROOM)
 
 ### 10.1 Flow
@@ -1077,6 +1080,7 @@ suggestions. Where the build now differs from the sections above:
 | §8.1 clips | as specified: `claw_0..2` read well on the `warrior` kit (contact sheet reviewed), so `bash_*` was not needed | — |
 | §10.4 "focus loss on desktop opens the pause panel in shoot mode" | focus loss or `NOTIFICATION_APPLICATION_PAUSED` opens it in shoot mode on every input mode | on a phone a call or an app switch let the fight run on with the bot on (review) |
 | §3 / §10 build ≤ 150 ms target | reaching the arena door on the deck starts loading the arena screen, the player and beast scenes, the clip library, the `warrior` kit and both figure scripts on a thread (`HallScreen.preload_arena`, kept for later entries); the longest frame on entering measured 206 ms in the final full run (was 364–447) on the test machine; the black fade hides it | the whole build ran in one main-thread frame: about 0.4 s here, likely 1.5–2 s on a weak phone (review) |
+| §9.3 the pack drives the arena only | `PACK_SPEC.md` H1–H4: the deck avatar takes the pack's `deck` figure (`HallWorld.set_figure` → `HallAvatar.set_figure`, optional `deck_speeds()`, `set_fade`), the arena door preloads the pack's player and enemy figures, both public presets exclude `packs/*` and the data lint fails without it; with no pack nothing changes on screen | the owner tries his own figures in a private build (figure packs) |
 | §11.2 budgets | measured, all within the limits: overview 25 / 25 / 21 / 21 draw calls (hi / mid / lo / min); corridor 29 / 29 / 22 / 22; phone worst view, now with four damage numbers **and** the red hurt edge, 38 / 38 / 35 / 34 (limits 70 / 60 / 45 / 40); the deck's views unchanged | the HUD and touch batching above |
 
 Questions left for the owner (also in the Thai note): the beast's toughness and speed (steady rifle fire kills it in about

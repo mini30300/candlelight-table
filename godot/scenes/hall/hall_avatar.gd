@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## ตัวผู้เล่นในห้องโถง (LOBBY_SPEC §2.3): ไข่สีทีม เดินด้วย WASD/ลูกศร (Shift วิ่ง) หรือจอยบนจอ เดินตามทิศกล้อง
 ## ลอยตัว (MOTION_MODE_FLOATING) อยู่ที่ y = 0 เสมอ ชนแคปซูล r 0.35 สูง 1.75 (ชั้น 2 ชนชั้น 1) ไถลไปตามผนัง
 ## งานต่อเฟรม: _physics_process เปิดเฉพาะตอนกดปุ่มเดิน จอยไม่อยู่กลาง หรือยังชะลอไม่หยุด แล้วปิดตัวเอง
+## ตัวละครชุดเสริม (PACK_SPEC §3, §4 H1): set_figure แทนไข่ ส่ง set_move ทุกเฟรมที่เดิน ไม่มีชุดเสริม = ไข่เหมือนเดิม
 
 signal moved(pos: Vector3)
 
@@ -22,6 +23,10 @@ var camera_rig: Node3D
 var bob := true
 var stick := Vector2.ZERO
 var face := PI               # yaw ที่หันอยู่ (ไข่หันหน้าไป +z ที่ yaw 0; PI = มอง -z)
+## ตัวละครชุดเสริมแทนไข่ (null = ไข่) · ความเร็วเดิน/วิ่ง (ม./วิ) ตาม deck_speeds() ของตัวละครถ้ามี
+var figure: Node3D
+var walk_speed := WALK
+var run_speed := RUN
 
 var _vel := Vector3.ZERO
 var _phase := 0.0
@@ -67,6 +72,38 @@ func speed() -> float:
 	return Vector2(_vel.x, _vel.z).length()
 
 
+## ใส่ตัวละครชุดเสริมแทนไข่ (PACK_SPEC §4 H1): null = เอาตัวเดิมออก กลับเป็นไข่ ความเร็ว 3 / 6
+## opts = {"level", "team_colour", "seed"} ส่งต่อให้ setup พร้อม role &"deck"
+func set_figure(fig: Node3D, opts: Dictionary = {}) -> void:
+	if figure != null and figure != fig:
+		if figure.get_parent() == self:
+			remove_child(figure)
+		figure.queue_free()
+	figure = fig
+	walk_speed = WALK
+	run_speed = RUN
+	egg.visible = fig == null
+	if fig == null:
+		_reset_pose()
+		return
+	fig.name = "Figure"
+	if fig.get_parent() == null:
+		add_child(fig)
+	fig.position = Vector3.ZERO
+	fig.rotation = Vector3.ZERO
+	var o := opts.duplicate()
+	o["role"] = &"deck"
+	fig.call("setup", o)
+	fig.call("set_weapon", &"none")
+	fig.call("play", &"idle", 1.0)
+	if fig.has_method("deck_speeds"):
+		var v: Variant = fig.call("deck_speeds")
+		if v is Vector2:
+			walk_speed = clampf((v as Vector2).x, 0.5, 6.0)
+			run_speed = clampf((v as Vector2).y, 0.5, 6.0)
+	fig.call("set_move", 0.0, false)
+
+
 ## หยุดทันที (ห้องโถงถูกหน้าอื่นทับ): ไม่ไถลต่อตอนกลับมา
 func halt() -> void:
 	stick = Vector2.ZERO
@@ -92,7 +129,7 @@ func _physics_process(delta: float) -> void:
 	var want := Vector3.ZERO
 	if iv.length_squared() > 0.0001 and camera_rig != null:
 		var m: Vector3 = camera_rig.call("right_flat") * iv.x + camera_rig.call("forward_flat") * iv.y
-		want = m.limit_length(1.0) * (RUN if running() else WALK)
+		want = m.limit_length(1.0) * (run_speed if running() else walk_speed)
 	_vel = _vel.lerp(want, 1.0 - exp(-ACCEL * delta))
 	if want == Vector3.ZERO and _vel.length() < STOP:
 		_vel = Vector3.ZERO
@@ -107,7 +144,9 @@ func _physics_process(delta: float) -> void:
 	if want.length_squared() > 0.0001:
 		face = lerp_angle(face, atan2(want.x, want.z), 1.0 - exp(-TURN * delta))
 		rotation.y = face
-	if bob:
+	if figure != null:
+		figure.call("set_move", speed(), running())
+	elif bob:
 		var sp := speed()
 		_phase += delta * sp * 2.8
 		egg.position.y = absf(sin(_phase)) * BOB_H * minf(sp / WALK, 1.0)
@@ -120,6 +159,8 @@ func _reset_pose() -> void:
 		egg.position = Vector3.ZERO
 		egg.rotation = Vector3.ZERO
 	_phase = 0.0
+	if figure != null:
+		figure.call("set_move", 0.0, false)
 
 
 func _strength(a: StringName) -> float:

@@ -84,6 +84,8 @@ var _from_arena := false
 var _fading := false
 var _fade_tween: Tween
 var _arena_res: Dictionary = {}      # path → Resource ที่โหลดแล้ว (null = ขอโหลดในเธรดอยู่)
+## manifest ของชุดเสริมที่ preload_arena อ่าน (เทสชี้ไปที่ชุดทดสอบได้)
+var pack_manifest := ArenaActors.PACK_MANIFEST
 
 
 func _ready() -> void:
@@ -289,6 +291,9 @@ func fading() -> bool:
 func preload_arena() -> void:
 	var paths := Array(ARENA_PRELOAD)
 	paths.append(KitLibrary.kit_path(str(ArenaData.BEAST["kit"])))
+	# ตัวละครชุดเสริม (PACK_SPEC §4 H3): ไม่มีชุดเสริม = ทางเดิมใน ARENA_PRELOAD (ข้ามเพราะซ้ำ)
+	paths.append(ArenaActors.resolve("player", pack_manifest))
+	paths.append(ArenaActors.resolve("enemy", pack_manifest))
 	for p: String in paths:
 		if _arena_res.has(p) or not ResourceLoader.exists(p):
 			continue

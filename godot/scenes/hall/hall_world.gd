@@ -6,6 +6,7 @@ extends Node3D
 ## สภาพแวดล้อมตั้งบน Camera3D (โลกเดียวกับโต๊ะรบที่มี WorldEnvironment ของมันเอง) ไม่มีไฟจริง ไม่มีเงา
 ## งานต่อเฟรม: ไม่มีในสคริปต์นี้; ตัวผู้เล่นกับกล้องเปิดงานต่อเฟรมเองเฉพาะตอนขยับ
 ## การขยับบน hi/mid (เปลวไฟไหว โฮโลแกรมกะพริบ ยานลอย) อยู่ใน shader ทั้งหมด; lo/min ไม่มี shader ที่ใช้ TIME
+## ตัวเดินบนดาดฟ้าเปลี่ยนได้ด้วยชุดเสริม (PACK_SPEC §4 H2: ArenaActors role "deck"); ไม่มีชุดเสริม = ไข่
 
 signal station_changed(id: String)
 
@@ -107,10 +108,12 @@ func _ready() -> void:
 	avatar.camera_rig = camera_rig
 	avatar.egg.material_override = HallBuilder.material()
 	avatar.moved.connect(_on_avatar_moved)
+	var app := get_node_or_null(^"/root/App")
+	level = str(app.get("gfx")) if app != null else "mid"
+	set_figure(ArenaActors.make_figure("deck"))
 	camera_rig.arm_settled.connect(_on_arm)
 	camera_rig.set_view(HallLayout.SPAWN_YAW, camera_rig.pitch, camera_rig.arm_length)
-	var app := get_node_or_null(^"/root/App")
-	apply_level(str(app.get("gfx")) if app != null else "mid")
+	apply_level(level)
 	place_avatar(HallLayout.SPAWN, PI)
 	if active:
 		camera_rig.camera.make_current()
@@ -144,6 +147,8 @@ func apply_level(l: String) -> void:
 	_build_holo(l, bool(cfg["holo"]))
 	_build_ships(l, str(cfg["ships"]))
 	avatar.bob = bool(cfg["bob"])
+	if avatar.figure != null:
+		avatar.figure.call("apply_level", l)
 	for id in _signs:
 		(_signs[id] as Label3D).outline_size = int(_outline[id]) if bool(cfg["outline"]) else 0
 
@@ -200,6 +205,12 @@ func station() -> String:
 	return _station
 
 
+## ตัวละครชุดเสริมแทนไข่ (null = ไข่): ส่งระดับกราฟิก สีทีม แล้วใช้ความจางปัจจุบัน
+func set_figure(fig: Node3D) -> void:
+	avatar.set_figure(fig, {"level": level if LEVELS.has(level) else "mid", "team_colour": team_colour, "seed": 0})
+	_apply_alpha()
+
+
 ## วางตัวผู้เล่นที่ p หันไป yaw แล้วกล้องตามทันที
 func place_avatar(p: Vector3, yaw: float = PI) -> void:
 	camera_rig.snap(Vector3(p.x, 0.0, p.z))
@@ -240,6 +251,16 @@ func _on_arm(length: float) -> void:
 	if absf(a - _alpha) < 0.04 and not (a == 1.0 and _alpha != 1.0):
 		return
 	_alpha = a
+	_apply_alpha()
+
+
+## ความจางปัจจุบัน: ตัวละครชุดเสริมใช้ set_fade ของมันเอง (ถ้ามี) ไม่งั้นสลับวัสดุไข่
+func _apply_alpha() -> void:
+	var a := _alpha
+	if avatar.figure != null:
+		if avatar.figure.has_method("set_fade"):
+			avatar.figure.call("set_fade", a)
+		return
 	if a >= 1.0:
 		avatar.egg.material_override = HallBuilder.material()
 		return

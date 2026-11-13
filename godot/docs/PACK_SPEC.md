@@ -1,0 +1,255 @@
+# Figure packs — spec (player figure, enemy figure, deck figure)
+
+Written 12 Nov 2026 on top of commit a8bbd31 (ใหม่ 0.4, the weapons arena; branch `claude/new-session-fsucoo`, draft
+PR #27). It extends `ARENA_SPEC.md` §9 (the figure contract and the `ArenaActors` loader) from the arena to the warship
+deck, and reserves a key for the army display. Everything in `ARENA_SPEC.md` still holds unless a section below changes
+it by name. Line numbers are at a8bbd31 and drift; the quoted names are the anchors.
+
+Words: this file says **figure pack**, **player figure**, **enemy figure**, **deck figure**. A pack is private and lives
+outside this repo. Nothing here, in code, tests, commits or PR text, names or describes any private figure (AGENTS
+rule 1; `ARENA_SPEC.md` §9.3). The fixture pack used by the tests is built from primitive shapes only.
+
+**For the owner, in Thai:** เกมรุ่นสาธารณะเหมือนเดิมทุกอย่าง (ไข่บนดาดฟ้า ไข่ถือปืนในอารีน่า สัตว์รังจากชุดโมเดล).
+ไฟล์นี้บอกว่า "ชุดตัวละครเสริม" (figure pack) ต้องหน้าตาแบบไหนถึงจะเสียบเข้าเกมได้ เกมรุ่นนี้จะเพิ่มแค่ "ช่องเสียบ"
+เล็ก ๆ บนดาดฟ้า (ให้ตัวเดินบนดาดฟ้าเปลี่ยนได้ เหมือนที่อารีน่าเปลี่ยนได้แล้ว) และกันไม่ให้ไฟล์ส่วนตัวหลุดเข้าแอปสาธารณะ
+ตัวละครจริงของมินิอยู่ใน repo ส่วนตัวเท่านั้น แล้วประกอบเป็นแอปรุ่นส่วนตัวแยกต่างหาก
+
+---
+
+## 0. Decisions this spec fixes
+
+| Topic | Decision |
+| --- | --- |
+| Public builds | With no pack, every screen behaves exactly as at a8bbd31: egg on the deck, egg gunner and kit beast in the arena, kit files in the army display. Every existing test keeps its expectation (none is loosened). |
+| Where a pack lives | One pack at a time, in **`res://packs/arena/`** with its manifest `res://packs/arena/pack.json` (`ArenaActors.PACK_MANIFEST`). For format 1 the folder name `arena` is part of the contract (the `<id>` folder of the lookup is always `arena`); the manifest's `id` names the pack. A second folder under `res://packs/` is ignored. Scanning several folders would change `ArenaActors` and its tests for no gain while only one pack exists. |
+| What reads the pack | `ArenaActors` only (static, `RefCounted`). New callers: `HallWorld` (deck figure) and, optionally later, `KitTurntable` (army display). |
+| Shipping | `godot/.gitignore` already ignores `packs/`, so a public checkout never has one. The public export presets also **exclude** `packs/*` (§5), so even a local public export from a tree that happens to hold a pack cannot carry it. Only a private build rewrites that filter. |
+| Light | No lights are added anywhere (deck and arena keep black ambient and no `Light3D`). A pack figure brings its own unshaded material with its own light maths (§3.4). |
+| Contract | The arena's twelve-method `FIGURE_API` is the only contract; the deck uses a subset of it plus the optional `set_fade` (§3). No new required method. |
+| Format | Stays **1**. New keys are optional and a format-1 reader ignores keys it does not know, so old builds read new manifests safely. |
+| Tests | A primitive fixture pack under `godot/tests/fixtures/figure_pack/` (§6) drives the new tests. Public tests never run with a real pack in the tree (they fail by design: three of them assert the public figures, §7). |
+
+## 1. Lookup order
+
+For each role the game asks `ArenaActors` once, when the scene that needs the figure is built:
+
+| Role | Manifest key | Asked by | Fallback (no pack, no key, bad path, missing file, failed contract) |
+| --- | --- | --- | --- |
+| player figure | `player` | `ArenaWorld` (`arena_world.gd:138`) | `res://scenes/arena/egg_gunner.gd` (`ArenaActors.DEFAULT`) |
+| enemy figure | `enemy` | `ArenaWorld` (`arena_world.gd:153`) | `res://scenes/arena/kit_beast.gd` |
+| deck figure | `deck` | `HallWorld._ready` (new, §4 H2) | none: `make_figure("deck")` returns `null` (no `DEFAULT` entry) and `HallAvatar` keeps its egg |
+| army display (reserved) | `army` → `{kit key: path}` | `KitTurntable.show_kit` (optional H5) | `KitLibrary.kit_path(kit)` (`res://assets/kits/<kit>.glb`) |
+
+Steps, in order (`arena_actors.gd` `resolve` / `make_figure`, unchanged):
+
+1. `res://packs/arena/pack.json` exists, parses as a JSON object and has `"format": 1`; else every role falls back.
+2. The role's key is present; else that role falls back.
+3. The path resolves inside `res://packs/arena/` (relative paths join the manifest's folder; `..` or a path leaving the
+   folder is refused with one warning).
+4. `ResourceLoader.exists(path)`; a missing file falls back with one warning. This lets a manifest name files that a
+   build has not delivered yet.
+5. The instance is a `Node3D` (`.tscn`/`.scn` → `instantiate()`, `.gd` → `new()`) with every method of `FIGURE_API`;
+   else it is freed and the fallback is used, with one warning naming the missing methods.
+
+"Bundled at export": whatever lies under `res://packs/` when a **private** build exports ships with it (§5); the public
+presets exclude the folder.
+
+## 2. `pack.json` (format 1, extended)
+
+```json
+{
+  "format": 1,
+  "id": "my_pack",
+  "player": "player/figure.gd",
+  "enemy": "enemy/figure.gd",
+  "deck": "player/figure.gd",
+  "enemy_name": {"th": "ชื่อไทย", "en": "English name"},
+  "army": {"<kit key>": "army/<kit key>.tscn"}
+}
+```
+
+| Key | Type | Since | Meaning |
+| --- | --- | --- | --- |
+| `format` | int, required | ARENA_SPEC §9.3 | must be `1` |
+| `id` | string | §9.3 | the pack's name (`[a-z0-9_]`, ≤ 32 chars): world stats, logs, smoke reports |
+| `player` | path | §9.3 | the arena's player figure (`.gd` or `.tscn`/`.scn`) |
+| `enemy` | path | §9.3 | the arena's enemy figure |
+| `enemy_name` | `{"th", "en"}` | §9.3 | both non-empty or it is ignored (AGENTS rule 4); board title, HUD bar, toast |
+| `deck` | path | **this spec** | the deck figure. May be the same file as `player`: each call makes its own instance |
+| `army` | object kit key → path | **this spec, reserved** | a display scene per unit kit key for the army screen's turntable. Ignored until the optional hook H5 lands |
+
+Unknown keys are ignored. Every path follows the same folder rule. The figure script itself may `preload` anything
+inside the pack; only the manifest's entry paths are checked by the loader.
+
+## 3. The figure contract on the deck
+
+The deck figure is a normal `FIGURE_API` figure (`ARENA_SPEC.md` §9.1). The deck calls only part of it:
+
+| When | Call (by `HallAvatar` / `HallWorld`) |
+| --- | --- |
+| built (`HallWorld._ready`) | `setup({"role": &"deck", "level": l, "team_colour": c, "seed": 0})`, `set_weapon(&"none")`, `play(&"idle")` |
+| every graphics change | `apply_level(l)` (`HallWorld.apply_level`) |
+| every physics frame while the avatar moves | `set_move(speed, running)`: speed = horizontal speed in m/s (deck walk 3.0, run 6.0; `HallAvatar.WALK` / `RUN`), running = the run input |
+| the avatar stops, `halt()`, `place()` | `set_move(0.0, false)` once |
+| the camera arm is squeezed by a wall | `set_fade(a)` with a in [0.35, 1] when the figure has it (optional) |
+
+Never called on the deck: `set_aim`, `set_flash`, `set_telegraph`, `muzzle`, `anchor`, `metrics` (the deck's capsule
+stays r 0.35 × h 1.75, `hall_world.tscn`). `clip_event` is not listened to. A figure that does not know `&"deck"` must
+treat every role other than `&"enemy"` as the player.
+
+Optional, deck only: `deck_speeds() -> Vector2` (walk, run in m/s). When the deck figure has it, `HallAvatar` uses those
+two speeds instead of `WALK` / `RUN`, each clamped to [0.5, 6.0], so a figure whose walk and run cycles were made for
+slower speeds can show them without foot slide. The deck is not a balanced game space; the arena's speeds (`ArenaData`)
+are never taken from a figure.
+
+### 3.1 Conventions (all figures)
+
+- Faces **+Z** at yaw 0; its right hand is **−X**; origin at the feet, floor at y = 0; metres. The owner node (`HallAvatar`,
+  `ArenaPlayer`, `HiveBeast`) sets the figure's rotation; scale and offset baked into the figure root survive.
+- Heights that frame well with the fixed capsules and cameras: player and deck figure 1.5–2.0 m (deck camera head 1.3 m,
+  arena camera heads 1.3 / 1.8 m); enemy figure 1.8–2.4 m with `metrics().radius` 0.5–0.7 (the arena path grid needs
+  radius + 0.1 between pillars).
+- Gameplay timing never comes from clip lengths (`ArenaData`); a clip only has to look right at the times listed in
+  `ARENA_SPEC.md` §6.6 and §8.1.
+- `set_move` carries speed only. The figure picks idle / walk / run **from the speed it gets** and sets the playback rate
+  so feet do not slide; the deck runs at 6.0 m/s, the arena at 5.0 m/s, so a fixed walk/run flag is not enough.
+
+### 3.2 Per-frame and idle rules
+
+- The deck and an idle arena process nothing after 10 idle frames (`SHIP_LOBBY_SPEC`, `ARENA_SPEC.md` §11.3). After
+  `set_move(0.0, false)` an arena figure may keep an idle loop on hi / mid / lo; on **min** it must hold a still pose
+  within 10 frames (`AnimationPlayer` paused or stopped, no `_process` / `_physics_process` left on).
+- The **deck** figure (role `&"deck"`) holds that still pose within 10 frames on **lo and min**. Both levels run
+  `low_processor_usage_mode` (`TableView.LEVELS` `"idle": true`), where the egg deck redraws nothing while the player
+  stands; an idle loop would redraw the whole deck at 30 fps for as long as the player stands, on the level most phones
+  get (`scenes/main.gd` `guess_level()`: lo). The arena is not affected: its public enemy's idle loop already keeps it
+  drawing on lo (`ARENA_SPEC.md` §11.1).
+- Any helper that follows the skeleton (attachments, secondary motion) runs from the `AnimationPlayer`'s
+  `mixer_applied` signal (as `KitBeast._on_applied` does), never from an unconditional `_process`.
+- When the deck is hidden under the arena screen it is disabled by the screen stack (`process_mode`), so the deck figure
+  stops with it. Both the deck figure and the arena's player figure exist at the same time: cache meshes and materials
+  in static variables of the figure script (as `EggGunner._mesh_cache`), never per instance.
+
+### 3.3 Fade
+
+`set_fade(1.0)` must leave the figure fully opaque with its opaque materials (no transparent pass at 1.0).
+`HallWorld.avatar_alpha()` keeps its meaning (the value last computed in `_on_arm`, egg or figure), so
+`test_arena_flow.gd:349-361` (`avatar_alpha() >= 0.999` after returning from the arena) stays as it is.
+
+### 3.4 Look without lights
+
+Deck and arena have black ambient and no `Light3D` (`hall_world.gd:100-105`, `arena_world.gd:106-111`). A lit
+material renders black. A pack figure uses an **unshaded** material that computes its own light, like
+`assets/shaders/figure.gdshader` (lambert sun + ambient, sRGB, no `TIME`, per-vertex on lo / min). To match the kit
+beast in the arena use `KitBeast.SUN_DIR` (0.2, 1.0, 0.3), `SUN_COLOUR` (0.62, 0.64, 0.68), `AMBIENT` (0.34, 0.36, 0.42).
+The compatibility renderer shows `ALBEDO` as is (no sRGB conversion) and ignores subsurface scattering. Hit flash and
+telegraph tint should be one shader uniform, not a material swap per part.
+
+### 3.5 Budgets a pack figure must fit
+
+The public budgets stay as they are and a pack must fit inside them (`ARENA_SPEC.md` §11.2; deck targets
+40 / 40 / 35 / 30 draws). The public figures cost 3 draws (player) + 1 draw (enemy) and a few thousand triangles. Targets
+for one pack figure, to keep the measured headroom (arena overview on min measured at 21 of 30 draws):
+
+| Level | Player / deck figure: draws, triangles (weapon included) | Enemy figure: draws, triangles |
+| --- | --- | --- |
+| hi | ≤ 4, ≤ 30k | ≤ 3, ≤ 25k |
+| mid | ≤ 3, ≤ 20k | ≤ 2, ≤ 15k |
+| lo | ≤ 3, ≤ 12k | ≤ 2, ≤ 9k |
+| min | ≤ 3, ≤ 7k | ≤ 1–2, ≤ 5k |
+
+In practice that means one skinned mesh per level baked offline into Godot resources (`.res`), materials merged, and
+no geometry generated at run time. A muzzle flash is quads only, never an `OmniLight3D` (in the compatibility renderer
+every omni light draws each lit mesh again).
+
+## 4. Public code hooks (track PUBLIC-HOOKS)
+
+All neutral; with no pack each hook is a no-op. Surgical edits only.
+
+| # | File | Change |
+| --- | --- | --- |
+| H1 | `scenes/hall/hall_avatar.gd` | `var figure: Node3D` and `func set_figure(fig: Node3D, opts: Dictionary = {}) -> void`: `null` frees any previous figure and shows `$Egg`; otherwise hides `$Egg`, adds `fig` as child `Figure` (position and rotation zero), calls `setup` with `opts` + `"role": &"deck"`, `set_weapon(&"none")`, `play(&"idle")`, and reads the optional `deck_speeds()` (§3) into the walk and run speeds used by `_physics_process` (default `WALK` / `RUN`). In `_physics_process` call `figure.set_move(speed(), running())` instead of the egg bob when a figure is set (the bob stays for the egg). `_reset_pose()` (used by the stop branch, `halt()` and `place()`) calls `figure.set_move(0.0, false)`. |
+| H2 | `scenes/hall/hall_world.gd` | After `avatar.moved.connect(...)` (`:109`): `avatar.set_figure(ArenaActors.make_figure("deck"), {"level": <the app's gfx level, as read for apply_level at :112>, "team_colour": team_colour, "seed": 0})`, through a new `HallWorld.set_figure(fig)` (it also applies the current fade; the render test swaps the fixture figure in and out with it). `apply_level` forwards `apply_level(l)` to `avatar.figure` when set. `_on_arm` computes `_alpha` exactly as now; with a figure it calls `set_fade(a)` when the figure has it, and touches the egg material only when there is no figure. |
+| H3 | `ui/screens/hall_screen.gd` | `preload_arena` (`:289-296`) also appends `ArenaActors.resolve("player")` and `ArenaActors.resolve("enemy")`, so a pack figure loads on the thread at the door. Without a pack these are the default paths already in `ARENA_PRELOAD` and are skipped as duplicates. Both read `HallScreen.pack_manifest` (default `ArenaActors.PACK_MANIFEST`), which tests point at the fixture. |
+| H4 | `export_presets.cfg` (both presets) and `tools/validate_data.py` | `exclude_filter="packs/*"` on Windows and Android. The data lint (which already checks the keystore fields of this file) fails when either preset's `exclude_filter` lacks `packs/*`, with a failing fixture `tests/data_fixtures/fail_pack_filter/` like the existing ones. |
+| H5 (optional, not this round) | `scenes/arena/arena_actors.gd`, `ui/widgets/kit_turntable.gd` | `static func army_path(kit: String, manifest := PACK_MANIFEST) -> String`: the pack's display scene for a kit key (same folder rule, `PackedScene` only) or `""`. `KitTurntable.show_kit` tries it before `KitLibrary.kit_path`, frames a pack scene by its mesh box, and gets a `pack_manifest` variable that tests can point at the fixture. The battle table (`figure_pool.gd`) is never hooked. |
+| H6 (optional, later) | `scenes/arena/arena_player.gd` | Optional `set_move_dir(local: Vector2)` (x right, y forward, length ≤ 1), called next to `set_move` (`:456`) only when the figure has it, so a player figure can choose strafe and back-step cycles in shoot mode. |
+
+Spec cross-reference: one line under `ARENA_SPEC.md` §9.3 ("extended by `PACK_SPEC.md`"), and §17 (as built) notes H1–H4.
+No `APP_VER` bump is needed for H1–H4 alone (nothing changes on screen without a pack); if it ships with other visible
+changes, the usual Thai note in `web/` mentions "ช่องเสียบตัวละครเสริมบนดาดฟ้า (ไม่มีผลกับแอปปกติ)".
+
+### 4.1 Tests for the hooks (same PR)
+
+| Test | Checks |
+| --- | --- |
+| `tests/unit/test_figure_pack.gd` (new) | `make_figure("deck", NONE) == null`; with the arena fixture pack (no `deck` key) still `null`; with the figure fixture pack the deck figure is `prim_figure.gd` and passes `FIGURE_API`; the fixture's player and enemy resolve too; `enemy_name` reads its `{th, en}`; unknown keys (`army`) do not break format 1; the real manifest is still absent. Runs headless and inside the exported game (selftest). |
+| `tests/unit/test_figure_pack.gd` (same file) | The fixture figure's own behaviour, so the fixture stays a fair stand-in: `set_move(1.0, false)` plays its walk clip, `set_move(4.5, true)` its run clip with a speed scale from the clip's `speed` meta, `set_move(0, false)` returns to idle and, after `apply_level("min")`, holds a still pose; as the deck figure it holds still on lo too, as an arena player it may loop there (§3.2). With the fixture's `deck_speeds()` = (1.5, 4.0) a deck walk reaches about 1.5 m/s and a run about 4.0 m/s (render test below). |
+| `tests/unit/test_figure_pack.gd` (same file) | Broken deck entries (`tests/fixtures/figure_pack_bad/`: `pack.json` names a half-contract script, `missing.json` a file that is not there, `escape.json` a path leaving the folder): `make_figure("deck", X) == null` for each, so the deck keeps its egg; a pack with only a `deck` key leaves the arena figures public. |
+| `tests/render/test_hall.gd` (added checks, no changed expectation) | Public deck: `avatar.figure == null` and `$Egg` visible on every level; `set_figure(make_figure("deck", <half-contract fixture>))` keeps the egg and the 3.0 / 6.0 speeds. Then `avatar.set_figure(ArenaActors.make_figure("deck", FIX), ...)`: the egg hides, the figure is a child of the avatar; walking with W calls `set_move` with speeds near the fixture's `deck_speeds()` walk 1.5 and Shift+W near its run 4.0; releasing sends one `set_move(0, false)`; `world.apply_level("min")` reaches the figure; a squeezed arm calls `set_fade(a < 1)` and a free arm `set_fade(1)` while `avatar_alpha()` follows the same numbers; standing on lo no `AnimationPlayer` under the avatar plays; after 10 idle frames on min nothing under the avatar processes; the deck budgets of the existing views still hold with the fixture figure (it is 1 draw). `set_figure(null)` restores the egg and the 3.0 / 6.0 speeds. |
+| `tests/flow/test_hall_reach.gd` or `test_lobby_flow.gd` (added check) | The deck still enters, walks and leaves with no pack (`figure == null`), and `preload_arena` requests no extra path without a pack; with `pack_manifest` at the fixture it requests one more (the fixture's single figure script) and loads it on the thread. |
+| `tools/validate_data.py` self-test | the `fail_pack_filter` fixture fails with the new message; the real presets pass. |
+
+Unchanged on purpose (they guard the public build and must keep passing): `test_arena_actors.gd` (no pack in the repo,
+fixture swaps), `test_arena_hud.gd:90` (the player is the egg gunner), `test_arena.gd` budgets, `test_hall.gd` budgets,
+`test_arena_flow.gd` `avatar_alpha`.
+
+## 5. Export: the pack ships only in a private build
+
+| Preset field | Public value (this repo) | Private build (patched by its own CI before the import) |
+| --- | --- | --- |
+| `export_filter` | `all_resources` | same |
+| `include_filter` | `assets/kits/kits.json` | `assets/kits/kits.json, packs/*` (raw files a pack reads with `FileAccess` ship too) |
+| `exclude_filter` | **`packs/*`** (H4) | `""` |
+
+How the filters work in Godot 4.7: `export_filter="all_resources"` collects every file the editor recognises under
+`res://` (scripts, scenes, `.res`, imported meshes and textures, `.json`); `include_filter` adds matching non-resource
+files; `exclude_filter` then removes matches, both checked against the path with and without `res://`, and `*`
+matches across `/`. So `packs/*` covers every file of every pack folder.
+
+Rules for a pack's files:
+- Prefer baked Godot resources (`.res`, `.tscn`, imported `.glb`/`.png`) loaded with `load()`; they ship under
+  `all_resources`. Raw files read with `FileAccess` ship only with the private `include_filter`.
+- The scene post-import (`assets/kits_import/kit_post_import.gd`) returns any file outside `res://assets/kits/`
+  untouched, so pack `.glb` files import raw (no LOD, no shadow mesh). Do not put a `.gdignore` in a pack.
+- A pack declares no `class_name`, or prefixes it so it cannot clash with the public global classes.
+- The data lint scans every file under `godot/`, `packs/` included when present. That is on purpose: a pack is never
+  placed in the public working tree (§7).
+
+## 6. The fixture pack (primitives only)
+
+`godot/tests/fixtures/figure_pack/` (a new shared folder: unit, flow and render tests all use it; it is outside
+`tests/unit/`, so the runner does not mistake it for tests; it ships in the export like the other fixtures so the
+selftest can read it):
+
+| File | What |
+| --- | --- |
+| `pack.json` | `{"format": 1, "id": "prim_test", "player": "prim_figure.gd", "enemy": "prim_figure.gd", "deck": "prim_figure.gd", "enemy_name": {"th": "หุ่นทดสอบ", "en": "Test dummy"}, "army": {"warrior": "missing.tscn"}}` |
+| `prim_figure.gd` | `extends Node3D`, no `class_name`, about 270 lines: one `MeshInstance3D` with a `CapsuleMesh` (1.7 m) and an unshaded `StandardMaterial3D` in `team_colour` (1 draw); a `Marker3D` muzzle at the right hand; an `AnimationPlayer` with an `AnimationLibrary` built in code (`idle` loop; `walk` loop with meta `speed` 1.5; `run` loop with meta `speed` 4.0; short `fire reload punch swing hit die attack hit_heavy` clips, each a position or rotation track on the capsule); all twelve `FIGURE_API` methods plus `set_fade` and `deck_speeds()` = (1.5, 4.0); and plain fields the tests read (`role`, `level`, `weapon`, `fade`, `last_move: Vector2(speed, running)`, `calls: Dictionary` name → count). |
+
+`godot/tests/fixtures/figure_pack_bad/` holds three broken manifests for the deck fallback (§4.1): `pack.json` →
+`half_figure.gd` (a `Node3D` with only `setup`, `play` and `set_move`), `missing.json` → `nobody.gd`, `escape.json` →
+`../figure_pack/prim_figure.gd`.
+
+No model files, no textures, no names of anything real.
+
+## 7. Working with a real pack (any agent, any machine)
+
+- Never copy a pack into this checkout's `godot/packs/`. Copy `godot/` to a scratch folder and put the pack there. The
+  public tests fail with a pack present by design (`test_arena_actors.gd:24` and `:27`, `test_arena_hud.gd:90`, and the
+  no-pack checks of `test_figure_pack.gd`, `test_hall.gd` and `test_hall_reach.gd`), and renders would hold private
+  figures.
+- Imports of such a copy run one at a time (a `flock` on a lock file next to it), `nice -n 10` for heavy runs.
+- The private build runs its own smoke script and may run `tests/render/test_arena.gd` as a budget gate (that test
+  asserts no figure type, only draws and primitives). `tests/render/test_hall.gd` cannot be that gate: it asserts the egg.
+- Nothing from a private build (renders, logs, APKs, exe) goes into this repo, its CI, its releases or a public PR.
+
+## 8. Tracks (three in all; none edits a file another owns)
+
+| Track | Repo | Owns | Done when |
+| --- | --- | --- | --- |
+| **PUBLIC-HOOKS** | this repo | `scenes/hall/hall_avatar.gd`, `scenes/hall/hall_world.gd`, `ui/screens/hall_screen.gd`, `export_presets.cfg`, `tools/validate_data.py`, `tests/data_fixtures/fail_pack_filter/`, `tests/fixtures/figure_pack/**`, `tests/fixtures/figure_pack_bad/**`, `tests/unit/test_figure_pack.gd`, the added checks in `tests/render/test_hall.gd` and one flow test, the §9.3 pointer in `ARENA_SPEC.md` | H1–H4 with their tests; `bash godot/tests/run.sh full` green; draft PR on top of PR #27 |
+| **Private tracks** (two: the player and deck figure; the enemy figure) | private | everything inside the pack and the private build | the private repo's own plan |
+
+The two private tracks never touch this repo, and this repo never names them. The private pack's manifest can name
+every role from the start: until a file exists, step 4 of §1 falls back to the public figure.

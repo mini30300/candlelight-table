@@ -6,7 +6,10 @@ extends SceneTree
 ## (vault, the future random rewards): its prompt in Thai and English, E opens the one-line coming-soon panel and stays
 ## in the lobby, Esc closes the panel first, a second Esc returns to the main menu. 0.4 (ARENA_SPEC §13.1): the arena
 ## door is the eighth station; the walk stops on its prompt at the trigger's edge and the lobby stays (depth 2: walking
-## into the trigger does not enter, only walking into the doorway does). Graphics level min, test settings
+## into the trigger does not enter, only walking into the doorway does). Figure packs (PACK_SPEC §4.1): with no pack
+## the avatar walks as the egg (no figure), and the arena door's preload asks for no path beyond its own list (the
+## player and enemy figures resolve to the defaults already in it); pointed at the primitive fixture pack it also asks
+## for the pack's figure script and loads it on the thread. Graphics level min, test settings
 ## file (never this machine's settings.cfg). Run:
 ##   timeout 600 <godot> --headless --path godot --audio-driver Dummy -s tests/flow/test_hall_reach.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL.
@@ -18,6 +21,7 @@ const PAD := 0.12           # the path keeps this much more than the avatar's ra
 const STICK := 0.84         # just under the run threshold (0.85): walk
 const TICK_CAP := 1500      # physics frames per station (25 s)
 const NEAR := 0.3           # a waypoint counts as reached this close
+const FIGURE_FIX := "res://tests/fixtures/figure_pack/pack.json"   # PACK_SPEC §6 (one script for player and enemy)
 
 var _main: Node
 var _started := false
@@ -66,6 +70,9 @@ func _run() -> void:
 		_finish()
 		return
 	var world: Node3D = hall.get("world")
+	var av := world.get("avatar") as Node3D
+	_check(av.get("figure") == null and (av.get_node("Egg") as Node3D).visible and av.get_node_or_null("Figure") == null,
+		"no figure pack: the avatar is the egg (no deck figure)")
 	var names: Dictionary = (hall.get_script() as Script).get_script_constant_map()["NAMES"]
 	var use: Button = hall.get_node("%UseButton")
 	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
@@ -82,6 +89,27 @@ func _run() -> void:
 			await _frames(10)
 			_check(int(_app().call("depth")) == 2 and _app().call("current") == hall and not bool(hall.call("fading")),
 				"at the arena door's prompt the lobby stays (depth 2, no auto entry from the trigger's edge)")
+			var own_files := {}
+			var own: Array = Array((hall.get_script() as Script).get_script_constant_map()["ARENA_PRELOAD"])
+			for f in own + [KitLibrary.kit_path(str(ArenaData.BEAST["kit"]))]:
+				if ResourceLoader.exists(f):
+					own_files[f] = true
+			var pre: Dictionary = hall.call("arena_preloaded")
+			_check(int(pre["requested"]) == own_files.size() and ArenaActors.resolve("player") == str(ArenaActors.DEFAULT["player"])
+				and ArenaActors.resolve("enemy") == str(ArenaActors.DEFAULT["enemy"]),
+				"no figure pack: the door's preload asks for its own %d files only (%d requested)" % [own_files.size(), int(pre["requested"])])
+			# PACK_SPEC §4 H3: with a pack the door also preloads its figures (the fixture names one script for both)
+			hall.set("pack_manifest", FIGURE_FIX)
+			hall.call("preload_arena")
+			var pre2: Dictionary = hall.call("arena_preloaded")
+			for i in 300:
+				if int(pre2["loaded"]) == int(pre2["requested"]):
+					break
+				await process_frame
+				pre2 = hall.call("arena_preloaded")
+			_check(int(pre2["requested"]) == own_files.size() + 1 and int(pre2["loaded"]) == int(pre2["requested"]),
+				"the fixture pack: the door's preload also asks for its figure script and loads it (%d requested, %d loaded)" % [int(pre2["requested"]), int(pre2["loaded"])])
+			hall.set("pack_manifest", ArenaActors.PACK_MANIFEST)
 	await _check_vault(world, hall)
 	_finish()
 
