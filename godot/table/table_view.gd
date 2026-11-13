@@ -181,7 +181,10 @@ func set_stress(on: bool) -> void:
 
 
 func camera_pos() -> Vector3:
-	return camera_rig.camera.global_position
+	var cam := camera_rig.camera
+	if not cam.is_inside_tree():
+		return cam.position      # ตอนปิดแอป (โต๊ะออกจากต้นไม้แล้ว)
+	return cam.global_position
 
 
 func team_colour(team: int) -> Color:

@@ -213,3 +213,50 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "อัตโนมัติ: เปิดบนมือถือ ปิดบนคอมพิวเตอร์"
 autowrap_mode = 3
+
+[node name="SfxLabel" type="Label" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_vertical = 0
+text = "เสียงเอฟเฟกต์"
+vertical_alignment = 1
+
+[node name="SfxBox" type="HBoxContainer" parent="Margin/Column/Panel/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="SfxSlider" type="HSlider" parent="Margin/Column/Panel/Grid/SfxBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 56)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+value = 0.8
+
+[node name="MuteButton" type="Button" parent="Margin/Column/Panel/Grid/SfxBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 56)
+layout_mode = 2
+toggle_mode = true
+text = "ปิดเสียง"
+
+[node name="MusLabel" type="Label" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_vertical = 0
+text = "เพลง"
+vertical_alignment = 1
+
+[node name="MusSlider" type="HSlider" parent="Margin/Column/Panel/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 56)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+value = 0.6

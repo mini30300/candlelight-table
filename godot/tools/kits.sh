@@ -4,6 +4,8 @@
 #   2. godot/tools/bake_impostors.gd     → godot/assets/impostors/              (under xvfb)
 #   3. node godot/tools/bake_anim.js     → godot/assets/anim/clips.json         (Playwright: the page's rig sampled, ~20 s)
 #      godot/tools/bake_anim.gd          → godot/assets/anim/humanoid.res       (headless: the AnimationLibrary)
+#   4. node godot/tools/bake_sfx.js      → godot/assets/sfx/*.wav, music/*.wav + sfx.json (Playwright: the page's sounds
+#      and music rendered offline, ~50 s; needs no kits, so it runs first and also with KITS_SKIP_EXPORT=1)
 # A bake tool that does not exist yet is skipped with a note, so the command already works before those tracks land.
 #
 #   bash godot/tools/kits.sh [options passed on to export_kits.js, e.g. --only heavy,archer]
@@ -20,6 +22,17 @@ die() { say "ERROR: $*"; exit 1; }
 if [ -z "${CHROMIUM_PATH:-}" ]; then
   found=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome 2> /dev/null | head -n 1 || true)
   [ -z "$found" ] || export CHROMIUM_PATH="$found"
+fi
+# 4. (first: it needs no kits) the sounds; without Playwright an existing bake is kept
+if [ -f godot/tools/bake_sfx.js ]; then
+  if [ -d tests/node_modules/playwright ]; then
+    say "rendering the page's sounds and music (bake_sfx.js)"
+    node godot/tools/bake_sfx.js
+  elif [ ! -s godot/assets/sfx/sfx.json ]; then
+    die "bake_sfx.js needs Playwright (tests/node_modules/playwright) and there is no sfx.json to keep"
+  fi
+  node godot/tools/bake_sfx.js --check || die "the sound bake does not validate"
+  say "sfx: $(find godot/assets/sfx -name '*.wav' | wc -l) WAV, $(du -sh godot/assets/sfx | cut -f1)"
 fi
 if [ "${KITS_SKIP_EXPORT:-0}" = 1 ]; then
   say "kit export skipped (KITS_SKIP_EXPORT=1)"

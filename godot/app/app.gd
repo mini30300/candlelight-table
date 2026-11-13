@@ -1,7 +1,7 @@
 extends Node
 ## App (autoload): ตั้งค่าของแอปใน user://settings.cfg + ตัวสลับหน้าจอ (ScreenStack) + ปุ่มย้อนกลับ
 ## ตั้งค่า: gfx (hi/mid/lo/min), lang (th/en), snd (เปิด/ปิดเสียง), server (URL ของเซิร์ฟเวอร์),
-## fig (egg ตัวไข่ / kit โมเดลชุดเดิม), touch (auto/on/off ปุ่มบนจอ)
+## fig (egg ตัวไข่ / kit โมเดลชุดเดิม), touch (auto/on/off ปุ่มบนจอ), sfx_vol / mus_vol (ความดังเอฟเฟกต์ / เพลง 0..1)
 ## อ่านใน _init() จึงใช้ได้ทันทีแม้ใน -s runner; แอปต้องเปิดได้เสมอแม้ไม่มีไฟล์หรือไฟล์เสีย
 
 const SETTINGS_PATH := "user://settings.cfg"
@@ -15,6 +15,8 @@ const FIG_STYLES: PackedStringArray = ["egg", "kit"]
 const TOUCH_MODES: PackedStringArray = ["auto", "on", "off"]
 const DEFAULT_FIG := "egg"
 const DEFAULT_TOUCH := "auto"
+const DEFAULT_SFX_VOL := 0.8
+const DEFAULT_MUS_VOL := 0.6
 
 var gfx: String = DEFAULT_GFX
 var lang: String = DEFAULT_LANG
@@ -22,6 +24,8 @@ var snd: bool = true
 var server: String = DEFAULT_SERVER
 var fig: String = DEFAULT_FIG
 var touch: String = DEFAULT_TOUCH
+var sfx_vol: float = DEFAULT_SFX_VOL
+var mus_vol: float = DEFAULT_MUS_VOL
 var settings_file: String = SETTINGS_PATH   # เทสชี้ไปไฟล์อื่น จะได้ไม่ทับตั้งค่าของเครื่อง
 ## ตัวเลือกตั้งเกมครั้งล่าสุด (แบบ SeatPlan; อยู่ในหน่วยความจำเท่านั้น) หน้าตั้งเกมเปิดด้วยค่านี้แทนค่าเริ่มต้น
 var last_choice: Dictionary = {}
@@ -72,6 +76,8 @@ func load_settings(path: String = "") -> bool:
 		fig = DEFAULT_FIG
 	if not set_touch(str(cfg.get_value(SECTION, "touch", DEFAULT_TOUCH))):
 		touch = DEFAULT_TOUCH
+	sfx_vol = _vol(cfg.get_value(SECTION, "sfx_vol", DEFAULT_SFX_VOL), DEFAULT_SFX_VOL)
+	mus_vol = _vol(cfg.get_value(SECTION, "mus_vol", DEFAULT_MUS_VOL), DEFAULT_MUS_VOL)
 	return true
 
 
@@ -86,6 +92,8 @@ func save_settings(path: String = "") -> bool:
 	cfg.set_value(SECTION, "server", server)
 	cfg.set_value(SECTION, "fig", fig)
 	cfg.set_value(SECTION, "touch", touch)
+	cfg.set_value(SECTION, "sfx_vol", sfx_vol)
+	cfg.set_value(SECTION, "mus_vol", mus_vol)
 	var err := cfg.save(path)
 	if err != OK:
 		push_warning("settings: cannot write " + path + ": " + error_string(err))
@@ -99,7 +107,22 @@ func reset_settings() -> void:
 	server = DEFAULT_SERVER
 	fig = DEFAULT_FIG
 	touch = DEFAULT_TOUCH
+	sfx_vol = DEFAULT_SFX_VOL
+	mus_vol = DEFAULT_MUS_VOL
 	_apply_lang()
+
+
+## ความดัง 0..1 (เกินช่วงถูกตัด); ค่าที่ไม่ใช่ตัวเลขใช้ค่าเริ่มต้น
+static func _vol(v: Variant, fallback: float) -> float:
+	return clampf(float(v), 0.0, 1.0) if (v is float or v is int) else fallback
+
+
+func set_sfx_vol(v: float) -> void:
+	sfx_vol = clampf(v, 0.0, 1.0)
+
+
+func set_mus_vol(v: float) -> void:
+	mus_vol = clampf(v, 0.0, 1.0)
 
 
 ## ระดับกราฟิก; ค่าที่ไม่รู้จักถูกข้าม คืน false

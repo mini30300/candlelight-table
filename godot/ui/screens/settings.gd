@@ -1,5 +1,6 @@
 extends Control
 ## หน้าตั้งค่า (LOBBY_SPEC §5): ภาษา, ระดับกราฟิก, รูปตัวละคร (ตัวไข่ / โมเดลชุดเดิม), ปุ่มบนจอ, ปุ่มไปหน้าตรวจการ์ดจอ
+## เสียง: ความดังเอฟเฟกต์ เพลง และปุ่มปิดเสียงทั้งหมด (Sfx.apply_settings() ใช้ค่าใหม่ทันที)
 ## ทุกปุ่มเรียกตัวตั้งค่าของ App แล้ว App.save_settings() ทันที · ฉาก 3 มิติที่เปิดอยู่อ่านค่าใหม่เองตอนกลับมาโชว์
 ## ทึบเต็มจอ ไม่มี _process
 
@@ -24,6 +25,11 @@ const TOUCH_TH := {"auto": "อัตโนมัติ", "on": "เปิด", 
 @onready var fig_note: Label = %FigNote
 @onready var touch_label: Label = %TouchLabel
 @onready var touch_note: Label = %TouchNote
+@onready var sfx_label: Label = %SfxLabel
+@onready var mus_label: Label = %MusLabel
+@onready var sfx_slider: HSlider = %SfxSlider
+@onready var mus_slider: HSlider = %MusSlider
+@onready var mute_button: Button = %MuteButton
 @onready var gfx_buttons := {"hi": %GfxHi, "mid": %GfxMid, "lo": %GfxLo, "min": %GfxMin}
 @onready var fig_buttons := {"egg": %FigEgg, "kit": %FigKit}
 @onready var touch_buttons := {"auto": %TouchAuto, "on": %TouchOn, "off": %TouchOff}
@@ -31,6 +37,7 @@ const TOUCH_TH := {"auto": "อัตโนมัติ", "on": "เปิด", 
 ## มีชุดโมเดลในเครื่องไหม (ไม่มีก็ปิดปุ่มโมเดลชุดเดิม); เทสบังคับได้ (-1 = ตรวจจากดิสก์)
 var kits_override := -1
 var _has_kits := false
+var _dragging := false     # ลากแถบเสียงอยู่: เปลี่ยนเสียงทันที บันทึกไฟล์ตอนปล่อย
 
 
 func _ready() -> void:
@@ -38,11 +45,11 @@ func _ready() -> void:
 	bg.color = CandleStyle.BG
 	CandleStyle.title(title, 40)
 	CandleStyle.panel(panel)
-	for l in [lang_label, gfx_label, fig_label, touch_label]:
+	for l in [lang_label, gfx_label, fig_label, touch_label, sfx_label, mus_label]:
 		CandleStyle.text(l as Label, 22)
 	for l in [fig_note, touch_note]:
 		CandleStyle.text(l as Label, 17, true)
-	for b in [back_button, gpu_button, lang_button]:
+	for b in [back_button, gpu_button, lang_button, mute_button]:
 		CandleStyle.button(b as Button)
 	for group in [gfx_buttons, fig_buttons, touch_buttons]:
 		var list: Array = (group as Dictionary).values()
@@ -56,6 +63,15 @@ func _ready() -> void:
 	for m in touch_buttons:
 		(touch_buttons[m] as Button).pressed.connect(set_touch.bind(m))
 	lang_button.pressed.connect(func() -> void: set_language(not I18n.english))
+	sfx_slider.value_changed.connect(set_sfx_vol)
+	mus_slider.value_changed.connect(set_mus_vol)
+	for sl: Range in [sfx_slider, mus_slider]:
+		sl.drag_started.connect(func() -> void: _dragging = true)
+		sl.drag_ended.connect(func(_c: bool) -> void:
+			_dragging = false
+			App.save_settings())
+	sfx_slider.drag_ended.connect(func(_c: bool) -> void: _ping())
+	mute_button.toggled.connect(func(on: bool) -> void: set_mute(on))
 	back_button.pressed.connect(func() -> void: App.pop())
 	gpu_button.pressed.connect(open_gpu_check)
 	visibility_changed.connect(func() -> void:
@@ -95,6 +111,12 @@ func refresh() -> void:
 		(touch_buttons[m] as Button).text = _cap(I18n.t(TOUCH_TH[m]))
 		(touch_buttons[m] as Button).set_pressed_no_signal(App.touch == m)
 	touch_note.text = I18n.t("อัตโนมัติ: เปิดบนมือถือ ปิดบนคอมพิวเตอร์")
+	sfx_label.text = I18n.t("เสียงเอฟเฟกต์")
+	mus_label.text = I18n.t("เพลง")
+	mute_button.text = I18n.t("ปิดเสียง")
+	sfx_slider.set_value_no_signal(App.sfx_vol)
+	mus_slider.set_value_no_signal(App.mus_vol)
+	mute_button.set_pressed_no_signal(not App.snd)
 
 
 func set_language(english: bool) -> void:
@@ -120,6 +142,38 @@ func set_touch(m: String) -> void:
 	if App.set_touch(m):
 		App.save_settings()
 	refresh()
+
+
+func set_sfx_vol(v: float) -> void:
+	App.set_sfx_vol(v)
+	_apply_sound()
+
+
+func set_mus_vol(v: float) -> void:
+	App.set_mus_vol(v)
+	_apply_sound()
+
+
+## ปิดเสียงทั้งหมด (App.snd = false)
+func set_mute(on: bool) -> void:
+	App.snd = not on
+	_apply_sound()
+	refresh()
+
+
+func _apply_sound() -> void:
+	if not _dragging:
+		App.save_settings()
+	var sfx := get_node_or_null(^"/root/Sfx")
+	if sfx != null:
+		sfx.call("apply_settings")
+
+
+## ปล่อยแถบเลื่อนเสียงเอฟเฟกต์: เล่นเสียงตัวอย่างให้ได้ยินความดังใหม่
+func _ping() -> void:
+	var sfx := get_node_or_null(^"/root/Sfx")
+	if sfx != null:
+		sfx.call("play_ui", &"hit")
 
 
 ## หน้าตรวจการ์ดจอ (ปุ่มจัดกองทัพของมันเปิดหน้าจัดกองทัพซ้อนต่อ)

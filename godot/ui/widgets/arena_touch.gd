@@ -11,7 +11,9 @@ extends Control
 ## ปุ่มยิงบอกสิ่งที่ทำจริง: "ยิง" ตอนถือปืน "ฟัน" ตอนถือดาบเลื่อย · ป้ายที่ยาวเกิน (เช่น "Saw Sword") แบ่งสองบรรทัด ไม่ย่อจนอ่านไม่ออก
 ## ปุ่มกลางจอยวาดตามนิ้วจริง (รวมในเขตตาย) ไม่กระโดดตอนนิ้วพ้นเขตตาย
 ## (ปุ่มกลมแบบ StyleBox วาดทีละ draw call: 13 ครั้งในมุมแย่สุดบนมือถือ เกินงบ min)
-## งานต่อเฟรม: ไม่มี (ทุกอย่างตามเหตุการณ์)
+## ปุ่ม "หลบ" (พุ่งหลบ) เหนือปุ่มยิงทางซ้าย (ปุ่มอาวุธขยับขวาจาก (−84, −256) เป็น (−52, −258) ให้กรอบปุ่มไม่ทับกัน): ระหว่างพุ่ง/คูลดาวน์ปุ่มมืด วงแหวนทองขยายจากกลางจนเต็มขอบเมื่อพร้อม
+## (แผ่นภาพเดิม ไม่เพิ่ม draw call; min ไม่ขยับวง แค่มืดจนพร้อม)
+## งานต่อเฟรม: ไม่มี ยกเว้นวงคูลดาวน์ของปุ่มหลบ (ไม่เกิน 1 วิหลังกดหลบ ไม่มีบน min)
 
 signal pressed_action(action: StringName, on: bool)
 
@@ -24,8 +26,10 @@ const BUTTONS := {
 	"FireButton": [&"fire", 62.0, -106.0, -116.0],
 	"MeleeButton": [&"melee", 46.0, -234.0, -60.0],
 	"ReloadButton": [&"reload", 38.0, -206.0, -190.0],
-	"WeaponButton": [&"weapon", 38.0, -84.0, -256.0],
+	"WeaponButton": [&"weapon", 38.0, -52.0, -258.0],
+	"DodgeButton": [&"dodge", 32.0, -128.0, -218.0],
 }
+const DODGE_DIM := Color(0.06, 0.04, 0.03, 0.75)
 const STICK_SIZE := 180.0
 const AIM_TOP := 64.0          # AimPad ไม่บังปุ่มบนสุดของหน้าจอ
 const AIM_BOTTOM := 88.0       # และไม่บังปุ่มใช้งานกลางล่าง
@@ -53,6 +57,7 @@ var _fs: Dictionary = {}         # ชื่อ → ขนาดตัวอั�
 var _lines: Dictionary = {}      # ชื่อ → บรรทัดของป้าย (1 หรือ 2)
 var _aim_finger := -1
 var _aim_mouse := false
+var _dodge_ratio := 1.0          # วงคูลดาวน์ของปุ่มหลบ (1 = พร้อม)
 
 
 func _ready() -> void:
@@ -72,12 +77,15 @@ func bind(p: Node3D) -> void:
 	player = p
 	if stick != null and not stick.changed.is_connected(_on_stick):
 		stick.changed.connect(_on_stick)
+	if p != null and p.has_signal(&"dodge_changed") and not p.is_connected(&"dodge_changed", _on_dodge):
+		p.connect(&"dodge_changed", _on_dodge)
 
 
 ## ข้อความปุ่มตามภาษา (ปุ่มอาวุธ = ชื่ออาวุธอีกอันที่จะเปลี่ยนไป)
 func refresh() -> void:
 	_set_text("MeleeButton", I18n.t(MELEE_TEXT))
 	_set_text("ReloadButton", I18n.t(RELOAD_TEXT))
+	_set_text("DodgeButton", I18n.t(str(ArenaData.DODGE["th"])))
 	update_weapon()
 
 
@@ -332,6 +340,31 @@ func _on_stick(v: Vector2) -> void:
 		player.call("set_stick", v)
 
 
+## พุ่ง/คูลดาวน์/พร้อม: วาดใหม่ตามเหตุการณ์ · hi/mid/lo ขยับวงทุกเฟรมจนพร้อม (min ไม่)
+func _on_dodge(state: StringName) -> void:
+	_dodge_ratio = 1.0 if state == &"ready" else _ratio()
+	set_process(state != &"ready" and App.gfx != "min")
+	queue_redraw()
+
+
+func _ratio() -> float:
+	if player != null and player.has_method(&"dodge_ready_ratio"):
+		return clampf(float(player.call(&"dodge_ready_ratio")), 0.0, 1.0)
+	return 1.0
+
+
+## วงคูลดาวน์ปุ่มหลบ (0..1) สำหรับเทส
+func dodge_ratio() -> float:
+	return _dodge_ratio
+
+
+func _process(_delta: float) -> void:
+	_dodge_ratio = _ratio()
+	queue_redraw()
+	if _dodge_ratio >= 1.0:
+		set_process(false)
+
+
 # ---- ภาพ (วาดรวบครั้งเดียว) ----
 
 ## จอย (ฐาน ขอบ วงวิ่ง ปุ่มกลาง) แล้วปุ่มกลม (พื้น ขอบ) จากแผ่นภาพเดียว แล้วป้ายปุ่มทั้งหมดขนาดเดียว (ย่อด้วย transform)
@@ -351,6 +384,12 @@ func _draw() -> void:
 		var b: Button = buttons[n]
 		var r := float(BUTTONS[n][1])
 		var c := b.position + b.size * 0.5
+		if n == "DodgeButton" and _dodge_ratio < 1.0:
+			_sprite(tex, false, c, r, DODGE_DIM)
+			_sprite(tex, true, c, r, Color(RIM, 0.35))
+			if App.gfx != "min":
+				_sprite(tex, true, c, maxf(r * _dodge_ratio, 2.0), CandleStyle.GOLD)
+			continue
 		_sprite(tex, false, c, r, FILL_HELD if b.button_pressed else FILL)
 		_sprite(tex, true, c, r, RIM)
 	var font := CandleStyle.BOLD

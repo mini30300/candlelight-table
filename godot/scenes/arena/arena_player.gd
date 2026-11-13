@@ -5,7 +5,11 @@ extends CharacterBody3D
 ## เดสก์ท็อป: เมาส์เล็ง (จับเมาส์ตอนเข้า shoot) คลิกซ้ายยิง คลิกขวา/F ต่อย R บรรจุ 1/2/ล้อ เปลี่ยนอาวุธ · มือถือ: ArenaTouch ส่ง
 ## set_stick / aim_drag / press มา · ปืน: รังสีเล็งจากกล้องผ่านกลางจอ แล้วยิงจริงจากปากกระบอกไปจุดเล็ง (เสาบังได้จริง)
 ## ลอยตัวที่ y = 0 แคปซูล r 0.35 สูง 1.75 ชั้น 2 ชนชั้น 1 | 4 | 8 · ตัวเลขต่อสู้ทั้งหมดจาก ArenaData
-## งานต่อเฟรม: _physics_process เฉพาะตอนเดิน อาวุธยังนับเวลา (ArenaWeapons.busy) ล้ม/อมตะชั่วครู่ หรือแสงวาบ แล้วปิดตัวเอง
+## พุ่งหลบ: Space (ปุ่มจริง ทุกโหมด) หรือปุ่ม "หลบ" บนจอ = press(&"dodge") พุ่งตามทิศที่กด (ไม่กด = ถอยหลัง) ตัวเลขจาก
+## ArenaData.DODGE คณิตจาก ArenaCombat · ชนเสา/ผนังด้วย move_and_slide · ช่วงต้นอมตะ · ตัวละครเสริม H8 begin_dodge
+## H9 uses_strafe() false = ไม่เดินเยื้อง: โหมดยิงหันตามทิศเดิน หันกลับหาเป้าตอนยืน ยิง ฟัน ต่อย (ค้าง hold_aim วิ)
+## งานต่อเฟรม: _physics_process เฉพาะตอนเดิน อาวุธยังนับเวลา (ArenaWeapons.busy) ล้ม/อมตะชั่วครู่ แสงวาบ พุ่ง/คูลดาวน์
+## หรือหันตัว (H9) แล้วปิดตัวเอง
 
 signal moved(pos: Vector3)
 signal mode_changed(mode: StringName)
@@ -19,6 +23,8 @@ signal downed()
 signal revived()
 ## เป้าเล็งกลางจอชี้ที่ศัตรูหรือไม่ (ส่งเฉพาะตอนค่าเปลี่ยน; ส่วนเสริมของสัญญา ใช้ทำเป้าสีแดง)
 signal aim_changed(on_beast: bool)
+## พุ่งหลบ: &"dash" เริ่มพุ่ง, &"cool" พุ่งจบ (รอคูลดาวน์), &"ready" พุ่งได้อีก
+signal dodge_changed(state: StringName)
 
 const RADIUS := 0.35
 const HEIGHT := 1.75
@@ -38,6 +44,8 @@ const FADE_MIN := 0.35
 const EGG_GUNNER := "res://scenes/arena/egg_gunner.gd"
 const ARENA_LAYOUT := "res://scenes/arena/arena_layout.gd"
 const RESPAWN_FALLBACK := Vector3(0.0, 0.0, -12.5)
+const DODGE_ACTION := &"dodge"
+const AIM_TURN := 18.0       # ตัวไม่เดินเยื้องหันหาเป้า (ต่อวินาที)
 
 var world: Node3D
 var level := "mid"
@@ -68,6 +76,14 @@ var _captured := false
 var _alpha := 1.0
 var _fig_dir := false        # ตัวละครมี set_move_dir (H6) · ตรวจครั้งเดียวตอน setup ไม่ใช่ทุกเฟรม
 var _fig_switch := false     # ตัวละครมี begin_switch (H7)
+var _fig_dodge := false      # ตัวละครมี begin_dodge (H8)
+var _strafe := true          # H9 uses_strafe() (ไม่มี = เดินเยื้องได้)
+var _dodge_t := -1.0         # เวลาที่พุ่งไปแล้ว (ติดลบ = ไม่ได้พุ่ง)
+var _dodge_dir := Vector3.ZERO
+var _since_dodge := INF      # เวลานับจากพุ่งครั้งก่อนจบ
+var _since_act := INF        # เวลานับจากยิง/ฟัน/ต่อยครั้งล่าสุด (H9)
+var _fire_held := false      # ปุ่มยิงยังกดอยู่ (คืนไกปืนหลังพุ่งจบ)
+var _saw_loop := 0
 
 
 func _ready() -> void:
@@ -78,13 +94,27 @@ func _ready() -> void:
 	rotation.y = face
 	_hp_max = int(ArenaData.PLAYER["hp"])
 	_hp = _hp_max
+	ensure_dodge_action()
 	rig.arm_settled.connect(_on_arm)
 	fx.view = rig.camera
 	fx.reseed(int(ArenaData.RANGE["seed"]))
 	visibility_changed.connect(func() -> void:
 		if not is_visible_in_tree():
-			_release_mouse())
+			_release_mouse()
+			_saw_sound(false)
+		else:
+			_saw_sound(weapons.current == &"sword"))
 	set_physics_process(false)
+
+
+## ปุ่มพุ่งหลบ: Space ตามตำแหน่งปุ่มจริง (physical) · โปรเจกต์มีแอคชัน dodge อยู่แล้วก็ใช้ของเดิม
+static func ensure_dodge_action() -> void:
+	if InputMap.has_action(DODGE_ACTION):
+		return
+	InputMap.add_action(DODGE_ACTION)
+	var k := InputEventKey.new()
+	k.physical_keycode = KEY_SPACE
+	InputMap.action_add_event(DODGE_ACTION, k)
 
 
 ## ตั้งค่าตอนโลกสร้างผู้เล่น: {"level", "team_colour", "touch": bool, "figure": Node3D}
@@ -107,6 +137,8 @@ func setup(w: Node3D, opts: Dictionary) -> void:
 	fig.rotation = Vector3.ZERO
 	_fig_dir = fig.has_method("set_move_dir")
 	_fig_switch = fig.has_method("begin_switch")
+	_fig_dodge = fig.has_method("begin_dodge")
+	_strafe = not fig.has_method("uses_strafe") or bool(fig.call("uses_strafe"))
 	apply_level(str(opts.get("level", level)))
 	_call_fig("set_weapon", [&"none"])
 	_call_fig("play", [&"idle", 1.0])
@@ -180,14 +212,23 @@ func aim_drag(rel: Vector2) -> void:
 	_on_look()
 
 
-## ปุ่มบนจอ/คีย์: fire (กดค้าง), melee, reload, weapon (สลับ), weapon_1, weapon_2
+## ปุ่มบนจอ/คีย์: fire (กดค้าง), melee, reload, weapon (สลับ), weapon_1, weapon_2, dodge (ทุกโหมด)
+## ระหว่างพุ่งปุ่มอื่นไม่ทำงาน (กดยิงค้างไว้ = ยิงต่อหลังพุ่งจบ)
 func press(action: StringName, on: bool) -> void:
+	if action == &"fire":
+		_fire_held = on
+	if action == DODGE_ACTION:
+		if on:
+			dodge()
+		return
 	if not on:
 		if action == &"fire":
 			_handle(weapons.set_trigger(false))
 		return
-	if not _input_on or _paused or _down > 0.0 or _mode != &"shoot":
+	if not _input_on or _paused or _down > 0.0 or _mode != &"shoot" or dodging():
 		return
+	if action == &"fire" and weapons.current == &"gun" and weapons.in_mag <= 0 and not weapons.trigger:
+		ArenaSound.play(self, "empty")
 	var was_sw := weapons.switching()
 	var was_held := weapons.held()
 	match action:
@@ -207,6 +248,55 @@ func press(action: StringName, on: bool) -> void:
 	if _fig_switch and weapons.switching() and (not was_sw or weapons.held() != was_held):
 		_figure.call("begin_switch", weapons.held(), float(ArenaData.PLAYER["holster"]), float(ArenaData.PLAYER["draw"]))
 	set_physics_process(true)
+
+
+## พุ่งหลบตามทิศที่กด (ไม่กด = ถอยหลังจากทิศที่ตัวหัน) · คืน true เมื่อได้พุ่ง
+func dodge() -> bool:
+	if not _input_on or _paused or not ArenaCombat.can_dodge(_since_dodge, 0.0, is_alive(), dodging()):
+		return false
+	var iv := input_vector()
+	var w := -Vector3(sin(face), 0.0, cos(face))
+	if iv.length() >= 0.1:
+		var d := ArenaCombat.dodge_dir(iv)
+		w = rig.right_flat() * d.x + rig.forward_flat() * d.y
+		w = Vector3(w.x, 0.0, w.z).normalized()
+		if not _strafe:
+			# ตัวไม่เดินเยื้องหันไปทางที่พุ่ง (กลิ้ง/ไถลไปข้างหน้าของตัว)
+			face = atan2(w.x, w.z)
+			rotation.y = face
+	_dodge_dir = w
+	_dodge_t = 0.0
+	_handle(weapons.set_trigger(false))
+	if _fig_dodge:
+		_figure.call("begin_dodge", local_dir(w, face), float(ArenaData.DODGE["time"]))
+	fx.dust(global_position, -w)
+	ArenaSound.play(self, "dodge", global_position + Vector3(0.0, 0.6, 0.0))
+	dodge_changed.emit(&"dash")
+	set_physics_process(true)
+	return true
+
+
+func dodging() -> bool:
+	return _dodge_t >= 0.0
+
+
+## เวลาที่เหลือก่อนพุ่งได้อีก (วิ) 0 = พร้อม
+func dodge_wait() -> float:
+	var d := ArenaData.DODGE
+	if dodging():
+		return maxf(float(d["time"]) - _dodge_t, 0.0) + float(d["cooldown"])
+	return maxf(float(d["cooldown"]) - _since_dodge, 0.0)
+
+
+## 0..1 ของวงคูลดาวน์ (1 = พร้อม)
+func dodge_ready_ratio() -> float:
+	var d := ArenaData.DODGE
+	return 1.0 - dodge_wait() / (float(d["time"]) + float(d["cooldown"]))
+
+
+## H9: ตัวละครเดินเยื้องได้ไหม (ไข่ = ได้)
+func strafes() -> bool:
+	return _strafe
 
 
 func set_input_enabled(on: bool) -> void:
@@ -233,9 +323,12 @@ func set_paused(on: bool) -> void:
 		stick = Vector2.ZERO
 		rig.reset_input()
 		_release_mouse()
+		_saw_sound(false)
+		_fire_held = false
 		set_physics_process(false)
 	else:
 		_recapture = _mode == &"shoot" and not touch
+		_saw_sound(weapons.current == &"sword")
 		set_physics_process(true)
 
 
@@ -247,6 +340,9 @@ func paused() -> bool:
 func place(p: Vector3, face_yaw: float, cam_yaw: float) -> void:
 	global_position = Vector3(p.x, 0.0, p.z)
 	_vel = Vector3.ZERO
+	_fire_held = false
+	if dodging():
+		_end_dodge()
 	velocity = Vector3.ZERO
 	face = face_yaw
 	rotation.y = face
@@ -259,6 +355,8 @@ func place(p: Vector3, face_yaw: float, cam_yaw: float) -> void:
 
 ## โดนตี (กรงเล็บของศัตรู): อมตะ 0.4 วิหลังโดน · HP 0 = ล้ม 2 วิแล้วลุกที่จุดเกิดใหม่พร้อม HP เต็ม
 func take_hit(hit: Dictionary) -> Dictionary:
+	if dodging() and ArenaCombat.dodge_invulnerable(_dodge_t):
+		return {"applied": 0, "hp": _hp, "killed": false, "dodged": true}
 	if _down > 0.0 or _invuln > 0.0 or _hp <= 0:
 		return {"applied": 0, "hp": _hp, "killed": false}
 	var r: Dictionary = ArenaCombat.apply(_hp, int(hit.get("amount", 0)))
@@ -398,6 +496,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		if InputMap.has_action(a) and event.is_action(a):
 			set_physics_process(true)
 			break
+	if InputMap.has_action(DODGE_ACTION) and event.is_action_pressed(DODGE_ACTION) and not event.is_echo():
+		if not is_visible_in_tree():
+			return             # อารีน่าที่โหลดไว้แต่ซ่อน: ปล่อย Space ให้หน้าอื่น
+		press(DODGE_ACTION, true)
+		get_viewport().set_input_as_handled()
+		return
 	if _mode != &"shoot":
 		return
 	if event is InputEventMouse and (event as InputEvent).device == InputEvent.DEVICE_ID_EMULATION:
@@ -443,6 +547,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_EXIT_TREE:
 		_release_mouse()
+		_fire_held = false     # ปล่อยเมาส์หายระหว่างสลับหน้าต่าง ไม่ยิงต่อเองหลังพุ่ง
 
 
 # ---- ต่อเฟรม ----
@@ -461,14 +566,30 @@ func _physics_process(delta: float) -> void:
 		_flash = maxf(_flash - delta, 0.0)
 		_call_fig("set_flash", [_flash / FLASH_TIME])
 	_handle(weapons.tick(delta))
+	_since_act += delta
 	var iv := input_vector()
 	var want := Vector3.ZERO
 	if iv.length_squared() > 0.0001:
 		var m := rig.right_flat() * iv.x + rig.forward_flat() * iv.y
 		var top := float(ArenaData.PLAYER["run"] if running() else ArenaData.PLAYER["walk"])
 		want = m.limit_length(1.0) * top
-	_vel = _vel.lerp(want, 1.0 - exp(-float(ArenaData.PLAYER["accel"]) * delta))
+	var cool := float(ArenaData.DODGE["cooldown"])
+	if dodging():
+		# พุ่ง: ระยะต่อเฟรมจากเส้นโค้งความเร็ว (ArenaCombat) ทิศคงที่ ชนแล้วไถลตามผนัง
+		var t0 := _dodge_t
+		_dodge_t += delta
+		_vel = _dodge_dir * ((ArenaCombat.dodge_travel(_dodge_t) - ArenaCombat.dodge_travel(t0)) / maxf(delta, 0.0001))
+		want = _vel
+		if _dodge_t >= float(ArenaData.DODGE["time"]):
+			_end_dodge()
+	else:
+		if _since_dodge < cool:
+			_since_dodge += delta
+			if _since_dodge >= cool:
+				dodge_changed.emit(&"ready")
+		_vel = _vel.lerp(want, 1.0 - exp(-float(ArenaData.PLAYER["accel"]) * delta))
 	var moving := true
+	var turning := false
 	if want == Vector3.ZERO and _vel.length() < STOP:
 		_vel = Vector3.ZERO
 		velocity = Vector3.ZERO
@@ -479,10 +600,15 @@ func _physics_process(delta: float) -> void:
 		_vel = Vector3(velocity.x, 0.0, velocity.z)
 		global_position.y = 0.0
 		if _mode == &"shoot":
-			_face_camera()
-		elif want.length_squared() > 0.0001:
+			if _strafe:
+				_face_camera()
+			elif not dodging():
+				turning = _shoot_turn(delta, want)
+		elif want.length_squared() > 0.0001 and not dodging():
 			face = lerp_angle(face, atan2(want.x, want.z), 1.0 - exp(-TURN * delta))
 			rotation.y = face
+	if not moving and _mode == &"shoot" and not _strafe:
+		turning = _shoot_turn(delta, want)
 	move_figure(_figure, _fig_dir, local_dir(_vel, face), speed(), running())
 	if moving:
 		rig.follow(global_position)
@@ -491,7 +617,8 @@ func _physics_process(delta: float) -> void:
 	if _aim_dirty:
 		_aim_dirty = false
 		_update_aim_target()
-	if not moving and not weapons.busy() and _down <= 0.0 and _invuln <= 0.0 and _flash <= 0.0:
+	if not moving and not weapons.busy() and _down <= 0.0 and _invuln <= 0.0 and _flash <= 0.0 and not dodging() \
+			and _since_dodge >= cool and not turning and (_strafe or _since_act >= float(ArenaData.DODGE["hold_aim"])):
 		set_physics_process(false)
 
 
@@ -502,9 +629,11 @@ func _handle(events: Array[Dictionary]) -> void:
 		var id: StringName = e["id"]
 		match e["type"]:
 			&"shot":
+				_since_act = 0.0
 				_fire_gun()
 			&"reload_start":
 				_call_fig("play", [&"reload", 1.0])
+				ArenaSound.play(self, "reload", global_position + CHEST)
 				reload_changed.emit(true, weapons.reload_left())
 			&"reload_done":
 				reload_changed.emit(false, 0.0)
@@ -513,10 +642,15 @@ func _handle(events: Array[Dictionary]) -> void:
 				_call_fig("play", [&"idle", 1.0])
 				reload_changed.emit(false, 0.0)
 			&"melee_start":
+				_since_act = 0.0
+				if not _strafe and _mode == &"shoot":
+					_face_camera()   # ตัวไม่เดินเยื้อง: หันหาเป้าทันที (วงฟันวัดจากทิศที่หัน)
 				_call_fig("play", [&"punch" if id == &"punch" else &"swing", 1.0])
+				ArenaSound.play(self, "punch" if id == &"punch" else "saw_rev", global_position + CHEST)
 			&"melee_hit":
 				_melee_hit(id)
 			&"weapon":
+				_saw_sound(id == &"sword")
 				_call_fig("set_weapon", [id])
 				_call_fig("set_aim", [rig.pitch if id != &"none" else 0.0])
 				weapon_changed.emit(id)
@@ -539,6 +673,7 @@ func _fire_gun() -> void:
 	var r := _ray(from, from + dir * reach)
 	var to: Vector3 = r.get("position", from + dir * minf(from.distance_to(point), float(w["range"])))
 	fx.shot(from, to, not r.is_empty(), r.get("normal", -dir))
+	ArenaSound.play(self, "gun", from)
 	rig.shake(ArenaCamera.KICK_M, ArenaCamera.KICK_TIME)
 	_call_fig("play", [&"fire", 1.0])
 	ammo_changed.emit(weapons.in_mag, weapons.mag_size)
@@ -572,6 +707,7 @@ func _melee_hit(id: StringName) -> void:
 			continue
 		var res: Variant = node.call("take_hit", hit)
 		fx.impact(point, -dir)
+		ArenaSound.play(self, "punch_hit" if id == &"punch" else "saw_hit", point)
 		rig.shake()
 		_landed(res, point, t, id)
 
@@ -632,8 +768,12 @@ func _set_aim_beast(on: bool) -> void:
 
 
 ## เล็งเปลี่ยน: ตัวหันตามกล้อง ปืนก้มเงยตาม จุดหมุนกล้องเยื้องขวาตาม yaw ใหม่
+## (H9 ตัวไม่เดินเยื้องกำลังเดินอยู่: หันตามทิศเดินต่อ แค่ก้มเงยตาม)
 func _on_look() -> void:
-	_face_camera()
+	if _strafe or (not dodging() and ArenaCombat.faces_aim(weapons.trigger, speed() > 0.1, _since_act)):
+		_face_camera()
+	else:
+		_call_fig("set_aim", [rig.pitch])
 	rig.follow(global_position)
 	_aim_dirty = true
 	set_physics_process(true)
@@ -645,7 +785,37 @@ func _face_camera() -> void:
 	_call_fig("set_aim", [rig.pitch])
 
 
+## H9 โหมดยิง: หันหาเป้า (ยืน ยิง ฟัน ต่อย และค้าง hold_aim วิ) หรือหันตามทิศเดิน · คืน true ถ้ายังหันไม่ถึง
+func _shoot_turn(delta: float, want: Vector3) -> bool:
+	var target := rig.yaw + PI
+	if not ArenaCombat.faces_aim(weapons.trigger, want.length_squared() > 0.0001, _since_act):
+		target = atan2(want.x, want.z)
+	face = lerp_angle(face, target, 1.0 - exp(-AIM_TURN * delta))
+	rotation.y = face
+	_call_fig("set_aim", [rig.pitch])
+	return absf(angle_difference(face, target)) > 0.01
+
+
+func _end_dodge() -> void:
+	_dodge_t = -1.0
+	_since_dodge = 0.0
+	dodge_changed.emit(&"cool")
+	if _fire_held and _mode == &"shoot" and is_alive() and _input_on and not _paused:
+		_handle(weapons.set_trigger(true))
+
+
+## เสียงดาบเลื่อยเดินเบาตอนถืออยู่ (หยุดเมื่อเก็บ หยุดเกม หรือซ่อนหน้า)
+func _saw_sound(on: bool) -> void:
+	if on and _saw_loop == 0 and not _paused and is_visible_in_tree():
+		_saw_loop = ArenaSound.loop(self, "saw_idle")
+	elif not on and _saw_loop != 0:
+		ArenaSound.stop(self, _saw_loop)
+		_saw_loop = 0
+
+
 func _go_down() -> void:
+	if dodging():
+		_end_dodge()
 	_down = float(ArenaData.PLAYER["down_time"])
 	_handle(weapons.set_trigger(false))
 	stick = Vector2.ZERO

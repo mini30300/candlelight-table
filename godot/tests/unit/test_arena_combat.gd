@@ -147,6 +147,9 @@ func test_labels_are_keys() -> void:
 	for id in ["gun", "sword", "punch"]:
 		labels.append(str(ArenaData.WEAPONS[id]["th"]))
 	assert_eq(labels, ["สัตว์รัง", "ปืนไรเฟิล", "ดาบเลื่อย", "หมัด"], "the four Thai labels of §1")
+	# 13 Nov: the dodge button's label (ArenaData.DODGE.th) joined them on purpose (owner asked for a dodge)
+	labels.append(str(ArenaData.DODGE["th"]))
+	assert_eq(labels[4], "หลบ", "the dodge label is หลบ")
 	for th in labels:
 		var en := I18n.lookup(th)
 		assert_true(en != "" and not _has_thai(en), "label %s has an English entry without Thai" % th, en)
@@ -155,7 +158,7 @@ func test_labels_are_keys() -> void:
 	keys.sort()
 	var want := labels.duplicate()
 	want.sort()
-	assert_eq(keys, want, "arena_data.json holds exactly the four labels")
+	assert_eq(keys, want, "arena_data.json holds exactly the five labels")
 
 
 func test_time_to_kill() -> void:

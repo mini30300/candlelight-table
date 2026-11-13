@@ -3,6 +3,7 @@ extends MultiMeshInstance3D
 ## เอฟเฟกต์ปืนของอารีน่า (ARENA_SPEC §6.4): MultiMesh เดียว (1 draw call) ของแผ่นสี่เหลี่ยม: รอยกระสุน 0.03 ม. จากปากกระบอก
 ## ถึงจุดโดน (0.06 วิ) ประกายปากกระบอกสองแผ่นไขว้ (0.05 วิ) และสะเก็ดที่จุดโดน (0.15 วิ: hi 8, mid 5, lo 3; min แผ่นเดียว 0.1 วิ)
 ## hi/mid วัสดุบวกแสง (blend_add) ไม่รับแสง, lo/min วัสดุทึบไม่รับแสง · ทิศสะเก็ดจาก RNG ที่ตั้ง seed ไว้ (เทสซ้ำได้)
+## ฝุ่นตอนพุ่งหลบ: แผ่นหันหาจอขยายแล้วจาง (hi 4, mid 3, lo 2, min ไม่มี) ใน MultiMesh เดิม ไม่เพิ่ม draw call
 ## พิกัดโลก (top_level) · ไม่มีเอฟเฟกต์ = ซ่อนโหนด (ไม่มี draw call) · งานต่อเฟรม: _process เฉพาะตอนมีเอฟเฟกต์ค้างอยู่ แล้วปิดตัวเอง
 
 const POOL := 48
@@ -19,6 +20,10 @@ const SPARKS := {"hi": 8, "mid": 5, "lo": 3, "min": 0}
 const TRACER_COL := Color(1.0, 0.86, 0.5)
 const FLASH_COL := Color(1.0, 0.78, 0.35)
 const SPARK_COL := Color(1.0, 0.7, 0.3)
+const DUST := {"hi": 4, "mid": 3, "lo": 2, "min": 0}
+const DUST_LIFE := 0.35
+const DUST_SIZE := 0.35
+const DUST_COL := Color(0.42, 0.36, 0.3)
 
 var level := "mid"
 var additive := true
@@ -85,6 +90,17 @@ func impact(at: Vector3, normal: Vector3 = Vector3.UP) -> void:
 	for i in n:
 		var d := (nn + Vector3(rng.randf_range(-1.0, 1.0), rng.randf_range(-0.4, 1.0), rng.randf_range(-1.0, 1.0)) * 0.9).normalized()
 		_add({"kind": &"spark", "life": SPARK_LIFE, "a": at, "vel": d * SPARK_SPEED * rng.randf_range(0.6, 1.0)})
+
+
+## ฝุ่นที่เท้าตอนพุ่งหลบ (back = ทิศไปทางหลังของการพุ่ง) · min ไม่มี
+func dust(at: Vector3, back: Vector3 = Vector3.ZERO) -> void:
+	var n := int(DUST.get(level, 0))
+	var b := Vector3(back.x, 0.0, back.z)
+	b = b.normalized() if b.length_squared() > 0.0001 else Vector3.ZERO
+	for i in n:
+		var side := Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)) * 0.6
+		_add({"kind": &"dust", "life": DUST_LIFE * rng.randf_range(0.8, 1.1), "a": at + Vector3(0.0, 0.15, 0.0) + side * 0.25,
+			"vel": (b * 1.2 + side + Vector3(0.0, 0.5, 0.0)) * rng.randf_range(0.6, 1.0)})
 
 
 func alive() -> int:
@@ -156,6 +172,10 @@ func _write() -> void:
 			&"impact":
 				xf = _facing(it["a"], IMPACT_SIZE, eye)
 				col = SPARK_COL
+			&"dust":
+				var p: Vector3 = it["a"] + it["vel"] * t
+				xf = _facing(p, DUST_SIZE * (0.5 + k), eye)
+				col = DUST_COL * (1.0 - k) if additive else DUST_COL.lerp(Color(0.25, 0.22, 0.2), k)
 		mm.set_instance_transform(i, xf)
 		mm.set_instance_color(i, col)
 	mm.visible_instance_count = n

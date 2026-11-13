@@ -72,8 +72,8 @@ step R0 (§12.1): `ui/i18n/arena.json` (ROOM), `ui/i18n/arena_hud.json` (PLAYER)
 | รีเซ็ตแล้ว | Reset done | `arena.json` | toast |
 | หยุดชั่วคราว | Paused | `arena.json` | pause panel title |
 | เดินเข้าอารีน่าแล้วจะถือปืน | Walk into the arena to draw your gun | `arena_hud.json` (PLAYER) | corridor hint |
-| คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Esc หยุด | Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Esc to pause | `arena_hud.json` | shooter hint, keyboard |
-| ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด และอาวุธอยู่ขวาล่าง | Drag the right side to aim · fire, punch and weapon buttons are at the bottom right | `arena_hud.json` | shooter hint, touch |
+| คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Esc หยุด | Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Esc to pause | `arena_hud.json` | shooter hint, keyboard |
+| ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง | Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right | `arena_hud.json` | shooter hint, touch |
 | กำลังบรรจุกระสุน… | Reloading… | `arena_hud.json` | ammo line while reloading |
 | บรรจุ | Reload | `arena_hud.json` | touch button |
 | คุณล้ม! กำลังลุกขึ้น… | You're down! Getting up… | `arena_hud.json` | downed overlay |
@@ -688,6 +688,59 @@ and `last_switch()` are read only where a figure has them, so a figure without t
 stopping the run), one in `tests/render/test_arena_hud.gd` (the slung rifle shows with the sword) and a second phone
 worst view in `tests/render/test_arena.gd`: the saw sword landing a hit (sword in hand, the rifle slung on the back on
 hi / mid / lo, the impact sparks), held to the same limits as the rifle view.
+
+### 9.5 Dodge and the hooks H8, H9 (13 Nov, owner request: "a dash-dodge on Space; the power-armour figure needs no strafing")
+
+**Dodge.** Desktop: the physical Space key (input action `dodge`, registered by `ArenaPlayer.ensure_dodge_action()`
+when the project has none; nothing else in the arena uses Space and every arena button has `FOCUS_NONE`, so Space never
+presses a button). Touch: `DodgeButton` in `ArenaTouch`, label หลบ / Dodge (`ArenaData.DODGE.th`, `arena_data.json`),
+radius 32 at (−128, −218) from the bottom-right safe corner, above-left of the fire button (the weapon button moved from
+(−84, −256) to (−52, −258) so no two button rects overlap); shoot mode only, like the other shooter buttons. Both call
+`ArenaPlayer.press(&"dodge", true)` → `dodge()`, in walk and shoot mode.
+- Numbers (`ArenaData.DODGE`): `distance` 3.8 m, `time` 0.3 s, `invuln` 0.25 s, `cooldown` 0.7 s counted from the end of
+  the dash (1.0 s between two dodges), `ease` 0.6 (speed falls linearly from 1.6× to 0.4× the mean 12.7 m/s),
+  `hold_aim` 0.6 s (H9 below).
+- Pure checks (`ArenaCombat`): `dodge_dir(input)` (the stick/keys direction, backwards (0, −1) under 0.1),
+  `can_dodge(since_end, 0, alive, dodging)`, `dodge_speed(t)`, `dodge_travel(t)` (reaches `distance` at `time`),
+  `dodge_invulnerable(t)` (0 ≤ t < 0.25), `faces_aim(acting, moving, since_action)`.
+- Direction: camera-relative like walking; with no input, backwards from the way the body faces. Each physics tick moves
+  `dodge_travel(t + dt) − dodge_travel(t)` through `move_and_slide`, so pillars, walls and the beast stop or slide it.
+- During the dash other presses do nothing; the trigger is released and taken up again at the end if fire is still held.
+  The first 0.25 s `take_hit` returns `{"applied": 0, "dodged": true}` (a claw landing then misses). Not while downed
+  (`is_alive()`), not while paused or with input off. Downed during the dash ends it.
+- Signals and reads: `dodge_changed(state)` with `&"dash"`, `&"cool"`, `&"ready"`; `dodging()`, `dodge_wait()`,
+  `dodge_ready_ratio()` (0..1). The touch button dims while it waits and a gold ring grows from its centre to its rim
+  (the button atlas, no extra draw call); its `_process` runs only during that ≤ 1 s and never on min, where the button
+  just stays dim until `ready`.
+- Effects: `ArenaFx.dust(at, back)` puffs hi 4, mid 3, lo 2 quads (0.35 s) in the existing MultiMesh, none on min;
+  sound `dodge` (below).
+
+**H8 `begin_dodge(local_dir: Vector2, duration: float)`** (optional, checked once in `setup` like H6/H7): called once
+when a dodge starts, after the player has set its facing, with the dash direction in the figure's own frame (H6
+conventions) and `duration` = `DODGE.time`. The figure plays its own dodge; gameplay never waits for it. Egg: tuck
+(squash 16 %, dip 0.12 m), lean 0.42 rad toward the dodge, recover by 100 % (`dodging()` reads it), on every level (a
+0.3 s one-shot like its other clips).
+
+**H9 `uses_strafe() -> bool`** (optional, default true). A figure that returns false is not strafed: in shoot mode the
+player turns it to face where it moves (rate 18/s), and turns it to the aim while standing, firing or striking and for
+`hold_aim` 0.6 s after the last shot or blow (a melee press snaps it to the aim first, so the blow's cone is the aim's).
+Mouse look while it walks away only changes `set_aim`. It dodges facing the dash (local (0, 1)) when a direction is
+held, backwards otherwise. The egg has no `uses_strafe` and keeps strafing.
+
+**Sounds** (`ArenaSound`, `scenes/arena/arena_sound.gd`, through the `Sfx` autoload; silent without it).
+`ArenaData.SOUNDS` maps each arena sound to an old-page DEF kind, gain and pitch: gun → shot, reload → clang (0.7,
+1.35), empty → ui (dry click), punch → swing, punch_hit → hit, saw_idle → saw (loop while the saw sword is in hand,
+stopped on holster, pause, hide), saw_rev → saw (1.25), saw_hit → chain, beast_roar → charge (0.7; the bot switched
+on), beast_strike → claw, beast_miss → swing (0.7; a strike that did no damage), beast_hit → bite (rifle hits only;
+punch and saw have their own), beast_death → die (0.6), switch → turn, reset → heal, dodge → swing (0.6). Sounds are
+visual-only: no rules state reads them.
+
+Tests: `tests/unit/test_arena_dodge.gd` (numbers, math, the sound map against the DEF names and `sfx.json`, a real
+`ArenaPlayer` tick by tick with the egg and with `tests/fixtures/figure_pack/heavy_figure.gd` (H8 + H9 false), the egg's
+clip on mid and min), `tests/flow/test_arena_flow.gd` step 10d (a real Space dash of 3.8 m in 0.3 s, the cooldown, a
+pillar stops it at 1.15 m from its centre, a dodge during the beast's wind-up keeps HP, Sfx was asked for the arena
+sounds), `tests/render/test_arena_hud.gd` (DodgeButton within 290 px, no overlap, dashes, ring, ready again;
+`arena_touch_dodge.png`), `test_arena_combat.gd` (arena_data.json now holds five labels, on purpose).
 
 ## 10. Screens, flow and transitions (ROOM)
 

@@ -459,11 +459,20 @@ func _spawn_skinned(kit: KitData, f: Figure) -> Node3D:
 
 
 func _clear_nodes() -> void:
+	# เอาออกจากต้นไม้ก่อนลบ ชั้นใหม่ในเฟรมเดียวกันได้ชื่อ Kit_<ชุด> เดิม (BattleFx หาด้วยชื่อ)
 	for n in _near:
-		n.queue_free()
+		_drop(n)
 	_near.clear()
 	for name in _mmis:
-		(_mmis[name] as Node).queue_free()
+		_drop(_mmis[name] as Node)
 	_mmis.clear()
 	_skinned_count = 0
 	_tris = 0
+
+
+func _drop(n: Node) -> void:
+	if n == null or not is_instance_valid(n):
+		return
+	if n.get_parent() == self:
+		remove_child(n)
+	n.queue_free()

@@ -156,6 +156,8 @@ func _spawn_actors(l: String, touch: bool) -> void:
 			for sig in [&"hp_changed", &"state_changed", &"died"]:
 				_connect(enemy, sig, _on_enemy_changed)
 			_connect(enemy, &"damaged", _on_enemy_damaged)
+			_connect(enemy, &"struck", _on_enemy_struck)
+			_connect(enemy, &"died", _on_enemy_died)
 			# เป้าเล็งแดงต้องตามศัตรูที่ขยับ ล้ม หรือรีเซ็ต แม้ผู้เล่นยืนนิ่ง (ตามสัญญาณ ไม่มีงานต่อเฟรมตอนนิ่ง)
 			for sig in [&"moved", &"state_changed"]:
 				_connect(enemy, sig, _refresh_aim)
@@ -299,6 +301,9 @@ func toggle_bot(how: StringName) -> bool:
 		enemy.call(&"set_bot", state.bot_on)
 	bot_toggled.emit(state.bot_on, how)
 	stats_changed.emit(stats())
+	ArenaSound.play(self, "switch")
+	if state.bot_on and enemy != null and enemy.has_method(&"is_alive") and bool(enemy.call(&"is_alive")):
+		ArenaSound.play(self, "beast_roar", enemy.global_position + Vector3(0.0, 1.5, 0.0))
 	return true
 
 
@@ -311,6 +316,7 @@ func reset_range() -> void:
 	state.reset()
 	reset_done.emit()
 	stats_changed.emit(stats())
+	ArenaSound.play(self, "reset")
 
 
 ## เวลาเกมจากจำนวนเฟรมฟิสิกส์ (ไม่อ่านนาฬิกา ไม่ต้องมีงานต่อเฟรม)
@@ -457,6 +463,19 @@ func _refresh_aim(_a: Variant = null) -> void:
 func _on_enemy_damaged(info: Dictionary) -> void:
 	state.record_hit(int(info.get("amount", 0)))
 	stats_changed.emit(stats())
+	# กระสุนโดนเนื้อ (หมัด/ดาบมีเสียงโดนของตัวเองจากผู้เล่น)
+	if StringName(str(info.get("kind", ""))) == &"gun":
+		ArenaSound.play(self, "beast_hit", info.get("point", null) if info.get("point") is Vector3 else null)
+
+
+## กรงเล็บลง: โดนจริง = เสียงตะปบ · พลาด/หลบได้ = เสียงวืด
+func _on_enemy_struck(info: Dictionary) -> void:
+	var at: Variant = enemy.global_position + Vector3(0.0, 1.2, 0.0) if enemy != null else null
+	ArenaSound.play(self, "beast_strike" if int(info.get("amount", 0)) > 0 else "beast_miss", at)
+
+
+func _on_enemy_died() -> void:
+	ArenaSound.play(self, "beast_death", enemy.global_position + Vector3(0.0, 1.0, 0.0) if enemy != null else null)
 
 
 ## สีแผ่นเป้า (แดงปิด เขียวเปิด) กับโคม: hi/mid หมุน (shader) ตอนเปิด, lo/min สีนิ่ง สว่างเฉพาะตอนเปิด

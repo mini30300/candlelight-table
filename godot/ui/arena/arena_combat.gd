@@ -89,3 +89,47 @@ static func number_style(amount: int) -> StringName:
 
 static func yaw_to(from: Vector3, to: Vector3) -> float:
 	return atan2(to.x - from.x, to.z - from.z)
+
+
+# ---- พุ่งหลบ (ArenaData.DODGE) ----
+
+## ทิศพุ่งในกรอบที่ผู้เล่นสั่ง (x = ขวา, y = หน้า): ทิศที่กด (ยาว 1) ไม่กด/กดเบากว่า 0.1 = ถอยหลัง (0, −1)
+static func dodge_dir(input: Vector2) -> Vector2:
+	if input.length() < 0.1:
+		return Vector2(0.0, -1.0)
+	return input.normalized()
+
+
+## พุ่งได้ไหม: ยังไม่ล้ม ไม่ได้พุ่งอยู่ และพ้นคูลดาวน์นับจากพุ่งครั้งก่อนจบ (last_end = เวลาที่พุ่งครั้งก่อนจบ)
+static func can_dodge(now: float, last_end: float, alive: bool, dodging: bool) -> bool:
+	return alive and not dodging and now - last_end >= float(ArenaData.DODGE["cooldown"])
+
+
+## ความเร็วพุ่ง (ม./วิ) ที่เวลา t นับจากเริ่ม: ลดเป็นเส้นตรง รวมทั้งช่วงได้ระยะ distance พอดี · นอกช่วง = 0
+static func dodge_speed(t: float) -> float:
+	var d := ArenaData.DODGE
+	var dur := float(d["time"])
+	if t < 0.0 or t >= dur:
+		return 0.0
+	var avg := float(d["distance"]) / dur
+	return avg * (1.0 + float(d["ease"]) * (1.0 - 2.0 * t / dur))
+
+
+## ระยะที่พุ่งไปแล้วที่เวลา t (ม.) · ถึง distance เมื่อ t ≥ time
+static func dodge_travel(t: float) -> float:
+	var d := ArenaData.DODGE
+	var dur := float(d["time"])
+	var tt := clampf(t, 0.0, dur)
+	var avg := float(d["distance"]) / dur
+	return avg * (tt + float(d["ease"]) * (tt - tt * tt / dur))
+
+
+## อมตะช่วงต้นของการพุ่ง (กรงเล็บที่ลงตอนนี้พลาด)
+static func dodge_invulnerable(t: float) -> bool:
+	return t >= 0.0 and t < float(ArenaData.DODGE["invuln"])
+
+
+## ตัวละครที่ไม่เดินเยื้อง (H9 false) ในโหมดยิง: หันตามทิศเล็งตอนยืนนิ่ง ตอนยิง/ฟัน/ต่อย (acting)
+## และอีก hold_aim วิหลังจากนั้น · นอกนั้นหันตามทิศเดิน
+static func faces_aim(acting: bool, moving: bool, since_action: float) -> bool:
+	return acting or not moving or since_action < float(ArenaData.DODGE["hold_aim"])

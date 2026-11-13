@@ -26,7 +26,7 @@ env:
 jobs:
   # The figure kits (godot/assets/kits/*.glb + kits.json, 48 MB) and the bakes derived from them are generated from the
   # old page and never committed: this job makes them once (cached on the page and godot/tools) and shares them as the
-  # godot-kits artifact, rooted at godot/assets (kits/, impostors/, anim/), which the other jobs download.
+  # godot-kits artifact, rooted at godot/assets (kits/, impostors/, anim/, sfx/), which the other jobs download.
   kits:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -40,6 +40,7 @@ jobs:
             godot/assets/kits
             godot/assets/impostors
             godot/assets/anim
+            godot/assets/sfx
           key: godot-kits-${{ hashFiles('app/src/main/assets/battle-table.html', 'godot/tools/**') }}
       - uses: actions/setup-node@v4
         if: steps.kits-cache.outputs.cache-hit != 'true'
@@ -68,6 +69,7 @@ jobs:
       - name: Check the set
         run: |
           test -s godot/assets/kits/kits.json
+          node godot/tools/bake_sfx.js --check
           echo "$(ls godot/assets/kits/*.glb | wc -l) kits, $(du -sh godot/assets/kits | cut -f1)"
           # keep the artifact rooted at godot/assets even while a bake does not exist yet
           for d in impostors anim; do
@@ -82,6 +84,7 @@ jobs:
             godot/assets/kits
             godot/assets/impostors
             godot/assets/anim
+            godot/assets/sfx
           if-no-files-found: error
           retention-days: 7
 

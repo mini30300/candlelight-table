@@ -5,6 +5,7 @@ extends Node3D
 ## หน้าตัวอยู่ทาง +z (yaw 0) ขวามือของตัว = −x · ท่าทางสร้างด้วยโค้ด: idle walk run fire reload punch swing hit die
 ## play() คืนความยาวท่า · จังหวะเกมมาจาก ArenaData ไม่ใช่ความยาวท่า · แมกที่หล่นตอนบรรจุเป็นเมชแยก โชว์เฉพาะตอนบรรจุ
 ## เมธอดเสริม (§9.4): set_move_dir (H6 เอนตามทิศที่เดิน hi/mid) begin_switch (H7 ย่ออาวุธเก่า hi/mid)
+## H8 begin_dodge: ท่าพุ่งหลบสั้น ๆ (ย่อตัว พุ่งเอนไปทางที่หลบ ตั้งตัวกลับ) ทุกระดับ · ไม่มี uses_strafe = เดินเยื้องได้ (H9)
 ## ฟันดาบสองจังหวะสลับกัน ใบผ่านหน้าตรงตอน 0.18 วิ · ถือดาบอยู่เห็นปืนสะพายหลัง (เมชแยก ไม่โชว์บน min)
 ## งานต่อเฟรม: _process เฉพาะตอนมีท่าครั้งเดียวกำลังเล่น ชักอาวุธ หรือโยกตัวตอนเดิน (hi/mid) แล้วปิดตัวเอง
 
@@ -46,6 +47,11 @@ const CUT_BLEND := 0.08     # ท่าใหม่ตัดท่าต่อ�
 ## ปืนสะพายหลังตอนถือดาบ (พิกัดไข่): ด้ามกลางหลัง ลำกล้องเฉียงขึ้นไปทางไหล่ซ้าย ข้างปืนแนบหลัง
 const STOW_AT := Vector3(0.0, 1.07, -0.455)
 const STOW_UP := Vector3(0.55, 0.83, 0.0)
+## พุ่งหลบ: เอนสุด (เรเดียน) ย่อลงสุด (ม.) ยุบตัวตอนย่อ ยืดตอนพุ่ง
+const DODGE_LEAN := 0.42
+const DODGE_DROP := 0.12
+const DODGE_SQUASH := 0.16
+const DODGE_STRETCH := 0.06
 
 static var _mesh_cache: Dictionary = {}
 
@@ -85,6 +91,9 @@ var _dir := Vector2(0.0, 1.0)   # H6 ทิศที่เดินในกร�
 var _stow := -1.0               # H7 0..1 ย่ออาวุธเก่าลง (−1 = ไม่ได้ย่อ)
 var _stow_len := 0.15
 var _last_switch: StringName = &""
+var _dodge_t := -1.0            # H8 เวลาในท่าพุ่งหลบ (ติดลบ = ไม่ได้หลบ)
+var _dodge_len := 0.3
+var _dodge_dir := Vector2(0.0, -1.0)
 var _arc: StringName = &"a"
 var _swing_at := -INF
 var _sw_grip := Vector3.ZERO    # ผลของ _swing_pose (ไม่สร้าง Array ทุกเฟรม)
@@ -181,6 +190,22 @@ func set_move_dir(local_dir: Vector2, speed: float, running: bool) -> void:
 
 func move_dir() -> Vector2:
 	return _dir
+
+
+## H8 (ARENA_SPEC §9.4): เริ่มท่าพุ่งหลบไปทาง local_dir (กรอบตัว x ขวา y หน้า) ยาว duration วิ
+func begin_dodge(local_dir: Vector2, duration: float) -> void:
+	if _dead:
+		return
+	_dodge_dir = local_dir if local_dir != Vector2.ZERO else Vector2(0.0, -1.0)
+	_dodge_len = maxf(duration, 0.05)
+	_dodge_t = 0.0
+	set_process(true)
+	_pose()
+
+
+## กำลังเล่นท่าพุ่งหลบ (เทส)
+func dodging() -> bool:
+	return _dodge_t >= 0.0
 
 
 func _apply_move(speed: float, running: bool) -> void:
@@ -321,6 +346,12 @@ func _process(delta: float) -> void:
 			_clip = ""
 		else:
 			active = true
+	if _dodge_t >= 0.0:
+		_dodge_t += delta
+		if _dodge_t >= _dodge_len:
+			_dodge_t = -1.0
+		else:
+			active = true
 	if _draw_t < 1.0:
 		_draw_t = minf(_draw_t + delta / 0.2, 1.0)
 		active = active or _draw_t < 1.0
@@ -355,6 +386,15 @@ func _pose() -> void:
 		var d := _dir if _dir != Vector2.ZERO else Vector2(0.0, 1.0)
 		lean += 0.08 * k * d.y
 		roll = 0.10 * k * d.x
+	# H8 พุ่งหลบ: ย่อ (0–25 %) พุ่งเอนไปทางที่หลบ แล้วตั้งตัวกลับ (65–100 %) · ยุบตอนย่อ ยืดตอนพุ่ง
+	var squash := 0.0
+	if _dodge_t >= 0.0 and not _dead:
+		var u := clampf(_dodge_t / _dodge_len, 0.0, 1.0)
+		var env := smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.65, 1.0, u))
+		bob_y -= DODGE_DROP * env
+		lean += DODGE_LEAN * env * _dodge_dir.y
+		roll += DODGE_LEAN * env * _dodge_dir.x
+		squash = DODGE_SQUASH * sin(PI * clampf(u / 0.35, 0.0, 1.0)) - DODGE_STRETCH * sin(PI * clampf((u - 0.3) / 0.45, 0.0, 1.0))
 	var aim_fwd := Vector3(0.0, sin(_pitch), cos(_pitch))
 	# อาวุธและมือขวา
 	var grip := GRIP_GUN if _weapon == &"gun" else GRIP_SWORD
@@ -440,6 +480,8 @@ func _pose() -> void:
 		left = left.lerp(Vector3(0.55, 0.15, 0.1), k)
 		right = right.lerp(Vector3(-0.55, 0.15, 0.1), k)
 	egg.position = Vector3(0.0, bob_y, 0.0)
+	var sy := 1.0 - squash
+	egg.scale = Vector3(1.0 / sqrt(sy), sy, 1.0 / sqrt(sy)) if squash != 0.0 else Vector3.ONE
 	if _dead or _clip == "die":
 		roll = 0.0
 	egg.rotation = Vector3(lean, twist, tip + roll)

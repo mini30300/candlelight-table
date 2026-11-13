@@ -62,6 +62,8 @@ const T_MINE := "บอทเล่นแทนคุณอยู่ตอนน
 const T_RECONNECTING := "การเชื่อมต่อหลุด — กำลังต่อใหม่…"   # = OnlineText.REASONS.reconnecting
 const NET_LINK := ^"/root/Net/NetBattleLink"
 const REPAIRED_SECONDS := 3.0
+const FX_HOLD_MS := 3000              # ภาพของก้าวหนึ่งรอได้นานสุดเท่านี้ ก่อนก้าวต่อ (ความเร็วปกติ)
+const FX_FAST := 2.2                  # ความเร็วเร็ว: ภาพเล่นเร็วขึ้น ไม่รอ
 
 var runner: MatchRunner
 var plan: Dictionary = {}
@@ -118,6 +120,8 @@ var _desync_timer: Timer
 var _remote := false               # รอเพื่อน/เจ้าห้อง (wait_remote): Timer หยุด ปั๊มต่อเมื่อ runner.changed
 var _host_end := false             # เจ้าห้องจบเกม (END)
 var _wait_again: Label
+var _fx: BattleFx                   # ท่าโจมตี/เอฟเฟกต์ของหน้าเดิมบนโต๊ะ (ภาพล้วน)
+var _fx_fed_ms := -100000
 
 
 func _ready() -> void:
@@ -141,6 +145,8 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_timer.stop()
+	if _fx != null and is_instance_valid(_fx):
+		_fx.clear()
 	if table != null and is_instance_valid(table):
 		if table.has_signal(&"picked") and table.is_connected(&"picked", _on_picked):
 			table.disconnect(&"picked", _on_picked)
@@ -181,9 +187,14 @@ func begin(p: Dictionary, r: MatchRunner = null) -> void:
 	_result.visible = false
 	_leave.visible = false
 	_auto.set_pressed_no_signal(false)
+	var music := get_node_or_null(^"/root/Music")
+	if music != null:
+		music.call("reset_battle")
 	_show_table()
 	table.call("build_battle", runner.st)
+	_fx_begin()
 	_add_log(evs)
+	_sound_feed(evs)          # ตาแรก: เสียง turn + ตั้งพื้นเพลง
 	_refresh()
 	_set_speed_timer()
 	_timer.start()
@@ -197,6 +208,7 @@ func set_speed(s: String) -> void:
 	_speed.set_pressed_no_signal(s != "normal")
 	_speed.text = I18n.t(T_NORMAL if s == "normal" else T_FAST)
 	_set_speed_timer()
+	_fx_speed()
 
 
 func is_over() -> bool:
@@ -263,13 +275,17 @@ func _set_speed_timer() -> void:
 func _on_timer() -> void:
 	if runner == null or _leave.visible:
 		return
+	if _fx_holding():
+		return
 	var t0 := Time.get_ticks_usec()
 	var grew := false
 	var stuck_now := false
+	var fed: Array = []
 	while true:
 		var n0 := runner.acts().size()
 		var r := runner.step()
 		_add_log(r["events"])
+		fed.append_array(r["events"])
 		if runner.acts().size() != n0:
 			grew = true
 		var state := str(r["state"])
@@ -296,6 +312,7 @@ func _on_timer() -> void:
 		_show_stuck()
 	if grew:
 		table.call("sync_battle", runner.st)
+	_fx_feed(fed)
 	if runner.is_over():
 		_show_end()
 	_refresh()
@@ -307,6 +324,7 @@ func _after_human() -> void:
 	var r := runner.step()
 	_add_log(r["events"])
 	table.call("sync_battle", runner.st)
+	_fx_feed(r["events"])
 	var state := str(r["state"])
 	if state == "wait_human":
 		_waiting = true
@@ -326,9 +344,11 @@ func _on_changed() -> void:
 		return
 	for n: Dictionary in runner.call("take_notices"):
 		_notice(n)
-	_add_log(runner.take_events())
+	var evs: Array = runner.take_events()
+	_add_log(evs)
 	if table != null and is_instance_valid(table) and table.visible:
 		table.call("sync_battle", runner.st)
+		_fx_feed(evs)
 	if str(runner.get("ended_why")) != "" and not _ended:
 		_host_end = true
 		_show_end()
@@ -626,6 +646,77 @@ func _on_result() -> void:
 
 # ---- โต๊ะ ----
 
+# ---- ท่าทาง/เอฟเฟกต์ (BattleFx: ภาพล้วน ไม่แตะกติกา) ----
+
+## โหนดภาพการรบใต้โต๊ะ (สร้างครั้งแรก) แล้วเริ่มนัดใหม่
+func _fx_begin() -> void:
+	if table == null or runner == null:
+		return
+	if _fx == null or not is_instance_valid(_fx):
+		_fx = table.get_node_or_null(^"BattleFx") as BattleFx
+		if _fx == null:
+			_fx = BattleFx.new()
+			_fx.name = "BattleFx"
+			table.add_child(_fx)
+	_fx.begin(table, runner.st)
+	_fx_speed()
+
+
+func _fx_speed() -> void:
+	if _fx == null:
+		return
+	_fx.enabled = _fx.allowed and speed != "instant"
+	_fx.time_scale = 1.0 if speed == "normal" else FX_FAST
+	if not _fx.enabled:
+		_fx.clear()
+
+
+## เหตุการณ์ของก้าวไปเป็นภาพ (หลังโต๊ะวาดตำแหน่งใหม่แล้ว)
+func _fx_feed(evs: Array) -> void:
+	_sound_feed(evs)
+	if _fx == null or runner == null:
+		return
+	_fx.feed(evs, runner.st)
+	if _fx.busy_left() > 0.0:
+		_fx_fed_ms = Time.get_ticks_msec()
+
+
+## เสียงของจังหวะเกม (หน้าเก่า: turn ตอนเริ่มตา, end ตอนจบ, dice ตอนทอย) + เพลงเข้มขึ้นสองตาสุดท้าย
+## เสียงยิง/ฟัน/ตายอยู่ใน BattleFx · เสียงไม่แตะกติกา
+func _sound_feed(evs: Array) -> void:
+	if runner == null or speed == "instant" or not is_visible_in_tree():
+		return
+	var sfx := get_node_or_null(^"/root/Sfx")
+	var music := get_node_or_null(^"/root/Music")
+	var diced := false
+	for e: Variant in evs:
+		if not e is Dictionary:
+			continue
+		match Events.id_of(e):
+			Events.Id.TURN:
+				if sfx != null:
+					sfx.call("play", &"turn")
+				if music != null:
+					var left := runner.st.max_round() - int(e.get("round", 0))
+					music.call("set_intensity", 1.0 if left <= 0 else (0.5 if left == 1 else 0.0))
+			Events.Id.ATTACK_STAGE:
+				if not diced and sfx != null and str(e.get("stage", "")) == "hit":
+					diced = true
+					sfx.call("play", &"dice", null, 0.7)
+			Events.Id.OVER:
+				if sfx != null:
+					sfx.call("play", &"end")
+
+
+## ความเร็วปกติ: รอภาพของก้าวก่อนเล่นจบก่อนก้าวต่อ (ไม่เกิน FX_HOLD_MS) · ภาพไม่เคยเปลี่ยนผลของเกม
+func _fx_holding() -> bool:
+	if _fx == null or not _fx.enabled or speed != "normal":
+		return false
+	if Time.get_ticks_msec() - _fx_fed_ms > FX_HOLD_MS:
+		return false
+	return _fx.busy_left() > 0.0
+
+
 func _ensure_table() -> void:
 	if table != null and is_instance_valid(table):
 		return
@@ -651,6 +742,9 @@ func _show_table() -> void:
 	var rig: Node = table.get("camera_rig")
 	if rig != null:
 		(rig.get("camera") as Camera3D).make_current()
+	var music := get_node_or_null(^"/root/Music")
+	if music != null:
+		music.call("set_mood", &"battle")
 
 
 func _on_visibility() -> void:
@@ -659,12 +753,15 @@ func _on_visibility() -> void:
 	if is_visible_in_tree():
 		_show_table()
 		table.call("build_battle", runner.st)
+		_fx_begin()
 		_select(_sel if _sel != null and runner.can_select(_sel) else null)
 		_refresh()
 		if not _waiting and not _ended and not _stuck and not _leave.visible:
 			_timer.start()
 	else:
 		_timer.stop()
+		if _fx != null:
+			_fx.clear()
 		table.call("end_battle")
 		table.visible = false
 		table.process_mode = Node.PROCESS_MODE_DISABLED

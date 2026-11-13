@@ -9,7 +9,7 @@ extends SceneTree
 ##  3. hold W down the corridor: past z -11.3 shoot mode, the rifle, ammo (30, 30), aim_active(), the mouse captured;
 ##     the app going to the background pauses the fight, resume and one click re-captures;
 ## 3b. (ARENA_SPEC §9.4, H6) at (0, -14): holding D, S and A in shoot mode tells the egg it moves right, back and left
-##     (move_dir() x > 0.9, y < -0.9, x < -0.9); standing again gives (0, 0) and nothing processes on min;
+##     (move_dir() x > 0.9, y < -0.9, x < -0.9; a figure with H9 uses_strafe() false is turned to walk forward: y > 0.9); standing again gives (0, 0) and nothing processes on min;
 ##  4. aim at the beast's chest and hold the left button: shots land, the beast dies after 25 hits and 300 damage (5
 ##     rounds left: no shot missed), the board says ล้มแล้ว · กดรีเซ็ต, the HUD showed the rifle's merged damage number;
 ##     the empty magazine reloads by itself with the button still held, R reloads a part-used one;
@@ -24,6 +24,10 @@ extends SceneTree
 ## 10b. downed (HP 0): the Downed overlay, no movement, fire ignored, the beast idle through the grace; after 2 s the
 ##      player gets up at RESPAWN with 100 HP, shoot mode, a full magazine, the overlay hidden, the beast still idle;
 ## 10c. downed at the reset pedestal, E: the reset revives the player in place and input works again;
+## 10d. (dodge, 13 Nov) Space at (0, -20) with no key held: a real 3.5–4 m dash backwards in about 0.3 s, a second
+##      Space at once does nothing (cooldown); W + Space toward a pillar stops at its side, never inside it; with the bot
+##      on, Space while the beast winds up: its strike misses (HP unchanged); the arena sounds were asked of Sfx (rifle
+##      shot, dodge whoosh, saw rev, switch, reset) when the Sfx autoload is there;
 ## 10. E at the switch: the bot is off; after its current action the beast moves < 0.05 m over 1 s;
 ## 11. back across the shoot line: walk mode, weapon none, mouse not captured; up the corridor into the deck door -> the
 ##     deck (depth 2), the avatar at ARENA_RETURN, station "", the deck camera current, the egg opaque, the arena screen
@@ -140,8 +144,13 @@ func _run() -> void:
 		dirs[k[1]] = fig3.call("move_dir") if fig3 != null and fig3.has_method("move_dir") else Vector2.ZERO
 		_key(k[0], false)
 		await _physics(int(0.3 * Engine.physics_ticks_per_second))
-	_check((dirs["D"] as Vector2).x > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).x < -0.9 and str(world.call("mode")) == "shoot",
-		"3b. shoot mode: D, S and A tell the egg it moves right, back and left", str(dirs))
+	if not player.has_method("strafes") or bool(player.call("strafes")):
+		_check((dirs["D"] as Vector2).x > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).x < -0.9 and str(world.call("mode")) == "shoot",
+			"3b. shoot mode: D, S and A tell the egg it moves right, back and left", str(dirs))
+	else:
+		# H9 (ARENA_SPEC §9.5): a figure that does not strafe is turned to face where it moves (a pack figure)
+		_check((dirs["D"] as Vector2).y > 0.9 and (dirs["S"] as Vector2).y > 0.9 and (dirs["A"] as Vector2).y > 0.9 and str(world.call("mode")) == "shoot",
+			"3b. shoot mode, a figure without strafing (H9): D, S and A turn it to walk forward where it goes", str(dirs))
 	await _physics(int(0.5 * Engine.physics_ticks_per_second))
 	await _frames(12)
 	# move_dir() is an extra of the egg (not in FIGURE_API): read it once, guarded, so a figure without it fails the check
@@ -350,6 +359,8 @@ func _run() -> void:
 	_key(KEY_S, false)
 	await _physics(6)
 	_check(player.global_position.distance_to(p_up) > 0.3, "10c. …and input works again (moved %.2f m)" % player.global_position.distance_to(p_up))
+	# 10d: พุ่งหลบจริงในอารีน่า
+	await _dodge_steps(world, player, enemy)
 	# 10
 	var sf: Vector2 = ArenaLayout.STATIONS["switch"]["front"]
 	world.call("place_player", Vector3(sf.x, 0.0, sf.y), PI * 0.5, -PI * 0.5)
@@ -474,6 +485,73 @@ func _walk_in(hall: Node) -> Node:
 
 
 ## Claws the player (18 a hit, past the 0.4 s invulnerability) until it is downed.
+func _dodge_steps(world: Node3D, player: Node3D, enemy: Node3D) -> void:
+	var tps := Engine.physics_ticks_per_second
+	world.call("place_player", Vector3(0.0, 0.0, -20.0), PI, 0.0)
+	await _physics(int(1.2 * tps))
+	var z0 := player.global_position.z
+	_key(KEY_SPACE, true)
+	await _physics(1)
+	_key(KEY_SPACE, false)
+	var dashing := bool(player.call("dodging"))
+	var t := 1
+	while bool(player.call("dodging")) and t < tps:
+		await physics_frame
+		t += 1
+	var dz := player.global_position.z - z0
+	_check(dashing and dz > 3.4 and dz < 4.05 and float(t) / tps < 0.4,
+		"10d. Space with no key held dashes %.2f m backwards in %.2f s" % [dz, float(t) / tps])
+	_key(KEY_SPACE, true)
+	await _physics(1)
+	_key(KEY_SPACE, false)
+	_check(not bool(player.call("dodging")), "10d. a second Space at once does nothing (cooldown)")
+	await _physics(int(1.0 * tps))
+	# ชนเสา: W + Space เข้าหาเสา (4.5, -18.5) จาก (4.5, -16)
+	var pil := Vector2(4.5, -18.5)
+	world.call("place_player", Vector3(pil.x, 0.0, -16.0), PI, 0.0)
+	await _physics(6)
+	_key(KEY_W, true)
+	await _physics(2)
+	_key(KEY_SPACE, true)
+	await _physics(1)
+	_key(KEY_SPACE, false)
+	var closest := INF
+	for i in int(0.4 * tps):
+		await physics_frame
+		closest = minf(closest, Vector2(player.global_position.x, player.global_position.z).distance_to(pil))
+	_key(KEY_W, false)
+	_check(closest >= ArenaLayout.PILLAR_R + float(ArenaData.PLAYER["radius"]) - 0.03 and closest < 1.4,
+		"10d. W + Space into a pillar stops at its side (closest %.2f m from its centre, never inside)" % closest)
+	await _physics(int(1.0 * tps))
+	# ศัตรูง้าง แล้วพุ่งหลบ: กรงเล็บพลาด
+	world.call("place_player", Vector3(0.0, 0.0, -21.0), PI, 0.0)
+	var got_windup := false
+	for i in int(10.0 * tps):
+		await physics_frame
+		if str(enemy.call("state")) == "windup":
+			got_windup = true
+			break
+	if not got_windup:
+		_check(false, "10d. the beast winds up within 10 s", str(enemy.call("state")))
+		return
+	var hp0 := int(player.call("hp"))
+	await _physics(int(0.5 * tps))
+	_key(KEY_SPACE, true)
+	await _physics(1)
+	_key(KEY_SPACE, false)
+	var dodged := bool(player.call("dodging"))
+	await _physics(int(0.6 * tps))
+	_check(dodged and int(player.call("hp")) == hp0, "10d. Space during the beast's wind-up: its strike misses (HP %d -> %d)" % [hp0, int(player.call("hp"))])
+	var sfx := root.get_node_or_null(^"Sfx")
+	if sfx != null:
+		var ask: Dictionary = (sfx.get("stats") as Dictionary).get("ask", {})
+		var missing := []
+		for k in ["shot", "swing", "saw", "turn", "heal"]:
+			if int(ask.get(k, 0)) <= 0:
+				missing.append(k)
+		_check(missing.is_empty(), "10d. the arena asked Sfx for its sounds (rifle shot, dodge whoosh, saw rev, switch, reset)", str(missing))
+
+
 func _down(player: Node3D) -> void:
 	for i in 12:
 		if bool(player.call("is_downed")):

@@ -2,7 +2,7 @@ extends SceneTree
 ## The arena's shooter HUD and controls (ARENA_SPEC §5, §6.4–6.6, §13.4 PLAYER), on the real arena screen (pushed straight
 ## onto the main scene's stack; the hive beast is used when its scene exists, the HUD works without it).
 ## Contract: the screen's Hud is an ArenaHud with Ammo, Hint, Hurt, Downed and Touch (Stick, AimPad, FireButton,
-## MeleeButton, ReloadButton, WeaponButton); the player is an ArenaPlayer with an EggGunner figure.
+## MeleeButton, ReloadButton, WeaponButton, DodgeButton); the player is an ArenaPlayer with an EggGunner figure.
 ## Walk mode at the spawn: corridor hint, no ammo line, no shooter buttons, mouse visible. Shoot mode (placed past the
 ## shoot line): the rifle is drawn, ammo 30 / 30, the crosshair rect is centred on the viewport (±1 px), the mouse is
 ## captured (desktop), the keyboard hint shows. Holding the fire action 1 s fires 8 ± 1 shots (tracers alive), the ammo
@@ -14,7 +14,8 @@ extends SceneTree
 ## overflow, buttons >= 44 px, nothing of the HUD overlaps the screen's own nodes, no Thai in English mode. Touch: every
 ## shooter button centre within 290 px of the bottom-right safe corner at 1280 and 1600 widths and clear of %UseButton;
 ## the stick strafes, a 100 px aim-pad drag turns the camera 0.6 rad, holding FireButton 1 s fires 8 ± 1 shots, a drag
-## that starts on it also aims, MeleeButton punches, WeaponButton switches, ReloadButton reloads. The shoulder camera sits
+## that starts on it also aims, MeleeButton punches, WeaponButton switches, ReloadButton reloads, DodgeButton (หลบ /
+## Dodge, 13 Nov) dashes, dims with a growing cooldown ring and is ready again after the cooldown. The shoulder camera sits
 ## 0.55 m right of the egg and is never inside a solid in orbit sweeps by walls, corners and pillars; the egg fades when
 ## the arm is squeezed against a wall. Min: an idle player (no fire, no move) stops processing.
 ## Saves arena_hud_th.png, arena_hud_en.png, arena_touch.png, arena_touch_20x9.png, arena_sword.png, arena_hud_fire.png.
@@ -28,7 +29,8 @@ const SETTINGS_FILE := "user://test_arena_hud.cfg"
 const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(640, 360), Vector2i(1280, 576)]
 const MIN_TARGET := 44.0
 const HUD_NAMES: PackedStringArray = ["Ammo", "Hint", "Hurt", "Downed", "Touch"]
-const TOUCH_NAMES: PackedStringArray = ["Stick", "AimPad", "FireButton", "MeleeButton", "ReloadButton", "WeaponButton"]
+const TOUCH_NAMES: PackedStringArray = ["Stick", "AimPad", "FireButton", "MeleeButton", "ReloadButton", "WeaponButton",
+	"DodgeButton"]
 const SCREEN_NODES: PackedStringArray = ["LobbyButton", "SettingsButton", "UseButton", "Toast", "PausePanel"]
 const SHOOT_AT := Vector3(0.0, 0.0, -12.5)
 const REACH := 290.0
@@ -256,7 +258,7 @@ func _check_touch(screen: Node, hud: Control, player: Node3D) -> void:
 		await _frames(3)
 		var corner := hud.get_global_rect().end
 		var use := screen.get_node_or_null("%UseButton") as Control
-		for n in ["FireButton", "MeleeButton", "ReloadButton", "WeaponButton"]:
+		for n in ["FireButton", "MeleeButton", "ReloadButton", "WeaponButton", "DodgeButton"]:
 			var b := hud.get_node("Touch/" + n) as Button
 			var r := b.get_global_rect()
 			_check(b.is_visible_in_tree() and r.size.x >= MIN_TARGET and r.size.y >= MIN_TARGET, "%d wide: %s shows, at least 44 px" % [root.get_visible_rect().size.x, n])
@@ -337,6 +339,26 @@ func _check_touch(screen: Node, hud: Control, player: Node3D) -> void:
 	_touch(6, wbtn.get_global_rect().get_center(), true)
 	_touch(6, wbtn.get_global_rect().get_center(), false)
 	await _physics(25)
+	# หลบ: พุ่ง ปุ่มมืดพร้อมวงคูลดาวน์ แล้วพร้อมอีกครั้ง
+	var dbtn := tch.get_node("DodgeButton") as Button
+	_check(dbtn.text == "หลบ", "DodgeButton reads หลบ", dbtn.text)
+	var others := true
+	for n in ["FireButton", "MeleeButton", "ReloadButton", "WeaponButton"]:
+		others = others and not dbtn.get_global_rect().intersects((tch.get_node(n) as Control).get_global_rect())
+	_check(others, "DodgeButton overlaps no other shooter button")
+	var dp0: Vector3 = player.global_position
+	_touch(7, dbtn.get_global_rect().get_center(), true)
+	_touch(7, dbtn.get_global_rect().get_center(), false)
+	await _physics(3)
+	_check(bool(player.call("dodging")), "DodgeButton dashes")
+	await _physics(12)
+	var ring := float(tch.call("dodge_ratio"))
+	_check(ring > 0.0 and ring < 1.0, "…the cooldown ring grows while it waits (%.2f)" % ring)
+	await _settle()
+	_save("arena_touch_dodge.png")
+	await _physics(int(1.1 * Engine.physics_ticks_per_second))
+	_check(float(tch.call("dodge_ratio")) >= 1.0 and player.global_position.distance_to(dp0) > 0.5,
+		"…and is ready again after the cooldown (moved %.2f m)" % player.global_position.distance_to(dp0))
 	_app().call("set_touch", "off")
 	screen.call("refresh")
 	await _resize(size0)
