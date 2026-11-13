@@ -429,12 +429,23 @@ func _check_camera(_arena: Node, world: Node3D) -> void:
 	for w in walks:
 		world.call("place_player", w[0], float(w[3]) + PI, float(w[3]))
 		await _physics(8)
+		# The walk counts physics ticks (the player moves per tick) and the camera is checked once per rendered frame,
+		# at the same point as before. It used to count frames: a slow frame runs up to 8 ticks, so on a slow runner the
+		# walk back went about 11 m instead of 4 m, reached the deck door and closed the arena.
+		var seen := {"inside": ""}
+		var check_cam := func() -> void:
+			if str(seen["inside"]) != "" or not is_instance_valid(player):
+				return
+			var cp := cam.global_position
+			if ArenaLayout.inside_solid(cp, 0.1):
+				seen["inside"] = "camera %s with the player at %s (%s)" % [str(cp.snapped(Vector3.ONE * 0.01)), str(player.global_position.snapped(Vector3.ONE * 0.01)), str(player.call("mode"))]
 		player.call("set_stick", w[1])
-		var inside := ""
+		process_frame.connect(check_cam)
+		var closed := false
 		for i in int(w[2]):
 			await physics_frame
 			if not is_instance_valid(player) or int(_app().call("depth")) != 3:
-				inside = "the arena closed during the walk"
+				closed = true
 				break
 			# the orbit swings the view +-0.4 rad around the start (movement is camera-relative, so the walk keeps its way)
 			var swing := float(w[4]) * cos(i * 0.05)
@@ -442,14 +453,14 @@ func _check_camera(_arena: Node, world: Node3D) -> void:
 				rig.call("orbit", swing, 0.0)
 			elif swing != 0.0 and rig.has_method("look"):
 				rig.call("look", swing, 0.0)
-			await process_frame
-			var cp := cam.global_position
-			if inside == "" and ArenaLayout.inside_solid(cp, 0.1):
-				inside = "camera %s with the player at %s (%s)" % [str(cp.snapped(Vector3.ONE * 0.01)), str(player.global_position.snapped(Vector3.ONE * 0.01)), str(player.call("mode"))]
+		if is_instance_valid(player):
+			player.call("set_stick", Vector2.ZERO)
+		await process_frame
+		process_frame.disconnect(check_cam)
+		var inside := "the arena closed during the walk" if closed else str(seen["inside"])
 		if not is_instance_valid(player):
 			_check(false, "walking %s the camera never enters a solid" % w[5], inside)
 			return
-		player.call("set_stick", Vector2.ZERO)
 		await _physics(30)
 		_check(inside == "", "walking %s the camera never enters a solid" % w[5], inside)
 	world.call("place_player", ArenaLayout.SPAWN, ArenaLayout.SPAWN_FACE, ArenaLayout.SPAWN_YAW)
