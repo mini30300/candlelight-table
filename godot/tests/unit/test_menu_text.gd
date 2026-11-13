@@ -54,7 +54,8 @@ func test_version_label_never_shows_thai() -> void:
 	assert_true(thai_re.search(v) == null and v != "" and Version.APP_VER.ends_with(v), "the version number without its Thai prefix: " + v)
 	# 0.4 (ARENA_SPEC §15): the weapons arena is a user-visible release, so APP_VER moved on purpose (0.3 -> 0.4)
 	# 0.5 (NET_SPEC §15): play with friends on the local network is a user-visible release (0.4 -> 0.5)
-	assert_eq(v, "0.5", "this release is ใหม่ 0.5")
+	# 0.6: battle sounds and animations from the old game, the arena dodge, online only in the personal build (0.5 -> 0.6)
+	assert_eq(v, "0.6", "this release is ใหม่ 0.6")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 

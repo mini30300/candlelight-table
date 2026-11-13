@@ -169,11 +169,31 @@ lockstep over the deterministic core (only acts travel, digest checks, a bot pla
 | `ui/screens/lobby.tscn` + `.gd`, `ui/online_text.gd`, `ui/widgets/friend_tags.gd`, `scenes/hall/hall_friends.gd` | the airlock screen (host / list / IP / room card / seats), reason texts, name tags (glyphs the font lacks skipped), friends' eggs with interpolation | `func host_room(`, `func join_ip(`, `func _drawable(`, `static func interp(` | deck |
 | `tests/flow/test_friends_flow.gd` + `tests/net/friends_peer.gd`; `test_lan_flow.gd` + `lan_peer.gd` | two Godot processes: the whole flow with the real UI; the session layer | `func _run(` | tests |
 
+### 1.5 Sounds, battle animations and the arena dodge (13 Nov 2026, APP_VER ใหม่ 0.6)
+
+The old page's sounds (`var SND`, WebAudio synthesis) are baked offline to WAV by driving the page headlessly; the
+battle table plays the old page's attack/death clips, tracers, flames and blasts from the core's event stream (visual
+only, never fed back into rules); the arena gets a dash-dodge (Space / the touch dodge button). Online play is hidden in
+the public app and turned on by a private build's `res://packs/features.json` (`godot/docs/PACK_SPEC.md` §5.1).
+
+| File | What | Anchors | Track |
+| --- | --- | --- | --- |
+| `audio/sfx.gd`, `audio/music.gd`, `audio/bus_layout.tres`, `audio/README.md` | autoloads `Sfx` (`play`, `play_ui`, `loop`, `stop_loop`, `has`, `weapon_kind`; per-kind gap, 22 voices, pooled 2D/3D players, every button clicks) and `Music` (`set_mood` menu/deck/battle, `set_intensity`, level switching at bar starts by heat); README maps the old page's sound calls | `func play(`, `func weapon_kind(`, `func set_mood(`, `func next_level(` | sound |
+| `tools/bake_sfx.js`, `assets/sfx/` (git-ignored: `<kind>_<n>.wav`, `music/*.wav`, `sfx.json`) | Playwright renders every `DEF` sound (3 takes) and 5 music loops through the page's `SND.probe`; seeded, `--check`; run by `tools/kits.sh` and CI | `--check` | sound |
+| `scenes/battle/battle_fx.gd`, `scenes/battle/battle_fx_rules.gd` | `BattleFx` (child "BattleFx" of the table, made by the battle screen): clips on skinned figures, pulses on rigid ones, tracers/beams/flames/sparks/blasts in one ImmediateMesh, fallen figures per level, sounds via `Sfx`; idle = no processing. `BattleFxRules`: the page's startAttack timings, fxOf, machOf, deathOf8, clip choice | `func feed(`, `func _attack(`, `func _corpse(`, `const LV`, `static func plan(`, `static func fx_of(` | battle |
+| `ui/screens/battle_screen.gd` (fx part) | feeds every step's events to `BattleFx`; normal speed waits for the step's effects (≤ 3 s), fast 2.2×, instant off; `turn`/`dice`/`end` sounds and the battle music (intensity in the last two rounds) | `func _fx_feed(`, `func _sound_feed(`, `func _fx_holding(` | battle |
+| `tools/record_battle_fx.js` | records every datasheet's attack kind/fx/machine flag from the old page into `tests/unit/fixtures/battle_fx/page_fx.json` | | battle |
+| `scenes/arena/arena_sound.gd`; dodge in `arena_player.gd`, `ui/arena/arena_combat.gd`, `arena_data.gd` (`DODGE`, `SOUNDS`), `egg_gunner.gd`, `ui/widgets/arena_touch.gd` (`DodgeButton`) | arena sounds through `Sfx`; the dash-dodge (3.8 m in 0.3 s, 0.25 s untouchable, 0.7 s cool-down, walls stop it); figure hooks H8 `begin_dodge`, H9 `uses_strafe` (ARENA_SPEC §9.5) | `func dodge(`, `static func dodge_dir(`, `static func play(` | arena |
+| `app/features.gd` | `Features.on(&"online")` from `res://packs/features.json` (no file = public app = off); `set_flag` for tests | `static func on(`, `static func load_file(` | app |
+| `tests/unit/test_audio.gd`, `test_battle_fx.gd`, `test_arena_dodge.gd`; `tests/flow/test_sound_flow.gd`; `tests/render/test_battle_fx.gd` | sound API, manifest and music levels; page parity of 274 datasheets, digests unchanged with effects on; dodge rules; settings sliders and real sound calls; budgets on every level while effects play | `func test_`, `func _run(` | tests |
+
 ## 2. Autoloads — the only global state
 
 Registered in `project.godot` in this order (an autoload's `_init()` runs in this order too): **`App`** (`app/app.gd`),
 **`I18n`** (`ui/i18n.gd`), **`Log`** (`app/log.gd`), **`Clock`** (`app/clock.gd`), **`Net`** (`net/net_session.gd`, LAN
-rooms, §1.4). ARCHITECTURE §3 adds `Audio` (R2). Nothing else is global; `core/` never touches them.
+rooms, §1.4), **`Sfx`** (`audio/sfx.gd`) and **`Music`** (`audio/music.gd`) (§1.5; ARCHITECTURE §3's `Audio`). Nothing else
+is global; `core/` never touches them. Callers outside `audio/` reach `Sfx`/`Music` with `get_node_or_null("/root/Sfx")`
+so scripts and tests without them stay silent.
 
 | Autoload | Read | Write / call |
 | --- | --- | --- |
@@ -181,6 +201,8 @@ rooms, §1.4). ARCHITECTURE §3 adds `Audio` (R2). Nothing else is global; `core
 | `I18n` | `I18n.english`, `I18n.t(th)`, `I18n.has_key(th)`, `I18n.missing(keys)` | `I18n.english = true` (prefer `App.set_lang`) |
 | `Log` | `Log.lines()`, `Log.dump()`, `Log.size()` | `Log.info(msg)`, `Log.warn(msg)`, `Log.error(msg)`, `Log.clear()`, `Log.echo` |
 | `Clock` | `Clock.now_ms()`, `Clock.frozen` | `Clock.frozen = true`, `Clock.step(ms)` (tests), never from rules code |
+| `Sfx` | `Sfx.has(kind)`, `Sfx.weapon_kind(fx)`, `Sfx.live_voices()`, `Sfx.stats` | `Sfx.play(kind, at, gain, pitch)`, `Sfx.play_ui(kind)`, `Sfx.loop(kind, owner, at)`, `Sfx.stop_loop(id)`, `Sfx.apply_settings()` (volumes `App.sfx_vol`, `App.mus_vol`, mute `App.snd`) |
+| `Music` | `Music.level_for(heat)` | `Music.set_mood(&"menu"\|&"deck"\|&"battle"\|&"")`, `Music.set_intensity(x)`, `Music.stop()`; `_process` only in the battle mood |
 | `Net` | `Net.state()`, `Net.is_online()`, `Net.is_host()`, `Net.my_slot()`, `Net.members()`, `Net.found()`, `Net.local_ips()`, `Net.has_lan()`; signals `state_changed`, `members_changed`, `found_changed`, `message`, `pose`, `refused`, `lost`, `reconnected` | `Net.host()`, `Net.join(ip)`, `Net.leave()`, `Net.find(on)`, `Net.send(kind, body, to_slot)`, `Net.send_pose(p, stop)`, `Net.set_where(w)`, `Net.set_pick(fac)`, `Net.claim(k)`; idle offline (no socket, no Timer) |
 
 Facts verified in 4.7.1 (the runner relies on them): autoloads **are** instantiated when Godot runs a `SceneTree`

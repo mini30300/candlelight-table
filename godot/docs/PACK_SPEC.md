@@ -174,6 +174,7 @@ All neutral; with no pack each hook is a no-op. Surgical edits only.
 | H4 | `export_presets.cfg` (both presets) and `tools/validate_data.py` | `exclude_filter="packs/*"` on Windows and Android. The data lint (which already checks the keystore fields of this file) fails when either preset's `exclude_filter` lacks `packs/*`, with a failing fixture `tests/data_fixtures/fail_pack_filter/` like the existing ones. |
 | H5 (optional, not this round) | `scenes/arena/arena_actors.gd`, `ui/widgets/kit_turntable.gd` | `static func army_path(kit: String, manifest := PACK_MANIFEST) -> String`: the pack's display scene for a kit key (same folder rule, `PackedScene` only) or `""`. `KitTurntable.show_kit` tries it before `KitLibrary.kit_path`, frames a pack scene by its mesh box, and gets a `pack_manifest` variable that tests can point at the fixture. The battle table (`figure_pool.gd`) is never hooked. |
 | H6 (optional; specified 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | Optional `set_move_dir(local_dir: Vector2, speed: float, running: bool)`, called **instead of** `set_move` when the figure has it, so a player figure can choose side-step and back-step cycles in shoot mode. Exact rules: `ARENA_SPEC.md` §9.4 (with H7 `begin_switch` and the melee timing). |
+| H8, H9 (optional; 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | `begin_dodge(local_dir: Vector2, duration: float)`: called once when a dodge (Space / หลบ button) starts, direction in the figure's frame, `duration` 0.3 s; `uses_strafe() -> bool` (default true): false = the player turns the figure to face where it moves in shoot mode and back to the aim while standing, firing or striking (held 0.6 s). Both checked once in `setup`. Exact rules: `ARENA_SPEC.md` §9.5. |
 
 Spec cross-reference: one line under `ARENA_SPEC.md` §9.3 ("extended by `PACK_SPEC.md`"), and §17 (as built) notes H1–H4.
 No `APP_VER` bump is needed for H1–H4 alone (nothing changes on screen without a pack); if it ships with other visible
@@ -199,7 +200,7 @@ fixture swaps), `test_arena_hud.gd:90` (the player is the egg gunner), `test_are
 | Preset field | Public value (this repo) | Private build (patched by its own CI before the import) |
 | --- | --- | --- |
 | `export_filter` | `all_resources` | same |
-| `include_filter` | `assets/kits/kits.json` | `assets/kits/kits.json, packs/*` (raw files a pack reads with `FileAccess` ship too) |
+| `include_filter` | `assets/kits/kits.json, assets/sfx/sfx.json` | `assets/kits/kits.json, assets/sfx/sfx.json, packs/*` (raw files a pack reads with `FileAccess` ship too) |
 | `exclude_filter` | **`packs/*`** (H4) | `""` |
 
 How the filters work in Godot 4.7: `export_filter="all_resources"` collects every file the editor recognises under
@@ -215,6 +216,25 @@ Rules for a pack's files:
 - A pack declares no `class_name`, or prefixes it so it cannot clash with the public global classes.
 - The data lint scans every file under `godot/`, `packs/` included when present. That is on purpose: a pack is never
   placed in the public working tree (§7).
+
+### 5.1 Feature switches: `res://packs/features.json` (0.6)
+
+Some features ship only in the private build. A private build drops one more file next to the pack folder:
+`res://packs/features.json`, a JSON object of booleans, read once by `Features.on(name)` (`godot/app/features.gd`).
+
+| Key | Off (the public app: no file) | On |
+| --- | --- | --- |
+| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7) |
+
+- Unknown keys and non-boolean values are ignored; a broken file is the same as no file (a warning, never a crash).
+- Only the entry points are switched. The network code (`net/`, the `Net` autoload, lockstep, discovery) is unchanged and
+  still fully tested: the friends tests (`tests/flow/test_friends_flow.gd`, `tests/net/friends_peer.gd`) and the render
+  tests of the menu and the deck turn the switch on with `Features.set_flag(&"online", true)`.
+- The private repo keeps the file at its root (`features.json`), its CI copies it to `public/godot/packs/features.json`
+  beside `packs/arena/`, and its pack smoke checks `Features.on(&"online")`. The public tree never has `packs/`
+  (`.gitignore`), so the public build can never turn a switch on by accident.
+- Why online moved to the private build (owner, 13 Nov 2026): the online room is redesigned as a separate launch-bay room
+  in the personal app, so it can be made to look right without worrying about the public build.
 
 ## 6. The fixture pack (primitives only)
 

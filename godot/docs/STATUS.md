@@ -3,6 +3,18 @@
 The owner paused the game on 9 Oct to work on another project and resumed it on 12 Nov with the front page and the
 walkable lobby (below). Everything here is what a later session needs to pick up.
 
+## 13 Nov: ใหม่ 0.6 (sounds, battle animations, arena dodge, online only in the personal build)
+- Sounds: the old page's 42 `DEF` sounds and 5 music loops baked by `tools/bake_sfx.js` into `assets/sfx/` (git-ignored,
+  CI-built with the kits); autoloads `Sfx` and `Music`; settings sliders. Battle: `scenes/battle/battle_fx.gd` plays the
+  old page's attack/death clips, tracers, flames, blasts and fallen figures from the event stream (visual only; digests
+  unchanged, tested). Arena: dash-dodge on Space / the touch button; the private power-armour figure has its own dodge
+  clips and no strafe walk (strafe stays for other figures).
+- Online is hidden in the public app (`app/features.gd`, PACK_SPEC §5.1); the private build turns it on with
+  `res://packs/features.json`. Next (owner, 13 Nov): a separate launch-bay room in the personal app (ship to campaigns,
+  holo table to pick a mode, a random-parts robot) where online moves.
+- Open: no walk/run clips while figures move on the battle table (needs position interpolation in table_view /
+  figure_pool); grenade/heal/rez/save-spark effects; BattleFx reads private FigurePool members (add accessors).
+
 ## On this branch (claude/new-session-fsucoo, draft PR #27), CI green
 - R0 complete. R1 so far: `godot/docs/R1_PORT_SPEC.md` (the contract, waves 0–6, lead decisions at the end of §9),
   `core/battle/state.gd`, `core/field/*`, rules-core waves 1–2 (offsets, blocking, squads, strats, data exports, army,
