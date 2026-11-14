@@ -52,6 +52,11 @@ static func make(id: String) -> Node3D:
 	return _instance(builtin_path(id))
 
 
+## ฉากในตัวของแอปเสมอ (เวทีใช้เมื่อฉากชุดเสริมตั้งตัวไม่สำเร็จ เช่น ไม่สร้างกล้อง) · id ผิด = null
+static func make_builtin(id: String) -> Node3D:
+	return _instance(builtin_path(id))
+
+
 ## มาจากชุดเสริมไหม (ไม่ใช่ฉากในตัว scenes/campaign/) สำหรับเทสและป้ายดีบัก
 static func is_pack(node: Node) -> bool:
 	if node == null or node.get_script() == null:
