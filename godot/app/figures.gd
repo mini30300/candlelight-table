@@ -42,6 +42,11 @@ const SCHEMES: Array[Dictionary] = [
 	{"id": "gold", "th": "ทอง", "en": "Gold", "p": "c9a23a", "s": "5a2a1e"},
 ]
 
+## ชุดสีหลายส่วน (H11 apply_palette, PACK_SPEC §10.1): ส่วนที่ตัวละครชุดเสริมระบุสีได้ใน figures.json "palettes"
+const PAL_KEYS: PackedStringArray = ["primary", "secondary", "trim", "metal", "lens", "helmet", "arm_l", "accent"]
+const PAL_METALLIC: PackedStringArray = ["primary", "helmet", "arm_l"]
+const PAL_MAX := 64
+
 ## เทสชี้ที่อื่น: ไฟล์เก็บ ("" = App.settings_file), รายชื่อตัวชุดเสริม, pack.json ของอารีน่า (ทางสำรอง deck)
 static var store_path := ""
 static var pack_list := PACK_LIST
@@ -93,13 +98,53 @@ static func pack_figure(id: String) -> String:
 	return ""
 
 
-## ทาชุดสีบนตัวที่ติดตั้งแล้ว (H10 apply_scheme) เฉพาะตัวที่รับชุดสี
-static func dress(fig: Node, scheme_id: String) -> void:
-	if fig == null or not fig.has_method("apply_scheme"):
+## ทาชุดสีบนตัวที่ติดตั้งแล้ว: ชุดสำเร็จรูปหรือชุดของตัวนั้น (figure_id; ว่าง = หาในทุกตัว) ผ่าน apply_entry
+static func dress(fig: Node, scheme_id: String, figure_id: String = "") -> void:
+	apply_entry(fig, palette(scheme_id, figure_id))
+
+
+## ทาชุดสี s (รายการจาก palettes): H11 apply_palette(colours) ถ้าตัวนั้นมี ไม่งั้น H10 apply_scheme(primary, secondary)
+## สีเดิมหรือตัวที่ไม่มีทั้งสอง = ไม่ทำอะไร
+static func apply_entry(fig: Node, s: Dictionary) -> void:
+	if fig == null or s.is_empty() or bool(s.get("original", false)):
 		return
-	var s := scheme(scheme_id)
-	if not bool(s.get("original", false)):
+	if fig.has_method("apply_palette"):
+		var c: Dictionary = s.get("colours", {"primary": s["primary"], "secondary": s["secondary"]})
+		fig.call("apply_palette", c.duplicate(true))
+	elif fig.has_method("apply_scheme"):
 		fig.call("apply_scheme", s["primary"], s["secondary"])
+
+
+## ชุดสีของตัว figure_id: ชุดสำเร็จรูปทั้ง 9 (ทุกตัว) แล้วชุดของตัวชุดเสริมนั้นเอง (figures.json "palettes")
+## [{id, name {th, en}, primary, secondary, original, pack, colours {ส่วน: Color, metallic: [ส่วน]}}]
+static func palettes(figure_id: String) -> Array[Dictionary]:
+	var out := schemes()
+	for s in out:
+		s["pack"] = false
+		s["colours"] = {"primary": s["primary"], "secondary": s["secondary"]}
+	for p in _packs():
+		if p["id"] == figure_id and bool(p["schemes"]):
+			for q: Dictionary in p["palettes"]:
+				out.append(q.duplicate(true))
+	return out
+
+
+## ชุดสี id ของตัว figure_id (ว่าง = ชุดสำเร็จรูป แล้วชุดของตัวชุดเสริมทุกตัว) ไม่มี = ชุดเริ่มต้น
+static func palette(id: String, figure_id: String = "") -> Dictionary:
+	if figure_id != "":
+		var all := palettes(figure_id)
+		for s in all:
+			if s["id"] == id:
+				return s
+		return all[0]
+	for s in schemes():
+		if s["id"] == id:
+			return _preset_entry(s)
+	for p in _packs():
+		for q: Dictionary in p["palettes"]:
+			if q["id"] == id:
+				return q.duplicate(true)
+	return _preset_entry(schemes()[0])
 
 
 static func schemes() -> Array[Dictionary]:
@@ -170,8 +215,62 @@ static func default_figure() -> String:
 
 static func _valid(figure_id: String, scheme_id: String) -> Dictionary:
 	var f := figure_id if not entry(figure_id).is_empty() else default_figure()
-	var s := scheme_id if SCHEMES.any(func(x: Dictionary) -> bool: return x["id"] == scheme_id) else DEFAULT_SCHEME
+	var s := scheme_id if palettes(f).any(func(x: Dictionary) -> bool: return x["id"] == scheme_id) else DEFAULT_SCHEME
 	return {"figure": f, "scheme": s}
+
+
+static func _preset_entry(s: Dictionary) -> Dictionary:
+	var d := s.duplicate()
+	d["pack"] = false
+	d["colours"] = {"primary": s["primary"], "secondary": s["secondary"]}
+	return d
+
+
+## ชุดสีของตัวชุดเสริม: [{id, name {th, en}, primary "#rrggbb", ส่วนอื่นตาม PAL_KEYS, metallic [ส่วน]}] ไม่เกิน PAL_MAX
+## id ซ้ำ/ชนกับชุดสำเร็จรูป/ผิดรูปแบบ ชื่อไม่ครบ สีผิด = ข้ามรายการนั้น (เตือน) · ไม่มี secondary = ใช้สีหลัก (H10)
+static func _parse_palettes(v: Variant, fig_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if v == null:
+		return out
+	if not v is Array:
+		push_warning("figures: %s palettes is not a list" % fig_id)
+		return out
+	var re := RegEx.create_from_string(ID_RE)
+	var thai := RegEx.create_from_string("[\u0E00-\u0E7F]")
+	var seen := {}
+	for s in SCHEMES:
+		seen[s["id"]] = true
+	for q in v:
+		if out.size() >= PAL_MAX:
+			push_warning("figures: %s has more than %d palettes" % [fig_id, PAL_MAX])
+			break
+		if not q is Dictionary:
+			continue
+		var id := str(q.get("id", ""))
+		var nm: Variant = q.get("name")
+		var why := ""
+		var cols := {}
+		for k in PAL_KEYS:
+			if q.has(k):
+				if q[k] is String and Color.html_is_valid(q[k]):
+					cols[k] = Color.html(q[k])
+				else:
+					why = "bad colour " + k
+		if re.search(id) == null or seen.has(id):
+			why = "bad, repeated or preset id"
+		elif not (nm is Dictionary and str(nm.get("th", "")) != "" and str(nm.get("en", "")) != "") or thai.search(str(nm.get("en", ""))) != null:
+			why = "name needs th and en (en without Thai)"
+		elif why == "" and not cols.has("primary"):
+			why = "no primary colour"
+		if why != "":
+			push_warning("figures: %s palette %s skipped: %s" % [fig_id, id, why])
+			continue
+		seen[id] = true
+		var mt: Variant = q.get("metallic", [])
+		cols["metallic"] = Array(mt).map(func(x: Variant) -> String: return str(x)).filter(func(x: String) -> bool: return PAL_METALLIC.has(x)) if mt is Array else []
+		out.append({"id": id, "name": {"th": str(nm["th"]), "en": str(nm["en"])}, "primary": cols["primary"],
+			"secondary": cols.get("secondary", cols["primary"]), "original": false, "pack": true, "colours": cols})
+	return out
 
 
 static func _path() -> String:
@@ -205,7 +304,8 @@ static func _packs() -> Array[Dictionary]:
 	if not FileAccess.file_exists(pack_list):
 		var deck := ArenaActors.resolve("deck", pack_manifest)
 		if deck != "":
-			out.append({"id": "pack", "name": {"th": "ตัวละครชุดเสริม", "en": "Pack figure"}, "figure": deck, "schemes": false})
+			out.append({"id": "pack", "name": {"th": "ตัวละครชุดเสริม", "en": "Pack figure"}, "figure": deck, "schemes": false,
+				"palettes": [] as Array[Dictionary]})
 		return out
 	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(pack_list))
 	if not d is Array:
@@ -237,7 +337,7 @@ static func _packs() -> Array[Dictionary]:
 			continue
 		seen[id] = true
 		out.append({"id": id, "name": {"th": str(nm["th"]), "en": str(nm["en"])}, "figure": path,
-			"schemes": bool(v.get("schemes", false))})
+			"schemes": bool(v.get("schemes", false)), "palettes": _parse_palettes(v.get("palettes"), id)})
 	return out
 
 

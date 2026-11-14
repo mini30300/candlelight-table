@@ -118,7 +118,8 @@ static func ensure_dodge_action() -> void:
 	InputMap.action_add_event(DODGE_ACTION, k)
 
 
-## ตั้งค่าตอนโลกสร้างผู้เล่น: {"level", "team_colour", "touch": bool, "figure": Node3D, "scheme": id ชุดสีของ Figures}
+## ตั้งค่าตอนโลกสร้างผู้เล่น: {"level", "team_colour", "touch": bool, "figure": Node3D, "scheme": id ชุดสีของ Figures,
+## "figure_id": id ตัวในห้องแต่งตัว (ชุดสีของตัวชุดเสริมนั้น)}
 func setup(w: Node3D, opts: Dictionary) -> void:
 	world = w
 	touch = bool(opts.get("touch", false))
@@ -137,7 +138,7 @@ func setup(w: Node3D, opts: Dictionary) -> void:
 			"team_colour": opts.get("team_colour", Color(0.28, 0.52, 0.84)), "seed": int(ArenaData.RANGE["seed"])})
 	fig.rotation = Vector3.ZERO
 	# ชุดสีจากห้องแต่งตัว (H10) หลังตัวละครติดตั้งแล้ว · สีเดิม/ไม่มี apply_scheme = ไม่ทำอะไร
-	Figures.dress(fig, str(opts.get("scheme", Figures.DEFAULT_SCHEME)))
+	Figures.dress(fig, str(opts.get("scheme", Figures.DEFAULT_SCHEME)), str(opts.get("figure_id", "")))
 	_fig_dir = fig.has_method("set_move_dir")
 	_fig_switch = fig.has_method("begin_switch")
 	_fig_dodge = fig.has_method("begin_dodge")

@@ -127,7 +127,7 @@ func refresh_figure() -> void:
 	var sel := Figures.selected()
 	var l := level if HallWorld.LEVELS.has(level) else "mid"
 	avatar.set_figure(Figures.make(StringName(sel["figure"]), StringName(l)), {"level": l, "team_colour": team_colour, "seed": 0})
-	Figures.dress(avatar.figure, str(sel["scheme"]))
+	Figures.dress(avatar.figure, str(sel["scheme"]), str(sel["figure"]))
 	_apply_alpha()
 
 

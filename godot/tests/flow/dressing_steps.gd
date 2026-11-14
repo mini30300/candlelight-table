@@ -123,7 +123,7 @@ func _run() -> void:
 	_check(now != null and now_id != before_id and (now as Node3D).get_parent() == avatar, "the room's avatar is the new figure",
 		"%d → %d" % [before_id, now_id])
 	_check(not (avatar.get_node("Egg") as Node3D).visible, "the egg is hidden")
-	var want := _scheme_colour(scheme)
+	var want := _scheme_colour(scheme, target)
 	if now != null and now.get("scheme") is Array:
 		var got: Array = now.get("scheme")
 		_check(got.size() == 2 and got[0] == want, "the avatar wears the chosen scheme (H10)", str(got))
@@ -146,9 +146,11 @@ func _run() -> void:
 
 func _check_screen(ds: Node) -> void:
 	var list: Array = _api.call("list")
-	var schemes: Array = _api.call("schemes")
+	# ชุดสีของตัวที่เลือกอยู่ (Figures.palettes: ชุดสำเร็จรูป + ชุดของตัวชุดเสริม; ตัวแทนรุ่นเก่า = schemes)
+	var schemes: Array = DS.call("schemes_of", _api, str(ds.get("figure_id")))
 	_check(ds.char_buttons().size() == list.size() and list.size() >= 2, "one button per character", "%d / %d" % [ds.char_buttons().size(), list.size()])
-	_check(ds.swatch_buttons().size() == schemes.size() and schemes.size() >= 2, "one swatch per scheme")
+	_check(ds.swatch_buttons().size() == schemes.size() and schemes.size() >= 2, "one swatch per scheme of the selected character",
+		"%d / %d" % [ds.swatch_buttons().size(), schemes.size()])
 	_check(ds.slot_buttons().size() == 3 and ds.save_buttons().size() == 3, "three slots with save buttons")
 	_check(ds.get_node("Safe").get_child(0).get_child(0).get_child(1).get("text") == "ห้องแต่งตัว", "the Thai title")
 	# ตัวที่ทาสีได้ (ไม่ใช่ตัวที่เลือกอยู่) และตัวที่ใช้สีของตัวเอง
@@ -172,6 +174,8 @@ func _check_screen(ds: Node) -> void:
 	await _frames(2)
 	_check(ds.figure_id == paint and ds.preview_figure() != null and ds.preview_figure().is_inside_tree(), "picking a character shows it in the preview")
 	_check(ds.swatch_buttons().all(func(b: Button) -> bool: return not b.disabled), "its swatches are enabled")
+	schemes = DS.call("schemes_of", _api, paint)
+	_check(ds.swatch_buttons().size() == schemes.size(), "its own palettes are shown", "%d / %d" % [ds.swatch_buttons().size(), schemes.size()])
 	var sch := str(schemes[1]["id"])
 	_press_button(ds.swatch_buttons()[1])
 	await _frames(2)
@@ -297,8 +301,8 @@ func _check_not_ready(room: Node) -> void:
 	room.call("close_soon")
 
 
-func _scheme_colour(id: String) -> Color:
-	for s: Dictionary in _api.call("schemes"):
+func _scheme_colour(id: String, fig: String) -> Color:
+	for s: Dictionary in DS.call("schemes_of", _api, fig):
 		if str(s["id"]) == id:
 			return s["primary"]
 	return Color.BLACK

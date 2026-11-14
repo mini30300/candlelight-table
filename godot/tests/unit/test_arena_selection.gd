@@ -276,3 +276,27 @@ func test_kit_fighter() -> void:
 func await_still(k: KitFighter) -> void:
 	if not k.is_still():
 		k.call("_go_still")
+
+
+## รอบ E (PACK_SPEC §10.1): ชุดสีของตัวชุดเสริมถึงตัวผู้เล่นในอารีน่าผ่าน figure_id + H11 หลัง setup
+func test_palette_after_setup() -> void:
+	if not ResourceLoader.exists(PLAYER_SCENE):
+		return
+	_use("res://tests/fixtures/figure_pack_palettes/figures.json")
+	var fig: Node3D = (load("res://tests/fixtures/figure_pack_palettes/palette_figure.gd") as Script).new()
+	var tree := Engine.get_main_loop() as SceneTree
+	var p: Node3D = (load(PLAYER_SCENE) as PackedScene).instantiate()
+	tree.root.add_child(p)
+	var sel := {"figure": "palettes", "scheme": "p03"}
+	p.call("setup", null, {"figure": fig, "level": "mid", "scheme": ArenaActors.scheme_of(sel), "figure_id": "palettes"})
+	assert_eq(fig.get("palette"), Figures.palette("p03", "palettes")["colours"], "the arena dresses a pack figure with its own palette (H11)")
+	assert_true(int((fig.get("calls") as Dictionary).get("setup", 0)) == 1 and int((fig.get("calls") as Dictionary).get("apply_palette", 0)) == 1,
+		"…once, after the figure's own setup")
+	_free(p)
+	var fig2: Node3D = (load("res://tests/fixtures/figure_pack_palettes/palette_figure.gd") as Script).new()
+	var p2: Node3D = (load(PLAYER_SCENE) as PackedScene).instantiate()
+	tree.root.add_child(p2)
+	p2.call("setup", null, {"figure": fig2, "level": "mid", "scheme": "p03"})
+	assert_eq(fig2.get("palette"), Figures.palette("p03")["colours"], "without figure_id the palette is found among the pack figures")
+	_free(p2)
+	_restore()

@@ -5,6 +5,7 @@ extends Control
 ## ภาพตัวอย่างหมุนในโลกของตัวเอง (SubViewport) · min: ไม่หมุนเอง วาดใหม่เฉพาะตอนเปลี่ยนหรือถูกลาก ไม่มีงานต่อเฟรม
 ## "ใช้ตัวนี้" = Figures.select แล้วปิด (closed(true)) ห้องที่เปิดมาสร้างตัวผู้เล่นใหม่ · ‹ กลับ / Esc = ปิดเฉย ๆ
 ## จอกว้าง: ซ้าย = ภาพ ชุดสี ปุ่มใช้ตัวนี้ (เห็นเสมอ) ขวา = รายชื่อตัวละคร (เลื่อนได้) กับช่องบันทึก · จอแคบ/แนวตั้ง: บนลงล่าง
+## ชุดสี = ตารางการ์ดมีชื่อ เลื่อนได้ (Figures.palettes ของตัวที่เลือก: ชุดสำเร็จรูป + ชุดของตัวชุดเสริม หลายสิบชุด)
 
 signal closed(used: bool)
 
@@ -27,7 +28,11 @@ const SPIN := 0.35
 const DRAG_TURN := 0.012
 const FOV := 30.0
 const BG := Color(0.075, 0.066, 0.09)
-const SWATCH := 58.0
+const CARD := Vector2(120.0, 104.0)
+const CARD_TOUCH := Vector2(132.0, 116.0)
+const DOT := 44.0
+const CARD_GAP := 8
+const CARD_ROWS := 2
 const SIDE_W := 600.0
 const NARROW := 820.0
 
@@ -66,7 +71,8 @@ var _side: PanelContainer
 var _chars_label: Label
 var _chars: GridContainer
 var _scheme_label: Label
-var _swatches: HFlowContainer
+var _swatch_scroll: ScrollContainer
+var _swatches: GridContainer
 var _own_label: Label
 var _slots_label: Label
 var _slot_box: VBoxContainer
@@ -81,18 +87,25 @@ static func figures_api() -> Object:
 	return load(path) if ResourceLoader.exists(path) else null
 
 
-## ทาชุดสีที่เลือกให้ตัว fig (H10 apply_scheme ถ้ามีและตัวนั้นรับชุดสี) ชิ้นสีตายตัวเป็นเรื่องของตัวนั้นเอง
+## ทาชุดสีที่เลือกให้ตัว fig (H11 apply_palette หรือ H10 apply_scheme ผ่าน Figures.apply_entry) เฉพาะตัวที่รับชุดสี
+## ชิ้นสีตายตัวเป็นเรื่องของตัวนั้นเอง
 static func paint(fig: Node, f: Object, fig_id: String, sch_id: String) -> void:
-	if fig == null or f == null or not fig.has_method("apply_scheme"):
+	if fig == null or f == null or not (fig.has_method("apply_scheme") or fig.has_method("apply_palette")):
 		return
 	var e: Variant = f.call("entry", StringName(fig_id))
 	if not e is Dictionary or not bool((e as Dictionary).get("schemes", false)):
 		return
-	for s: Dictionary in f.call("schemes"):
+	for s: Dictionary in schemes_of(f, fig_id):
 		if str(s.get("id", "")) == sch_id:
-			if not bool(s.get("original", false)):
-				fig.call("apply_scheme", s["primary"], s["secondary"])
+			Figures.apply_entry(fig, s)
 			return
+
+
+## ชุดสีของตัว fig_id: Figures.palettes ถ้ามี (ตัวแทนของเทสรุ่นเก่ามีแค่ schemes)
+static func schemes_of(f: Object, fig_id: String) -> Array:
+	if f == null:
+		return []
+	return f.call("palettes", fig_id) if f.has_method("palettes") else f.call("schemes")
 
 
 func _ready() -> void:
@@ -102,13 +115,13 @@ func _ready() -> void:
 	_build()
 	if _api != null:
 		_list = _api.call("list")
-		_schemes = _api.call("schemes")
 		var sel: Dictionary = _api.call("selected")
 		figure_id = str(sel.get("figure", ""))
 		scheme_id = str(sel.get("scheme", ""))
 	if _index(figure_id) < 0 and not _list.is_empty():
 		figure_id = str(_list[0]["id"])
-	if scheme_id == "" and not _schemes.is_empty():
+	_schemes = schemes_of(_api, figure_id)
+	if _scheme(scheme_id).is_empty() and not _schemes.is_empty():
 		scheme_id = str(_schemes[0]["id"])
 	spinning = level != "min"
 	_fill_chars()
@@ -134,10 +147,11 @@ func refresh() -> void:
 		b.set_pressed_no_signal(str(b.get_meta(&"id")) == figure_id)
 	var fixed := not _takes_schemes()
 	for b: Button in swatch_buttons():
+		var sd := _scheme(str(b.get_meta(&"id")))
 		b.disabled = fixed
-		b.tooltip_text = PackRooms.text(_scheme(str(b.get_meta(&"id"))).get("name"))
-		if bool(_scheme(str(b.get_meta(&"id"))).get("original", false)):
-			b.text = I18n.t(ORIGINAL)
+		b.tooltip_text = PackRooms.text(sd.get("name"))
+		b.text = I18n.t(ORIGINAL) if bool(sd.get("original", false)) else b.tooltip_text
+		b.modulate.a = 0.35 if fixed else 1.0
 		b.set_pressed_no_signal(str(b.get_meta(&"id")) == scheme_id)
 	_own_label.visible = fixed
 	var sn := PackRooms.text(_scheme(scheme_id).get("name"))
@@ -154,6 +168,7 @@ func pick_figure(id: String) -> void:
 		return
 	figure_id = id
 	_note = ""
+	_reload_schemes()
 	refresh()
 	_show_figure()
 
@@ -181,11 +196,12 @@ func load_slot(i: int) -> void:
 	var s := _slot(i)
 	if s.is_empty() or _index(str(s.get("figure", ""))) < 0:
 		return
-	if not _scheme(str(s.get("scheme", ""))).is_empty():
-		scheme_id = str(s["scheme"])
 	_note = ""
 	var same := str(s["figure"]) == figure_id
 	figure_id = str(s["figure"])
+	_reload_schemes()
+	if not _scheme(str(s.get("scheme", ""))).is_empty():
+		scheme_id = str(s["scheme"])
 	refresh()
 	if same:
 		_repaint()
@@ -310,11 +326,17 @@ func _build() -> void:
 	_body.add_child(_left)
 	_build_preview()
 	_scheme_label = _label(_left, 24)
-	_swatches = HFlowContainer.new()
+	_swatch_scroll = ScrollContainer.new()
+	_swatch_scroll.name = "SwatchScroll"
+	_swatch_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_swatch_scroll.resized.connect(_fit_columns)
+	_left.add_child(_swatch_scroll)
+	_swatches = GridContainer.new()
 	_swatches.name = "Swatches"
-	_swatches.add_theme_constant_override(&"h_separation", 10)
-	_swatches.add_theme_constant_override(&"v_separation", 10)
-	_left.add_child(_swatches)
+	_swatches.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_swatches.add_theme_constant_override(&"h_separation", CARD_GAP)
+	_swatches.add_theme_constant_override(&"v_separation", CARD_GAP)
+	_swatch_scroll.add_child(_swatches)
 	_own_label = _label(_left, 19, true)
 	_use = Button.new()
 	_use.name = "UseButton"
@@ -449,36 +471,118 @@ func _fill_chars() -> void:
 		_chars.add_child(b)
 
 
+## การ์ดชุดสี: วงสีด้านบน (Dot) ชื่อด้านล่าง · เลือกอยู่ = ขอบทองหนา · สร้างใหม่เมื่อชุดของตัวเปลี่ยน
 func _fill_swatches() -> void:
+	for c in _swatches.get_children():
+		_swatches.remove_child(c)
+		c.queue_free()
 	var group := ButtonGroup.new()
+	var sz := CARD_TOUCH if touch_mode else CARD
 	for s: Dictionary in _schemes:
 		var b := Button.new()
 		b.name = "Scheme_" + str(s["id"])
 		b.toggle_mode = true
 		b.button_group = group
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(SWATCH, SWATCH)
+		b.custom_minimum_size = sz
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# ชื่อยาวขึ้นสองบรรทัด (เกินนั้นตัดท้าย ชื่อเต็มอยู่ในหัวข้อชุดสีและคำแนะนำ)
+		b.clip_text = true
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.set_meta(&"id", str(s["id"]))
-		b.add_theme_font_size_override(&"font_size", 15)
-		var p: Color = s["primary"]
-		var q: Color = s["secondary"]
-		# สีหลักเต็มปุ่ม ขอบเป็นสีรอง · เลือกอยู่ = ขอบทองหนา
-		b.add_theme_stylebox_override(&"normal", _swatch_box(p, q, 4))
-		b.add_theme_stylebox_override(&"hover", _swatch_box(p, CandleStyle.TEXT, 4))
-		b.add_theme_stylebox_override(&"pressed", _swatch_box(p, CandleStyle.GOLD, 7))
-		b.add_theme_stylebox_override(&"hover_pressed", _swatch_box(p, CandleStyle.GOLD, 7))
-		b.add_theme_stylebox_override(&"disabled", _swatch_box(Color(p, 0.3), Color(q, 0.3), 4))
+		b.add_theme_font_size_override(&"font_size", 14)
+		b.add_theme_constant_override(&"line_spacing", -3)
+		b.add_theme_color_override(&"font_color", CandleStyle.TEXT)
+		b.add_theme_color_override(&"font_pressed_color", CandleStyle.GOLD)
+		b.add_theme_color_override(&"font_hover_color", CandleStyle.TEXT)
+		b.add_theme_color_override(&"font_hover_pressed_color", CandleStyle.GOLD)
+		b.add_theme_color_override(&"font_disabled_color", CandleStyle.TEXT)
+		b.add_theme_stylebox_override(&"normal", _card_box(Color(1, 1, 1, 0.12), 2))
+		b.add_theme_stylebox_override(&"hover", _card_box(CandleStyle.TEXT, 2))
+		b.add_theme_stylebox_override(&"pressed", _card_box(CandleStyle.GOLD, 4))
+		b.add_theme_stylebox_override(&"hover_pressed", _card_box(CandleStyle.GOLD, 4))
+		b.add_theme_stylebox_override(&"disabled", _card_box(Color(1, 1, 1, 0.08), 2))
+		var dot := Dot.new()
+		dot.name = "Dot"
+		dot.cols = s.get("colours", {"primary": s["primary"], "secondary": s["secondary"]})
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dot.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		dot.custom_minimum_size = Vector2(DOT, DOT)
+		dot.offset_left = -DOT * 0.5
+		dot.offset_right = DOT * 0.5
+		dot.offset_top = 8.0
+		dot.offset_bottom = 8.0 + DOT
+		b.add_child(dot)
 		b.pressed.connect(pick_scheme.bind(str(s["id"])))
 		_swatches.add_child(b)
+	_fit_columns()
 
 
-func _swatch_box(fill: Color, edge: Color, w: int) -> StyleBoxFlat:
+func _card_box(edge: Color, w: int) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = fill
+	sb.bg_color = Color(0.11, 0.1, 0.13)
 	sb.border_color = edge
 	sb.set_border_width_all(w)
-	sb.set_corner_radius_all(int(SWATCH * 0.5))
+	sb.set_corner_radius_all(10)
+	sb.content_margin_top = DOT + 10.0
+	sb.content_margin_left = 6.0
+	sb.content_margin_right = 6.0
+	sb.content_margin_bottom = 6.0
 	return sb
+
+
+## ชุดสีของตัวที่เลือก: โหลดใหม่ สร้างการ์ดใหม่ถ้ารายการเปลี่ยน · ชุดที่เลือกไว้ไม่มีในตัวนี้ = ชุดแรก (สีเดิม)
+func _reload_schemes() -> void:
+	var nxt := schemes_of(_api, figure_id)
+	var ids := func(a: Array) -> Array: return a.map(func(x: Dictionary) -> String: return str(x["id"]))
+	var changed: bool = ids.call(nxt) != ids.call(_schemes)
+	_schemes = nxt
+	if changed:
+		_fill_swatches()
+	if _scheme(scheme_id).is_empty() and not _schemes.is_empty():
+		scheme_id = str(_schemes[0]["id"])
+
+
+## จำนวนคอลัมน์ตามความกว้างที่มี (มือถือแนวตั้งได้ 3–4 คอลัมน์) · ความสูงพอ CARD_ROWS แถว ที่เหลือเลื่อน
+func _fit_columns() -> void:
+	if _swatch_scroll == null:
+		return
+	var sz := CARD_TOUCH if touch_mode else CARD
+	var w := _swatch_scroll.size.x - 14.0
+	_swatches.columns = maxi(1, int((w + CARD_GAP) / (sz.x + CARD_GAP)))
+	var rows := mini(CARD_ROWS, ceili(float(_schemes.size()) / _swatches.columns))
+	_swatch_scroll.custom_minimum_size.y = maxf(1.0, rows) * (sz.y + CARD_GAP)
+
+
+## วงสีบนการ์ด: วงนอก = ขอบบ่า (trim) / โลหะ / สีรอง · ในวง = สีหลัก (ครึ่งขวา = แขนซ้าย) · จุดบน = หมวก · จุดล่างขวา = สีรอง
+## วาดครั้งเดียว (ไม่มีงานต่อเฟรม)
+class Dot extends Control:
+	var cols := {}
+
+	func _draw() -> void:
+		var r := minf(size.x, size.y) * 0.5
+		var c := size * 0.5
+		var p: Color = cols.get("primary", Color.GRAY)
+		var sec: Color = cols.get("secondary", p.darkened(0.5))
+		var ring: Color = cols.get("trim", cols.get("metal", sec))
+		draw_circle(c, r, ring)
+		draw_circle(c, r - 4.0, p)
+		if cols.has("arm_l"):
+			var pts := PackedVector2Array()
+			for i in 17:
+				var a := -PI * 0.5 + PI * i / 16.0
+				pts.append(c + Vector2(cos(a), sin(a)) * (r - 4.0))
+			draw_colored_polygon(pts, cols["arm_l"])
+		if cols.has("helmet"):
+			draw_circle(c + Vector2(0.0, -r * 0.38), r * 0.3, cols["helmet"])
+		if cols.has("lens"):
+			draw_circle(c + Vector2(-r * 0.34, -r * 0.1), r * 0.13, cols["lens"])
+		draw_circle(c + Vector2(r * 0.66, r * 0.66), r * 0.3, Color(0.05, 0.05, 0.06))
+		draw_circle(c + Vector2(r * 0.66, r * 0.66), r * 0.24, sec)
+		if cols.has("accent"):
+			draw_circle(c + Vector2(-r * 0.66, r * 0.66), r * 0.3, Color(0.05, 0.05, 0.06))
+			draw_circle(c + Vector2(-r * 0.66, r * 0.66), r * 0.24, cols["accent"])
 
 
 func _fill_slots() -> void:
@@ -489,7 +593,7 @@ func _fill_slots() -> void:
 		var nm := I18n.t(EMPTY)
 		if not s.is_empty() and _index(str(s.get("figure", ""))) >= 0:
 			nm = PackRooms.text(_list[_index(str(s["figure"]))]["name"])
-			var sn := PackRooms.text(_scheme(str(s.get("scheme", ""))).get("name"))
+			var sn := PackRooms.text(_scheme_of_figure(str(s.get("scheme", "")), str(s["figure"])).get("name"))
 			if sn != "" and bool(_list[_index(str(s["figure"]))].get("schemes", false)):
 				nm += " · " + sn
 		sl[i].text = I18n.t(SLOT).format({"n": i + 1}) + ": " + nm
@@ -510,6 +614,16 @@ func _index(id: String) -> int:
 		if str(_list[i]["id"]) == id:
 			return i
 	return -1
+
+
+## ชุดสี id ของตัว fig (ช่องบันทึกของตัวอื่น)
+func _scheme_of_figure(id: String, fig: String) -> Dictionary:
+	if fig == figure_id:
+		return _scheme(id)
+	for s: Dictionary in schemes_of(_api, fig):
+		if str(s["id"]) == id:
+			return s
+	return {}
 
 
 func _scheme(id: String) -> Dictionary:
@@ -617,6 +731,7 @@ func _layout() -> void:
 	var h := 64.0 if touch_mode else 56.0
 	for b: Button in char_buttons() + slot_buttons() + save_buttons() + [_use]:
 		b.custom_minimum_size.y = h
+	_fit_columns()
 	_apply_mode()
 
 

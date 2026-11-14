@@ -765,6 +765,8 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
 - `ArenaWorld._spawn_actors` passes `ArenaActors.player_figure(sel)` and `"scheme": ArenaActors.scheme_of(sel)` to
   `ArenaPlayer.setup`, which calls the figure's `setup` and then `Figures.dress(fig, scheme)` (H10; `original` and
   figures without `apply_scheme` stay as they are). `scheme_of` gives `original` unless the entry has `schemes` true.
+  Round E (15 Nov): it also passes `"figure_id"` (the selected figure), and `dress` gets it, so a pack figure's own
+  palette reaches the arena figure through H11 `apply_palette` (PACK_SPEC §10.1).
 - `player_figure`: kind `egg` → the egg gunner; kind `kit` → `KitFighter` (below) on that kit; kind `pack` → that
   `figures.json` entry's script (`Figures.pack_figure(id)`), and when it lacks part of `FIGURE_API` (a deck-only figure)
   the pack's `player` role or the default, as before. The deck door preloads `ArenaActors.player_preload(sel)` (the
