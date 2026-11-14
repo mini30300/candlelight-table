@@ -64,7 +64,9 @@ func test_version_label_never_shows_thai() -> void:
 	# from Figures (0.9 -> 0.10)
 	# 0.11 (ARENA_SPEC §9.6): the arena player is the figure and colour scheme picked in the dressing room, and a figure
 	# that does not side-step turns with A/D (0.10 -> 0.11)
-	assert_eq(v, "0.11", "this release is ใหม่ 0.11")
+	# 0.12 (CAMPAIGN_SPEC): the campaign (difficulty cards, weekly galaxy, missions, report, coins), VPN joins over
+	# Hamachi / Radmin VPN / Tailscale and the pack palettes grid in the dressing room (0.11 -> 0.12)
+	assert_eq(v, "0.12", "this release is ใหม่ 0.12")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 
