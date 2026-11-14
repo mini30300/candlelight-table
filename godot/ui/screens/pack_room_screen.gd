@@ -2,6 +2,7 @@ class_name PackRoomScreen
 extends Control
 ## หน้าห้องเสริมหลังประตูบนดาดฟ้า (PACK_SPEC §9): เปิดทับหน้าดาดฟ้า ภาพของห้องมาจากชุดเสริม ปุ่มและข้อความเป็นของแอป
 ## สถานีจาก room.json: soon → แผง "เร็วๆ นี้", cards → แผงการ์ดเลือกโหมด, online → หน้าเล่นกับเพื่อน, back → กลับดาดฟ้า
+## dressing → ห้องแต่งตัว (DressingScreen) ใช้ตัวใหม่แล้วตัวผู้เล่นในห้องเปลี่ยนตาม
 ## arena → เดินเข้าประตู/กด E = จอมืดแล้วเปิดหน้าอารีน่า กลับมายืนหน้าประตูหันออก (ไฟล์อารีน่าโหลดล่วงหน้าผ่านหน้าดาดฟ้า)
 ## เดินเข้าประตู (walk_in) หรือ ‹ ดาดฟ้า / Esc → จอมืดแวบหนึ่งแล้วกลับดาดฟ้า (ไม่กลับหน้าแรก)
 ## ออนไลน์: ห้องนี้เป็นส่วนหนึ่งของยาน (where = deck) ส่งท่าในแถบห้อง x + 30 ม. (PackRooms.to_band) เห็นเพื่อนที่อยู่ในห้อง
@@ -13,6 +14,8 @@ signal station_changed(id: String)
 const SETTINGS_SCREEN := "res://ui/screens/settings.tscn"
 const LOBBY_SCREEN := "res://ui/screens/lobby.tscn"
 const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
+const DRESSING_SCREEN := "res://ui/screens/dressing_screen.tscn"
+const DRESSING_NOT_READY := "ห้องแต่งตัว — ยังไม่พร้อม"
 const FADE_TIME := 0.25
 const BACK_TEXT := "‹ ดาดฟ้า"
 const CLOSE_TEXT := "ปิดแผงนี้"
@@ -219,6 +222,8 @@ func use_station() -> void:
 			leave()
 		"arena":
 			enter_arena()
+		"dressing":
+			open_dressing()
 
 
 func show_soon(pair: Variant) -> void:
@@ -284,6 +289,37 @@ func open_online() -> Node:
 	close_cards()
 	close_soon()
 	return App.push(load(LOBBY_SCREEN))
+
+
+## เปิดห้องแต่งตัวทับห้องนี้ (ปิดแล้วกลับมาที่เดิม) · ไม่มี Figures = แผงข้อความ คืน null
+func open_dressing() -> Node:
+	if DressingScreen.figures_api() == null:
+		show_note(DRESSING_NOT_READY)
+		return null
+	close_cards()
+	close_soon()
+	stick.release()
+	world.avatar.halt()
+	var ds := App.push(load(DRESSING_SCREEN))
+	ds.connect(&"closed", _on_dressing_closed.bind(_figure_key()))
+	return ds
+
+
+## ปิดห้องแต่งตัว: ใช้ตัวใหม่ = สร้างตัวผู้เล่นในห้องใหม่ (ข้ามถ้า App.figure_changed สร้างให้แล้ว)
+func _on_dressing_closed(used: bool, before: int) -> void:
+	var f := DressingScreen.figures_api()
+	if not used or f == null or not _opened or _figure_key() != before:
+		return
+	var sel: Dictionary = f.call("selected")
+	var id := str(sel.get("figure", ""))
+	var fig: Variant = f.call("make", StringName(id), StringName(world.level))
+	world.avatar.set_figure(fig as Node3D, {"level": world.level, "team_colour": world.team_colour, "seed": 0})
+	DressingScreen.paint(fig as Node3D, f, id, str(sel.get("scheme", "")))
+	world.apply_level(world.level)
+
+
+func _figure_key() -> int:
+	return world.avatar.figure.get_instance_id() if world.avatar.figure != null else 0
 
 
 ## เข้าอารีน่าจากประตูในห้อง (ครั้งเดียวต่อการกด): หยุดตัว จอมืด แล้วเปิดหน้าอารีน่าทับ · เปิดไม่ได้ = จอสว่างเดินต่อ

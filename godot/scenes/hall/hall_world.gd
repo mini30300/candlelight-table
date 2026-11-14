@@ -119,7 +119,9 @@ func _ready() -> void:
 	avatar.moved.connect(_on_avatar_moved)
 	var app := get_node_or_null(^"/root/App")
 	level = str(app.get("gfx")) if app != null else "mid"
-	set_figure(ArenaActors.make_figure("deck"))
+	refresh_figure()
+	if app != null and app.has_signal("figure_changed"):
+		app.connect("figure_changed", refresh_figure)
 	camera_rig.arm_settled.connect(_on_arm)
 	camera_rig.set_view(HallLayout.SPAWN_YAW, camera_rig.pitch, camera_rig.arm_length)
 	apply_level(level)
@@ -296,6 +298,13 @@ func arena_shut() -> bool:
 func set_figure(fig: Node3D) -> void:
 	avatar.set_figure(fig, {"level": level if LEVELS.has(level) else "mid", "team_colour": team_colour, "seed": 0})
 	_apply_alpha()
+
+
+## ตัวที่เลือกในห้องแต่งตัว (Figures; ไข่ = null) แล้วทาชุดสี (H10) · เรียกซ้ำเมื่อ App.figure_changed
+func refresh_figure() -> void:
+	var sel := Figures.selected()
+	set_figure(Figures.make(StringName(sel["figure"]), StringName(level)))
+	Figures.dress(avatar.figure, str(sel["scheme"]))
 
 
 ## วางตัวผู้เล่นที่ p หันไป yaw แล้วกล้องตามทันที

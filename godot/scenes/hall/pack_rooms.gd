@@ -9,8 +9,8 @@ const FORMAT := 1
 ## ประตูบนดาดฟ้าที่ห้องเสริมต่อได้ (v1 มีแค่ประตูเทียบยาน) และสวิตช์ฟีเจอร์ที่ต้องเปิด
 const DOORS: PackedStringArray = ["online"]
 const DOOR_FEATURE := {"online": &"online"}
-## arena = ประตูเดินเข้าอารีน่า (มีได้หนึ่งสถานี; ห้องที่มี = ประตูอารีน่าบนดาดฟ้าปิด)
-const ACTIONS: PackedStringArray = ["soon", "cards", "online", "back", "arena"]
+## arena = ประตูเดินเข้าอารีน่า (มีได้หนึ่งสถานี; ห้องที่มี = ประตูอารีน่าบนดาดฟ้าปิด) · dressing = เปิดห้องแต่งตัว
+const ACTIONS: PackedStringArray = ["soon", "cards", "online", "back", "arena", "dressing"]
 const CARD_ACTIONS: PackedStringArray = ["soon", "online"]
 const ROOM_API: PackedStringArray = ["setup", "apply_level", "blockers"]
 const ROOM_OPTIONAL: PackedStringArray = ["station_near", "station_used", "set_active", "set_english", "counts"]

@@ -4,6 +4,9 @@ extends Node
 ## fig (egg ตัวไข่ / kit โมเดลชุดเดิม), touch (auto/on/off ปุ่มบนจอ), sfx_vol / mus_vol (ความดังเอฟเฟกต์ / เพลง 0..1)
 ## อ่านใน _init() จึงใช้ได้ทันทีแม้ใน -s runner; แอปต้องเปิดได้เสมอแม้ไม่มีไฟล์หรือไฟล์เสีย
 
+## ตัวที่เดินบนดาดฟ้าหรือชุดสีเปลี่ยน (Figures.select) ห้องโถง/ห้องชุดเสริมสร้างตัวใหม่
+signal figure_changed
+
 const SETTINGS_PATH := "user://settings.cfg"
 const SECTION := "app"
 const GFX_LEVELS: PackedStringArray = ["hi", "mid", "lo", "min"]
@@ -86,6 +89,7 @@ func save_settings(path: String = "") -> bool:
 	if path.is_empty():
 		path = settings_file
 	var cfg := ConfigFile.new()
+	cfg.load(path)   # คงหมวดอื่นไว้ (หมวด figure ของ Figures)
 	cfg.set_value(SECTION, "gfx", gfx)
 	cfg.set_value(SECTION, "lang", lang)
 	cfg.set_value(SECTION, "snd", snd)

@@ -1,0 +1,12 @@
+[
+  {"id": "prim", "name": {"th": "หุ่นทดสอบ", "en": "Test dummy"}, "figure": "prim_figure.gd", "schemes": true},
+  {"id": "prim_abs", "name": {"th": "หุ่นทดสอบ", "en": "Test dummy"}, "figure": "res://tests/fixtures/figure_pack/heavy_figure.gd"},
+  {"id": "prim", "name": {"th": "ซ้ำ", "en": "Repeated id"}, "figure": "prim_figure.gd"},
+  {"id": "Bad id", "name": {"th": "ผิด", "en": "Bad id"}, "figure": "prim_figure.gd"},
+  {"id": "thai_en", "name": {"th": "ไทย", "en": "ไทย"}, "figure": "prim_figure.gd"},
+  {"id": "escape", "name": {"th": "หนี", "en": "Escape"}, "figure": "../figure_pack_bad/half_figure.gd"},
+  {"id": "missing", "name": {"th": "หาย", "en": "Missing"}, "figure": "no_such_figure.gd"},
+  {"id": "not_figure", "name": {"th": "ไม่ใช่", "en": "Not a figure"}, "figure": "pack.json"},
+  {"id": "egg", "name": {"th": "ไข่", "en": "Egg"}, "figure": "prim_figure.gd"},
+  "not an object"
+]
