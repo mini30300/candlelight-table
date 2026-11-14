@@ -869,3 +869,23 @@ synchronised per kit); bolts are simple glowing boxes; hostages pass through cov
 player's trail); online co-op missions are out of scope (§8).
 
 ### 12.D VPN joins
+
+Built as §6 says; the record is NET_SPEC §18. Differences and choices:
+
+- **Tailscale detection is stricter than §6.2:** 100.64/10 is skipped on mobile-data cards (the §6.2 list plus `ppp`)
+  **and** on Wi-Fi / Ethernet cards (`NetSession.LAN_IFACES`, by name or Windows friendly name), because a Wi-Fi network
+  that hands out 100.64.x is carrier NAT, not Tailscale (`test_net_gate` already treats it as "not a LAN"). Tailscale's
+  own adapters (`tailscale0`, "Tailscale", `utun*`, Android `tun0`) count. Without interface names only 25/8 and 26/8
+  are trusted.
+- **`timeout` text changed too** (not in §6.3): it now mentions the VPN and the host's firewall, the usual Hamachi
+  failure. `no_lan` is unchanged.
+- **Help line 2** is its own label (`%HelpVpn`) under `%Help`; the host card's VPN block is `%HostVpnRow` (`%HostVpn`,
+  `%CopyVpnButton`) under the LAN IP row, 24 px. `lobby.vpn_text()` and `copy_vpn_ip()` are public for tests.
+- **`NetSession.peer_ok(ip)`** wraps `NetGate.peer_allowed(ip, vpn_ips())`; `join()` and the host's knock both use it.
+  `itfs_override` also feeds `local_ips()` and `has_lan()` (so tests can fake a VPN-only phone).
+- **Tests:** `test_net_gate` (+3 tests), `test_net_vpn` (new, 5 tests; one opens a test port), `test_net_discovery`
+  (+2 checks), `test_online_text` (+1 test), render `test_lobby` (VPN host card, help lines, `no_vpn`), flow
+  `test_friends_flow` (the real session with fake Hamachi cards shows the VPN line). No packet is sent to a VPN or public
+  address in any test.
+- **Thai how-to for Mini:** `godot/docs/HAMACHI_TH.md` (integration copies it into the release note).
+

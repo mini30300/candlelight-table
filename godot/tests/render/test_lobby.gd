@@ -13,6 +13,10 @@ extends SceneTree
 ## Review fixes: the IP row sits right under the name row (above the room list, so the phone keyboard does not cover it)
 ## with a URL keyboard; the 4 s line points up to it; a device without Wi-Fi (has_lan false) is told no_lan instead of
 ## "no rooms yet"; the host card shows the IP large with a copy button that puts the first IP on the clipboard.
+## Round E (CAMPAIGN_SPEC §6.3): the find state has the second help line (friends in other houses over a VPN); a host
+## with VPN addresses (fake net vpn_ips: two Hamachi, one Tailscale) shows one line per VPN with its first IP and a
+## copy button that puts the first VPN IP on the clipboard; without a VPN the line is hidden; refused no_vpn names the
+## program. Also saves lobby_host_vpn_th.png and lobby_host_vpn_en.png.
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_lobby.gd
 
@@ -26,7 +30,7 @@ const SETTLE := 6
 const MIN_TARGET := 44.0
 const NAMES: PackedStringArray = ["เจ้าห้องใจดีมากๆนะครับ", "เพื่อนคนที่สองชื่อยาวมาก", "Third friend long nm", "เพื่อนสี่", "Friend five", "หก"]
 const KEYS: PackedStringArray = ["not_lan", "wrong_game", "wrong_net", "wrong_app", "wrong_rules", "full", "closing", "port_busy",
-	"no_lan", "bad_ip", "timeout", "host_left", "bad_message", "reconnect_failed"]
+	"no_lan", "bad_ip", "timeout", "host_left", "bad_message", "reconnect_failed", "no_vpn"]
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -130,6 +134,9 @@ func _states(lobby: Node, tag: String, lang: String, save: bool) -> void:
 		and ip_row.get_global_rect().position.y < found_panel.get_global_rect().position.y,
 		tag + ": the IP row is right under the name row, above the room list (the phone keyboard does not cover it)")
 	_check((lobby.get_node("%IpEdit") as LineEdit).virtual_keyboard_type == LineEdit.KEYBOARD_TYPE_URL, tag + ": the IP field opens a URL keyboard (digits and dots)")
+	var help_vpn := lobby.get_node("%HelpVpn") as Label
+	_check(help_vpn.is_visible_in_tree() and help_vpn.text == _t("เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง")
+		and (lobby.get_node("%Help") as Label).text.contains("VPN"), tag + ": both help lines mention the VPN (%s)" % help_vpn.text)
 	await _layout_ok(lobby, tag + " empty list")
 	# no Wi-Fi on this device: the list says so (not "ask a friend to host")
 	_fake.set("lan", false)
@@ -172,6 +179,27 @@ func _states(lobby: Node, tag: String, lang: String, save: bool) -> void:
 	copy.pressed.emit()
 	_check(DisplayServer.clipboard_get() == "192.168.1.20" and copy.text == _t("คัดลอกแล้ว"), tag + ": copy puts the first IP on the clipboard (%s)" % DisplayServer.clipboard_get())
 	lobby.call("refresh")
+	var vpn_row := lobby.get_node("%HostVpnRow") as Control
+	_check(not vpn_row.visible, tag + ": no VPN, no VPN line")
+	# a host on Hamachi (two addresses) and Tailscale: one line per VPN, its first IP
+	_fake.set("vpn", PackedStringArray(["25.33.44.55", "25.1.1.1", "100.88.1.2"]))
+	lobby.call("refresh")
+	await _frames(2)
+	var vpn_label := lobby.get_node("%HostVpn") as Label
+	var want_vpn := _t("IP VPN ของเครื่องนี้ ({vpn}): {ips}").format({"vpn": "Hamachi", "ips": "25.33.44.55"}) + "\n" \
+		+ _t("IP VPN ของเครื่องนี้ ({vpn}): {ips}").format({"vpn": "Tailscale", "ips": "100.88.1.2"})
+	_check(vpn_row.visible and vpn_label.text == want_vpn, tag + ": the VPN line, one per VPN with its first IP (%s)" % vpn_label.text)
+	var copy_vpn := lobby.get_node("%CopyVpnButton") as Button
+	_check(copy_vpn.visible and copy_vpn.text == _t("คัดลอก IP VPN") and copy_vpn.size.y >= MIN_TARGET, tag + ": with a คัดลอก IP VPN button")
+	await _layout_ok(lobby, tag + " hosting with a VPN")
+	if save:
+		_save("lobby_host_vpn_%s.png" % lang)
+	copy_vpn.pressed.emit()
+	_check(DisplayServer.clipboard_get() == "25.33.44.55" and copy_vpn.text == _t("คัดลอกแล้ว"), tag + ": copy VPN puts the first VPN IP on the clipboard (%s)" % DisplayServer.clipboard_get())
+	_fake.set("vpn", PackedStringArray())
+	lobby.call("refresh")
+	await _frames(1)
+	_check(not vpn_row.visible, tag + ": the VPN line hides again without a VPN")
 	_check(not (lobby.get_node("%PickButton") as Control).visible and (lobby.get_node("%LeaveButton") as Button).text == _t("ปิดห้อง"),
 		tag + ": the host has no army pick and a close-room button")
 	await _layout_ok(lobby, tag + " hosting")
@@ -383,6 +411,8 @@ func _args(key: String) -> Dictionary:
 			return {"n": 6, "max": 6}
 		"port_busy":
 			return {"port": 24680}
+		"no_vpn":
+			return {"vpn": "Hamachi"}
 	return {}
 
 
