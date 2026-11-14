@@ -414,3 +414,9 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   `tests/fixtures/figure_pack/figures.json` and `figure_pack_bad/figures.json`, make, the paint table, still pose),
   `tests/render/test_kit_walker.gd` (select → rebuild, walk/run rates, every level within the deck targets, still on
   lo/min, eight kits in eight schemes, back to the egg).
+
+- Round D (14 Nov): the weapons arena plays the selected figure too (ARENA_SPEC §9.6): a pack figure from `figures.json`
+  is used as the arena player when it has the whole arena contract (`ArenaActors.FIGURE_API`) and is dressed with the
+  chosen scheme after `setup` (H10, only when its entry has `"schemes": true`); a deck-only figure falls back to the
+  pack's `player`. Battle-table kits play through `KitFighter`; the egg stays the egg gunner. A pack figure whose H9
+  `uses_strafe()` is false is turned by A/D (no side-walking).

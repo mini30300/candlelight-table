@@ -7,7 +7,8 @@ extends CharacterBody3D
 ## ลอยตัวที่ y = 0 แคปซูล r 0.35 สูง 1.75 ชั้น 2 ชนชั้น 1 | 4 | 8 · ตัวเลขต่อสู้ทั้งหมดจาก ArenaData
 ## พุ่งหลบ: Space (ปุ่มจริง ทุกโหมด) หรือปุ่ม "หลบ" บนจอ = press(&"dodge") พุ่งตามทิศที่กด (ไม่กด = ถอยหลัง) ตัวเลขจาก
 ## ArenaData.DODGE คณิตจาก ArenaCombat · ชนเสา/ผนังด้วย move_and_slide · ช่วงต้นอมตะ · ตัวละครเสริม H8 begin_dodge
-## H9 uses_strafe() false = ไม่เดินเยื้อง: ตัวยังหันตามกล้อง แต่ขาเดินหน้าทั้งตอนเดินหน้า/ข้าง ถอยหลังใช้ท่าถอย (ArenaCombat.leg_dir)
+## H9 uses_strafe() false = ไม่เดินเยื้อง (เจ้าของ 14 พ.ย.): A/D และจอยแกน x หมุนตัวพร้อมกล้อง TURN_RATE ไม่เลื่อนข้าง
+## W/S เดินหน้า/ถอยหลังตามทิศที่หัน (ขาเดินหน้า/ท่าถอย ArenaCombat.leg_dir) · พุ่งหลบหน้า/หลังเท่านั้น · เมาส์ยังหมุนได้
 ## งานต่อเฟรม: _physics_process เฉพาะตอนเดิน อาวุธยังนับเวลา (ArenaWeapons.busy) ล้ม/อมตะชั่วครู่ แสงวาบ พุ่ง/คูลดาวน์
 ## แล้วปิดตัวเอง
 
@@ -44,6 +45,8 @@ const EGG_GUNNER := "res://scenes/arena/egg_gunner.gd"
 const ARENA_LAYOUT := "res://scenes/arena/arena_layout.gd"
 const RESPAWN_FALLBACK := Vector3(0.0, 0.0, -12.5)
 const DODGE_ACTION := &"dodge"
+## ความเร็วหมุนตัวของตัวที่ไม่เดินเยื้อง (เรเดียน/วิ ≈ 150 องศา/วิ)
+const TURN_RATE := deg_to_rad(150.0)
 
 var world: Node3D
 var level := "mid"
@@ -115,7 +118,7 @@ static func ensure_dodge_action() -> void:
 	InputMap.action_add_event(DODGE_ACTION, k)
 
 
-## ตั้งค่าตอนโลกสร้างผู้เล่น: {"level", "team_colour", "touch": bool, "figure": Node3D}
+## ตั้งค่าตอนโลกสร้างผู้เล่น: {"level", "team_colour", "touch": bool, "figure": Node3D, "scheme": id ชุดสีของ Figures}
 func setup(w: Node3D, opts: Dictionary) -> void:
 	world = w
 	touch = bool(opts.get("touch", false))
@@ -133,6 +136,8 @@ func setup(w: Node3D, opts: Dictionary) -> void:
 		fig.call("setup", {"role": &"player", "level": str(opts.get("level", level)),
 			"team_colour": opts.get("team_colour", Color(0.28, 0.52, 0.84)), "seed": int(ArenaData.RANGE["seed"])})
 	fig.rotation = Vector3.ZERO
+	# ชุดสีจากห้องแต่งตัว (H10) หลังตัวละครติดตั้งแล้ว · สีเดิม/ไม่มี apply_scheme = ไม่ทำอะไร
+	Figures.dress(fig, str(opts.get("scheme", Figures.DEFAULT_SCHEME)))
 	_fig_dir = fig.has_method("set_move_dir")
 	_fig_switch = fig.has_method("begin_switch")
 	_fig_dodge = fig.has_method("begin_dodge")
@@ -252,7 +257,7 @@ func press(action: StringName, on: bool) -> void:
 func dodge() -> bool:
 	if not _input_on or _paused or not ArenaCombat.can_dodge(_since_dodge, 0.0, is_alive(), dodging()):
 		return false
-	var iv := input_vector()
+	var iv := move_vector()
 	var w := -Vector3(sin(face), 0.0, cos(face))
 	if iv.length() >= 0.1:
 		var d := ArenaCombat.dodge_dir(iv)
@@ -443,6 +448,19 @@ func input_vector() -> Vector2:
 	return v.limit_length(1.0)
 
 
+## ทิศที่ใช้เดิน: ตัวที่ไม่เดินเยื้องใช้แค่หน้า/หลัง (แกน x หมุนตัวแทน turn_input)
+func move_vector() -> Vector2:
+	var v := input_vector()
+	return v if _strafe else Vector2(0.0, v.y)
+
+
+## การหมุนตัวที่ผู้เล่นสั่ง −1..1 (บวก = ขวา): เฉพาะตัวที่ไม่เดินเยื้อง ไม่หมุนระหว่างพุ่ง
+func turn_input() -> float:
+	if _strafe or dodging():
+		return 0.0
+	return input_vector().x
+
+
 func running() -> bool:
 	return stick.length() > RUN_STICK or (InputMap.has_action(&"run") and Input.is_action_pressed(&"run"))
 
@@ -562,7 +580,10 @@ func _physics_process(delta: float) -> void:
 		_flash = maxf(_flash - delta, 0.0)
 		_call_fig("set_flash", [_flash / FLASH_TIME])
 	_handle(weapons.tick(delta))
-	var iv := input_vector()
+	var turn := turn_input()
+	if turn != 0.0:
+		_turn(-turn * TURN_RATE * delta)
+	var iv := move_vector()
 	var want := Vector3.ZERO
 	if iv.length_squared() > 0.0001:
 		var m := rig.right_flat() * iv.x + rig.forward_flat() * iv.y
@@ -601,7 +622,7 @@ func _physics_process(delta: float) -> void:
 	if _aim_dirty:
 		_aim_dirty = false
 		_update_aim_target()
-	if not moving and not weapons.busy() and _down <= 0.0 and _invuln <= 0.0 and _flash <= 0.0 and not dodging() \
+	if not moving and turn == 0.0 and not weapons.busy() and _down <= 0.0 and _invuln <= 0.0 and _flash <= 0.0 and not dodging() \
 			and _since_dodge >= cool:
 		set_physics_process(false)
 
@@ -753,6 +774,16 @@ func _on_look() -> void:
 	rig.follow(global_position)
 	_aim_dirty = true
 	set_physics_process(true)
+
+
+## หมุนตัวกับกล้องไป d_yaw (A/D ของตัวที่ไม่เดินเยื้อง): walk หมุนแบบ orbit, shoot หมุนแบบเล็ง
+func _turn(d_yaw: float) -> void:
+	if _mode == &"shoot":
+		rig.look(d_yaw, 0.0)
+		_on_look()
+	else:
+		rig.orbit(d_yaw, 0.0)
+		_on_turned()
 
 
 func _face_camera() -> void:

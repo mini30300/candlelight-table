@@ -727,10 +727,19 @@ the power-armour figure must not side-step: the normal walk, and a backward walk
 faces the camera's yaw in walk and shoot mode; the player never turns a figure toward its movement. A figure that
 returns false gets legs, not the real direction: H6 `set_move_dir` receives `ArenaCombat.leg_dir(local_dir, false)` =
 (0, 1) for forward and sideways movement, (0, −1) when moving backwards (local y < `ArenaCombat.BACK_Y` −0.5, i.e. more
-than 120° from its forward), (0, 0) standing; so it plays its forward walk / run cycle while it slides sideways and its
-backward cycle when backing. H8 `begin_dodge` gets the same mapping (a sideways dash → (0, 1), no input → (0, −1)). The
+than 120° from its forward), (0, 0) standing; so it played its forward walk / run cycle while it slid sideways (until
+round D: sideways input now turns it, below) and its backward cycle when backing. H8 `begin_dodge` gets the same mapping (a sideways dash → (0, 1), no input → (0, −1)). The
 egg has no `uses_strafe`, gets the real direction and keeps its side-steps. Nothing is timed any more (no hold-aim), so
 a standing player sleeps as soon as the weapons and the dodge cooldown allow.
+
+**Round D (14 Nov, owner: "I said no side-walking: it looks weird").** A figure whose `uses_strafe()` is false no
+longer moves sideways at all: A/D and the touch stick's x (`ArenaPlayer.turn_input()`) turn the camera and the body
+together at `ArenaPlayer.TURN_RATE` 150°/s (walk mode through `ArenaCamera.orbit`, shoot mode through `look` so the aim
+follows); W/S and the stick's y (`move_vector()`) walk forward/back along the way it faces, so its legs get (0, 1),
+(0, −1) or (0, 0) while it only turns. A diagonal stick walks forward while turning. Its dodge uses `move_vector()` too:
+forward with W, backwards with S, a sideways stick or no input. The mouse and touch aim drag still turn as before. The
+player stays awake while a turn is held and sleeps when released. The egg is unchanged (it strafes; the stick never
+turns the camera).
 
 **Sounds** (`ArenaSound`, `scenes/arena/arena_sound.gd`, through the `Sfx` autoload; silent without it).
 `ArenaData.SOUNDS` maps each arena sound to an old-page DEF kind, gain and pitch: gun → shot, reload → clang (0.7,
@@ -748,6 +757,38 @@ clip on mid and min), `tests/flow/test_arena_flow.gd` step 10d (a real Space das
 pillar stops it at 1.15 m from its centre, a dodge during the beast's wind-up keeps HP, Sfx was asked for the arena
 sounds), `tests/render/test_arena_hud.gd` (DodgeButton within 290 px, no overlap, dashes, ring, ready again;
 `arena_touch_dodge.png`), `test_arena_combat.gd` (arena_data.json now holds five labels, on purpose).
+
+### 9.6 The dressing room's figure in the arena (round D, 14 Nov)
+
+Owner: "I want the other characters usable in the test room, so we can use them in the campaign later." The arena
+player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPEC §10), not only the pack's `player`:
+- `ArenaWorld._spawn_actors` passes `ArenaActors.player_figure(sel)` and `"scheme": ArenaActors.scheme_of(sel)` to
+  `ArenaPlayer.setup`, which calls the figure's `setup` and then `Figures.dress(fig, scheme)` (H10; `original` and
+  figures without `apply_scheme` stay as they are). `scheme_of` gives `original` unless the entry has `schemes` true.
+- `player_figure`: kind `egg` → the egg gunner; kind `kit` → `KitFighter` (below) on that kit; kind `pack` → that
+  `figures.json` entry's script (`Figures.pack_figure(id)`), and when it lacks part of `FIGURE_API` (a deck-only figure)
+  the pack's `player` role or the default, as before. The deck door preloads `ArenaActors.player_preload(sel)` (the
+  kit model or the pack script) beside the old paths. The arena screen is built on each entry, so a new selection
+  shows the next time the door is used.
+- **`KitFighter`** (`scenes/arena/kit_fighter.gd`, extends `KitWalker`): the battle-table kits as arena players. The
+  weapon is part of the kit mesh. Clips from `humanoid.res`: idle / walk / run (rate matched to the speed like the
+  beast), backward = walk played in reverse (H6 local y < −0.5, never run), `fire` = the kit's own weapon clip (`hold`
+  gun → `fire`, the traitor trooper `fire_heavy`, kits without a gun `fire_pistol_r`), `punch` = bash_0..2, `swing` =
+  the kit's swing (swing_*, two-handed swing2_* for the samurai, thrust_* for spear kits, claw_* for clawed kits,
+  `twin`), both 1.8× so the hit frame lands near the weapon's `active`; `hit` flinch, `die` die_back / die_fwd /
+  die_spin, no `reload` clip (returns 0). Aim: with the gun in hand the upper body (chest, neck, head, arms) is set
+  from the fire clip at its first shot frame over the leg clip (holds of that clip: "undriven"), the chest pitches
+  with `set_aim` (0.8 of the camera pitch); a shot is a 0.16 s kick inside that clip (the legs keep their clip). Muzzle:
+  a marker placed when asked, 0.35 m (rifle; the front hand) or 0.18 m (pistol; right hand) ahead of the hand.
+  `uses_strafe()` false (round D turning above). H8: a 0.35 rad lean toward the dash and a 0.18 m dip by a `Tween`
+  that exists only during the dash. Metrics: the kit's height, the player's radius 0.35. Paint: `KitWalker`'s paint
+  table (H10). Levels: like KitWalker (min and lo stand on one still pose; drawing or pitching the gun there re-poses
+  once by a seek, no kick, nothing per frame); one draw call.
+- Tests: `tests/unit/test_arena_selection.gd` (selection → figure and scheme, H10 after setup, the turn controls on
+  mid and min in both modes and by key, the dodge mapping, the egg unchanged, KitFighter's clips per kit, aim, muzzle,
+  reverse walk, dodge, paint, the min still pose), `tests/render/test_arena_figures.gd` (the arena with a kit selected
+  and with the dressed fixture `tests/fixtures/figure_pack_paint`: figure and scheme, the §11.2 overview budget on
+  hi/mid/lo/min, a tracer from the muzzle, D turning without sliding, min idle; `arena_fig_<kit|pack>_<mid|min>.png`).
 
 ## 10. Screens, flow and transitions (ROOM)
 

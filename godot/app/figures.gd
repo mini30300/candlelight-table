@@ -85,6 +85,14 @@ static func make(id: StringName, level: StringName = &"mid") -> Node3D:
 	return null
 
 
+## ทางไฟล์ตัวละครของตัวชุดเสริม id ("" ไม่มี) · อารีน่าใช้ตัวเดียวกันนี้เป็นตัวผู้เล่น (ArenaActors.player_figure)
+static func pack_figure(id: String) -> String:
+	for p in _packs():
+		if p["id"] == id:
+			return str(p["figure"])
+	return ""
+
+
 ## ทาชุดสีบนตัวที่ติดตั้งแล้ว (H10 apply_scheme) เฉพาะตัวที่รับชุดสี
 static func dress(fig: Node, scheme_id: String) -> void:
 	if fig == null or not fig.has_method("apply_scheme"):
