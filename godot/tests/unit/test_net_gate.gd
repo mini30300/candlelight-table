@@ -3,6 +3,8 @@ extends "res://tests/testing.gd"
 ## full), is_private on every range plus public, carrier-NAT and malformed addresses, parse_ip, check_beacon.
 ## Review: NetSession's LAN detection from a list of interfaces (mobile data, VPN skipped; Wi-Fi first; carrier NAT is
 ## not a LAN), pure.
+## Round E (CAMPAIGN_SPEC §6.1): the VPN ranges (Hamachi 25/8, Radmin VPN 26/8, Tailscale 100.64/10) by vector, is_private
+## unchanged for them, peer_allowed (a VPN peer only when this device is on the same VPN) and check_hello's my_ips.
 
 
 func _hello() -> Dictionary:
@@ -132,3 +134,59 @@ func test_lan_detection_from_interfaces() -> void:
 	assert_eq(NetSession.private_ips(NetSession.lan_from(pc)), PackedStringArray(["192.168.0.12", "172.28.0.1"]),
 		"a PC lists its Wi-Fi first, the virtual adapter after, the VPN not at all")
 	assert_true(NetSession.lan_ok(NetSession.lan_from([{"name": "eth0", "addresses": ["192.0.2.2"]}])), "a public-range LAN still counts as a LAN (the sandbox)")
+
+
+func test_vpn_range_vectors() -> void:
+	var want := {"25.1.2.3": "hamachi", "25.0.0.0": "hamachi", "25.255.255.255": "hamachi", "26.10.0.5": "radmin",
+		"100.64.0.1": "tailscale", "100.127.255.254": "tailscale", "100.100.100.100": "tailscale",
+		"::ffff:25.1.2.3": "hamachi", " 26.0.0.1 ": "radmin", "::FFFF:100.64.0.1": "tailscale",
+		"100.63.255.255": "", "100.128.0.0": "", "24.255.255.255": "", "27.0.0.1": "", "25.0.0": "", "": "",
+		"25.1.2.256": "", "025.1.2.3.4": "", "192.168.1.2": "", "10.25.0.1": "", "8.8.8.8": "", "fe80::25": "",
+		"25.a.b.c": "", "::ffff:8.8.8.8": ""}
+	var bad := []
+	for ip: String in want:
+		if NetGate.vpn_range(ip) != want[ip]:
+			bad.append("%s -> %s (want %s)" % [ip, NetGate.vpn_range(ip), want[ip]])
+		if NetGate.is_vpn(ip) != (want[ip] != ""):
+			bad.append("is_vpn " + ip)
+	assert_eq(bad, [], "vpn_range sorts every vector into its range")
+	for ip in ["25.1.2.3", "26.10.0.5", "100.64.0.1", "100.127.255.254", "::ffff:25.1.2.3"]:
+		assert_false(NetGate.is_private(ip), "is_private is unchanged: %s is not private (discovery keeps ignoring it)" % ip)
+	assert_eq(NetGate.vpn_name("hamachi"), "Hamachi", "Hamachi's name")
+	assert_eq(NetGate.vpn_name("radmin"), "Radmin VPN", "Radmin VPN's name")
+	assert_eq(NetGate.vpn_name("tailscale"), "Tailscale", "Tailscale's name")
+	assert_eq(NetGate.vpn_name("x"), "", "an unknown range has no name")
+	assert_eq(NetGate.VPN_RANGES.size(), 3, "three VPN ranges")
+	assert_true(NetGate.LOCAL_KEYS.has("no_vpn"), "no_vpn is a local key")
+
+
+func test_peer_allowed() -> void:
+	var none := PackedStringArray()
+	var ham := PackedStringArray(["25.9.9.9"])
+	var both := PackedStringArray(["26.1.1.1", "100.80.0.2"])
+	# [remote, my_ips, allowed]
+	var rows := [["192.168.1.20", none, true], ["10.0.0.2", ham, true], ["127.0.0.1", none, true],
+		["25.1.2.3", none, false], ["25.1.2.3", ham, true], ["25.1.2.3", both, false],
+		["26.4.4.4", ham, false], ["26.4.4.4", both, true], ["100.64.0.1", both, true], ["100.64.0.1", ham, false],
+		["8.8.8.8", ham, false], ["8.8.8.8", both, false], ["100.63.0.1", both, false], ["::ffff:25.1.2.3", ham, true],
+		["", ham, false], ["25.1.2", ham, false]]
+	var bad := []
+	for r: Array in rows:
+		if NetGate.peer_allowed(str(r[0]), r[1]) != bool(r[2]):
+			bad.append("%s with %s" % [r[0], str(r[1])])
+	assert_eq(bad, [], "peer_allowed: private always; a VPN address only when this device is on the same VPN; public never")
+
+
+func test_check_hello_with_vpn() -> void:
+	var ham := PackedStringArray(["25.9.9.9"])
+	assert_eq(NetGate.check_hello(_hello(), 1, 6, "25.1.2.3", false, false, ham), {"key": "", "args": {}},
+		"a Hamachi friend passes when the host is on Hamachi")
+	assert_eq(str(NetGate.check_hello(_hello(), 1, 6, "25.1.2.3", false)["key"]), "not_lan",
+		"without my_ips (old callers) a Hamachi address is still not_lan")
+	assert_eq(str(NetGate.check_hello(_hello(), 1, 6, "26.1.2.3", false, false, ham)["key"]), "not_lan",
+		"a Radmin address is not_lan for a host on Hamachi only")
+	var h := _hello()
+	h["app"] = "x"
+	assert_eq(str(NetGate.check_hello(h, 1, 6, "25.1.2.3", false, false, ham)["key"]), "wrong_app",
+		"past the address gate, a VPN friend meets the same version gate")
+	assert_eq(str(NetGate.check_hello(_hello(), 6, 6, "25.1.2.3", false, false, ham)["key"]), "full", "and the same full room")

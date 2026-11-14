@@ -540,12 +540,13 @@ The screen reads `Net` through `var net: Node` (default `/root/Net`; render test
    button "ต่อด้วย IP", and the reason line; then the section "ห้องที่พบใน Wi-Fi เดียวกัน" with rows "ห้องของ {name}" ·
    "{n}/{max} คน" · "เข้าร่วม" (mismatched rows greyed with the reason line); while empty "กำลังค้นหาห้อง…" then after
    4 s "ยังไม่พบห้อง — ให้เพื่อนกดเปิดห้อง หรือใส่ IP ของเจ้าห้องด้านบน"; with no Wi-Fi on this device (`has_lan()` false)
-   the empty list says `no_lan` instead; help "ต้องอยู่ Wi-Fi เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต
-   (เครือข่ายส่วนตัว)".
+   the empty list says `no_lan` instead; help "ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์
+   ให้กดอนุญาต (ถ้าใช้ VPN ติ๊กทั้งส่วนตัวและสาธารณะ)" and a second help line for friends in other houses (round E, §18).
 2. **Connecting**: "กำลังเชื่อมต่อ…" + "ยกเลิก" (existing key if present, else new).
 3. **In a room** (hosting or joined): card "ห้องของ {name}"; host only: "IP ของเครื่องนี้: {ips}" (28 px, readable across a
    table) with "คัดลอก IP" (copies the first IP; the button then reads "คัดลอกแล้ว") and "ให้เพื่อนที่อยู่ Wi-Fi
-   เดียวกันกดประตูเทียบยานแล้วเลือกห้องนี้ หรือใส่ IP นี้"; members list "คนในห้อง": name + "(เจ้าห้อง)"/"(คุณ)" + where
+   เดียวกันกดประตูเทียบยานแล้วเลือกห้องนี้ หรือใส่ IP นี้"; when the host has VPN addresses (round E, §18) one line per
+   VPN "IP VPN ของเครื่องนี้ ({vpn}): {ips}" with "คัดลอก IP VPN"; members list "คนในห้อง": name + "(เจ้าห้อง)"/"(คุณ)" + where
    line; "กองทัพที่อยากใช้: {army}" cycle button (members; "ให้เจ้าห้องเลือก" = ""); while `room_state() == "setup"`
    (members only) a section "ที่นั่ง" lists `setup_seats()` as rows "ทีม {n} · {owner} · {army}" (`owner` = member name,
    "บอท" or "(คุณ)") with "นั่งที่นี่" on bot seats and "ลุกจากที่นั่ง" on your own (`net.claim(k)`); buttons "กลับดาดฟ้า"
@@ -592,9 +593,12 @@ Before adding a key, check it is not already in `data/i18n_en.json`, `ui/i18n_ex
 | เข้าร่วม | Join | `online.json` | list row |
 | ใส่ IP ของเจ้าห้อง | Host's IP address | `online.json` | IP placeholder |
 | ต่อด้วย IP | Join by IP | `online.json` | IP button |
-| ต้องอยู่ Wi-Fi เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (เครือข่ายส่วนตัว) | Be on the same Wi-Fi · Windows: if a firewall window appears, allow it (private networks) | `online.json` | help |
+| ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (ถ้าใช้ VPN ติ๊กทั้งส่วนตัวและสาธารณะ) | Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (with a VPN, tick both private and public) | `online.json` | help (round E text, §18) |
+| เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง | Friends in other houses: everyone joins the same Hamachi / Radmin VPN / Tailscale network, then types the host's VPN IP | `online.json` | help line 2 (round E) |
 | กำลังเชื่อมต่อ… | Connecting… | `online.json` | state 2 |
 | IP ของเครื่องนี้: {ips} | This device's IP: {ips} | `online.json` | host card |
+| IP VPN ของเครื่องนี้ ({vpn}): {ips} | This device's VPN IP ({vpn}): {ips} | `online.json` | host card, one line per VPN (round E) |
+| คัดลอก IP VPN | Copy VPN IP | `online.json` | host card (round E) |
 | ให้เพื่อนที่อยู่ Wi-Fi เดียวกันกดประตูเทียบยานแล้วเลือกห้องนี้ หรือใส่ IP นี้ | Friends on the same Wi-Fi open the docking airlock and pick this room, or type this IP | `online.json` | host card |
 | คนในห้อง | In this room | `online.json` | members |
 | (เจ้าห้อง) | (host) | `online.json` | members |
@@ -610,13 +614,14 @@ Before adding a key, check it is not already in `data/i18n_en.json`, `ui/i18n_ex
 | กติกาหรือข้อมูลเกมไม่ตรงกัน (รุ่นกติกา {host} กับ {mine}) — อัปเดตให้เป็นรุ่นเดียวกันก่อน | Game rules or data differ (rules {host} vs {mine}) — update both to the same version first | `online.json` | `wrong_rules` |
 | ระบบเล่นกับเพื่อนคนละรุ่นกัน — อัปเดตให้เป็นรุ่นเดียวกันก่อน | Different play-with-friends versions — update both to the same version first | `online.json` | `wrong_net` |
 | ห้องเต็มแล้ว ({n}/{max} คน) | The room is full ({n}/{max} players) | `online.json` | `full` |
-| เข้าได้เฉพาะเครื่องในวง Wi-Fi เดียวกัน | Only devices on the same Wi-Fi can join | `online.json` | `not_lan` |
+| เข้าได้เฉพาะเครื่องใน Wi-Fi เดียวกัน หรือ VPN เดียวกัน (Hamachi, Radmin VPN, Tailscale) | Only devices on the same Wi-Fi or the same VPN (Hamachi, Radmin VPN, Tailscale) can join | `online.json` | `not_lan` (round E text) |
+| เครื่องนี้ยังไม่ได้ต่อ {vpn} — เปิดโปรแกรมแล้วเข้าเครือข่ายเดียวกับเจ้าห้องก่อน | This device is not on {vpn} — open it and join the host's network first | `online.json` | `no_vpn` (round E) |
 | เครื่องนั้นไม่ใช่ห้องโต๊ะเทียน | That device is not a Candlelight Table room | `online.json` | `wrong_game`, `bad_message` |
 | เจ้าห้องกำลังปิดห้อง | The host is closing the room | `online.json` | `closing` |
 | เปิดห้องไม่ได้: พอร์ต {port} ถูกใช้อยู่ (เปิดแอปซ้อนกันอยู่หรือเปล่า) | Can't host: port {port} is in use (is the app open twice?) | `online.json` | `port_busy` |
 | ไม่พบ Wi-Fi — ต่อ Wi-Fi ก่อนแล้วลองใหม่ | No Wi-Fi found — connect to Wi-Fi and try again | `online.json` | `no_lan` |
 | IP ไม่ถูกต้อง | That IP address is not valid | `online.json` | `bad_ip` |
-| ต่อไม่ได้ — เช็กว่าอยู่ Wi-Fi เดียวกันและเจ้าห้องยังเปิดห้องอยู่ | Could not connect — check you are on the same Wi-Fi and the room is still open | `online.json` | `timeout` |
+| ต่อไม่ได้ — เช็กว่าอยู่ Wi-Fi หรือ VPN เดียวกัน เจ้าห้องยังเปิดห้องอยู่ และไฟร์วอลล์ของเจ้าห้องอนุญาตแล้ว | Could not connect — check you are on the same Wi-Fi or VPN, the room is still open and the host's firewall allows the app | `online.json` | `timeout` (round E text) |
 | ค้นหาห้องอัตโนมัติไม่ได้บนเครื่องนี้ — เพื่อนใส่ IP แทนได้ | Automatic room finding is off on this device — friends can type the IP instead | `online.json` | host card when discovery could not bind |
 | เจ้าห้องปิดห้องแล้ว | The host closed the room | `online.json` | `host_left` |
 | การเชื่อมต่อหลุด — กำลังต่อใหม่… | Connection lost — reconnecting… | `online.json` | `reconnecting` |
@@ -693,6 +698,13 @@ Before adding a key, check it is not already in `data/i18n_en.json`, `ui/i18n_ex
   answers non-private sources. Private = IPv4 `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, `127/8`; IPv6 `::1`,
   `fe80::/10`, `fc00::/7` (`NetGate.is_private(ip)`). Carrier NAT `100.64/10` is not private. Both sockets bind IPv4 only
   (`0.0.0.0`): a phone or PC with a public IPv6 address is not reachable from the internet at the ENet level.
+- **VPN ranges (round E, §18).** Hamachi `25/8`, Radmin VPN `26/8` and Tailscale `100.64/10` are accepted for a typed join
+  and by the host's gate **only when this device itself has an address in the same range** (`NetGate.peer_allowed`);
+  `is_private` is unchanged and discovery never answers them. VPN ranges are accepted only when the host itself is on the
+  same VPN; anyone in that VPN network can join (as on a café Wi-Fi) — share the Hamachi network password only with
+  friends. Hamachi's `25/8` is not private address space (it belongs to someone else on the internet); because the host
+  must have its own 25.x address and the ENet port is not forwarded, an outside 25.x machine cannot reach it through a
+  home router.
 - **Private is not trusted:** café, hotel and school Wi-Fi also use private ranges; anyone there sees the host's name in
   the beacon and can join (round 1 has no approval or kick). The Thai note tells the owner to host on home Wi-Fi or his
   own hotspot.
@@ -1171,3 +1183,68 @@ Round 1 as merged into `claude/multiplayer-wip`, including the integration fixes
 - **Still open:** discovery on a real phone (multicast lock) is unverified; an ENet reconnect inside one process during a
   battle is covered by unit tests (`test_net_loopback`, `test_lockstep`), not end to end; RESYNC does not carry the list
   of gone seats (a rejoined client may name the wrong players in "รอ …"); a rejoin builds the field twice.
+
+## 18. Round E: friends in other houses over a VPN
+
+Mini plays Minecraft on PC with friends through Hamachi; the same now works here. Design in CAMPAIGN_SPEC §6 (track D);
+this section is the as-built record. **No protocol change:** `NetProto.VERSION`, the messages and the discovery beacon
+are unchanged; an older app simply refuses VPN addresses (`not_lan`), so both sides need this version (they need the same
+`APP_VER` anyway).
+
+### 18.1 Ranges and gate (`NetGate`, static, no Thai)
+
+| id | Program | Range | Counted on |
+| --- | --- | --- | --- |
+| `hamachi` | Hamachi | `25.0.0.0/8` | any interface |
+| `radmin` | Radmin VPN | `26.0.0.0/8` | any interface |
+| `tailscale` | Tailscale | `100.64.0.0/10` | any interface **except** mobile-data cards (`rmnet`, `v4-rmnet`, `rev_rmnet`, `ccmni`, `pdp`, `clat`, `wwan`, `seth_`, `radio`, `ppp`) and Wi-Fi / Ethernet cards (`NetSession.LAN_IFACES` by name or Windows friendly name): there the range is the carrier's NAT. Tailscale's own adapter (`tailscale0`, Windows "Tailscale", macOS `utun*`, Android `tun0`) counts. |
+
+- `vpn_range(ip)` → id or `""` (IPv4 and `::ffff:` IPv4 only, malformed → `""`); `is_vpn(ip)`; `vpn_name(id)`.
+- `peer_allowed(remote, my_ips)` = `is_private(remote)` or (`vpn_range(remote) != ""` and some address in `my_ips` has
+  the same range). `check_hello(…, closing, my_ips := [])` uses it for `not_lan` (old callers without `my_ips` keep the
+  LAN-only rule). `LOCAL_KEYS` += `no_vpn`.
+
+### 18.2 Session (`NetSession`)
+
+- `vpn_ips()` → this device's VPN IPv4 addresses in interface order, no duplicates (from `vpn_from(itfs)`; without
+  interface names only 25/8 and 26/8 from `IP.get_local_addresses()`). `static vpn_from(itfs)` → `[{ip, vpn, name}]`
+  (`name` = the Windows friendly name when there is one). `itfs_override` (tests) replaces `IP.get_local_interfaces()` for
+  `local_ips()`, `has_lan()` and `vpn_ips()`.
+- `host()`: `no_lan` only when `not has_lan() and vpn_ips().is_empty()` (a phone with Tailscale on mobile data can host).
+- `join(ip)`: a VPN-range IP without an own address in that range → `refused("no_vpn", {"vpn": "Hamachi"…})`,
+  `ERR_UNAUTHORIZED`, no socket; any other address that fails `peer_ok` → `not_lan`.
+- `peer_ok(ip)` = `NetGate.peer_allowed(ip, vpn_ips())`: the host's check in `_on_authenticating` (before HELLO) and
+  `check_hello(…, vpn_ips())` in `_host_auth`. `vpn_ips()` reads the interface list once per knock (not per frame).
+- Discovery (`NetDiscovery`) is unchanged: LAN rooms only. A VPN friend always types the host's VPN IP.
+
+### 18.3 Lobby and texts
+
+- Find state: the help line now says "Wi-Fi เดียวกัน หรือ VPN เดียวกัน" and that a VPN needs both private and public
+  ticked in the Windows firewall prompt; a second line "เล่นกับเพื่อนต่างบ้าน: …" names the three programs.
+- Host card: one line per VPN, its first address: "IP VPN ของเครื่องนี้ (Hamachi): 25.x.x.x" (24 px), with
+  "คัดลอก IP VPN" (copies the first VPN address, then reads "คัดลอกแล้ว"). Hidden when `vpn_ips()` is empty (or the net
+  object has no `vpn_ips`). A Hamachi-only PC shows "IP ของเครื่องนี้: —" with the copy button disabled, and the VPN line.
+- Reasons: `not_lan` and `timeout` mention the VPN (timeout also the host's firewall, the usual cause over Hamachi);
+  new `no_vpn` "เครื่องนี้ยังไม่ได้ต่อ {vpn} — เปิดโปรแกรมแล้วเข้าเครือข่ายเดียวกับเจ้าห้องก่อน". Strings in §7.3.
+- The IP field still accepts only a dotted IPv4 with an optional `:port`.
+
+### 18.4 Tests
+
+- `test_net_gate`: `vpn_range` vectors (inside and edges of each range, neighbours 24/27/100.63/100.128, malformed,
+  `::ffff:`), `is_private` unchanged for them, `vpn_name`, a `peer_allowed` table, `check_hello` with `my_ips`.
+- `test_net_vpn` (new): `vpn_from` on fake cards (rmnet / ccmni / clat / pdp / wwan / ppp and Wi-Fi / Ethernet 100.64.x
+  skipped; tun0, tailscale0, utun, the Windows Tailscale adapter, Hamachi, ham0, Radmin VPN kept), `vpn_ips` through
+  `itfs_override`, `join` refusals `no_vpn` (naming the program) / `not_lan` / `bad_ip` with no socket, `peer_ok` for the
+  host gate and for join's accept path (no packet is ever sent to a VPN or public address), `host()` on a test port with
+  only a Tailscale address, and `no_lan` with mobile data only.
+- `test_net_discovery`: 25.x and 26.x beacons are still ignored. `test_online_text`: the new keys TH/EN, `no_vpn` fills
+  `{vpn}`. Render `test_lobby`: both help lines, the host card's VPN lines (two Hamachi + one Tailscale → two lines),
+  the copy button and its clipboard, hidden again without a VPN, refused `no_vpn`, three sizes TH/EN, PNGs
+  `lobby_host_vpn_th/en.png`. Flow `test_friends_flow`: the real session with fake Hamachi cards shows the VPN line on
+  the host card, then the run continues over loopback as before. `test_lan_flow` unchanged.
+
+### 18.5 How to play over Hamachi (for the owner; integration copies this into the Thai release note)
+
+The plain-Thai how-to is `godot/docs/HAMACHI_TH.md`. Android: Tailscale works the same way (its app is on the Play
+Store); Hamachi and Radmin VPN are PC programs. The private app is never shared: friends use the normal app of the same
+version.

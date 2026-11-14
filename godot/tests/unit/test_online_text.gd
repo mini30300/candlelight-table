@@ -4,6 +4,8 @@ extends "res://tests/testing.gd"
 ## key has a Thai template with an English pair carrying the same {placeholders}; the where line, the status line and
 ## the default name translate; ui/i18n/online.json is clean and every key is used by the deck track's files; no Thai
 ## under net/ (its text lives in OnlineText).
+## Round E (CAMPAIGN_SPEC §6.3): no_vpn names the VPN program in Thai and English; not_lan, timeout and the help lines
+## mention the VPN; the host card's VPN line and copy button translate.
 
 const SCRIPTS := ["res://ui/screens/lobby.gd", "res://ui/screens/lobby.tscn", "res://ui/widgets/friend_tags.gd",
 	"res://ui/online_text.gd", "res://ui/screens/hall_screen.gd", "res://ui/screens/main_menu.gd",
@@ -144,3 +146,28 @@ func _literals(path: String) -> PackedStringArray:
 		for m in lit_re.search_all(line):
 			out.append(m.get_string(1).replace("\\\"", "\""))
 	return out
+
+
+func test_vpn_texts() -> void:
+	var was := I18n.english
+	assert_true(OnlineText.LOCAL_KEYS.has("no_vpn"), "no_vpn is one of OnlineText's local keys")
+	I18n.english = false
+	assert_eq(OnlineText.reason("no_vpn", {"vpn": "Hamachi"}),
+		"เครื่องนี้ยังไม่ได้ต่อ Hamachi — เปิดโปรแกรมแล้วเข้าเครือข่ายเดียวกับเจ้าห้องก่อน", "Thai no_vpn names the program")
+	assert_eq(OnlineText.reason("not_lan"),
+		"เข้าได้เฉพาะเครื่องใน Wi-Fi เดียวกัน หรือ VPN เดียวกัน (Hamachi, Radmin VPN, Tailscale)", "Thai not_lan mentions the VPNs")
+	assert_true(OnlineText.reason("timeout").contains("VPN") and OnlineText.reason("timeout").contains("ไฟร์วอลล์"),
+		"Thai timeout mentions the VPN and the firewall")
+	I18n.english = true
+	assert_eq(OnlineText.reason("no_vpn", {"vpn": "Radmin VPN"}),
+		"This device is not on Radmin VPN — open it and join the host's network first", "English no_vpn names the program")
+	assert_eq(OnlineText.reason("not_lan"),
+		"Only devices on the same Wi-Fi or the same VPN (Hamachi, Radmin VPN, Tailscale) can join", "English not_lan")
+	assert_true(thai_re.search(OnlineText.reason("timeout")) == null and OnlineText.reason("timeout").contains("firewall"),
+		"English timeout mentions the firewall, no Thai")
+	assert_eq(I18n.t("IP VPN ของเครื่องนี้ ({vpn}): {ips}").format({"vpn": "Hamachi", "ips": "25.1.2.3"}),
+		"This device's VPN IP (Hamachi): 25.1.2.3", "the host card's VPN line in English")
+	assert_eq(I18n.t("คัดลอก IP VPN"), "Copy VPN IP", "the copy button in English")
+	assert_true(I18n.t("เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง").begins_with("Friends in other houses"),
+		"the second help line in English")
+	I18n.english = was

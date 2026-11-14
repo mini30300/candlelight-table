@@ -7,15 +7,21 @@ extends RefCounted
 ## คีย์ของประตู ตามลำดับที่ตรวจ (อันแรกที่ไม่ผ่านชนะ)
 const KEYS := ["not_lan", "wrong_game", "wrong_net", "wrong_app", "wrong_rules", "full", "closing"]
 ## คีย์ความล้มเหลวในเครื่อง (ไม่ผ่านประตู)
-const LOCAL_KEYS := ["port_busy", "no_lan", "bad_ip", "timeout", "host_left", "bad_message", "reconnect_failed"]
+const LOCAL_KEYS := ["port_busy", "no_lan", "bad_ip", "timeout", "host_left", "bad_message", "reconnect_failed", "no_vpn"]
 const DATA_SHORT := 12
+## วง VPN ที่เล่นกับเพื่อนต่างบ้านได้ (CAMPAIGN_SPEC §6): a.b ตัวแรก + จำนวนบิตของวง
+## รับเฉพาะเมื่อเครื่องนี้มีที่อยู่ในวงเดียวกันด้วย (peer_allowed) · ค้นหาห้องยังเป็นวงส่วนตัวอย่างเดียว
+const VPN_RANGES := [{"id": "hamachi", "name": "Hamachi", "a": 25, "bits": 8},
+	{"id": "radmin", "name": "Radmin VPN", "a": 26, "bits": 8},
+	{"id": "tailscale", "name": "Tailscale", "a": 100, "b": 64, "bits": 10}]
 
 
 ## ตรวจ HELLO ของเครื่องที่ขอเข้า: {key, args} (key "" = ผ่าน)
 ## closing: ส่ง true ตอนเจ้าห้องกำลังปิดห้อง · known_nid: nid นี้มีที่นั่งค้างอยู่ (ต่อใหม่) จึงไม่นับว่าเต็ม
+## my_ips: ที่อยู่ VPN ของเจ้าห้อง (NetSession.vpn_ips) เครื่องในวง VPN เดียวกันผ่านได้
 static func check_hello(hello: Dictionary, n_members: int, max_players: int, remote_ip: String, known_nid: bool,
-		closing: bool = false) -> Dictionary:
-	if not is_private(remote_ip):
+		closing: bool = false, my_ips: PackedStringArray = PackedStringArray()) -> Dictionary:
+	if not peer_allowed(remote_ip, my_ips):
 		return _no("not_lan")
 	if hello.is_empty() or str(hello.get("g", "")) != NetProto.GAME or typeof(hello.get("g")) != TYPE_STRING:
 		return _no("wrong_game")
@@ -83,6 +89,49 @@ static func is_private(ip: String) -> bool:
 		return false
 	var w := head.hex_to_int()
 	return (w & 0xFFC0) == 0xFE80 or (w & 0xFE00) == 0xFC00
+
+
+## วง VPN ของที่อยู่: "hamachi" | "radmin" | "tailscale" | "" (IPv4 และ ::ffff:v4 เท่านั้น · รูปผิด = "")
+static func vpn_range(ip: String) -> String:
+	var s := ip.strip_edges().to_lower()
+	if s.begins_with("::ffff:") and s.count(".") == 3:
+		s = s.trim_prefix("::ffff:")
+	var v4 := _v4(s)
+	if v4.size() != 4:
+		return ""
+	var n := (v4[0] << 24) | (v4[1] << 16) | (v4[2] << 8) | v4[3]
+	for r: Dictionary in VPN_RANGES:
+		var bits := int(r["bits"])
+		var base := (int(r["a"]) << 24) | (int(r.get("b", 0)) << 16)
+		var mask := (0xFFFFFFFF << (32 - bits)) & 0xFFFFFFFF
+		if (n & mask) == (base & mask):
+			return str(r["id"])
+	return ""
+
+
+static func is_vpn(ip: String) -> bool:
+	return vpn_range(ip) != ""
+
+
+## ชื่อโปรแกรมของวง ("Hamachi" …) ไม่รู้จัก = ""
+static func vpn_name(id: String) -> String:
+	for r: Dictionary in VPN_RANGES:
+		if str(r["id"]) == id:
+			return str(r["name"])
+	return ""
+
+
+## เครื่องนี้ (my_ips) ยอมให้ remote_ip ต่อไหม: วงส่วนตัว หรือวง VPN ที่เครื่องนี้ก็อยู่ด้วย
+static func peer_allowed(remote_ip: String, my_ips: PackedStringArray) -> bool:
+	if is_private(remote_ip):
+		return true
+	var r := vpn_range(remote_ip)
+	if r == "":
+		return false
+	for m: String in my_ips:
+		if vpn_range(m) == r:
+			return true
+	return false
 
 
 ## IPv4 จุดสี่ช่องเป็นเลข 0-255 (ตัวเลขล้วน 1-3 หลัก); ผิดได้อาร์เรย์ว่าง

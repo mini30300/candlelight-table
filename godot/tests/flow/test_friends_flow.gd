@@ -142,6 +142,19 @@ func _run() -> void:
 	_check(str(lobby.call("view")) == "room" and (lobby.get_node("%HostIps") as CanvasItem).visible,
 		"the room card shows this device's IPs (%s)" % (lobby.get_node("%HostIps") as Label).text)
 	_check(not (lobby.get_node("%DiscOff") as CanvasItem).visible and bool(_net.call("discovery_on")), "discovery is on")
+	# Round E (CAMPAIGN_SPEC §6.3): the VPN line follows the real session's vpn_ips (fake cards: a PC on Hamachi)
+	var vpn_row := lobby.get_node("%HostVpnRow") as CanvasItem
+	var had_vpn := not (_net.call("vpn_ips") as PackedStringArray).is_empty()
+	_check(vpn_row.visible == had_vpn, "the VPN line shows only when this device has a VPN address (%s)" % str(_net.call("vpn_ips")))
+	_net.set("itfs_override", [{"name": "{guid-2}", "friendly": "Hamachi", "addresses": ["25.33.44.55"]},
+		{"name": "lo", "addresses": ["127.0.0.1"]}])
+	lobby.call("refresh")
+	await _frames(1)
+	_check(vpn_row.visible and (lobby.get_node("%HostVpn") as Label).text == "IP VPN ของเครื่องนี้ (Hamachi): 25.33.44.55",
+		"on Hamachi the host card shows IP VPN ของเครื่องนี้ (Hamachi): 25.33.44.55 (%s)" % (lobby.get_node("%HostVpn") as Label).text)
+	_net.set("itfs_override", [])
+	lobby.call("refresh")
+	await _frames(1)
 	_check(str(_net.call("my_name")) == HOST_NM, "the host's name is %s" % HOST_NM)
 	(lobby.get_node("%BackButton") as Button).pressed.emit()
 	await _frames(3)

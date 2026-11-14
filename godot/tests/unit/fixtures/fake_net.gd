@@ -32,6 +32,8 @@ var member_list: Array[Dictionary] = []
 var room_st := "deck"
 var seats: Array[Dictionary] = []
 var ips: PackedStringArray = PackedStringArray(["192.168.1.20"])
+## vpn_ips() answer (Hamachi 25.x / Radmin VPN 26.x / Tailscale 100.64.x addresses of this device; empty = no VPN)
+var vpn: PackedStringArray = PackedStringArray()
 ## has_lan() answer (false = this device has no Wi-Fi / LAN, only mobile data)
 var lan := true
 var disc := true
@@ -150,6 +152,10 @@ func claim(k: int) -> void:
 
 func local_ips() -> PackedStringArray:
 	return ips
+
+
+func vpn_ips() -> PackedStringArray:
+	return vpn
 
 
 func has_lan() -> bool:
