@@ -521,6 +521,7 @@ func preload_arena() -> void:
 	# ตัวละครชุดเสริม (PACK_SPEC §4 H3): ไม่มีชุดเสริม = ทางเดิมใน ARENA_PRELOAD (ข้ามเพราะซ้ำ)
 	paths.append(ArenaActors.resolve("player", pack_manifest))
 	paths.append(ArenaActors.resolve("enemy", pack_manifest))
+	paths.append(ArenaActors.player_preload(Figures.selected()))
 	for p: String in paths:
 		if _arena_res.has(p) or not ResourceLoader.exists(p):
 			continue

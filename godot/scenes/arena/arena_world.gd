@@ -134,8 +134,10 @@ func _spawn_actors(l: String, touch: bool) -> void:
 			player.name = "Player"
 			add_child(player)
 			if player.has_method(&"setup"):
+				# ตัว + ชุดสีที่เลือกในห้องแต่งตัว (ARENA_SPEC §9.6)
+				var sel := Figures.selected()
 				player.call(&"setup", self, {"level": l, "team_colour": team_colour, "touch": touch,
-					"figure": ArenaActors.make_figure("player")})
+					"figure": ArenaActors.player_figure(sel), "scheme": ArenaActors.scheme_of(sel)})
 			_connect(player, &"moved", _on_player_moved)
 			_connect(player, &"mode_changed", _on_player_mode)
 			var cam: Variant = player.call(&"camera") if player.has_method(&"camera") else null
