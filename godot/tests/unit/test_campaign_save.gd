@@ -7,8 +7,9 @@ const TEST_PATH := "user://test_campaign_save.json"
 
 func _fresh() -> void:
 	CampaignSave.path = TEST_PATH
-	if FileAccess.file_exists(TEST_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
+	for suffix: String in ["", ".tmp", ".bad", ".v2", ".v99"]:
+		if FileAccess.file_exists(TEST_PATH + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + suffix))
 	CampaignSave._loaded = false
 
 
@@ -75,7 +76,7 @@ func test_field_checks() -> void:
 	f.store_string(JSON.stringify({"v": 1, "coins": 12.0, "last_difficulty": "impossible",
 		"weeks": {"2967": {"best": {"p01:0:hard": 900.0, "bad": "x"}, "clears": {"p01:0:hard": true, "p02:0:hard": "yes"}},
 			"abc": {"best": {}}, "2966": [1, 2]},
-		"history": [{"week": 2967}, 5, "x"]}))
+		"history": [{"week": 2967}, 5, "x", {"week": 2967, "key": "p01:0:hard", "total": 900.0, "coins": 22.0, "grade": "B"}]}))
 	f = null
 	CampaignSave._loaded = false
 	assert_eq(CampaignSave.coins(), 12, "coins read as an int")
@@ -84,8 +85,53 @@ func test_field_checks() -> void:
 	assert_eq(weeks.keys(), ["2967"], "only a numeric week holding a dictionary is kept")
 	assert_eq(weeks["2967"]["best"], {"p01:0:hard": 900}, "best keeps numbers only")
 	assert_eq(weeks["2967"]["clears"], {"p01:0:hard": true}, "clears keeps true only")
-	assert_eq((CampaignSave.data()["history"] as Array).size(), 1, "history keeps dictionaries only")
+	# review fix: history entries are now checked field by field (the partial {"week"} entry is dropped too)
+	assert_eq(CampaignSave.data()["history"], [{"week": 2967, "key": "p01:0:hard", "total": 900, "coins": 22, "grade": "B"}],
+		"history keeps complete entries only, numbers as ints")
 	assert_true(CampaignSave.is_repeat({"week": 2967, "planet": "p01", "primary": {"idx": 0}, "difficulty": "hard"}), "the kept clear still counts")
+	_fresh()
+	CampaignSave.path = CampaignSave.PATH
+	CampaignSave._loaded = false
+
+
+## review fix: a cut-off or newer-version file is kept beside the save before anything overwrites it; saves are atomic
+func test_truncated_and_future_files_kept() -> void:
+	_fresh()
+	var full := JSON.stringify({"v": 1, "coins": 500, "last_difficulty": "hard", "weeks": {}, "history": []})
+	var f := FileAccess.open(TEST_PATH, FileAccess.WRITE)
+	f.store_string(full.substr(0, 20))
+	f = null
+	CampaignSave._loaded = false
+	assert_eq(CampaignSave.coins(), 0, "a cut-off file starts fresh")
+	assert_true(FileAccess.file_exists(TEST_PATH + ".bad"), "but it is kept as .bad")
+	CampaignSave.set_last_difficulty("normal")
+	assert_eq(FileAccess.get_file_as_string(TEST_PATH + ".bad"), full.substr(0, 20), "the next write leaves .bad untouched")
+	assert_false(FileAccess.file_exists(TEST_PATH + ".tmp"), "no temporary file is left after a save")
+	var g := FileAccess.open(TEST_PATH, FileAccess.WRITE)
+	g.store_string("{\"v\": 2, \"coins\": 900}")
+	g = null
+	CampaignSave._loaded = false
+	assert_eq(CampaignSave.coins(), 0, "a newer version is not read")
+	assert_true(FileAccess.file_exists(TEST_PATH + ".v2"), "and is kept as .v2 for the newer app")
+	CampaignSave.record(_spec(2967), {"win": true, "total": 10, "coins": 3, "grade": "D"})
+	assert_true(FileAccess.get_file_as_string(TEST_PATH + ".v2").contains("900"), "the kept copy still holds its 900 coins")
+	CampaignSave._loaded = false
+	assert_eq(CampaignSave.coins(), 3, "the fresh save reloads")
+	_fresh()
+	CampaignSave.path = CampaignSave.PATH
+	CampaignSave._loaded = false
+
+
+## review fix: coins are capped so a huge (edited) number cannot overflow to negative
+func test_coin_cap() -> void:
+	_fresh()
+	var f := FileAccess.open(TEST_PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"v": 1, "coins": 9.2e18}))
+	f = null
+	CampaignSave._loaded = false
+	assert_eq(CampaignSave.coins(), CampaignSave.COIN_CAP, "a huge coin count reads as the cap")
+	CampaignSave.record(_spec(2967), {"win": true, "total": 10, "coins": 1000000000000000000, "grade": "D"})
+	assert_eq(CampaignSave.coins(), CampaignSave.COIN_CAP, "adding stays at the cap, never negative")
 	_fresh()
 	CampaignSave.path = CampaignSave.PATH
 	CampaignSave._loaded = false
