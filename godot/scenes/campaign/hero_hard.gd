@@ -20,7 +20,8 @@ var knights: Array[Node3D] = []
 var _mist: MeshInstance3D
 var _centre := Vector3.ZERO
 var _dist := 6.0
-var _dir := Vector3(0.12, -0.22, 1.0)
+const DIR := Vector3(0.12, -0.22, 1.0)
+var _dir := DIR
 
 
 func _build() -> void:
@@ -65,7 +66,9 @@ func _layout() -> void:
 	knights[2].rotation.y = -TURN
 	_centre = Vector3(0.0, 1.0 if tall else 0.95, -back * 0.4)
 	var half := Vector2(gap + 0.55, 1.05) if not tall else Vector2(gap + 0.42, 1.15)
-	HeroKit.frame(camera, _centre, half, aspect, _dir)
+	HeroKit.frame(camera, _centre, half, aspect, DIR)
+	# ทิศจริงหลัง frame (อาจถูกยกให้พ้นพื้น) ใช้ตอนกล้องส่าย
+	_dir = (camera.position - _centre).normalized()
 	_dist = camera.position.distance_to(_centre)
 
 

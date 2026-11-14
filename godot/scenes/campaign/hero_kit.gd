@@ -9,6 +9,7 @@ const GLOW := preload("res://scenes/campaign/hero_glow.gdshader")
 const RIM := preload("res://scenes/campaign/hero_rim.gdshader")
 const SHADE := preload("res://scenes/campaign/hero_shade.gdshader")
 const STEP := 1.0 / 30.0
+const MIN_EYE_Y := 0.1           # กล้องฉากโชว์สูงจากพื้นอย่างน้อย (ม.)
 ## ระดับท่าของตัวละครในฉาก: ฉากเดินท่าเองทุกระดับ (min = ฉากวาดภาพนิ่งครั้งเดียวแล้วทิ้ง)
 const FIG_LEVEL := "mid"
 
@@ -34,6 +35,8 @@ static func frame(cam: Camera3D, centre: Vector3, half: Vector2, aspect: float, 
 	var th := t * aspect if aspect >= 1.0 else t
 	var dist := maxf(half.y / tv, half.x / th)
 	var eye := centre + dir.normalized() * dist
+	# กล้องต่ำมองเงยถอยไกล (การ์ดเกือบจัตุรัส) ห้ามลงใต้พื้น: ยกขึ้นแล้วเล็งกลางเดิม
+	eye.y = maxf(eye.y, MIN_EYE_Y)
 	cam.transform = Transform3D(Basis.looking_at(centre - eye, Vector3.UP), eye)
 
 

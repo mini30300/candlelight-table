@@ -17,7 +17,8 @@ const BUDGET := {"hi": [90, 120000], "mid": [70, 90000], "lo": [45, 50000], "min
 ## [ขนาด, ภาษา, ระดับ, สัมผัส, ใบที่เลือก]
 const CASES: Array = [[Vector2i(1280, 720), "th", "hi", false, "hard"], [Vector2i(1280, 720), "en", "mid", false, "veryhard"],
 	[Vector2i(1600, 720), "th", "lo", true, "catastrophe"], [Vector2i(1600, 720), "en", "hi", true, "normal"],
-	[Vector2i(1280, 720), "th", "min", false, "catastrophe"], [Vector2i(1600, 720), "en", "min", true, "hard"]]
+	[Vector2i(1280, 720), "th", "min", false, "catastrophe"], [Vector2i(1600, 720), "en", "min", true, "hard"],
+	[Vector2i(1560, 720), "en", "mid", true, "hard"]]
 
 var _out_dir := DEFAULT_OUT_DIR
 var _headless := false
@@ -88,6 +89,13 @@ func _case(sz: Vector2i, lang: String, lv: String, touch: bool, sel: String) -> 
 	var b: Array = BUDGET[lv]
 	print("info  %s: frame %d draws, %d primitives" % [tag, m[0], m[1]])
 	_check(_headless or (m[0] <= int(b[0]) and m[1] <= int(b[1])), "%s: within %d draws / %d primitives" % [tag, b[0], b[1]], str(m))
+	if not _headless:
+		# review fix: every card's art must show something (the Hard card once rendered black on 20:9 phones in English)
+		await RenderingServer.frame_post_draw
+		var shot := root.get_texture().get_image()
+		for i in 4:
+			var lum := _lum(shot, (stages[i] as Control).get_global_rect())
+			_check(lum[0] > 0.01 and lum[1] > 0.1, "%s: the %s art is not black" % [tag, IDS[i]], "mean %.3f max %.3f" % lum)
 	var vr: Rect2 = ds.get_viewport_rect()
 	for id in IDS:
 		var c: Dictionary = ds.call("card", id)
@@ -128,6 +136,24 @@ func _wait_stills(ds: Node, lv: String) -> bool:
 		if done:
 			return true
 	return false
+
+
+## [ความสว่างเฉลี่ย, สูงสุด] ในกรอบ r ของภาพจอ (สุ่มทุก 4 px)
+func _lum(img: Image, r: Rect2) -> Array:
+	var sum := 0.0
+	var best := 0.0
+	var n := 0
+	var x0 := clampi(int(r.position.x), 0, img.get_width() - 1)
+	var y0 := clampi(int(r.position.y), 0, img.get_height() - 1)
+	var x1 := clampi(int(r.end.x), x0 + 1, img.get_width())
+	var y1 := clampi(int(r.end.y), y0 + 1, img.get_height())
+	for y in range(y0, y1, 4):
+		for x in range(x0, x1, 4):
+			var l := img.get_pixel(x, y).get_luminance()
+			sum += l
+			best = maxf(best, l)
+			n += 1
+	return [sum / maxi(n, 1), best]
 
 
 func _info(ds: Node) -> String:

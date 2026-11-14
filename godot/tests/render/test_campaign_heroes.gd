@@ -15,6 +15,8 @@ const DEFAULT_OUT_DIR := "res://tests/out"
 const IDS: PackedStringArray = ["normal", "hard", "veryhard", "catastrophe"]
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min"]
 const SIZES: Array[Vector2i] = [Vector2i(640, 360), Vector2i(360, 640)]
+## review fix: near-square cards (English stats wrapping on 19.5:9 / 20:9 phones) once put the Hard camera under the floor
+const SQUARE_SIZES: Array[Vector2i] = [Vector2i(400, 400), Vector2i(440, 400), Vector2i(500, 400), Vector2i(536, 400)]
 const BUDGET := {"hi": [60, 80000], "mid": [45, 60000], "lo": [30, 35000], "min": [30, 35000]}
 const SCALE := {"hi": 1.0, "mid": 0.75, "lo": 0.5, "min": 0.5}
 const FIG_LIST := "res://tests/fixtures/figure_pack/figures.json"
@@ -52,6 +54,9 @@ func _run() -> void:
 		for lv in LEVELS:
 			for sz in SIZES:
 				await _one(id, lv, sz, egg)
+	for id in IDS:
+		for sz in SQUARE_SIZES:
+			await _one(id, "mid", sz, egg, "hero_%s_square_%dx%d.png" % [id, sz.x, sz.y])
 	await _normal_figures()
 	_finish()
 
@@ -72,6 +77,8 @@ func _one(id: String, lv: String, sz: Vector2i, sel: Dictionary, png := "") -> S
 	var tag := "%s %s %dx%d" % [id, lv, sz.x, sz.y]
 	var cam := vp.get_camera_3d()
 	_check(cam != null and h.is_ancestor_of(cam), tag + ": the hero's own camera is current")
+	_check(cam != null and cam.global_position.y >= 0.09, tag + ": the camera stays above the floor",
+		str(cam.global_position) if cam != null else "")
 	if lv != "min":
 		h.call("set_active", true)
 		# วัดตอนฉากเต็มที่สุด (ทุกตัวโผล่ ทางดาบ คลื่นกระแทก)

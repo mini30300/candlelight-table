@@ -80,23 +80,31 @@ func _build() -> void:
 	add_child(_player)
 
 
-## แถวโค้ง: กว้าง = ห่าง 1.15 ม. ถอยหลังเป็นรูปตัววีตื้น · แนวตั้ง = ชิดกันและวีลึก (ไม่เล็กเกินในการ์ดแคบ)
+## แถวโค้ง: กว้าง = ห่าง 1.15 ม. ถอยหลังเป็นรูปตัววีตื้น
+## แนวตั้ง = สองแถว: หน้า 3 ตัว (กลาง + ข้าง) ห่าง 0.8 ม. หลัง 4 ตัวลอยสูงเหนือหัวแถวหน้า แทรกช่องว่าง (ไม่เป็นก้อนเดียว)
 func _layout() -> void:
 	if camera == null:
 		return
 	var tall := aspect < 1.0
-	var step := 0.45 if tall else 1.15
-	var depth := 0.85 if tall else 0.32
+	var step := 0.8 if tall else 1.15
+	var depth := 0.32
 	for i in row.size():
 		var o := i - CENTRE
 		var base := Vector3(o * step, 0.0, 0.5 - depth * absf(o))
+		if tall:
+			if absf(o) <= 1:
+				base = Vector3(o * step, 0.0, 0.5 - 0.15 * absf(o))
+			else:
+				base = Vector3(signf(o) * (0.45 + 0.9 * (absf(o) - 2.0)), 0.55, -1.3)
 		row[i].set_meta(&"base", base)
 		row[i].position = base
 		row[i].rotation.y = -0.13 * o
 		_pillars[i].position.x = base.x
 		_pillars[i].position.z = base.z
-	var half := Vector2(3.0 * step + 0.65, 1.4) if not tall else Vector2(3.0 * step + 0.45, 1.5)
-	HeroKit.frame(camera, _centre, half, aspect, Vector3(0.0, 0.06, 1.0))
+	var half := Vector2(3.0 * step + 0.65, 1.4) if not tall else Vector2(1.75, 1.8)
+	var c := _centre if not tall else _centre + Vector3(0.0, 0.3, 0.0)
+	# แนวตั้ง: กล้องสูงมองกดลงเล็กน้อย ให้แถวหลังโผล่เหนือหัวแถวหน้า
+	HeroKit.frame(camera, c, half, aspect, Vector3(0.0, 0.06, 1.0) if not tall else Vector3(0.0, 0.3, 1.0))
 
 
 func _reset() -> void:
