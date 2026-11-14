@@ -373,6 +373,15 @@ Owner, 14 Nov: "move the test room (arena) into the launch bay". A room may decl
   within the §3.5 figure budget), both from `tests/flow/dressing_steps.gd`; `DRESS_STUB=1` runs them against
   `tests/unit/fixtures/figures_stub.gd` (adds the fixed-colour and H10 checks).
 
+### 9.7 Campaign station and card (round E, 15 Nov 2026)
+
+- `"action": "campaign"` is allowed on a station **and** on a card (no extra keys; any number of them). Both call
+  `PackRoomScreen.open_campaign()` → `CampaignFlow.start("room")` (CAMPAIGN_SPEC §1.3); leaving the campaign shows the
+  room as it was. A card with another unknown action is refused with "card action must be soon, online or campaign".
+- An older public app refuses a room that uses `campaign` (the whole room is skipped): merge the public side first.
+- Fixture `tests/fixtures/pack_rooms_campaign/camp_room` (test_room plus a `dropship` station and a third card), broken
+  case `tests/fixtures/pack_rooms_bad/card_bad_action`.
+
 ## 10. Dressing room: figures, schemes, slots (round C, 14 Nov 2026)
 
 Owner, 14 Nov: choose which character comes out and walks on the deck and in pack rooms, in a preset colour scheme, with

@@ -3,7 +3,7 @@ extends "res://tests/testing.gd"
 ## sample (stamped with local arrival time) with linear position and shortest-arc yaw, extrapolates past the newest
 ## sample with its speed for at most 150 ms and then holds, and is `done` once settled; a jump of more than 3 m snaps;
 ## spawn_for(0..5) are free spots (HallLayout.blocked at r 0.35) at least 0.8 m apart; set / remove keep the eggs
-## MultiMesh's visible count and the Rings in step; the deck's ring capacity is 1 + IDS + 2 + MAX = 16; processing stops
+## MultiMesh's visible count and the Rings in step; the deck's ring capacity is 1 + IDS + 2 + MAX = 17; processing stops
 ## within 10 frames of the last (stop) sample. Fake time only: step(now_ms) is called directly, nothing waits.
 
 const FRAME_MS := 16
@@ -74,7 +74,8 @@ func test_spawn_spots() -> void:
 
 func test_ring_capacity() -> void:
 	assert_eq(HallWorld.ring_capacity(), 1 + HallLayout.IDS.size() + 2 + HallFriends.MAX, "the deck's Rings hold the avatar, the stations, two spares and every friend")
-	assert_eq(HallWorld.ring_capacity(), 16, "16 rings")
+	# round E (CAMPAIGN_SPEC §1.2): the campaign table's front ring makes it 17 on purpose
+	assert_eq(HallWorld.ring_capacity(), 17, "17 rings")
 	assert_eq(HallFriends.MAX, 5, "room for five friends (six players)")
 
 

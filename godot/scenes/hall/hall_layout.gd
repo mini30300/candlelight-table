@@ -28,7 +28,7 @@ const STAND_H := 1.72
 const STANDS: PackedVector2Array = [Vector2(-11.3, -6.0), Vector2(11.3, -6.0), Vector2(-11.3, 3.0), Vector2(11.3, 6.0),
 	Vector2(-4.0, -7.5), Vector2(4.0, -7.5)]
 
-const IDS: PackedStringArray = ["battle", "army", "settings", "online", "adventure", "exit", "vault", "arena"]
+const IDS: PackedStringArray = ["battle", "army", "settings", "online", "adventure", "exit", "vault", "arena", "campaign"]
 ## c = กลางรอยเท้า (x, z), h = ครึ่งขนาด, reach = ระยะเอื้อมจากขอบ, height = ความสูงของที่กัน,
 ## round = ที่กันเป็นวงกลม (รัศมี h.x), front = จุดวงแหวนหน้าที่ใช้งาน (x, z), sign = ตำแหน่งป้าย, face = yaw ของป้าย
 const STATIONS := {
@@ -51,7 +51,13 @@ const STATIONS := {
 	# ประตูอารีน่าทดสอบอาวุธ (ARENA_SPEC §2): กล่องกันปิดช่องประตูเหมือนประตูทางออก ตัวผู้เล่นหยุดที่ z 7.35
 	"arena": {"c": Vector2(-9.8, 7.9), "h": Vector2(1.0, 0.2), "reach": 1.4, "height": 3.8, "round": false,
 		"front": Vector2(-9.8, 6.95), "sign": Vector3(-9.8, 4.3, 7.62), "face": PI},
+	# โต๊ะแคมเปญ (CAMPAIGN_SPEC §1.2): เครื่องฉายแผนที่ดาว หลังขวาของโถงกลาง หน้าหน้าต่างบานขวา ที่กันกลมสูงถึงยอดจานโฮโล
+	"campaign": {"c": Vector2(5.5, -5.5), "h": Vector2(1.0, 1.0), "reach": 1.5, "height": 1.6, "round": true,
+		"front": Vector2(5.5, -3.9), "sign": Vector3(5.5, 2.75, -5.5), "face": 0.0},
 }
+## จานกาแล็กซีโฮโลเหนือโต๊ะแคมเปญ: ความสูง รัศมี (วาดอย่างเดียว อยู่ใน holo_mesh)
+const CAMPAIGN_DISC_Y := 1.55
+const CAMPAIGN_DISC_R := 0.8
 ## ช่องประตูอารีน่าในผนังหน้า (วาดอย่างเดียว ตัวชนผนังเต็มเหมือนเดิม): ช่วง x, จุดเริ่มโค้ง, ยอดโค้ง, ทางเดินสั้นหลังประตู
 const ARENA_DOOR := {"x0": -10.8, "x1": -8.8, "spring": 2.5, "apex": 3.8, "stub": 2.5}
 ## เดินเข้าช่องประตูลึกกว่านี้ (เลยขอบกล่องกัน − รัศมีตัว − ค่านี้) = เข้าอารีน่า
@@ -118,6 +124,8 @@ const COOL_LIGHTS := [
 	{"p": Vector3(0.0, 3.0, 0.0), "k": 0.14, "d": 1.0e6, "col": Color("9fb8ff")},
 	# แสงอำพันที่ปากประตูอารีน่า
 	{"p": Vector3(-9.8, 2.6, 7.6), "k": 0.35, "d": 2.5, "col": SCREEN_AMBER},
+	# แสงโฮโลอ่อน ๆ จากจานกาแล็กซีของโต๊ะแคมเปญ
+	{"p": Vector3(5.5, 1.55, -5.5), "k": 0.45, "d": 1.6, "col": HOLO},
 ]
 ## แสงอำพันในทางเดินสั้นหลังประตูอารีน่า (อยู่นอกห้อง จึงไม่อยู่ใน COOL_LIGHTS)
 const ARENA_STUB_LIGHT := {"p": Vector3(-9.8, 3.2, 9.8), "k": 0.9, "d": 3.0, "col": SCREEN_AMBER}

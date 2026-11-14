@@ -19,6 +19,8 @@ const RECTS := {"battle": [0.0, -2.0, 3.0, 2.0], "army": [-11.4, -1.0, 0.5, 2.6]
 	"online": [11.95, 3.0, 0.15, 1.7], "exit": [0.0, 7.9, 1.2, 0.2], "arena": [-9.8, 7.9, 1.0, 0.2]}
 const ROUND_TABLE := [-5.0, 4.0, 1.3]
 const VAULT := [5.0, 4.0, 1.2]
+## round E (CAMPAIGN_SPEC §1.2): the campaign table's round dais (x, z, r)
+const PROJECTOR := [5.5, -5.5, 1.0]
 const PILLARS := [[-8.5, -5.0], [8.5, -5.0], [-8.5, 0.5], [8.5, 0.5], [-8.5, 5.5], [8.5, 5.5]]
 const PILLAR_R := 0.45
 const CLEAR := 0.25   # the avatar's centre stays at least this far from any blocker (its capsule is 0.35)
@@ -273,6 +275,8 @@ func _blocker_at(p: Vector3) -> String:
 		return "adventure table at " + _xz(p)
 	if Vector2(p.x - VAULT[0], p.z - VAULT[1]).length() < VAULT[2] + CLEAR:
 		return "treasure chest at " + _xz(p)
+	if Vector2(p.x - PROJECTOR[0], p.z - PROJECTOR[1]).length() < PROJECTOR[2] + CLEAR:
+		return "campaign table at " + _xz(p)
 	for q in PILLARS:
 		if Vector2(p.x - float(q[0]), p.z - float(q[1])).length() < PILLAR_R + CLEAR:
 			return "pillar %s at %s" % [str(q), _xz(p)]

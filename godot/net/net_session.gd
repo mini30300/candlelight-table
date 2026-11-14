@@ -40,6 +40,9 @@ const CELL_IFACES: PackedStringArray = ["rmnet", "v4-rmnet", "rev_rmnet", "ccmni
 	"dummy", "ipsec", "seth_", "radio"]
 ## ชื่อการ์ด Wi-Fi/ฮอตสปอต/สายแลน (ขึ้นต้น; ชื่อเล่นของ Windows ด้วย) ขึ้นก่อนในรายการ IP
 const LAN_IFACES: PackedStringArray = ["wlan", "swlan", "ap", "wl", "eth", "en", "wi-fi", "wifi", "ethernet"]
+## การ์ดเน็ตมือถือ: 100.64/10 บนการ์ดเหล่านี้คือ CGNAT ของผู้ให้บริการ ไม่ใช่ Tailscale (tun0 ของ Tailscale บน Android นับ)
+const MOBILE_IFACES: PackedStringArray = ["rmnet", "v4-rmnet", "rev_rmnet", "ccmni", "pdp", "clat", "wwan", "seth_", "radio",
+	"ppp"]
 
 var ports: Dictionary = PORTS.duplicate()
 var probe: PackedStringArray = []
@@ -50,6 +53,8 @@ var hello_extra: Dictionary = {}                   # เทสเท่านั
 var make_link := true
 ## เทส: เลื่อนนาฬิกาของตัวนี้ (ms) เพื่อลองชีพจรและหมดเวลาโดยไม่ต้องรอจริง
 var clock_skew_ms := 0
+## เทส: การ์ดเครือข่ายปลอมแบบ IP.get_local_interfaces() (ว่าง = ของจริง) ใช้กับ local_ips, has_lan, vpn_ips
+var itfs_override: Array = []
 
 var _state: StringName = &"off"
 var _finding := false
@@ -218,13 +223,71 @@ func setup_seats() -> Array[Dictionary]:
 
 ## IPv4 ในวงส่วนตัวของเครื่องนี้ที่เพื่อนพิมพ์ได้ (ไม่รวม loopback และเน็ตมือถือ/VPN) Wi-Fi/สายแลนก่อน
 func local_ips() -> PackedStringArray:
-	return private_ips(lan_addresses())
+	return private_ips(_addrs())
 
 
 ## มีเครือข่ายในบ้านไหม (Wi-Fi ฮอตสปอต หรือสายแลน): IPv4 ที่ไม่ใช่ loopback ไม่ใช่ CGNAT บนการ์ดที่ไม่ใช่เน็ตมือถือ/VPN
 ## ไม่มี = เปิดห้องไม่ได้ (no_lan) และหน้าค้นหาห้องบอกให้ต่อ Wi-Fi
 func has_lan() -> bool:
-	return lan_ok(lan_addresses())
+	return lan_ok(_addrs())
+
+
+## IPv4 ของเครื่องนี้ในวง VPN (Hamachi, Radmin VPN, Tailscale) ตามลำดับการ์ด ไม่ซ้ำ (CAMPAIGN_SPEC §6.2)
+## gate = true: เฉพาะที่ใช้เป็นด่านเจ้าห้องได้ (ไม่รวม Tailscale บนมือถือที่เน็ตผู้ให้บริการก็เป็น 100.64/10)
+func vpn_ips(gate: bool = false) -> PackedStringArray:
+	var out := PackedStringArray()
+	var itfs := itfs_override if not itfs_override.is_empty() else IP.get_local_interfaces()
+	if itfs.is_empty():
+		# ไม่รู้ชื่อการ์ด: นับแค่ 25/8 กับ 26/8 (100.64/10 อาจเป็นเน็ตมือถือ)
+		for ip: String in IP.get_local_addresses():
+			var r := NetGate.vpn_range(ip)
+			if (r == "hamachi" or r == "radmin") and _ipv4(ip) and not out.has(ip):
+				out.append(ip)
+		return out
+	for v: Dictionary in vpn_from(itfs):
+		if gate and bool(v.get("cgnat", false)):
+			continue
+		if not out.has(str(v["ip"])):
+			out.append(str(v["ip"]))
+	return out
+
+
+## [{ip, vpn, name}] จาก itfs แบบ IP.get_local_interfaces(): 25/8 26/8 บนการ์ดไหนก็ได้
+## 100.64/10 ไม่นับบนการ์ดเน็ตมือถือและการ์ด Wi-Fi/สายแลน (ตรงนั้นคือ CGNAT ของผู้ให้บริการ ไม่ใช่ Tailscale)
+## ถ้าการ์ดเน็ตมือถือเองได้ 100.64/10 ที่อยู่ Tailscale ติด "cgnat": true (ใช้เข้าห้องได้ แต่ไม่ใช้เป็นด่านเจ้าห้อง)
+static func vpn_from(itfs: Array) -> Array:
+	var out: Array = []
+	var cgnat := false
+	for itf: Dictionary in itfs:
+		if _iface_in(str(itf.get("name", "")).to_lower(), MOBILE_IFACES):
+			for ip: Variant in itf.get("addresses", []):
+				if NetGate.vpn_range(str(ip)) == "tailscale":
+					cgnat = true
+	for itf: Dictionary in itfs:
+		var nm := str(itf.get("name", ""))
+		var fr := str(itf.get("friendly", "")).to_lower()
+		var carrier := _iface_in(nm.to_lower(), MOBILE_IFACES) or _iface_in(nm.to_lower(), LAN_IFACES) \
+			or _iface_in(fr, LAN_IFACES)
+		for ip: Variant in itf.get("addresses", []):
+			var a := str(ip)
+			if not _ipv4(a):
+				continue
+			var r := NetGate.vpn_range(a)
+			if r == "" or (r == "tailscale" and carrier):
+				continue
+			out.append({"ip": a, "vpn": r, "name": str(itf.get("friendly", nm)) if fr != "" else nm,
+				"cgnat": r == "tailscale" and cgnat})
+	return out
+
+
+## เครื่องที่ต่อเข้ามา (ip) ผ่านด่านที่อยู่ไหม: วงส่วนตัว หรือวง VPN ที่เครื่องนี้อยู่ด้วย
+func peer_ok(ip: String) -> bool:
+	return NetGate.peer_allowed(ip, vpn_ips(true))
+
+
+## [[ip, ลำดับ]] ของเครื่องนี้ (การ์ดปลอมของเทสก่อน)
+func _addrs() -> Array:
+	return lan_from(itfs_override) if not itfs_override.is_empty() else lan_addresses()
 
 
 ## [[ip, ลำดับ]] ของเครื่องนี้ (lan_from ของการ์ดเครือข่ายจริง)
@@ -305,7 +368,8 @@ func host() -> Error:
 		return ERR_ALREADY_IN_USE
 	_load_cfg()
 	_ensure_identity()
-	if not has_lan():
+	# ไม่มี Wi-Fi แต่ต่อ VPN อยู่ (PC ที่ใช้ Hamachi) ก็เปิดห้องได้
+	if not has_lan() and vpn_ips(true).is_empty():
 		refused.emit("no_lan", {})
 		return ERR_UNCONFIGURED
 	var p := ENetMultiplayerPeer.new()
@@ -334,7 +398,8 @@ func host() -> Error:
 	return OK
 
 
-## เข้าห้องด้วย IP (รับ "ip:port" ได้): ERR_INVALID_PARAMETER (refused bad_ip), ERR_UNAUTHORIZED (refused not_lan)
+## เข้าห้องด้วย IP (รับ "ip:port" ได้): ERR_INVALID_PARAMETER (refused bad_ip), ERR_UNAUTHORIZED (refused not_lan
+## หรือ no_vpn เมื่อเป็น IP วง VPN แต่เครื่องนี้ยังไม่ได้ต่อ VPN นั้น)
 func join(ip: String, port: int = 0) -> Error:
 	if _state != &"off" and _state != &"finding":
 		return ERR_ALREADY_IN_USE
@@ -342,7 +407,13 @@ func join(ip: String, port: int = 0) -> Error:
 	if parsed.is_empty():
 		refused.emit("bad_ip", {})
 		return ERR_INVALID_PARAMETER
-	if not NetGate.is_private(str(parsed["ip"])):
+	var vr := NetGate.vpn_range(str(parsed["ip"]))
+	# ขาออก: Tailscale บนมือถือเน็ต CGNAT ก็เข้าห้องเพื่อนได้
+	var out_ok := NetGate.peer_allowed(str(parsed["ip"]), vpn_ips())
+	if vr != "" and not out_ok:
+		refused.emit("no_vpn", {"vpn": NetGate.vpn_name(vr)})
+		return ERR_UNAUTHORIZED
+	if not out_ok:
 		refused.emit("not_lan", {})
 		return ERR_UNAUTHORIZED
 	_load_cfg()
@@ -815,7 +886,7 @@ func _on_authenticating(id: int) -> void:
 	if is_host():
 		_knocking[id] = true
 		var ip := pp.get_remote_address() if pp != null else ""
-		if not NetGate.is_private(ip):
+		if not peer_ok(ip):
 			_refuse(id, "not_lan", {})
 		return
 	# ฝั่งเพื่อน: ส่ง HELLO
@@ -847,7 +918,7 @@ func _host_auth(id: int, data: PackedByteArray) -> void:
 	for s: int in _slot_nid:
 		if _slot_nid[s] == nid and _members.has(s):
 			known = true
-	var g := NetGate.check_hello(hello, _members.size() + _pending.size(), max_players, ip, known, _closing)
+	var g := NetGate.check_hello(hello, _members.size() + _pending.size(), max_players, ip, known, _closing, vpn_ips(true))
 	if g["key"] != "":
 		_refuse(id, g["key"], g["args"])
 		return

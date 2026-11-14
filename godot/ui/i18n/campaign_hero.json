@@ -1,0 +1,13 @@
+{
+  "เลือกความยาก": "Choose the difficulty",
+  "ความยากเปลี่ยนจำนวนศัตรู ความแรง และคะแนน": "Difficulty changes how many enemies come, how hard they are, and your score",
+  "เลือก": "Choose",
+  "คะแนน {x}": "Score {x}",
+  "ลุกได้ {n} ครั้ง": "Get back up {n} times",
+  "ลุกได้ 1 ครั้ง": "Get back up once",
+  "ล้มแล้วจบ": "Fall once and it is over",
+  "ศัตรู {count} · ทน {hp} · แรง {dmg} · เร็ว {speed}": "Enemies {count} · toughness {hp} · damage {dmg} · speed {speed}",
+  "ศัตรูค่าปกติ ไม่มีตัวคูณ": "Standard enemies, no multipliers",
+  "← → เลือกการ์ด · E / Enter ยืนยัน": "← → pick a card · E / Enter to confirm",
+  "แตะการ์ดเพื่อดูฉาก แตะซ้ำหรือกดปุ่มเลือกเพื่อยืนยัน": "Tap a card to see its scene; tap it again or press Choose to confirm"
+}

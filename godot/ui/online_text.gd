@@ -4,28 +4,30 @@ extends RefCounted
 ## ที่แปลแล้ว, ที่อยู่ของสมาชิก (where) → ไทย, บรรทัดสถานะบนดาดฟ้า, ชื่อเริ่มต้น · คีย์ไทยทั้งก้อน (I18n.t แล้วค่อย format)
 ## ข้อความไทยของ net/ อยู่ที่นี่ทั้งหมด (net/ ไม่มีภาษาไทย) · หน้าตั้งเกม/สนามรบใช้ผ่าน load("res://ui/online_text.gd")
 
-## เหตุผล → แม่แบบไทย (ตัวแปร {host} {mine} {n} {max} {port} มากับ args)
+## เหตุผล → แม่แบบไทย (ตัวแปร {host} {mine} {n} {max} {port} {vpn} มากับ args)
 const REASONS := {
 	"wrong_app": "รุ่นแอปไม่ตรงกัน: เจ้าห้อง {host} · คุณ {mine} — อัปเดตให้เป็นรุ่นเดียวกันก่อน",
 	"wrong_rules": "กติกาหรือข้อมูลเกมไม่ตรงกัน (รุ่นกติกา {host} กับ {mine}) — อัปเดตให้เป็นรุ่นเดียวกันก่อน",
 	"wrong_net": "ระบบเล่นกับเพื่อนคนละรุ่นกัน — อัปเดตให้เป็นรุ่นเดียวกันก่อน",
 	"full": "ห้องเต็มแล้ว ({n}/{max} คน)",
-	"not_lan": "เข้าได้เฉพาะเครื่องในวง Wi-Fi เดียวกัน",
+	"not_lan": "เข้าได้เฉพาะเครื่องใน Wi-Fi เดียวกัน หรือ VPN เดียวกัน (Hamachi, Radmin VPN, Tailscale)",
 	"wrong_game": "เครื่องนั้นไม่ใช่ห้องโต๊ะเทียน",
 	"bad_message": "เครื่องนั้นไม่ใช่ห้องโต๊ะเทียน",
 	"closing": "เจ้าห้องกำลังปิดห้อง",
 	"port_busy": "เปิดห้องไม่ได้: พอร์ต {port} ถูกใช้อยู่ (เปิดแอปซ้อนกันอยู่หรือเปล่า)",
 	"no_lan": "ไม่พบ Wi-Fi — ต่อ Wi-Fi ก่อนแล้วลองใหม่",
 	"bad_ip": "IP ไม่ถูกต้อง",
-	"timeout": "ต่อไม่ได้ — เช็กว่าอยู่ Wi-Fi เดียวกันและเจ้าห้องยังเปิดห้องอยู่",
+	"timeout": "ต่อไม่ได้ — เช็กว่าอยู่ Wi-Fi หรือ VPN เดียวกัน เจ้าห้องยังเปิดห้องอยู่ และไฟร์วอลล์ของเจ้าห้องอนุญาตแล้ว",
 	"host_left": "เจ้าห้องปิดห้องแล้ว",
 	"reconnecting": "การเชื่อมต่อหลุด — กำลังต่อใหม่…",
 	"reconnect_failed": "ต่อใหม่ไม่สำเร็จ — กลับมาเล่นคนเดียว",
 	"reconnected": "ต่อใหม่ได้แล้ว",
+	"no_vpn": "เครื่องนี้ยังไม่ได้ต่อ {vpn} — เปิดโปรแกรมแล้วเข้าเครือข่ายเดียวกับเจ้าห้องก่อน",
 }
 ## คีย์ของ NetGate (§3) และคีย์ที่เครื่องนี้ตัดสินเอง (เทสตรวจว่าครบ)
 const GATE_KEYS: PackedStringArray = ["not_lan", "wrong_game", "wrong_net", "wrong_app", "wrong_rules", "full", "closing"]
-const LOCAL_KEYS: PackedStringArray = ["port_busy", "no_lan", "bad_ip", "timeout", "host_left", "bad_message", "reconnect_failed"]
+const LOCAL_KEYS: PackedStringArray = ["port_busy", "no_lan", "bad_ip", "timeout", "host_left", "bad_message", "reconnect_failed",
+	"no_vpn"]
 ## บรรทัดบนการ์ดของเจ้าห้องเมื่อพอร์ตค้นหาห้องเปิดไม่ได้
 const NO_DISCOVERY := "ค้นหาห้องอัตโนมัติไม่ได้บนเครื่องนี้ — เพื่อนใส่ IP แทนได้"
 ## สมาชิกอยู่ตรงไหน (MEMBERS.where)

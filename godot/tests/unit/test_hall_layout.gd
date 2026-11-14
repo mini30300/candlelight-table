@@ -15,7 +15,8 @@ func _circle_rect_gap(p: Vector2, r: float, rect: Rect2) -> float:
 func test_stations_are_the_eight_of_the_spec() -> void:
 	# 0.3 (SHIP_LOBBY_SPEC §2.2): the treasure-chest station "vault" is appended on purpose (six -> seven ids)
 	# 0.4 (ARENA_SPEC §2.1): the weapons-arena door "arena" is appended on purpose (seven -> eight ids)
-	assert_eq(HallLayout.IDS, PackedStringArray(["battle", "army", "settings", "online", "adventure", "exit", "vault", "arena"]), "eight station ids")
+	# round E (CAMPAIGN_SPEC §1.2): the campaign table "campaign" is appended on purpose (eight -> nine ids)
+	assert_eq(HallLayout.IDS, PackedStringArray(["battle", "army", "settings", "online", "adventure", "exit", "vault", "arena", "campaign"]), "nine station ids")
 	for id in HallLayout.IDS:
 		assert_true(HallLayout.STATIONS.has(id), "station %s has a footprint" % id)
 	assert_eq(HallLayout.rect_of("battle"), Rect2(-3.0, -4.0, 6.0, 4.0), "the war table is 6 x 4 m at (0, -2)")
@@ -120,8 +121,8 @@ func test_flood_fill_reaches_every_station() -> void:
 			picked[at] = true
 	for c in free.size():
 		free_n += free[c]
-	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
-	assert_eq(HallLayout.IDS.size(), 8, "eight stations to reach, the moved airlock, the vault and the arena door included")
+	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station; round E (CAMPAIGN_SPEC §1.2): the campaign table the ninth
+	assert_eq(HallLayout.IDS.size(), 9, "nine stations to reach, the moved airlock, the vault, the arena door and the campaign table included")
 	for id in HallLayout.IDS:
 		assert_true(reached.has(id), "the flood fill from the spawn reaches the %s trigger" % id)
 		assert_true(picked.has(id), "station_at gives %s somewhere the avatar can walk" % id)
@@ -137,7 +138,9 @@ func test_station_at_samples() -> void:
 		Vector2(9.0, -1.0): "settings", Vector2(10.6, 3.0): "online", Vector2(0.0, -6.5): "", Vector2(-3.0, 4.0): "adventure",
 		Vector2(0.0, 7.0): "exit", Vector2(0.0, 4.0): "", Vector2(6.0, 4.0): "", Vector2(3.15, 4.0): "",
 		Vector2(5.0, 4.9): "vault", Vector2(5.5, 5.2): "vault", Vector2(1.8, 7.0): "exit",
-		Vector2(-6.0, -1.0): "", Vector2(5.5, -6.0): "",
+		# round E (CAMPAIGN_SPEC §1.2): (5.5, -6.0) is now inside the campaign table's footprint; (6.0, -2.0) stays open
+		Vector2(-6.0, -1.0): "", Vector2(5.5, -6.0): "campaign", Vector2(6.0, -2.0): "",
+		Vector2(5.5, -3.9): "campaign",
 		# 0.4 (ARENA_SPEC §13.1): the arena door's front ring and the return spot
 		Vector2(-9.8, 6.95): "arena", Vector2(-9.8, 5.2): "",
 	}
@@ -313,6 +316,40 @@ func test_signs_and_cool_lights() -> void:
 		assert_true(Vector2(f.x, f.z).distance_to(c) < 1.2, "vault candle %s stands inside the dais blocker" % str(f))
 		assert_true(f.z < c.y, "vault candle %s stands on the room side of the desk" % str(f))
 		assert_true(HallLayout.desk_to_world(HallLayout.desk_to_local(f)).is_equal_approx(f), "desk frame round-trips %s" % str(f))
+
+
+## round E (CAMPAIGN_SPEC §1.2): the campaign table (star-chart projector) at (5.5, -5.5): a round footprint r 1.0,
+## height 1.6, reach 1.5, front ring 0.6 m in front, sign facing the spawn; the gaps to its neighbours of §1.2
+func test_campaign_table() -> void:
+	var s: Dictionary = HallLayout.STATIONS["campaign"]
+	assert_eq(s["c"], Vector2(5.5, -5.5), "the projector stands at (5.5, -5.5)")
+	assert_true(bool(s["round"]) and is_equal_approx((s["h"] as Vector2).x, 1.0), "a round dais of radius 1.0")
+	assert_within(float(s["height"]), 1.6, 0.0001, "its blocker reaches the holo disc top (1.6 m)")
+	assert_within(HallLayout.reach_of("campaign"), 1.5, 0.0001, "reach 1.5 m")
+	var f: Vector2 = s["front"]
+	assert_within(HallLayout.dist_to_station(f, "campaign"), 0.6, 0.0001, "the front ring is 0.6 m from the edge")
+	assert_true(f.y > (s["c"] as Vector2).y, "the front ring is on the spawn side (+z)")
+	assert_within(float(s["face"]), 0.0, 0.0001, "the sign faces +z")
+	assert_true(HallLayout.CAMPAIGN_DISC_Y + 0.01 < float(s["height"]) and HallLayout.CAMPAIGN_DISC_R < 1.0, "the holo disc sits inside the blocker")
+	var c: Vector2 = s["c"]
+	var r := (s["h"] as Vector2).x
+	var gap_pillar := c.distance_to(Vector2(8.5, -5.0)) - r - HallLayout.PILLAR_R
+	assert_true(gap_pillar > 2.0 * HallLayout.AVATAR_R + 0.5, "the avatar walks between the projector and the pillar (%.2f m)" % gap_pillar)
+	var gap_stand := c.distance_to(Vector2(4.0, -7.5)) - r - HallLayout.STAND_R
+	assert_within(gap_stand, 1.22, 0.01, "1.22 m to the candle stand at (4, -7.5)")
+	assert_within(HallLayout.HALF.y - (-(c.y - r)), 1.5, 0.0001, "1.5 m to the back wall")
+	assert_within((c.x - r) - HallLayout.rect_of("battle").end.x, 1.5, 0.0001, "1.5 m to the battle table")
+	assert_true(HallLayout.dist_to_station(f, "battle") > HallLayout.reach_of("battle"), "the front ring is out of the battle table's reach")
+	assert_true(HallLayout.spawn_xz().distance_to(c) - r > 10.5, "the spawn is far from the projector (%.1f m)" % (HallLayout.spawn_xz().distance_to(c) - r))
+	for i in HallFriends.MAX + 1:
+		var sp := HallFriends.spawn_for(i)
+		assert_true(HallLayout.dist_to_station(Vector2(sp.x, sp.z), "campaign") > HallLayout.reach_of("campaign"), "friend spot %d is outside its reach" % i)
+	var blk := 0
+	for b in HallLayout.blockers():
+		if str(b["tag"]) == "campaign":
+			blk += 1
+			assert_eq(str(b["kind"]), "cyl", "its blocker is a cylinder")
+	assert_eq(blk, 1, "one blocker for the projector")
 
 
 ## round B (14 Nov): the work desk stands against the front wall on the right of the exit and faces into the room
