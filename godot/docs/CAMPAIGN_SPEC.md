@@ -252,7 +252,7 @@ Integer lines (`KILL_POINTS` rusher 10, gunner 20, brute 40, boss 150, structure
 | primary | win: 1000 |
 | secondary | 300 per done secondary |
 | hostages | 100 per hostage saved (rescue, when the result has the key) |
-| base | 5 per % of base HP left (defend, when the result has the key) |
+| base | 5 per % of base HP left (defend, win only: a withdrawal or a loss earns nothing for the base) |
 | damage | `−min(damage_taken, 400)` |
 | no_down | win with 0 downs: 500 |
 

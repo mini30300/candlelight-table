@@ -25,7 +25,7 @@ const TIME_PER_S := 4            # แต้มต่อวินาทีที
 const PRIMARY := 1000
 const SECONDARY := 300
 const PER_HOSTAGE := 100
-const BASE_PER_PCT := 5          # ป้องกันฐาน: แต้มต่อร้อยละของฐานที่เหลือ
+const BASE_PER_PCT := 5          # ป้องกันฐาน: แต้มต่อร้อยละของฐานที่เหลือ (ชนะเท่านั้น)
 const DAMAGE_CAP := 400          # หักแต้มตามความเสียหายที่ได้รับ ไม่เกินนี้
 const NO_DOWN := 500             # ชนะโดยไม่ล้มเลย
 ## เหรียญ: ชนะ = คะแนนรวม / 40 (อย่างน้อย 10), แพ้/ออกกลางคัน = คะแนนรวม / 160
@@ -95,7 +95,8 @@ static func score(spec: Dictionary, result: Dictionary, opts: Dictionary = {}) -
 		_line(lines, "secondary", n_sec * SECONDARY)
 	if result.has("hostages_saved"):
 		_line(lines, "hostages", maxi(int(result["hostages_saved"]), 0) * PER_HOSTAGE)
-	if result.has("base_hp_pct"):
+	# ฐานที่เหลือนับเฉพาะตอนชนะ (ออกทันทีหรือยืนเฉยจนตายต้องไม่ได้เหรียญจากฐานเต็ม)
+	if win and result.has("base_hp_pct"):
 		_line(lines, "base", clampi(int(result["base_hp_pct"]), 0, 100) * BASE_PER_PCT)
 	_line(lines, "damage", -mini(maxi(int(result.get("damage_taken", 0)), 0), DAMAGE_CAP))
 	if win and int(result.get("downs", 0)) == 0:

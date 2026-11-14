@@ -55,6 +55,16 @@ func test_score_fail_and_edges() -> void:
 	var d := {"outcome": "win", "time_s": 180.0, "kills": {}, "base_hp_pct": 80, "downs": 0}
 	var ds := CampaignRules.score(_spec("normal", "defend"), d)
 	assert_eq(ds["raw"], 1000 + 400 + 500, "defend: no time bonus (par 0), base 80 % = 400, no-down 500")
+	# review fix: withdrawing at once (or dying idle) from a defend mission pays nothing for the untouched base
+	var dq := {"outcome": "quit", "time_s": 0.1, "kills": {}, "base_hp_pct": 100, "downs": 0}
+	var dqs := CampaignRules.score(_spec("catastrophe", "defend", true), dq)
+	assert_eq([dqs["raw"], dqs["coins"]], [0, 0], "defend + quit at once: 0 points, 0 coins (featured catastrophe)")
+	var df := {"outcome": "fail", "time_s": 18.0, "kills": {}, "base_hp_pct": 49, "downs": 1, "damage_taken": 0}
+	assert_eq(CampaignRules.score(_spec("catastrophe", "defend"), df)["coins"], 0, "defend lost idle: 0 coins")
+	var keys: Array = []
+	for l: Dictionary in dqs["lines"]:
+		keys.append(l["key"])
+	assert_false(keys.has("base"), "the report shows no base line for a withdrawal")
 	var h := {"outcome": "win", "time_s": 300.0, "kills": {}, "hostages_saved": 3, "hits": 5, "shots": 2, "downs": 1}
 	assert_eq(CampaignRules.score(_spec("normal", "rescue"), h)["raw"], 1300, "rescue: 3 hostages = 300; hits are clamped to shots")
 	var tiny := {"outcome": "win", "time_s": 999.0, "kills": {}, "downs": 1, "damage_taken": 400}
