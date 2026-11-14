@@ -700,6 +700,65 @@ catastrophe music (the slot exists: `catastrophe.ogg`); internet relay play (NET
 
 ### 12.B Difficulty screen and heroes
 
+Built on branch `t2-hero` (from `t2-campaign` dbeb4f3).
+
+- **Files.** `ui/screens/difficulty_screen.gd` (UI in code, `.tscn` unchanged); `scenes/campaign/hero_stage.gd`
+  (`HeroStage`), `hero_light.gd` (`HeroLight`), `hero_kit.gd` (`HeroKit`: shared helpers of the built-ins: camera framing
+  for 16:9 and tall cards, backdrop, glows, rim light, kit figures stepped by the scene), `hero_base.gd` (no class_name:
+  the four built-ins extend it by path), `hero_normal|hard|veryhard|catastrophe.gd`, shaders `hero_backdrop`
+  (screen-space gradient + glow), `hero_glow` (additive disc / light shaft / mist band / ring), `hero_rim` (rim light as
+  `material_overlay`), `hero_shade` (top-light shading overlay for unshaded figures such as the egg). No `TIME` in any of
+  them. `hero_loader.gd` gained `make_builtin(id)`. Fixtures: `tests/fixtures/campaign_pack/arena/campaign/catastrophe.ogg`
+  (0.3 s silent stand-in) and `campaign_pack/broken/` (no camera, not a Node3D, setup that errors half-way).
+- **Screen.** Wide (canvas width ≥ 1100 and landscape; the project stretches `canvas_items`/`expand` from 1280×720, so
+  every landscape window, the 20:9 phone included, is wide): 4 cards in a row. Portrait windows: one card at a time with
+  4 tabs, ‹ › buttons and left/right swipes (touch arrives as emulated mouse). Card = hero stage, name + score badge
+  (bold, one size), blurb, what-changes line (`ศัตรู ×1.4 · ทน ×1.3 · แรง ×1.3 · เร็ว ×1.1`, computed from
+  `CampaignRules.DIFFICULTY`; normal says `ศัตรูค่าปกติ ไม่มีตัวคูณ`), revives line (`ลุกได้ {n} ครั้ง` / `ลุกได้ 1 ครั้ง` /
+  `ล้มแล้วจบ` in red), and the `เลือก` button **on the selected card only** (decision: keeps `min` at 23–24 draw calls
+  against the §4 limit of 30; a tap selects any card, a second tap or the button confirms). Info boxes are evened so
+  all scenes are the same height. `chosen` fires at most once per frame (`choose` re-arms on the next idle frame, so a
+  key and a button in the same frame do not double-fire). Buttons use `FOCUS_NONE`; keys come through
+  `_unhandled_input` (`move_left/right`, `ui_left/right`, `interact`, `ui_accept`).
+- **Stage.** `SubViewportContainer` (stretch) + own-world `SubViewport`; 3D resolution through
+  `scaling_3d_scale` (bilinear; measured to work in Compatibility) = hi 1 / mid .75 / lo .5 / min .5. Live = hero
+  `set_active(true)`, viewport `UPDATE_WHEN_VISIBLE` (lo: `UPDATE_ONCE` from a 33 ms `Timer`; a hero whose optional
+  `animated()` says false is drawn once). Still = build, wait 2 frames, `UPDATE_ONCE`, read the texture on
+  `frame_post_draw` (headless: no read, the card shows a dark placeholder), keep an `ImageTexture`, free the hero **and
+  the viewport**. Stills are made one at a time (the screen chains them on `still_ready`; a hidden card defers its
+  still until shown). Deselecting a card re-shows its cached poster (re-rendered only if the card's shape changed by
+  > 15 %). A pack hero that sets up no camera of its own (wrong script, runtime error in `setup`) is freed and the
+  built-in one is used (`fell_back`).
+- **Built-ins.** All four step their kit figures manually (`KitBeast` `manual`), so an inactive hero has no
+  per-frame work at all; `seek(t)` replays the timeline from 0 in 1/30 s steps (stills and tests get the same pose every
+  time); `poster_t()` is the still; `set_active(true)` restarts the scene (`start_t()`). Optional extras on the contract:
+  `animated()`, `seek()`, `poster_t()` (the stage only uses `animated()`, and only when present).
+  - normal: `ArenaActors.player_figure(sel)` + `Figures.dress(scheme_of(sel))`, turned 0.42 rad (a shield or rifle held
+    across the body would hide the face at 0), head from the skeleton's rest `head` bone; egg / unskeletoned figures are
+    framed whole. Top light (`sun_dir` (0, 1, 0.15)), cool rim, faint light shaft, grey glow above the head on black.
+    hi/mid idle at 0.6 and a slow 3.5 % camera push.
+  - hard: knight / kcapt / kblade (KitWalker) in `Figures.scheme("blue")`, captain in front, sides 0.8 m back turned
+    20° in (tall cards: closer and deeper), low camera, cool key from the right, blue rim from the left, blue floor pool
+    and mist; hi/mid idle with offset phases and a slow camera sway.
+  - veryhard: pike_halb (KitFighter) — **secondary colour 8f97a8 instead of 3b4250** (the pike_halb kit is nearly all
+    cloth, so the spec's dark secondary made it read as a robed soldier, not a silver knight); 4 hounds (3 on lo) run in
+    from the sides, the knight spins 360° in 0.45 s on the scene's own timeline (not a Tween, so it can be seeked) with
+    `swing_1`, an additive blade-trail arc and a ground shock ring; the aliens flash white, play `die_*` at 1.5×, slide
+    back, sink and the loop restarts every 4.0 s. Still = mid-spin (t 1.6).
+  - catastrophe: dmc cxp cxb cxl cxs cxw dmr, appearing outside-in (cxl last) 0.35 s apart: light ramps up from a black
+    silhouette, the red rim flashes, a red light pillar fades; red back light, red horizon glow, fog on hi/mid
+    (exponential 0.035), drifting mist bands; holds to 8 s, fades and replays every 9.2 s. Music: `AudioStreamPlayer`
+    with `CampaignHeroes.music_path()` (duplicated stream, `loop` on, bus `Music`), plays on `set_active(true)` except
+    on min, stops on `set_active(false)`.
+- **Measured** (xvfb, llvmpipe; live hero alone at its poster pose): normal 7 draws / ≤ 1k prims, hard 10 / 6.7k,
+  veryhard 15 / 7k, catastrophe 19 / 15k (all levels). Whole screen: hi 30–33 / ≤ 10k, mid 32 / 7k, lo 36 / 10k,
+  min 23–24 / ≤ 3.2k.
+- **Tests.** unit `test_campaign_heroes` (extended), `test_difficulty_text`; flow `test_difficulty_flow`; render
+  `test_campaign_heroes`, `test_difficulty_screen`.
+- **Open.** Mini's catastrophe music overlaps the deck music (spec §1.1 says the card lowers nothing); integration may
+  want to duck `/root/Music` while the catastrophe card is live. The public app's default figure is the egg, so most
+  public players see the egg in the normal card.
+
 ### 12.C Missions
 
 ### 12.D VPN joins

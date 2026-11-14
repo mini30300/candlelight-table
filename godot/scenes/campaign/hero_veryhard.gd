@@ -127,7 +127,7 @@ func _layout() -> void:
 	if camera == null:
 		return
 	var tall := aspect < 1.0
-	var half := Vector2(1.55, 1.6) if tall else Vector2(2.15, 1.2)
+	var half := Vector2(1.25, 1.45) if tall else Vector2(2.15, 1.2)
 	HeroKit.frame(camera, _centre, half, aspect, Vector3(0.3, 0.24, 1.0))
 
 

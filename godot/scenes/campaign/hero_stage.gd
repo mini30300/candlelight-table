@@ -127,7 +127,6 @@ func counts() -> Dictionary:
 # ---- ภายใน ----
 
 func _start_live() -> void:
-	_phase = Phase.IDLE
 	_make_hero()
 	if _hero == null:
 		return
@@ -206,7 +205,8 @@ func _process(_delta: float) -> void:
 				_phase = Phase.SHOOT
 				_wait = SHOOT_WAIT
 				_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-				RenderingServer.frame_post_draw.connect(_grab, CONNECT_ONE_SHOT)
+				if not RenderingServer.frame_post_draw.is_connected(_grab):
+					RenderingServer.frame_post_draw.connect(_grab, CONNECT_ONE_SHOT)
 		Phase.SHOOT:
 			_wait -= 1
 			if _wait <= 0:
@@ -215,13 +215,21 @@ func _process(_delta: float) -> void:
 		set_process(false)
 
 
+## ยกเลิกภาพนิ่งที่กำลังถ่าย (ฉากเปลี่ยนกลางทาง)
+func _cancel_shot() -> void:
+	_phase = Phase.IDLE
+	if RenderingServer.frame_post_draw.is_connected(_grab):
+		RenderingServer.frame_post_draw.disconnect(_grab)
+
+
 func _grab() -> void:
 	if _phase != Phase.SHOOT:
 		return
 	if RenderingServer.frame_post_draw.is_connected(_grab):
 		RenderingServer.frame_post_draw.disconnect(_grab)
 	_phase = Phase.IDLE
-	var img: Image = _vp.get_texture().get_image() if _vp != null else null
+	# headless (เทส) ไม่มีภาพให้อ่าน
+	var img: Image = _vp.get_texture().get_image() if _vp != null and DisplayServer.get_name() != "headless" else null
 	if img != null and not img.is_empty():
 		_poster = ImageTexture.create_from_image(img)
 	else:
@@ -242,6 +250,7 @@ func _show_still() -> void:
 
 
 func _make_hero() -> void:
+	_cancel_shot()
 	_drop_hero()
 	_ensure_vp()
 	fell_back = false

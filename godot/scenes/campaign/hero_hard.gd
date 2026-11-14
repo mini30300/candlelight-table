@@ -55,8 +55,8 @@ func _layout() -> void:
 	if camera == null or knights.size() < 3:
 		return
 	var tall := aspect < 1.0
-	var gap := 0.72 if tall else 1.05
-	var back := 1.0 if tall else BACK
+	var gap := 0.52 if tall else 1.05
+	var back := 1.1 if tall else BACK
 	knights[0].position = Vector3(-gap, 0.0, -back)
 	knights[0].rotation.y = TURN
 	knights[1].position = Vector3.ZERO
@@ -64,7 +64,7 @@ func _layout() -> void:
 	knights[2].position = Vector3(gap, 0.0, -back)
 	knights[2].rotation.y = -TURN
 	_centre = Vector3(0.0, 1.0 if tall else 0.95, -back * 0.4)
-	var half := Vector2(gap + 0.55, 1.05) if not tall else Vector2(gap + 0.5, 1.15)
+	var half := Vector2(gap + 0.55, 1.05) if not tall else Vector2(gap + 0.42, 1.15)
 	HeroKit.frame(camera, _centre, half, aspect, _dir)
 	_dist = camera.position.distance_to(_centre)
 

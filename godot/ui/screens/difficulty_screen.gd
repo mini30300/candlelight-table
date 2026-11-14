@@ -5,7 +5,8 @@ extends Control
 ## (CampaignRules.difficulty / mult_text) · เลือกแล้ว: ส่ง chosen(id) ครั้งเดียว — หน้านี้ไม่ปิดตัวเอง CampaignFlow เปลี่ยนหน้าเอง
 ## ‹ กลับ / Esc = App ถอยกลับ (handle_back คืน false)
 ## จอกว้าง (≥ 1100 และไม่ใช่แนวตั้ง): 4 ใบเรียงแถว · จอแคบ/แนวตั้ง: ใบเดียวเต็มจอ + แท็บ 4 ปุ่ม + ปุ่ม ‹ › + ปัดซ้าย/ขวา
-## แตะ/คลิกการ์ด = เลือก (ฉากของใบนั้นเล่นสด) แตะซ้ำหรือปุ่ม "เลือก" = ยืนยัน · ←/→ (A/D) เลื่อน · E / Enter ยืนยัน
+## (ขนาดเป็นหน่วย canvas: ยืดแบบ expand ฐาน 1280×720 กว้างไม่ต่ำกว่า 1280 จึงแคบเฉพาะหน้าต่างแนวตั้ง)
+## แตะ/คลิกการ์ด = เลือก (ฉากของใบนั้นเล่นสด) แตะซ้ำหรือปุ่ม "เลือก" (มีเฉพาะใบที่ชี้อยู่) = ยืนยัน · ←/→ (A/D) เลื่อน · E / Enter ยืนยัน
 ## ฉากสดได้ทีละใบ (ใบที่เลือก) ใบอื่นเป็นภาพนิ่งที่วาดครั้งเดียว ทีละใบ · min: ภาพนิ่งทั้ง 4 ใบ ไม่มีงานต่อเฟรมหลังวาดเสร็จ
 
 signal chosen(difficulty: StringName)
@@ -28,6 +29,9 @@ const SWIPE := 70.0
 const ACCENT := {"normal": Color("d2cbbf"), "hard": Color("5b95e8"), "veryhard": Color("c4d0de"),
 	"catastrophe": Color("e4483c")}
 const CARD_BG := Color(0.075, 0.058, 0.05, 0.96)
+## ตัวอักษรในการ์ดมีสองแบบเท่านั้น (ชื่อ+คะแนน ตัวหนา, ที่เหลือตัวธรรมดา) วาดรวมกันได้ทีละชุด: min ไม่เกิน 30 draw calls
+const NAME_SIZE := 24
+const TEXT_SIZE := 16
 
 var ctx: Dictionary = {}
 var level := "mid"
@@ -94,6 +98,8 @@ func select(id: StringName) -> void:
 	if old != id and _cards.has(String(old)):
 		(_cards[String(old)]["stage"] as HeroStage).set_live(false)
 	_go_live(String(id))
+	# ภาพนิ่งที่ถูกยกเลิกกลางทาง (ใบนั้นกลายเป็นใบสด) ไม่ส่ง still_ready: เดินคิวต่อเอง
+	_next_still.call_deferred()
 
 
 func selected() -> StringName:
@@ -306,25 +312,24 @@ func _build_card(id: String) -> Dictionary:
 	var head := HBoxContainer.new()
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(head)
-	var name_l := _label(head, 26, accent, true)
+	var name_l := _label(head, NAME_SIZE, accent, true)
 	name_l.name = "Name"
 	name_l.autowrap_mode = TextServer.AUTOWRAP_OFF
-	name_l.clip_text = true
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var mult := _label(head, 18, CandleStyle.GOLD, true)
+	var mult := _label(head, NAME_SIZE, CandleStyle.GOLD, true)
 	mult.name = "Mult"
 	mult.autowrap_mode = TextServer.AUTOWRAP_OFF
 	mult.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var blurb := _label(info, 17, CandleStyle.TEXT)
+	var blurb := _label(info, TEXT_SIZE, CandleStyle.TEXT)
 	blurb.name = "Blurb"
-	var stats := _label(info, 15, CandleStyle.MUTED)
+	var stats := _label(info, TEXT_SIZE, CandleStyle.MUTED)
 	stats.name = "Stats"
+	var rev := _label(info, TEXT_SIZE, CandleStyle.DANGER if int(CampaignRules.difficulty(id)["revives"]) == 0 else CandleStyle.MUTED)
+	rev.name = "Revives"
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(spacer)
-	var rev := _label(info, 15, CandleStyle.DANGER if int(CampaignRules.difficulty(id)["revives"]) == 0 else CandleStyle.MUTED)
-	rev.name = "Revives"
 	var b := Button.new()
 	b.name = "Choose"
 	b.focus_mode = Control.FOCUS_NONE
@@ -415,6 +420,8 @@ func _paint_selection() -> void:
 		(c["panel"] as PanelContainer).add_theme_stylebox_override(&"panel", c["on"] if on else c["off"])
 		(c["stage"] as Control).modulate = Color.WHITE if on else Color(0.78, 0.78, 0.8)
 		(c["panel"] as Control).visible = on or not narrow
+		# ปุ่มเลือกเฉพาะใบที่ชี้อยู่ (ใบอื่นแตะเพื่อชี้ก่อน)
+		(c["button"] as Control).visible = on
 	for b: Button in _tabs.get_children():
 		b.set_pressed_no_signal(str(b.get_meta(&"id")) == String(_sel))
 	var i := CampaignGalaxy.DIFFICULTIES.find(String(_sel))
@@ -490,7 +497,8 @@ func _layout() -> void:
 	for id in CampaignGalaxy.DIFFICULTIES:
 		var c: Dictionary = _cards[id]
 		(c["button"] as Button).custom_minimum_size.y = h
-		(c["name"] as Label).add_theme_font_size_override(&"font_size", 30 if narrow else 26)
+		for k in ["name", "mult"]:
+			(c[k] as Label).add_theme_font_size_override(&"font_size", NAME_SIZE + (4 if narrow else 0))
 	for b: Button in _tabs.get_children():
 		b.custom_minimum_size.y = h
 	_back.custom_minimum_size.y = h
