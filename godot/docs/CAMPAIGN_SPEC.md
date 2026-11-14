@@ -815,4 +815,57 @@ Built on branch `t2-hero` (from `t2-campaign` dbeb4f3).
 
 ### 12.C Missions
 
+**For the owner, in Thai:** ภารกิจเดินยิงใช้ระบบเดียวกับห้องทดลองอาวุธ (ตัวที่แต่งในห้องแต่งตัว กล้องข้ามไหล่ ปืน หมัด ดาบเลื่อย พุ่งหลบ)
+สนามรบ 44 × 44 ม. สุ่มจากดวงดาว (ซากเมือง ป่าดงดิบ ทะเลทราย ทุ่งน้ำแข็ง ภูเขาไฟ หนองพิษ) ทุกเครื่องได้สนามเดียวกันเมื่อเป็นภารกิจเดียวกัน
+ศัตรูมาเป็นระลอกตามฝ่ายที่บุกดาว (ฝูงเอเลี่ยน ออร์คเขียว ลัทธิมืด อัศวินทรยศ เครื่องจักรโบราณ โจรเงา กองทัพปีศาจ กองทัพสุสาน)
+วิ่งเข้าฟัน ยิงกระสุนช้าที่หลบได้ อ้อมโอบ หลบหลังของบัง สะดุ้งเมื่อโดน · มุมขวาบนบอกเป้าหมายหลัก/รอง เวลา ฐาน ตัวประกัน
+และจำนวนครั้งที่ลุกได้ · ระลอกใหม่มา = พลังชีวิตเต็ม · จบแล้วส่งผล (สังหาร ความแม่นยำ เวลา ความเสียหาย การล้ม เป้าหมายรอง) ให้หน้าสรุปผล
+
+**Files.** `scenes/campaign/`: `mission_types.gd` (tuned table), `mission_roster.gd` (+ `stats()`), `mission_layout.gd`,
+`mission_waves.gd`, `mission_ai.gd`, `mission_objectives.gd`, `mission_builder.gd`, `mission_enemy.gd`, `mission_hostage.gd`,
+`mission_pylon.gd`, `mission_world.gd` + `.tscn`; `ui/screens/mission_screen.gd` + `.tscn`; `ui/campaign/mission_hud.gd`;
+`ui/i18n/campaign_mission.json` (+34 keys); tests `tests/unit/test_mission_{layout,waves,ai,rules,text}.gd`,
+`tests/flow/test_mission_flow.gd`, `tests/render/test_mission.gd`, fixture `tests/fixtures/campaign_missions/specs.gd`.
+No shared file outside track C was edited.
+
+**As built (decisions and changes against §2.4/§5.4, all inside track C):**
+
+| Topic | Built |
+| --- | --- |
+| Field | `MissionLayout.build(spec)`: 44 × 44 m (x, z in ±22), cliffs as 4 shell walls; player spawn (x ±4, z 18.5; defend z 9.5) facing −z (camera yaw 0); pickup (z 15); base (z 1–4, a blocker core r 1.2 that the camera collides with); beacon (x ±11–15); camp (z −10.5…−12.5) with a stake palisade r 8.5 (three gaps); 3 rescue hostages in the north third (shuffled columns); the caged secondary hostage and the outside pylon on the far side from the beacon; 9 edge spawns (5 north, 4 sides), 4 ambush spawns 9–14 m from the player, 8 camp guard posts. Cover per biome (18–28 pieces: rocks, boulders, low/high walls, crates, trees, spires, barrels), axis-aligned, ≥ 2.4 m apart, kept off every key point; taller than 1.8 m = shell layer (the camera arm collides), lower = prop layer. Reachability is checked on a 1 m grid with 0.6 m clearance (the same rule as the world's `ArenaPath(bounds, blockers, 0.5, 1.0)`); an unreachable key point removes the cover piece nearest to it (deterministic). Gunner cover posts = 1 m behind each low cover piece. Decor (visual only) is drawn after the blockers from the same RNG. |
+| Meshes | `MissionBuilder.meshes`: ground (12 × 12 colour grid + decor) and props (cliffs, cover, palisade, base, pickup pad, beacon mast, ritual circle) = 2 draw calls, vertex colours with baked sun shading, `HallBuilder.material()`. Sides hi 10 / mid 8 / lo 6 / min 5; static ≈ 1.8–3k triangles. Pylons (`pylon_mesh` / `rubble_mesh`) and cages are their own small meshes. No `TIME` shader anywhere. |
+| Waves | `MissionWaves.plan`: weights 2, 3, 4… per wave, remainder in the last; no brutes in the first wave of a multi-wave mission; bosses per type (purge 1, defend 1, rescue 0, destroy_camp 1) + champion 1, in the last wave; gunline doubles the gunner share; factions without gunners give the share to rushers; camp guards (6 × count_pct, 30 % gunners, always `cult`) are a first entry with post `camp` (not in `enemy_total`); rescue's first wave guards the hostages (post `hostages`); ambush: the first wave uses the near spawns. Timing: purge after each clear; defend 3/30/62/96/130 s; rescue 0 and 90 s or after a clear; destroy_camp 0 and 120 s or after a clear. Guards (posts) stand until the player comes within 13 m or they are hit. |
+| AI | `MissionAI` (pure, seeded per enemy = `spec.seed ^ salt ^ n·7919`): idle 0.2–0.7 s, chase on the path, rushers/brutes/bosses wind up (`windup × windup_pct`) then strike (±70° cone, reach + target radius), recover 0.6 s; gunners aim (`windup`) and fire a slow bolt (12 m/s, dodgeable, blocked by cover rays), cool 1–1.6 s with a side-step, back off under 5 m, walk in without line of sight, prefer a cover post that still reaches the target. Flank share per difficulty (10/25/40/55 %): flankers aim 5 m beside the target while farther than 7 m. Flinch: light roles on 50 % of gun hits and every melee hit, heavy roles on melee only; poise 1 s / 2.5 s. Target choice weighted player 6 / base 4 / following hostage 2.5, re-rolled every 4 s or when the target dies. |
+| Enemies | `MissionEnemy`: layer 8, mask **1 \| 2 \| 4 \| 8** (changed from §5.4's 1 \| 4 \| 2: enemies also collide with each other and with pylons, so a swarm does not merge into one body). Figures: `fighter` factions → `KitFighter` (gunners hold the aim pose and recoil), `beast` factions → `KitBeast` claw clips; the attack clip speed is set so the blow lands at the end of the windup; no kits → the KitBeast egg tinted in the faction colour and scaled per role; swarm brute → the pack enemy when a pack exists. The world steps every living enemy from its own `_physics_process` (enemies have none), ≤ 2 repaths per physics frame in rotation, corpses removed after 3 / 2.5 / 1.8 / 1.2 s. Telegraph: the arena's `telegraph.gdshader` (no `TIME`) on hi/mid/lo, one shared flat red material on min, shown only while winding up. min: figures farther than 25 m from the camera stop animating. `hit_target` returns id **`&"beast"`** for enemies (so `ArenaPlayer`'s red crosshair works unchanged) and `&"pylon"` for pylons. |
+| Caps | Alive at once = min(`ALIVE_CAP` 14/10/7/5, `SKINNED_CAP` 24/16/10/8 − player − living hostages − corpses): with three hostages on min only 4 enemies live at once; totals never change. |
+| Objectives | `MissionObjectives` (pure): purge = every planned enemy (bosses included) dead; defend = 180 s with the base above 0 (base takes enemy damage × 150 %); rescue = free each hostage by standing in its 1.6 m ring for 1.5 s after E (leaving the ring cancels), they follow the player's trail (4.2 m/s, 1.4 m apart, no collision, 120 HP, enemies may target them), a hostage inside the 2.6 m pickup ring is saved; win when every living primary hostage is saved (≥ 1), fail when all die or after 600 s. **destroy_camp needs extraction** (the owner's request: "destroy the shrine objects, then extract"): after the three pylons (400 × hp_pct) fall, walk into the pickup ring to win. Secondaries: kill ⌈75 %⌉ of the whole plan (guards included); the beacon (E inside its 2.4 m ring, then 30 s inside in total); the caged hostage brought to the pickup; the outside pylon. |
+| Player | `ArenaPlayer` set up exactly like `ArenaWorld._spawn_actors` (dressing-room figure + scheme), always in shoot mode. Downed with revives left → it gets up after 2 s and is moved to the checkpoint (the player spawn; the last freed hostage's spot in rescue); the down after the last revive fails. Each new wave (after the first) heals a standing player to full and refills the rifle (there are no pickups on the field). Shots = drops of `in_mag` while not reloading; hits = `hit_landed` with kind `gun`; damage taken = `hurt` amounts. |
+| Screen | Fade in → banner (mission name + goal) 2 s, the world starts only then (nothing spawns before) → play → win/fail banner 1.5 s → fade → `finished(result)` once. `‹ หยุด`, Esc / back and losing focus open the pause panel (resume / settings / leave the mission with a confirm). `where = arena`, music `battle`. HUD: `ArenaHud` (crosshair, HP, ammo, numbers, touch buttons; `world.enemy` = null so its single-enemy bar stays hidden) + `MissionHud` (objective panel top right, boss bar top centre, hostage-freeing bar, banners). Toasts: wave incoming (+ health restored), boss, freed, saved, hostage killed, pylon destroyed, extract, base under attack (≤ 1 per 6 s), revive left, last life, secondary done, beacon on. |
+| Test hooks | `MissionWorld.simulate(seconds, dt)` steps the whole world synchronously; `test_god` makes the player immune to enemies (scripted wins). |
+
+**Budgets measured** (`tests/render/test_mission.gd`, xvfb + Mesa, kits installed, `kit_kblade` as the figure):
+
+| View | hi | mid | lo | min |
+| --- | --- | --- | --- | --- |
+| Overview (catastrophe horde, capped first wave in view) | 32 / 15.8k | 28 / 12.1k | 25 / 9.5k | 23 / 7.9k |
+| Phone worst (20:9, touch, 3 hostages following, firing, numbers, toast) | 37 / 14.7k | 37 / 14.5k | 34 / 13.1k | 28 / 9.6k |
+| Alive / skinned at most | 14 / 15 | 10 / 11 | 7 / 10 | 5 / 8 |
+
+**Tests.** Unit: `test_mission_layout` (purity; 50 seeds × 6 biomes × 4 types, secondaries on every 4th seed: bounds,
+outside blockers, reachable; ArenaPath agrees on a sample), `test_mission_waves` (every spec of week 2967 at all 4
+difficulties: totals = `enemy_total` + bosses (+ guards); shares, gunline, tomb, horde, champion, catastrophe, ambush,
+timing per type, `MissionRoster.stats`), `test_mission_ai` (chase/windup/strike timing incl. catastrophe 70 %, brute
+telegraph, gunner range/fire/cooldown/back-off/line of sight/cover post, flinch and poise, weighted seeded targets, guards,
+flankers, strike cone, determinism), `test_mission_rules` (all objective machines, secondaries, revives, quit, §5.5 keys),
+`test_mission_text` (every Thai string TH/EN, HUD lines in both languages). Flow: `test_mission_flow` (each type to a win
+and to a fail; the real rifle and fist against an enemy; pause, settings, quit with confirm; `finished` once; result
+keys exactly §5.5 and `CampaignRules.score` accepts them; the same spec spawns the same first wave). Render: `test_mission`
+(per level overview + phone worst within §4, caps, no `TIME` on lo/min, no telegraph shader on min, far figures still on
+min, paused = nothing processes, English HUD without Thai, a PNG per biome).
+
+**Open points.** Enemy art comes from the battle-table kits only (no private-pack enemies except the swarm brute's
+existing arena mapping); the fighter kits' melee uses the swing clips at a scaled speed (fine at a distance, not
+synchronised per kit); bolts are simple glowing boxes; hostages pass through cover while following (they walk the
+player's trail); online co-op missions are out of scope (§8).
+
 ### 12.D VPN joins

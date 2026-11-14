@@ -5,7 +5,7 @@ extends RefCounted
 ## ไม่มีชุดโมเดลบนเครื่อง (เทส/แอปที่ยังไม่โหลดชุด) = ไข่สัตว์รังของ KitBeast ย้อมสี col ของฝ่าย
 ## ฝ่าย swarm: บทบาท brute ใช้ศัตรูของชุดเสริม (ArenaActors.make_figure("enemy")) เมื่อมี ไม่งั้นชุด warrior
 ## ค่ายลับ (destroy_camp): ยามในค่ายเป็นฝ่าย cult เสมอ ส่วนศัตรูรอบนอกเป็นผู้รุกรานของดาว
-## TODO(track C): เลือกท่า/อาวุธของแต่ละชุด ปรับขนาดและรัศมีชน ตามที่เล่นจริง
+## ค่าต่อบทบาทหลังคูณความยากและลักษณะพิเศษ: stats(spec, role) (ศัตรูทุกตัวใช้ค่านี้ ไม่คิดเองที่อื่น)
 
 const ROLES: PackedStringArray = ["rusher", "gunner", "brute", "boss"]
 ## สัดส่วน (ร้อยละ) ของศัตรูทั่วไปในแต่ละระลอก; boss มาแยก (ระลอกสุดท้าย หรือ champion)
@@ -32,6 +32,26 @@ const FACTIONS := {
 	"daemons": {"style": "beast", "rusher": "dmr", "gunner": "dmf", "brute": "dmp", "boss": "dmc_b"},
 	"tomb": {"style": "fighter", "rusher": "mummy", "gunner": "", "brute": "sobek", "boss": "anubis"},
 }
+
+
+## ตัวประกัน (ชุดแรกที่มีบนเครื่อง ไม่มีเลย = ไข่ของดาดฟ้า)
+const HOSTAGE_KITS: PackedStringArray = ["cmdr", "levy", "infantry"]
+## ไม่มีชุดโมเดลบนเครื่อง: ไข่ของ KitBeast ใหญ่/เล็กตามบทบาท
+const EGG_SCALE := {"rusher": 0.8, "gunner": 0.85, "brute": 1.15, "boss": 1.5}
+
+
+## ค่าของบทบาทหลังคูณ: hp × hp_pct ของความยาก × hp_pct ของลักษณะพิเศษ, dmg × dmg_pct, speed × speed_pct (× ของลักษณะ),
+## windup × windup_pct · จำนวนเต็มคิดแบบปัดลง (hp อย่างน้อย 1)
+static func stats(spec: Dictionary, role: String) -> Dictionary:
+	var base: Dictionary = (ROLE_STATS.get(role, ROLE_STATS["rusher"]) as Dictionary).duplicate()
+	var d: Dictionary = spec.get("diff", {})
+	var m: Dictionary = MissionTypes.MODIFIERS.get(str(spec.get("modifier", "")), {})
+	base["hp"] = maxi(int(base["hp"]) * int(d.get("hp_pct", 100)) / 100 * int(m.get("hp_pct", 100)) / 100, 1)
+	base["dmg"] = maxi(int(base["dmg"]) * int(d.get("dmg_pct", 100)) / 100, 1)
+	base["speed"] = float(base["speed"]) * float(d.get("speed_pct", 100)) / 100.0 * float(m.get("speed_pct", 100)) / 100.0
+	base["windup"] = float(base["windup"]) * float(d.get("windup_pct", 100)) / 100.0
+	base["role"] = role
+	return base
 
 
 ## ชุดโมเดลของบทบาท ("" = ฝ่ายนี้ไม่มีบทบาทนี้: แบ่งสัดส่วนให้ rusher)
