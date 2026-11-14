@@ -23,6 +23,7 @@ var kills := {"rusher": 0, "gunner": 0, "brute": 0, "boss": 0, "structure": 0}
 var killed := 0
 var shots := 0
 var hits := 0
+var structure_shots := 0           # นัดที่โดนเสาพิธี (ไม่นับในความแม่นยำ ทั้งนัดและโดน)
 var damage_taken := 0
 var downs := 0
 var revives_left := 0
@@ -110,6 +111,12 @@ func shot() -> void:
 func hit() -> void:
 	if not ended():
 		hits += 1
+
+
+## นัดนี้โดนสิ่งก่อสร้าง (เป้าใหญ่นิ่ง): ไม่นับในความแม่นยำ
+func structure_shot() -> void:
+	if not ended():
+		structure_shots += 1
 
 
 func hurt(amount: int) -> void:
@@ -287,7 +294,8 @@ func state() -> Dictionary:
 ## MissionResult (CAMPAIGN_SPEC §5.5): คีย์ hostages_* เฉพาะเมื่อมีตัวประกัน, base_hp_pct เฉพาะป้องกันฐาน
 func result() -> Dictionary:
 	var r := {"v": FORMAT, "outcome": _outcome if _outcome != "" else "quit", "time_s": snappedf(t, 0.01),
-		"kills": kills.duplicate(), "shots": shots, "hits": mini(hits, shots), "damage_taken": damage_taken, "downs": downs,
+		"kills": kills.duplicate(), "shots": maxi(shots - structure_shots, 0), "hits": mini(hits, maxi(shots - structure_shots, 0)),
+		"damage_taken": damage_taken, "downs": downs,
 		"secondary_done": secondary_done()}
 	if not hostages.is_empty():
 		r["hostages_saved"] = count_hostages(SAVED)

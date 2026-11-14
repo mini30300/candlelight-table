@@ -21,6 +21,7 @@ const PLAYER_R := 0.35
 const SALT_ENEMY := 0xE11E
 const SALT_SPAWN := 0x5A57
 const SPAWN_GAP := 0.35          # วิระหว่างศัตรูเกิดแต่ละตัว
+const HUNT_RESERVE := 2          # ช่องที่ยามประจำจุด (ค่าย/ตัวประกัน) ห้ามใช้ ระลอกที่ไล่ล่าเกิดได้เสมอ
 const SPAWN_MIN_D := 12.0        # จุดเกิดขอบห่างผู้เล่นอย่างน้อย
 const REPATHS := 2               # คิดทางใหม่ได้กี่ตัวต่อเฟรมฟิสิกส์
 const CORPSE := {"hi": 3.0, "mid": 2.5, "lo": 1.8, "min": 1.2}
@@ -77,6 +78,7 @@ var _wave_alive: Array[int] = []
 var _spawn_t := 0.0
 var _spawned := 0
 var _rng_spawn := RandomNumberGenerator.new()
+var _camp_left: Array = []      # จุดยามค่ายที่ยังไม่ถูกใช้ (แจกแบบไม่ซ้ำจนหมดรอบ)
 var _enemy_seq := 0
 var _repath_from := 0
 var _targets: Array[Dictionary] = []
@@ -137,6 +139,7 @@ func setup(p_spec: Dictionary, p_level: String, p_touch: bool) -> void:
 	obj = MissionObjectives.new(spec, MissionWaves.total(plan))
 	_sec_done = obj.secondary_done()
 	_rng_spawn.seed = int(spec.get("seed", 0)) ^ SALT_SPAWN
+	_camp_left.clear()
 	_wave_started.resize(plan.size())
 	_wave_started.fill(false)
 	_wave_alive.resize(plan.size())
@@ -338,7 +341,7 @@ func objective_state() -> Dictionary:
 func stats() -> Dictionary:
 	if obj == null:
 		return {}
-	return {"kills": obj.killed, "shots": obj.shots, "hits": obj.hits, "damage_taken": obj.damage_taken, "downs": obj.downs,
+	return {"kills": obj.killed, "shots": maxi(obj.shots - obj.structure_shots, 0), "hits": obj.hits, "damage_taken": obj.damage_taken, "downs": obj.downs,
 		"alive": alive_count(), "revives": obj.revives_left}
 
 
@@ -519,11 +522,31 @@ func _spawn_from_queue(dt: float) -> void:
 	_spawn_t -= dt
 	if _queue.is_empty() or _spawn_t > 0.0:
 		return
-	if alive_count() >= alive_cap():
+	var cap := alive_cap()
+	if alive_count() >= cap:
 		return
+	# ยามที่ยืนเฝ้าเต็มโควตาแล้ว: ข้ามไปเอาตัวที่ไล่ล่าตัวแรกในคิว (ไม่มีก็รอ)
+	var idx := 0
+	if str(_queue[0]["post"]) != "" and posted_alive() >= maxi(cap - HUNT_RESERVE, 1):
+		idx = -1
+		for i in _queue.size():
+			if str(_queue[i]["post"]) == "":
+				idx = i
+				break
+		if idx < 0:
+			return
 	_spawn_t = SPAWN_GAP
-	var u: Dictionary = _queue.pop_front()
+	var u: Dictionary = _queue.pop_at(idx)
 	_spawn_enemy(u)
+
+
+## ยามประจำจุด (ค่าย/ตัวประกัน) ที่ยังมีชีวิต
+func posted_alive() -> int:
+	var n := 0
+	for e in _enemies:
+		if e.is_alive() and bool(e.get_meta("posted", false)):
+			n += 1
+	return n
 
 
 func _spawn_enemy(u: Dictionary) -> MissionEnemy:
@@ -547,6 +570,7 @@ func _spawn_enemy(u: Dictionary) -> MissionEnemy:
 		"path": path, "post": post, "index": _enemy_seq, "bounds": MissionLayout.bounds(),
 		"yaw": atan2(pp.x - pos.x, pp.y - pos.z)})
 	e.set_meta("wave", int(u["wave"]))
+	e.set_meta("posted", post_kind != "")
 	e.died.connect(_on_enemy_died.bind(e))
 	if _paused:
 		e.set_paused(true)
@@ -564,8 +588,20 @@ func _spawn_enemy(u: Dictionary) -> MissionEnemy:
 func _spawn_point(kind: String, post: String) -> Vector3:
 	var pts: Dictionary = layout["points"]
 	if post == "camp":
-		var cp: Array = layout["posts"]["camp"]
-		return cp[_rng_spawn.randi_range(0, cp.size() - 1)]
+		# แจกจุดยามไม่ซ้ำ (สับด้วย _rng_spawn) หมดรอบค่อยสับใหม่ + เยื้อง ±0.8 ม. ไม่ให้ยืนซ้อนกัน
+		if _camp_left.is_empty():
+			_camp_left = (layout["posts"]["camp"] as Array).duplicate()
+			for i in range(_camp_left.size() - 1, 0, -1):
+				var j := _rng_spawn.randi_range(0, i)
+				var tmp: Variant = _camp_left[i]
+				_camp_left[i] = _camp_left[j]
+				_camp_left[j] = tmp
+		var cpt: Vector3 = _camp_left.pop_back()
+		for _try in 4:
+			var q := cpt + Vector3(_rng_spawn.randf_range(-0.8, 0.8), 0.0, _rng_spawn.randf_range(-0.8, 0.8))
+			if MissionLayout.inside_blocker(layout["blockers"], q, 0.6) == "":
+				return q
+		return cpt
 	if post == "hostages" and not (pts["hostages"] as Array).is_empty():
 		var hs: Array = pts["hostages"]
 		var h: Vector3 = hs[_rng_spawn.randi_range(0, hs.size() - 1)]
@@ -1005,7 +1041,11 @@ func _on_reload(on: bool, _s: float) -> void:
 
 func _on_hit_landed(info: Dictionary) -> void:
 	if StringName(str(info.get("kind", ""))) == &"gun" and obj != null:
-		obj.hit()
+		# ยิงเสาพิธี (เป้าใหญ่นิ่ง) ไม่ทำให้ความแม่นยำสูงขึ้น
+		if StringName(str(info.get("target", ""))) == &"pylon":
+			obj.structure_shot()
+		else:
+			obj.hit()
 		stats_changed.emit(stats())
 
 

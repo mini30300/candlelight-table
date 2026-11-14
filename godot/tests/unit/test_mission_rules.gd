@@ -136,6 +136,16 @@ func test_revives_and_quit() -> void:
 	assert_eq(h.player_down(), "fail", "hard: one revive")
 	var c := MissionObjectives.new(Specs.make("purge", {"difficulty": "catastrophe"}), 10)
 	assert_eq(c.player_down(), "fail", "catastrophe: the first down fails")
+	# review fix: shots that hit a ritual pylon count neither as shots nor hits (no accuracy bonus from a huge still target)
+	var acc := MissionObjectives.new(Specs.make("destroy_camp"), 10)
+	for i in 10:
+		acc.shot()
+	for i in 6:
+		acc.structure_shot()
+	acc.hit()
+	acc.hit()
+	var ar := acc.result()
+	assert_eq([int(ar["shots"]), int(ar["hits"])], [4, 2], "10 shots, 6 on pylons, 2 on enemies -> 4 shots, 2 hits")
 	var q := MissionObjectives.new(Specs.make("defend"), 10)
 	q.tick(12.5)
 	q.shot()

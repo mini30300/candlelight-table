@@ -336,7 +336,42 @@ func _repeatable() -> void:
 	var c := _first_wave(Specs.make("purge", {"seed": 31338, "biome": "toxic", "faction": "raiders", "modifier": "ambush"}))
 	_check(a.size() > 0 and var_to_str(a) == var_to_str(b), "the same spec spawns the same first wave (%d enemies)" % a.size())
 	_check(var_to_str(a) != var_to_str(c), "another seed spawns elsewhere")
+	await _guards_spread()
 	await _frames(2)
+
+
+## review fix: camp guards get distinct posts (no two merged into one figure), and idle guards leave room for the hunters
+func _guards_spread() -> void:
+	for lv in ["hi", "min"]:
+		var spec := Specs.make("destroy_camp", {"seed": 777, "biome": "desert", "faction": "orcs", "difficulty": "catastrophe"})
+		var w = (load("res://scenes/campaign/mission_world.tscn") as PackedScene).instantiate()
+		root.add_child(w)
+		w.setup(spec, lv, false)
+		w.test_god = true
+		w.begin()
+		w.set_physics_process(false)
+		w.simulate(6.0)
+		var pos: Array = []
+		for e in w.enemies():
+			if bool(e.get_meta("posted", false)):
+				pos.append(Vector2(e.global_position.x, e.global_position.z))
+		var closest := INF
+		for i in pos.size():
+			for j in range(i + 1, pos.size()):
+				closest = minf(closest, (pos[i] as Vector2).distance_to(pos[j]))
+		_check(pos.size() >= 2 and closest > 0.3, "camp guards %s: %d guards, none on top of another (closest %.2f m)" % [lv, pos.size(), closest])
+		var cap: int = w.alive_cap()
+		_check(w.posted_alive() <= maxi(cap - w.HUNT_RESERVE, 1), "camp guards %s: idle guards leave %d slots for hunters (%d of %d)" % [lv, w.HUNT_RESERVE, w.posted_alive(), cap])
+		# the first hunting wave arrives while guards still stand
+		var hunters := 0
+		for _i in 40:
+			w.simulate(1.0)
+			hunters = w.enemies().filter(func(e) -> bool: return e.is_alive() and not bool(e.get_meta("posted", false))).size()
+			if hunters > 0:
+				break
+		_check(hunters > 0 and w.posted_alive() > 0, "camp guards %s: the invaders' wave spawns while guards stand (%d hunters)" % [lv, hunters])
+		w.queue_free()
+		await _frames(1)
 
 
 func _first_wave(spec: Dictionary) -> Array:
