@@ -12,7 +12,10 @@ extends Control
 ## ถูกหน้าอื่นทับ: ซ่อนห้อง หยุดงาน คืนกล้อง; กลับมาโชว์: อ่าน App.gfx / lang / touch ใหม่ทุกครั้ง
 ## งานต่อเฟรม: ไม่มี (ข้อความเปลี่ยนตามสัญญาณ แผง "เร็วๆ นี้" ปิดด้วย Timer)
 ## ห้องเสริม (PACK_SPEC §9): ชุดเสริมมีห้องของประตูเทียบยานและสวิตช์ online เปิด → เดินเข้าประตู/กด E = จอมืดแล้วเปิดห้อง
-## กลับมายืนที่ AIRLOCK_RETURN · เพื่อนที่ท่าอยู่ในแถบห้อง (PackRooms.in_band) ไม่วาดบนดาดฟ้า · ไม่มีห้อง = เหมือนเดิม
+## กลับมายืนที่ AIRLOCK_RETURN · เพื่อนที่ท่าอยู่ในแถบห้อง (PackRooms.in_band) ไม่วาดบนดาดฟ้า
+## ไม่มีห้อง (แอปสาธารณะ): ประตูเทียบยานเป็นแค่ฉาก ไม่มีวง · เล่นกับเพื่อนเปิดจากปุ่มออนไลน์หน้าแรก เพื่อนอยู่บนดาดฟ้า
+## เพื่อน (ไม่ใช่เจ้าห้อง) ที่โต๊ะรบตอนเจ้าห้องตั้งเกม = เปิดหน้าเล่นกับเพื่อนเลือกที่นั่ง
+## ห้องที่มีประตูอารีน่า (action arena): ประตูอารีน่าบนดาดฟ้าปิด (ไม่มีวง ไม่มีปุ่ม เดินเข้าไม่ได้ บานปิดทึบ)
 
 signal station_changed(id: String)
 
@@ -74,7 +77,7 @@ const JOINED := "{name} เข้าห้องแล้ว"
 const LEFT := "{name} ออกจากห้อง"
 const DROPPED := "{name} หลุดจากห้อง — รอต่อใหม่"
 const BACK := "{name} กลับมาแล้ว"
-const SETUP_OPEN := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่ประตูเทียบยาน"
+const SETUP_OPEN := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่โต๊ะรบ"
 ## มีห้องเสริม: บอกที่เลือกที่นั่งเป็นชื่อสถานีในห้อง ({place} จาก room.json) · เปิดห้องไม่ได้ = เปิดหน้าเล่นกับเพื่อนแทน
 const SETUP_OPEN_AT := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่{place}"
 const ROOM_FAILED := "เปิดห้องไม่ได้ — เปิดหน้าเล่นกับเพื่อนแทน"
@@ -181,10 +184,14 @@ func refresh() -> void:
 	menu_button.text = I18n.t(MENU_TEXT)
 	settings_button.text = I18n.t(SETTINGS_TEXT)
 	var room := door_room()
-	# แอปสาธารณะ (สวิตช์ online ปิด): ประตูเทียบยานเป็นแค่ฉาก ไม่มีวง ไม่มีปุ่มใช้งาน
-	world.set_station_enabled("online", Features.on(&"online"))
+	# ไม่มีห้องเสริม (แอปสาธารณะ): ประตูเทียบยานเป็นแค่ฉาก · ห้องมีประตูอารีน่า: ประตูอารีน่าบนดาดฟ้าปิด ป้ายว่าง
+	var shut := arena_moved()
+	world.set_station_enabled("online", not room.is_empty())
+	world.set_station_enabled("arena", not shut)
 	for id in SIGNS:
 		world.set_sign_text(id, PackRooms.text(room["door_sign"]) if id == "online" and not room.is_empty() else I18n.t(sign_of(id)))
+	if shut:
+		world.set_sign_text("arena", "")
 	world.set_sign_text("title", I18n.t(PLACE))
 	world.set_sign_text("you", I18n.t(YOU))
 	hint.text = I18n.t(HINT_TOUCH if touch_mode else HINT_KEYS)
@@ -210,9 +217,12 @@ func use_station() -> void:
 	_sfx(&"heal")   # เสียงติ๊งตอนใช้สถานี
 	match station():
 		"battle":
-			# ออนไลน์บนเครื่องเพื่อน: เจ้าห้องเป็นคนตั้งเกม (NET_SPEC §7.1)
+			# ออนไลน์บนเครื่องเพื่อน: เจ้าห้องเป็นคนตั้งเกม (NET_SPEC §7.1) · ไม่มีห้องเสริม + กำลังตั้งเกม = เลือกที่นั่ง
 			if online() and not bool(net.call("is_host")):
-				show_note(CLIENT_TABLE)
+				if _setup_open and door_room().is_empty():
+					open_online()
+				else:
+					show_note(CLIENT_TABLE)
 			else:
 				_push(BATTLE_SETUP)
 		"army":
@@ -222,10 +232,8 @@ func use_station() -> void:
 		"online":
 			if not door_room().is_empty():
 				enter_room()
-			elif Features.on(&"online"):
-				open_online()
 			else:
-				show_soon("online")
+				open_online()
 		"adventure", "vault":
 			show_soon(station())
 		"exit":
@@ -445,6 +453,11 @@ func door_room() -> Dictionary:
 	return PackRooms.for_door("online", rooms_root)
 
 
+## อารีน่าย้ายไปอยู่ในห้องเสริม (ห้องมีสถานี action arena): ประตูอารีน่าบนดาดฟ้าปิด
+func arena_moved() -> bool:
+	return PackRooms.arena_station(door_room()) != ""
+
+
 ## เข้าห้องเสริม: instant = เปิดทันทีหน้าสถานีที่พาไปเล่นกับเพื่อน (หน้าแรก → ออนไลน์) คืนหน้าห้อง
 ## ไม่งั้นหยุดตัวผู้เล่น จอมืด แล้วเปิดห้องที่จุดเกิด (คืน null; หน้าห้องเปิดหลังจอมืด) · เปิดไม่ได้ = หน้าเล่นกับเพื่อน
 func enter_room(instant := false) -> Node:
@@ -477,6 +490,8 @@ func _open_room(at_station: String) -> Node:
 		return null
 	_from_room = true
 	var screen := App.push(load(PACK_ROOM_SCREEN))
+	if screen != null:
+		screen.set("hall", self)
 	if screen != null and screen.call("open", room, at_station):
 		screen.call("seed_poses", _band_pose.duplicate())
 		return screen
@@ -511,6 +526,11 @@ func preload_arena() -> void:
 			continue
 		if ResourceLoader.load_threaded_request(p) == OK:
 			_arena_res[p] = null
+
+
+## ฉากของหน้าอารีน่า (ห้องเสริมที่มีประตูอารีน่าเรียกใช้)
+func arena_scene() -> PackedScene:
+	return _arena_scene()
 
 
 ## ไฟล์ที่ขอไว้ทั้งหมด (รอให้เสร็จถ้ายังโหลดอยู่) แล้วคืนฉากของหน้าอารีน่า
@@ -587,9 +607,9 @@ func _push(path: String) -> Node:
 
 # ---- ออนไลน์ (NET_SPEC §6, §7.1) ----
 
-## เปิดหน้าเล่นกับเพื่อน (ประตูเทียบยาน) ทับห้องโถง
+## เปิดหน้าเล่นกับเพื่อนทับห้องโถง (ทุกแอป; แอปสาธารณะเล่นกันบนดาดฟ้า)
 func open_online() -> Node:
-	if not active or not Features.on(&"online"):
+	if not active:
 		return null
 	return _push(LOBBY_SCREEN)
 

@@ -273,7 +273,7 @@ Our own design in the deck's language, built with `PropsLayer.Geo` and the deck'
 
 | Mode | Where | Body | Camera | Input |
 | --- | --- | --- | --- | --- |
-| `walk` | corridor (and the first 0.8 m of the room) | the egg, no weapon (`set_weapon(&"none")`), turns to face its movement like the deck avatar | **follow**: like `HallCamera` (pivot + 1.3, arm 4.5 in [2.5, 6], pitch −0.35 in [−1.0, −0.1], LMB/RMB drag or one-finger drag orbits, wheel / pinch zooms) | deck controls: WASD / arrows camera-relative, Shift run, E use, stick on touch |
+| `walk` | corridor (and the first 0.8 m of the room) | the egg, no weapon (`set_weapon(&"none")`), always faces the camera's yaw (14 Nov, owner: "lock facing to the camera"; an orbit while standing turns it too) | **follow**: like `HallCamera` (pivot + 1.3, arm 4.5 in [2.5, 6], pitch −0.35 in [−1.0, −0.1], LMB/RMB drag or one-finger drag orbits, wheel / pinch zooms) | deck controls: WASD / arrows camera-relative, Shift run, E use, stick on touch |
 | `shoot` | inside the room past the shoot line | the egg **draws the rifle** (§6.6), always faces the camera's yaw (strafing) | **shoulder** (§5.4) | §5.2 / §5.3 |
 
 `ArenaWorld` listens to `player.moved(pos)` and calls `player.set_mode(ArenaLayout.mode_for(pos.z, player.mode()))`;
@@ -639,7 +639,8 @@ physics tick in which `set_move` would be called today, in both walk and shoot m
   resets its stored direction to (0, 1) whenever `set_move` is called (the deck only ever calls `set_move`).
 - A figure without it gets `set_move(speed, running)` as today. The dispatch is one static helper,
   `ArenaPlayer.move_figure(fig, has_dir, local_dir, speed, running)`, so it is unit-testable.
-- In walk mode the body faces where it walks, so `local_dir` is close to (0, 1) except while turning.
+- Since 14 Nov the body faces the camera's yaw in both modes (§5.1), so `local_dir` is the stick's direction in walk mode too.
+  For a figure whose H9 `uses_strafe()` is false the player sends `ArenaCombat.leg_dir(local_dir, false)` instead (§9.5).
 - Use: a figure may choose side-step and back-step cycles, a lean, or nothing. The gameplay speeds stay `ArenaData`'s.
 - Default figure (`EggGunner`): stores the direction (`move_dir()` returns the last one; (0, 1) after `set_move`). On hi
   and mid, where it already leans and bobs while moving, the lean follows the direction: forward lean 0.08 × k × y
@@ -698,11 +699,11 @@ radius 32 at (−128, −218) from the bottom-right safe corner, above-left of t
 (−84, −256) to (−52, −258) so no two button rects overlap); shoot mode only, like the other shooter buttons. Both call
 `ArenaPlayer.press(&"dodge", true)` → `dodge()`, in walk and shoot mode.
 - Numbers (`ArenaData.DODGE`): `distance` 3.8 m, `time` 0.3 s, `invuln` 0.25 s, `cooldown` 0.7 s counted from the end of
-  the dash (1.0 s between two dodges), `ease` 0.6 (speed falls linearly from 1.6× to 0.4× the mean 12.7 m/s),
-  `hold_aim` 0.6 s (H9 below).
+  the dash (1.0 s between two dodges), `ease` 0.6 (speed falls linearly from 1.6× to 0.4× the mean 12.7 m/s).
+  (`hold_aim` was removed on 14 Nov with the old H9 turning.)
 - Pure checks (`ArenaCombat`): `dodge_dir(input)` (the stick/keys direction, backwards (0, −1) under 0.1),
   `can_dodge(since_end, 0, alive, dodging)`, `dodge_speed(t)`, `dodge_travel(t)` (reaches `distance` at `time`),
-  `dodge_invulnerable(t)` (0 ≤ t < 0.25), `faces_aim(acting, moving, since_action)`.
+  `dodge_invulnerable(t)` (0 ≤ t < 0.25), `leg_dir(local_dir, strafe)` (H9 below).
 - Direction: camera-relative like walking; with no input, backwards from the way the body faces. Each physics tick moves
   `dodge_travel(t + dt) − dodge_travel(t)` through `move_and_slide`, so pillars, walls and the beast stop or slide it.
 - During the dash other presses do nothing; the trigger is released and taken up again at the end if fire is still held.
@@ -721,11 +722,15 @@ conventions) and `duration` = `DODGE.time`. The figure plays its own dodge; game
 (squash 16 %, dip 0.12 m), lean 0.42 rad toward the dodge, recover by 100 % (`dodging()` reads it), on every level (a
 0.3 s one-shot like its other clips).
 
-**H9 `uses_strafe() -> bool`** (optional, default true). A figure that returns false is not strafed: in shoot mode the
-player turns it to face where it moves (rate 18/s), and turns it to the aim while standing, firing or striking and for
-`hold_aim` 0.6 s after the last shot or blow (a melee press snaps it to the aim first, so the blow's cone is the aim's).
-Mouse look while it walks away only changes `set_aim`. It dodges facing the dash (local (0, 1)) when a direction is
-held, backwards otherwise. The egg has no `uses_strafe` and keeps strafing.
+**H9 `uses_strafe() -> bool`** (optional, default true; meaning changed 14 Nov, owner: "lock facing to the camera, but
+the power-armour figure must not side-step: the normal walk, and a backward walk going backwards"). Every figure's body
+faces the camera's yaw in walk and shoot mode; the player never turns a figure toward its movement. A figure that
+returns false gets legs, not the real direction: H6 `set_move_dir` receives `ArenaCombat.leg_dir(local_dir, false)` =
+(0, 1) for forward and sideways movement, (0, −1) when moving backwards (local y < `ArenaCombat.BACK_Y` −0.5, i.e. more
+than 120° from its forward), (0, 0) standing; so it plays its forward walk / run cycle while it slides sideways and its
+backward cycle when backing. H8 `begin_dodge` gets the same mapping (a sideways dash → (0, 1), no input → (0, −1)). The
+egg has no `uses_strafe`, gets the real direction and keeps its side-steps. Nothing is timed any more (no hold-aim), so
+a standing player sleeps as soon as the weapons and the dodge cooldown allow.
 
 **Sounds** (`ArenaSound`, `scenes/arena/arena_sound.gd`, through the `Sfx` autoload; silent without it).
 `ArenaData.SOUNDS` maps each arena sound to an old-page DEF kind, gain and pitch: gun → shot, reload → clang (0.7,
@@ -736,7 +741,9 @@ punch and saw have their own), beast_death → die (0.6), switch → turn, reset
 visual-only: no rules state reads them.
 
 Tests: `tests/unit/test_arena_dodge.gd` (numbers, math, the sound map against the DEF names and `sfx.json`, a real
-`ArenaPlayer` tick by tick with the egg and with `tests/fixtures/figure_pack/heavy_figure.gd` (H8 + H9 false), the egg's
+`ArenaPlayer` tick by tick with the egg and with `tests/fixtures/figure_pack/heavy_figure.gd` (H8 + H9 false: facing the
+camera every way in both modes, legs (0, ±1), the same for `begin_dodge`; `test_faces_camera`: the egg faces the camera
+while moving four ways in both modes, side-steps, and turns with an orbit / aim drag while standing on mid and min), the egg's
 clip on mid and min), `tests/flow/test_arena_flow.gd` step 10d (a real Space dash of 3.8 m in 0.3 s, the cooldown, a
 pillar stops it at 1.15 m from its centre, a dodge during the beast's wind-up keeps HP, Sfx was asked for the arena
 sounds), `tests/render/test_arena_hud.gd` (DodgeButton within 290 px, no overlap, dashes, ring, ready again;

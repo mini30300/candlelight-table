@@ -384,9 +384,10 @@ func _check_camera_walks(hall: Node) -> void:
 	# walk kept the camera at the front wall (never closer than 2.9 m to the airlock), so the airlock walk now runs along
 	# its front with the camera between the avatar and the right wall. The vault walk is a smoke walk: the chest's padded
 	# top (1.55 m) stays under the camera (>= 1.75 m unless a wall shortens the arm, and the chest is >= 6 m from walls).
+	# Round B (14 Nov): the work desk now stands at the front wall right of the exit; the walk heads there (+x, +z).
 	var walks := [[Vector3(0.0, 0, 5.0), Vector2(0.8, 0.6), "spawn -> the console", 0.0], [Vector3(0.0, 0, 5.0), Vector2(-0.8, 0.6), "spawn -> the armoury", 0.0],
 		[Vector3(5.0, 0, -3.5), Vector2(1.0, 0.0), "past the pillar at (8.5, 0.5)", 0.0], [Vector3(-11.0, 0, 3.0), Vector2(1.0, 0.0), "across the hall at z 3", 0.0],
-		[Vector3(0.0, 0, 5.0), Vector2(0.9, 0.2), "spawn -> the vault", 0.0],
+		[Vector3(0.0, 0, 5.0), Vector2(0.95, -0.25), "spawn -> the vault", 0.0],
 		[Vector3(9.5, 0, 0.2), Vector2(-1.0, 0.0), "along the airlock, camera between the avatar and the right wall", PI * 0.5, "online"],
 		# 0.4 (ARENA_SPEC §13.4): along the front wall past the arena door, camera between the avatar and the wall
 		[Vector3(-6.5, 0, 6.6), Vector2(-0.8, 0.0), "along the front wall past the arena door, camera between the avatar and the wall", 0.0, "arena"]]
@@ -438,11 +439,15 @@ func _check_stations(hall: Node) -> void:
 			continue
 		_check(str(hall.call("station")) == id and use.visible and use.text.contains(str(root.get_node(^"I18n").call("t", str(names[id])))),
 			"at %s the prompt names it: %s" % [id, use.text])
-	# 0.3: the airlock moved to the right wall (SHIP_LOBBY_SPEC §2.2): its prompt shows over there (online flag on)
+	# 0.3: the airlock moved to the right wall (SHIP_LOBBY_SPEC §2.2): its prompt shows over there
+	# round B (14 Nov): the online flag alone (no pack room) gives no ring either; switched on (as a pack room does) it is back
 	Features.set_flag(&"online", true)
 	hall.call("refresh")
+	_check(not bool(world.call("station_enabled", "online")) and int((world.get("rings") as Node).call("count")) == HallLayout.IDS.size(),
+		"online flag without a pack room: still no ring at the docking airlock")
+	world.call("set_station_enabled", "online", true)
 	_check(bool(world.call("station_enabled", "online")) and int((world.get("rings") as Node).call("count")) == HallLayout.IDS.size() + 1,
-		"online flag: the docking airlock's ring is back (%d rings)" % int((world.get("rings") as Node).call("count")))
+		"switched on: the docking airlock's ring is back (%d rings)" % int((world.get("rings") as Node).call("count")))
 	world.call("place_avatar", _front("online"), PI)
 	await _settle()
 	_check(_avatar(world).global_position.x > 10.0 and str(hall.call("station")) == "online", "the docking airlock is on the right wall (avatar at x %.2f)" % _avatar(world).global_position.x)
@@ -492,10 +497,12 @@ func _check_stations(hall: Node) -> void:
 	await _press(KEY_E)
 	_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and not soon.visible and str(hall.call("station")) == "",
 		"public app: E in front of the docking airlock does nothing (no panel, no lobby)")
-	# 0.5 (NET_SPEC §7.1), with the online flag of a private build: E at the docking airlock pushes the play-with-friends
-	# screen (depth 3); back returns to the deck at the airlock with the hall active and its camera current
+	# 0.5 (NET_SPEC §7.1): E at the docking airlock pushes the play-with-friends screen (depth 3); back returns to the deck
+	# at the airlock with the hall active and its camera current. Round B: the airlock is a station only with a pack room,
+	# so the test switches it on by hand; with no room to enter it falls back to the play-with-friends screen
 	Features.set_flag(&"online", true)
 	hall.call("refresh")
+	world.call("set_station_enabled", "online", true)
 	await _press(KEY_E)
 	var lobby: Node = _app().call("current")
 	_check(lobby != hall and lobby != null and lobby.scene_file_path == LOBBY_SCREEN and int(_app().call("depth")) == 3 and not soon.visible,
@@ -508,7 +515,7 @@ func _check_stations(hall: Node) -> void:
 		_app().call("pop")
 	await _frames(3)
 	_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and world.visible and _camera(world).current
-		and str(hall.call("station")) == "online", "back returns to the deck at the airlock (hall active, camera current)")
+		and str(hall.call("station")) == "", "back returns to the deck (hall active, camera current; round B: no room, the airlock is off again)")
 	Features.set_flag(&"online", false)
 	hall.call("refresh")
 	# walking away closes the coming-soon panel (at the adventure table)
@@ -676,7 +683,7 @@ func _check_vault(hall: Node) -> void:
 		_app().call("set_lang", lang)
 		hall.call("refresh")
 		world.call("place_avatar", _front("vault"), PI)
-		rig.call("set_view", PI * 0.5, -0.35, 5.5)   # from behind the chest, so the PNG shows it under the panel
+		rig.call("set_view", PI, -0.35, 5.5)   # round B: the desk at the front wall, seen from the room
 		await _settle()
 		var want_prompt := "โต๊ะทำงาน · กด E" if lang == "th" else "Work Desk · press E"
 		_check(str(hall.call("station")) == "vault" and use.visible and use.text == want_prompt, "%s: at the chest the prompt is %s" % [lang, use.text])
@@ -1321,8 +1328,18 @@ func _check_friends(hall: Node) -> void:
 	hall.call("close_soon")
 	_fake.emit_signal("message", 0, NetProto.SETUP, {"open": true, "seats": []})
 	await _frames(1)
-	_check(soon_label.text == "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่ประตูเทียบยาน", "the host opening the setup: pick a seat at the airlock (%s)" % soon_label.text)
+	_check(soon_label.text == "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่โต๊ะรบ", "the host opening the setup: pick a seat at the war table (%s)" % soon_label.text)
 	hall.call("close_soon")
+	# round B: no pack room (the public app) → the friend's war table opens host/join with the seats while the setup is open
+	await _press(KEY_E)
+	var seats_screen: Node = _app().call("current")
+	_check(seats_screen != hall and seats_screen != null and seats_screen.scene_file_path == LOBBY_SCREEN and int(_app().call("depth")) == 3,
+		"E at the war table while the host sets up: the play-with-friends screen to pick a seat (depth %d)" % int(_app().call("depth")))
+	if seats_screen != hall:
+		_app().call("pop")
+		await _frames(3)
+	_fake.emit_signal("message", 0, NetProto.SETUP, {"open": false, "seats": []})
+	await _frames(1)
 	# offline again: everything back as before
 	await _go_offline()
 	_check(int(friends.call("friend_count")) == 0 and not friends.visible and you.visible and not tags.visible and int(rings.call("count")) == rings0

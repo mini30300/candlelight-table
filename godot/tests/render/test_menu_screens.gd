@@ -5,9 +5,9 @@ extends SceneTree
 ## English mode shows no Thai (the LangButton's "ไทย" excepted) and Thai mode shows Thai titles. Every settings control
 ## changes App and persists through a test settings file (never this machine's settings.cfg). The toast shows and hides,
 ## Back and Esc open the quit confirm and close it again, and on the min level nothing runs per frame.
-## 0.5 (NET_SPEC §7.1, §12.1): the online button no longer shows a coming-soon toast or badge: it opens the deck with the
-## avatar at the docking airlock and the play-with-friends screen on top (depth 3); back returns to the deck at the
-## airlock, back again to the menu. A fake Net (tests/unit/fixtures/fake_net.gd) stands in for /root/Net for the run, so
+## 0.5 (NET_SPEC §7.1, §12.1): the online button no longer shows a coming-soon toast or badge: it opens the deck with
+## the play-with-friends screen on top (depth 3); back returns to the deck (round B: at the spawn, every app shows the
+## button), back again to the menu. A fake Net (tests/unit/fixtures/fake_net.gd) stands in for /root/Net for the run, so
 ## the airlock screen's join list opens no socket.
 ## Saves menu_th.png, menu_en.png, settings_th.png, settings_en.png (_<w>x<h> added for the other sizes). Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
@@ -226,44 +226,39 @@ func _check_settings_controls(menu: Node) -> void:
 	await _frames(2)
 
 
-## 0.5 (NET_SPEC §7.1): the online button opens the deck at the docking airlock with the play-with-friends screen on
-## top (depth 3), no badge; back returns to the deck at the airlock (camera current), back again to the main menu.
+## 0.5 (NET_SPEC §7.1): the online button opens the deck with the play-with-friends screen on top (depth 3), no badge.
+## Round B (14 Nov): every app shows it (the public app plays on the deck); with no pack room the deck opens at the spawn
+## and host/join on top right away; back returns to the deck (camera current, no station), back again to the main menu.
 func _check_online(menu: Node) -> void:
 	var app := _app()
-	# 0.6 (PACK_SPEC §5.1): the public app hides the online button; a private build's res://packs/features.json
-	# {"online": true} (here the test flag) shows it again
-	Features.set_flag(&"online", false)
-	menu.call("refresh")
-	_check(not (menu.get_node("%OnlineButton") as CanvasItem).visible, "the public app hides the online button")
-	_check(menu.call("open_online") != null and int(app.call("depth")) == 2 and str(app.call("current").scene_file_path).ends_with("hall_screen.tscn"),
-		"open_online without the flag opens only the deck (depth %d)" % int(app.call("depth")))
-	app.call("back")
-	await _frames(4)
-	Features.set_flag(&"online", true)
-	menu.call("refresh")
-	_check((menu.get_node("%OnlineButton") as CanvasItem).visible, "the online flag shows the online button")
-	_check(not (menu.get_node("%OnlineBadge") as CanvasItem).visible, "the online button has no coming-soon badge")
-	menu.get_node("%OnlineButton").pressed.emit()
-	await _frames(4)
-	var lobby: Node = app.call("current")
-	_check(int(app.call("depth")) == 3 and lobby != null and lobby.scene_file_path == "res://ui/screens/lobby.tscn",
-		"the online button opens the deck and the play-with-friends screen on top (depth 3)")
-	_check(not (menu.get_node("%Toast") as CanvasItem).visible, "no coming-soon toast")
-	_check(_fake_net.call("calls_of", "find") == [["find", true]], "the screen opens the join list on the (fake) Net")
-	app.call("back")
-	await _frames(4)
-	var hall: Node = app.call("current")
-	var world: Node3D = hall.get("world") if hall != null else null
-	_check(int(app.call("depth")) == 2 and world != null and world.visible and (world.get("camera_rig").get("camera") as Camera3D).current,
-		"back returns to the deck with its camera current (depth 2)")
-	if world != null:
-		var f: Vector2 = HallLayout.STATIONS["online"]["front"]
-		var av := world.get("avatar") as Node3D
-		_check(av.global_position.distance_to(Vector3(f.x, 0.0, f.y)) < 0.05 and str(hall.call("station")) == "online",
-			"the avatar stands at the airlock's ring, at the airlock (%s)" % str(av.global_position))
-	app.call("back")
-	await _frames(4)
-	_check(app.call("current") == menu and int(app.call("depth")) == 1, "back again returns to the main menu")
+	for flag in [false, true]:
+		Features.set_flag(&"online", flag)
+		menu.call("refresh")
+		var tag := "online flag %s" % ("on" if flag else "off")
+		_check((menu.get_node("%OnlineButton") as CanvasItem).visible, tag + ": the main menu shows the online button")
+		_check(not (menu.get_node("%OnlineBadge") as CanvasItem).visible, tag + ": the online button has no coming-soon badge")
+		_fake_net.set("calls", [])
+		menu.get_node("%OnlineButton").pressed.emit()
+		await _frames(4)
+		var lobby: Node = app.call("current")
+		_check(int(app.call("depth")) == 3 and lobby != null and lobby.scene_file_path == "res://ui/screens/lobby.tscn",
+			tag + ": the online button opens the deck and the play-with-friends screen on top (depth 3)")
+		_check(not (menu.get_node("%Toast") as CanvasItem).visible, tag + ": no coming-soon toast")
+		_check(_fake_net.call("calls_of", "find") == [["find", true]], tag + ": the screen opens the join list on the (fake) Net")
+		app.call("back")
+		await _frames(4)
+		var hall: Node = app.call("current")
+		var world: Node3D = hall.get("world") if hall != null else null
+		_check(int(app.call("depth")) == 2 and world != null and world.visible and (world.get("camera_rig").get("camera") as Camera3D).current,
+			tag + ": back returns to the deck with its camera current (depth 2)")
+		if world != null:
+			var av := world.get("avatar") as Node3D
+			_check(av.global_position.distance_to(HallLayout.SPAWN) < 0.05 and str(hall.call("station")) == ""
+				and not bool(world.call("station_enabled", "online")),
+				tag + ": no pack room: the avatar stands at the spawn, the airlock is no station (%s)" % str(av.global_position))
+		app.call("back")
+		await _frames(4)
+		_check(app.call("current") == menu and int(app.call("depth")) == 1, tag + ": back again returns to the main menu")
 	Features.set_flag(&"online", false)
 	menu.call("refresh")
 

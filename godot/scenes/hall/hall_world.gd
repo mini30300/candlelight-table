@@ -64,6 +64,7 @@ var _station := ""
 var _avatar_ring := -1
 var _station_rings: Dictionary = {}    # id → ดัชนีวงแหวน
 var _off: Dictionary = {}              # สถานีที่ปิด (id → true): ไม่มีวง ไม่นับเป็นสถานี
+var _shutter: MeshInstance3D           # บานปิดทึบของประตูอารีน่า (สร้างเมื่อปิดครั้งแรก)
 var _blockers := 0
 var _sides := 0
 var _flame_count := 0
@@ -265,11 +266,30 @@ func set_station_enabled(id: String, on: bool) -> void:
 		_off[id] = true
 		rings.remove_ring(int(_station_rings[id]))
 		_station_rings[id] = -1
+	if id == "arena":
+		_set_shut(not on)
 	_update_station(avatar.global_position)
 
 
 func station_enabled(id: String) -> bool:
 	return _station_rings.has(id) and not _off.has(id)
+
+
+## ประตูอารีน่าปิดทึบ (อารีน่าอยู่ในห้องเสริม): โชว์บานปิด · เมชนิ่ง ไม่มีงานต่อเฟรม
+func _set_shut(on: bool) -> void:
+	if on and _shutter == null:
+		_shutter = MeshInstance3D.new()
+		_shutter.name = "ArenaShutter"
+		_shutter.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_shutter.material_override = HallBuilder.material()
+		_shutter.mesh = HallBuilder.arena_shutter_mesh()
+		static_root.add_child(_shutter)
+	if _shutter != null:
+		_shutter.visible = on
+
+
+func arena_shut() -> bool:
+	return _shutter != null and _shutter.visible
 
 
 ## ตัวละครชุดเสริมแทนไข่ (null = ไข่): ส่งระดับกราฟิก สีทีม แล้วใช้ความจางปัจจุบัน

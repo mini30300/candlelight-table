@@ -13,7 +13,10 @@ extends SceneTree
 ## file (never this machine's settings.cfg). 0.7 (PACK_SPEC §9): with no pack the airlock still opens host/join (online
 ## on) and walking into it stays on the deck; 0.8: with online off (the public app), with or without the fixture pack
 ## room, the airlock has no ring, no prompt and no panel; main menu "online" with the fixture room lands in the room in front of cards_box with
-## the lobby on top, and back lands in the room. Run:
+## the lobby on top, and back lands in the room. Round B (14 Nov): the airlock is a station only when a pack room exists
+## (online flag on or off makes no difference without a room; the walk switches it on by hand to prove it is reachable);
+## main menu "online" with no room (the public app) opens host/join right on top of the deck (depth 3), back = the
+## deck; the work desk stands against the front wall right of the exit. Run:
 ##   timeout 600 <godot> --headless --path godot --audio-driver Dummy -s tests/flow/test_hall_reach.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL.
 
@@ -80,9 +83,9 @@ func _run() -> void:
 	var use: Button = hall.get_node("%UseButton")
 	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
 	_check(HallLayout.IDS.size() == 8 and HallLayout.IDS.has("vault") and HallLayout.IDS.has("arena"), "eight stations, the vault and the arena door included")
-	# 0.8: the docking airlock is a station only with the online flag (a private build): walk to it with the flag on
-	Features.set_flag(&"online", true)
+	# round B: the docking airlock is a station only with a pack room; switch it on by hand to walk to it
 	hall.call("refresh")
+	world.call("set_station_enabled", "online", true)
 	for id in HallLayout.IDS:
 		var t0 := Time.get_ticks_msec()
 		var res := await _walk_to(world, hall, id)
@@ -116,7 +119,6 @@ func _run() -> void:
 			_check(int(pre2["requested"]) == own_files.size() + 1 and int(pre2["loaded"]) == int(pre2["requested"]),
 				"the fixture pack: the door's preload also asks for its figure script and loads it (%d requested, %d loaded)" % [int(pre2["requested"]), int(pre2["loaded"])])
 			hall.set("pack_manifest", ArenaActors.PACK_MANIFEST)
-	Features.reset()
 	hall.call("refresh")
 	await _check_vault(world, hall)
 	await _check_airlock_rooms()
@@ -138,15 +140,9 @@ func _check_airlock_rooms() -> void:
 		await _physics(4)
 		await _press(KEY_E)
 		var top: Node = _app().call("current")
-		if flag:
-			_check(top != hall and top != null and top.scene_file_path == "res://ui/screens/lobby.tscn" and int(_app().call("depth")) == 3,
-				"no pack, online on: the airlock opens host/join")
-			_app().call("pop")
-			await _frames(3)
-		else:
-			# 0.8: the public app has no ring, no prompt and no panel at the airlock (only decoration)
-			_check(top == hall and not hall.get_node("%SoonPanel").visible and str(hall.call("station")) == "" and not (hall.get_node("%UseButton") as Control).visible
-				and not bool(world.call("station_enabled", "online")), "no pack, online off: no ring, no prompt and no panel at the airlock")
+		# round B: no pack room = no ring, no prompt and no panel at the airlock, online flag on or off (only decoration)
+		_check(top == hall and not hall.get_node("%SoonPanel").visible and str(hall.call("station")) == "" and not (hall.get_node("%UseButton") as Control).visible
+			and not bool(world.call("station_enabled", "online")), "no pack, online %s: no ring, no prompt and no panel at the airlock" % ("on" if flag else "off"))
 		(world.get("camera_rig") as Node3D).call("set_view", -PI * 0.5, -0.35, 5.5)
 		world.call("set_stick", Vector2(0.0, 0.84))
 		await _physics(60)
@@ -168,6 +164,21 @@ func _check_airlock_rooms() -> void:
 				"the fixture room with online off: no ring and no panel at the airlock, the deck stays")
 		await _press(KEY_ESCAPE)
 		menu = _app().call("current")
+	# round B: หน้าแรก → ออนไลน์ แอปสาธารณะ (ไม่มีห้อง สวิตช์ปิด): หน้าเล่นกับเพื่อนทับดาดฟ้าทันที ย้อนกลับ = ดาดฟ้า
+	Features.set_flag(&"online", false)
+	_check((menu.get_node("%OnlineButton") as Control).visible, "public app: the main menu shows the online button")
+	var lobby0: Node = menu.call("open_online")
+	await _frames(3)
+	_check(lobby0 != null and _app().call("current") == lobby0 and lobby0.scene_file_path == "res://ui/screens/lobby.tscn"
+		and int(_app().call("depth")) == 3, "public app: main menu → online opens host/join on top of the deck (depth %d)" % int(_app().call("depth")))
+	_app().call("pop")
+	await _frames(3)
+	var deck: Node = _app().call("current")
+	_check(deck != null and deck.has_method("door_room") and int(_app().call("depth")) == 2 and str(deck.call("station")) == "",
+		"public app: back from host/join is the deck (depth 2, no station at the spawn)")
+	_app().call("pop")
+	await _frames(3)
+	menu = _app().call("current")
 	# หน้าแรก → ออนไลน์ ตอนมีห้องทดสอบ: เข้าห้องหน้า cards_box แล้วหน้าเล่นกับเพื่อนทับ; ย้อนกลับ = ในห้อง
 	Features.set_flag(&"online", true)
 	PackRooms.test_root = "res://tests/fixtures/pack_rooms"
@@ -244,7 +255,8 @@ func _check_vault(world: Node3D, hall: Node) -> void:
 	for lang in ["th", "en"]:
 		_app().call("set_lang", lang)
 		hall.call("refresh")
-		world.call("place_avatar", Vector3(3.15, 0.0, 4.0), -PI * 0.5)
+		var df: Vector2 = HallLayout.STATIONS["vault"]["front"]
+		world.call("place_avatar", Vector3(df.x, 0.0, df.y), 0.0)
 		await _physics(4)
 		await _frames(2)
 		var prompt := "โต๊ะทำงาน · กด E" if lang == "th" else "Work Desk · press E"

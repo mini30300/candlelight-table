@@ -41,7 +41,7 @@ func _init(room: Dictionary = {}, extra: Array = []) -> void:
 		stations[id] = {"c": _v2(d.get("c"), Vector2.ZERO), "h": _v2(d.get("h"), Vector2(0.5, 0.5)),
 			"round": bool(d.get("round", false)), "height": float(d.get("height", 1.0)), "reach": float(d.get("reach", 1.5)),
 			"front": _v2(d.get("front"), Vector2.ZERO), "sign": sign, "face": float(d.get("face", 0.0)),
-			"action": str(d.get("action", "")), "walk_in": bool(d.get("walk_in", false)),
+			"action": str(d.get("action", "")), "walk_in": bool(d.get("walk_in", false)) or str(d.get("action", "")) == "arena",
 			"solid": bool(d.get("solid", true)), "data": d}
 	_build(extra)
 

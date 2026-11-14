@@ -94,7 +94,7 @@ func refresh() -> void:
 	online_button.text = I18n.t("ออนไลน์")
 	online_badge.text = I18n.t("เร็วๆ นี้")
 	online_badge.visible = false   # ออนไลน์เปิดแล้ว (NET_SPEC §7.1)
-	online_button.visible = Features.on(&"online")   # แอปสาธารณะซ่อน: ออนไลน์อยู่ในแอปรุ่นส่วนตัว (PACK_SPEC §5.1)
+	online_button.visible = true   # ทุกแอปเล่นกับเพื่อนได้ (แอปสาธารณะเล่นกันบนดาดฟ้า)
 	settings_button.text = I18n.t("ตั้งค่า")
 	lang_button.text = BUTTON_TO_THAI if I18n.english else BUTTON_TO_ENGLISH
 	quit_button.text = I18n.t("ออก")
@@ -134,11 +134,11 @@ func open_hall() -> Node:
 	return App.push(load(HALL_SCREEN))
 
 
-## ออนไลน์: เปิดห้องโถง ยืนหน้าประตูเทียบยาน แล้วเปิดหน้าเล่นกับเพื่อนทับ (ลึก 3; ย้อนกลับ = ดาดฟ้าหน้าประตู)
+## ออนไลน์: เปิดห้องโถงแล้วเปิดหน้าเล่นกับเพื่อนทับทันที (ลึก 3; ย้อนกลับ = ดาดฟ้า)
 ## มีห้องเสริม (PACK_SPEC §9): เข้าห้องทันทีหน้าสถานีเล่นกับเพื่อนแล้วเปิดหน้าเล่นกับเพื่อนทับ (ย้อนกลับ = ในห้อง)
 func open_online() -> Node:
 	var hall := open_hall()
-	if hall == null or not hall.has_method("open_online") or not Features.on(&"online"):
+	if hall == null or not hall.has_method("open_online"):
 		return hall
 	if hall.has_method("door_room") and not (hall.call("door_room") as Dictionary).is_empty():
 		var room: Node = hall.call("enter_room", true)
@@ -146,7 +146,6 @@ func open_online() -> Node:
 			return room.call("open_online")
 		if room != null:
 			return room
-	hall.call("enter_airlock")
 	return hall.call("open_online")
 
 

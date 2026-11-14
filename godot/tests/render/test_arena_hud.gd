@@ -3,7 +3,8 @@ extends SceneTree
 ## onto the main scene's stack; the hive beast is used when its scene exists, the HUD works without it).
 ## Contract: the screen's Hud is an ArenaHud with Ammo, Hint, Hurt, Downed and Touch (Stick, AimPad, FireButton,
 ## MeleeButton, ReloadButton, WeaponButton, DodgeButton); the player is an ArenaPlayer with an EggGunner figure.
-## Walk mode at the spawn: corridor hint, no ammo line, no shooter buttons, mouse visible. Shoot mode (placed past the
+## Walk mode at the spawn: corridor hint, no ammo line, no shooter buttons, mouse visible; D walks right with the body
+## still facing the camera (owner, 14 Nov: facing locked to the camera, the egg side-steps). Shoot mode (placed past the
 ## shoot line): the rifle is drawn, ammo 30 / 30, the crosshair rect is centred on the viewport (±1 px), the mouse is
 ## captured (desktop), the keyboard hint shows. Holding the fire action 1 s fires 8 ± 1 shots (tracers alive), the ammo
 ## line follows, R shows the reloading line, 2 switches to the saw sword (ammo line = its name, weapon button = the rifle,
@@ -18,7 +19,7 @@ extends SceneTree
 ## Dodge, 13 Nov) dashes, dims with a growing cooldown ring and is ready again after the cooldown. The shoulder camera sits
 ## 0.55 m right of the egg and is never inside a solid in orbit sweeps by walls, corners and pillars; the egg fades when
 ## the arm is squeezed against a wall. Min: an idle player (no fire, no move) stops processing.
-## Saves arena_hud_th.png, arena_hud_en.png, arena_touch.png, arena_touch_20x9.png, arena_sword.png, arena_hud_fire.png.
+## Saves arena_walk_side.png, arena_hud_th.png, arena_hud_en.png, arena_touch.png, arena_touch_20x9.png, arena_sword.png, arena_hud_fire.png.
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_arena_hud.gd
 
@@ -110,6 +111,21 @@ func _check_walk(_screen: Node, hud: Control, player: Node3D) -> void:
 	_check(not (hud.get_node("Ammo") as Control).visible, "no ammo line in walk mode")
 	_check(Input.mouse_mode != Input.MOUSE_MODE_CAPTURED, "the mouse is free in walk mode")
 	_check(not bool(hud.call("drawn_rects")["EnemyBar"].has_area()), "no enemy bar in walk mode")
+	# เดินขวาในโหมดเดิน: ตัวยังหันตามกล้อง (หันหลังให้กล้อง) ไข่เดินเยื้อง
+	var rig: Node = player.call("camera_rig")
+	var p0 := player.global_position
+	_key(KEY_D, true)
+	await _physics(int(0.45 * Engine.physics_ticks_per_second))
+	var off := absf(angle_difference(float(player.get("face")), float(rig.get("yaw")) + PI))
+	var moved: Vector3 = player.global_position - p0
+	var fig: Node = player.call("figure")
+	var md: Vector2 = fig.call("move_dir") if fig != null and fig.has_method("move_dir") else Vector2.ZERO
+	await _frames(2)
+	_save("arena_walk_side.png")
+	_key(KEY_D, false)
+	await _physics(20)
+	_check(moved.dot(rig.call("right_flat")) > 0.5 and off < 0.01 and md.x > 0.9,
+		"walk mode, D: it walks right (%.2f m), the body faces the camera (%.3f rad off), the egg side-steps" % [moved.dot(rig.call("right_flat")), off], str(md))
 
 
 func _check_shoot(screen: Node, hud: Control, player: Node3D) -> void:

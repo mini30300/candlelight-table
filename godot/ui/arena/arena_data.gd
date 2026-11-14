@@ -24,9 +24,7 @@ const BEAST := {"th": "สัตว์รัง", "kit": "warrior", "hp": 300, "
 const RANGE := {"seed": 4404, "switch_cooldown": 1.0}
 ## พุ่งหลบ (Space / ปุ่ม "หลบ"): พุ่ง distance ม. ใน time วิ ตามทิศที่กด (ไม่กด = ถอยหลัง) อมตะ invuln วิแรก
 ## กดซ้ำได้หลังพุ่งจบ cooldown วิ · ease: ความเร็วลดเป็นเส้นตรง ต้น = เฉลี่ย × (1 + ease) ปลาย = เฉลี่ย × (1 − ease)
-## hold_aim: ตัวละครที่ไม่เดินเยื้อง (H9) หันตามทิศเล็งอีกกี่วิหลังยิง/ฟัน/ต่อย
-const DODGE := {"th": "หลบ", "distance": 3.8, "time": 0.3, "invuln": 0.25, "cooldown": 0.7, "ease": 0.6,
-	"hold_aim": 0.6}
+const DODGE := {"th": "หลบ", "distance": 3.8, "time": 0.3, "invuln": 0.25, "cooldown": 0.7, "ease": 0.6}
 ## เสียงอารีน่า: ชื่อ → [ชนิดเสียงของหน้าเก่า (DEF), ความดัง, ระดับเสียง] ผ่าน Sfx (ไม่มี Sfx = เงียบ)
 const SOUNDS := {"gun": ["shot", 1.0, 1.0], "reload": ["clang", 0.7, 1.35], "empty": ["ui", 3.0, 0.7],
 	"punch": ["swing", 0.8, 1.2], "punch_hit": ["hit", 1.2, 0.9], "saw_idle": ["saw", 0.35, 0.9],

@@ -4,7 +4,7 @@ extends SceneTree
 ##   <godot> [--headless] --path <project> --audio-driver Dummy -s tests/net/friends_peer.gd -- --net-port=<P>
 ##     --status=<file> --cmd=<file> --name=<nm> [--fake-app=<APP_VER>] [--rejoin] [--gfx=min] [--media=<dir>]
 ## Like a player: main menu → ออนไลน์ → the airlock screen; types its name, waits for the host's row (discovery, probe
-## 127.0.0.1) and taps เข้าร่วม; back to the deck. When the host opens the setup it walks to the airlock and taps
+## 127.0.0.1) and taps เข้าร่วม; back to the deck. When the host opens the setup it walks to the war table and taps
 ## นั่งที่นี่ on seat 1; on every battle it turns on ให้บอทเล่นแทน at instant speed and reports the end. --fake-app sends
 ## another APP_VER in its hello (Net.hello_extra): the join is refused and it reports the reason in Thai and English.
 ## --rejoin keeps the net cfg of the friend that was killed (same nid, so the host gives it the same slot) and plays the
@@ -49,7 +49,7 @@ var _host_steps := 0          # frames where the host's egg moved a small step (
 
 
 func _initialize() -> void:
-	Features.set_flag(&"online", true)   # ออนไลน์เปิดเฉพาะแอปส่วนตัว (PACK_SPEC §5.1): เทสเปิดเอง
+	# round B: แอปสาธารณะเล่นกับเพื่อนได้ (ไม่มีสวิตช์ online ไม่มีห้องเสริม) — เทสไม่เปิดสวิตช์
 	Engine.max_fps = 60
 	for a: String in OS.get_cmdline_user_args():
 		if a.begins_with("--status="):
@@ -252,7 +252,8 @@ func _watch() -> void:
 			str(wait != null and wait.visible)])
 
 
-## the host opened the setup: the deck note, walk to the airlock, นั่งที่นี่ on seat 1, wait until it is mine
+## the host opened the setup: the deck note, walk to the war table (round B: no pack room, so the friend picks a seat
+## there), นั่งที่นี่ on seat 1, wait until it is mine
 func _claim() -> void:
 	_busy = true
 	var hall := _hall()
@@ -266,15 +267,13 @@ func _claim() -> void:
 		await process_frame
 	_say("toast " + note)
 	if hall != null and _app().call("current") == hall:
-		hall.call("enter_airlock")
+		var f: Vector2 = HallLayout.STATIONS["battle"]["front"]
+		(hall.get("world") as Node).call("place_avatar", Vector3(f.x, 0.0, f.y), PI)
 		await _frames(4)
 		var at := str(hall.call("station"))
-		if at == "online":
-			hall.call("use_station")
-		else:
-			hall.call("open_online")
+		hall.call("use_station")
 		await _frames(3)
-		_say("airlock station=%s" % at)
+		_say("table station=%s lobby=%s" % [at, str(_app().call("current") != hall and (_app().call("current") as Node).has_method("claim"))])
 	var lobby: Node = _app().call("current")
 	if lobby == null or not lobby.has_method("claim"):
 		_say("claim no_lobby")

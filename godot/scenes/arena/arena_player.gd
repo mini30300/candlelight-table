@@ -1,15 +1,15 @@
 class_name ArenaPlayer
 extends CharacterBody3D
 ## ผู้เล่นในอารีน่า (ARENA_SPEC §5, §6.3, สัญญา §12.3): ตัวละครตามสัญญา §9.1 (ไข่ถือปืนของเราเป็นค่าตั้งต้น ถอดเปลี่ยนได้)
-## walk = เดินแบบดาดฟ้า (หันตามทิศเดิน กล้องตาม) · shoot = ยิงมุมมองบุคคลที่สาม (กล้องข้ามไหล่ ตัวหันตามกล้อง เดินสไลด์ข้าง)
+## walk = เดินแบบดาดฟ้า (กล้องตาม) · shoot = ยิงมุมมองบุคคลที่สาม (กล้องข้ามไหล่) · ทั้งสองโหมดตัวหันตามกล้องเสมอ (14 พ.ย.)
 ## เดสก์ท็อป: เมาส์เล็ง (จับเมาส์ตอนเข้า shoot) คลิกซ้ายยิง คลิกขวา/F ต่อย R บรรจุ 1/2/ล้อ เปลี่ยนอาวุธ · มือถือ: ArenaTouch ส่ง
 ## set_stick / aim_drag / press มา · ปืน: รังสีเล็งจากกล้องผ่านกลางจอ แล้วยิงจริงจากปากกระบอกไปจุดเล็ง (เสาบังได้จริง)
 ## ลอยตัวที่ y = 0 แคปซูล r 0.35 สูง 1.75 ชั้น 2 ชนชั้น 1 | 4 | 8 · ตัวเลขต่อสู้ทั้งหมดจาก ArenaData
 ## พุ่งหลบ: Space (ปุ่มจริง ทุกโหมด) หรือปุ่ม "หลบ" บนจอ = press(&"dodge") พุ่งตามทิศที่กด (ไม่กด = ถอยหลัง) ตัวเลขจาก
 ## ArenaData.DODGE คณิตจาก ArenaCombat · ชนเสา/ผนังด้วย move_and_slide · ช่วงต้นอมตะ · ตัวละครเสริม H8 begin_dodge
-## H9 uses_strafe() false = ไม่เดินเยื้อง: โหมดยิงหันตามทิศเดิน หันกลับหาเป้าตอนยืน ยิง ฟัน ต่อย (ค้าง hold_aim วิ)
+## H9 uses_strafe() false = ไม่เดินเยื้อง: ตัวยังหันตามกล้อง แต่ขาเดินหน้าทั้งตอนเดินหน้า/ข้าง ถอยหลังใช้ท่าถอย (ArenaCombat.leg_dir)
 ## งานต่อเฟรม: _physics_process เฉพาะตอนเดิน อาวุธยังนับเวลา (ArenaWeapons.busy) ล้ม/อมตะชั่วครู่ แสงวาบ พุ่ง/คูลดาวน์
-## หรือหันตัว (H9) แล้วปิดตัวเอง
+## แล้วปิดตัวเอง
 
 signal moved(pos: Vector3)
 signal mode_changed(mode: StringName)
@@ -29,7 +29,6 @@ signal dodge_changed(state: StringName)
 const RADIUS := 0.35
 const HEIGHT := 1.75
 const RUN_STICK := 0.85
-const TURN := 10.0
 const STOP := 0.01
 const MOVE_ACTIONS: Array[StringName] = [&"move_forward", &"move_back", &"move_left", &"move_right", &"run"]
 const PLAYER_LAYER := 2
@@ -45,7 +44,6 @@ const EGG_GUNNER := "res://scenes/arena/egg_gunner.gd"
 const ARENA_LAYOUT := "res://scenes/arena/arena_layout.gd"
 const RESPAWN_FALLBACK := Vector3(0.0, 0.0, -12.5)
 const DODGE_ACTION := &"dodge"
-const AIM_TURN := 18.0       # ตัวไม่เดินเยื้องหันหาเป้า (ต่อวินาที)
 
 var world: Node3D
 var level := "mid"
@@ -81,7 +79,6 @@ var _strafe := true          # H9 uses_strafe() (ไม่มี = เดิน�
 var _dodge_t := -1.0         # เวลาที่พุ่งไปแล้ว (ติดลบ = ไม่ได้พุ่ง)
 var _dodge_dir := Vector3.ZERO
 var _since_dodge := INF      # เวลานับจากพุ่งครั้งก่อนจบ
-var _since_act := INF        # เวลานับจากยิง/ฟัน/ต่อยครั้งล่าสุด (H9)
 var _fire_held := false      # ปุ่มยิงยังกดอยู่ (คืนไกปืนหลังพุ่งจบ)
 var _saw_loop := 0
 
@@ -96,6 +93,7 @@ func _ready() -> void:
 	_hp = _hp_max
 	ensure_dodge_action()
 	rig.arm_settled.connect(_on_arm)
+	rig.turned.connect(_on_turned)
 	fx.view = rig.camera
 	fx.reseed(int(ArenaData.RANGE["seed"]))
 	visibility_changed.connect(func() -> void:
@@ -260,15 +258,11 @@ func dodge() -> bool:
 		var d := ArenaCombat.dodge_dir(iv)
 		w = rig.right_flat() * d.x + rig.forward_flat() * d.y
 		w = Vector3(w.x, 0.0, w.z).normalized()
-		if not _strafe:
-			# ตัวไม่เดินเยื้องหันไปทางที่พุ่ง (กลิ้ง/ไถลไปข้างหน้าของตัว)
-			face = atan2(w.x, w.z)
-			rotation.y = face
 	_dodge_dir = w
 	_dodge_t = 0.0
 	_handle(weapons.set_trigger(false))
 	if _fig_dodge:
-		_figure.call("begin_dodge", local_dir(w, face), float(ArenaData.DODGE["time"]))
+		_figure.call("begin_dodge", ArenaCombat.leg_dir(local_dir(w, face), _strafe), float(ArenaData.DODGE["time"]))
 	fx.dust(global_position, -w)
 	ArenaSound.play(self, "dodge", global_position + Vector3(0.0, 0.6, 0.0))
 	dodge_changed.emit(&"dash")
@@ -304,6 +298,8 @@ func set_input_enabled(on: bool) -> void:
 	rig.input_enabled = on
 	if not on:
 		stick = Vector2.ZERO
+	else:
+		set_physics_process(true)   # ปุ่มที่กดค้างไว้ตอนจอมืดเดินได้ทันที (ไม่มีอะไรกด = หลับในติ๊กเดียว)
 		_handle(weapons.set_trigger(false))
 		rig.reset_input()
 
@@ -336,15 +332,15 @@ func paused() -> bool:
 	return _paused
 
 
-## วางตัวทันที: หันตัวไป face กล้องหัน cam_yaw
-func place(p: Vector3, face_yaw: float, cam_yaw: float) -> void:
+## วางตัวทันที: กล้องหัน cam_yaw ตัวหันตามกล้องเสมอ (_face_yaw คงไว้ให้ผู้เรียกเดิม ไม่ใช้แล้ว)
+func place(p: Vector3, _face_yaw: float, cam_yaw: float) -> void:
 	global_position = Vector3(p.x, 0.0, p.z)
 	_vel = Vector3.ZERO
 	_fire_held = false
 	if dodging():
 		_end_dodge()
 	velocity = Vector3.ZERO
-	face = face_yaw
+	face = wrapf(cam_yaw, -PI, PI) + PI
 	rotation.y = face
 	rig.set_view(cam_yaw, rig.pitch if _mode == &"shoot" else ArenaCamera.WALK_PITCH, ArenaCamera.WALK_ARM)
 	rig.snap(global_position)
@@ -566,7 +562,6 @@ func _physics_process(delta: float) -> void:
 		_flash = maxf(_flash - delta, 0.0)
 		_call_fig("set_flash", [_flash / FLASH_TIME])
 	_handle(weapons.tick(delta))
-	_since_act += delta
 	var iv := input_vector()
 	var want := Vector3.ZERO
 	if iv.length_squared() > 0.0001:
@@ -589,7 +584,6 @@ func _physics_process(delta: float) -> void:
 				dodge_changed.emit(&"ready")
 		_vel = _vel.lerp(want, 1.0 - exp(-float(ArenaData.PLAYER["accel"]) * delta))
 	var moving := true
-	var turning := false
 	if want == Vector3.ZERO and _vel.length() < STOP:
 		_vel = Vector3.ZERO
 		velocity = Vector3.ZERO
@@ -599,17 +593,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_vel = Vector3(velocity.x, 0.0, velocity.z)
 		global_position.y = 0.0
-		if _mode == &"shoot":
-			if _strafe:
-				_face_camera()
-			elif not dodging():
-				turning = _shoot_turn(delta, want)
-		elif want.length_squared() > 0.0001 and not dodging():
-			face = lerp_angle(face, atan2(want.x, want.z), 1.0 - exp(-TURN * delta))
-			rotation.y = face
-	if not moving and _mode == &"shoot" and not _strafe:
-		turning = _shoot_turn(delta, want)
-	move_figure(_figure, _fig_dir, local_dir(_vel, face), speed(), running())
+	move_figure(_figure, _fig_dir, ArenaCombat.leg_dir(local_dir(_vel, face), _strafe), speed(), running())
 	if moving:
 		rig.follow(global_position)
 		moved.emit(global_position)
@@ -618,7 +602,7 @@ func _physics_process(delta: float) -> void:
 		_aim_dirty = false
 		_update_aim_target()
 	if not moving and not weapons.busy() and _down <= 0.0 and _invuln <= 0.0 and _flash <= 0.0 and not dodging() \
-			and _since_dodge >= cool and not turning and (_strafe or _since_act >= float(ArenaData.DODGE["hold_aim"])):
+			and _since_dodge >= cool:
 		set_physics_process(false)
 
 
@@ -629,7 +613,6 @@ func _handle(events: Array[Dictionary]) -> void:
 		var id: StringName = e["id"]
 		match e["type"]:
 			&"shot":
-				_since_act = 0.0
 				_fire_gun()
 			&"reload_start":
 				_call_fig("play", [&"reload", 1.0])
@@ -642,9 +625,6 @@ func _handle(events: Array[Dictionary]) -> void:
 				_call_fig("play", [&"idle", 1.0])
 				reload_changed.emit(false, 0.0)
 			&"melee_start":
-				_since_act = 0.0
-				if not _strafe and _mode == &"shoot":
-					_face_camera()   # ตัวไม่เดินเยื้อง: หันหาเป้าทันที (วงฟันวัดจากทิศที่หัน)
 				_call_fig("play", [&"punch" if id == &"punch" else &"swing", 1.0])
 				ArenaSound.play(self, "punch" if id == &"punch" else "saw_rev", global_position + CHEST)
 			&"melee_hit":
@@ -768,12 +748,8 @@ func _set_aim_beast(on: bool) -> void:
 
 
 ## เล็งเปลี่ยน: ตัวหันตามกล้อง ปืนก้มเงยตาม จุดหมุนกล้องเยื้องขวาตาม yaw ใหม่
-## (H9 ตัวไม่เดินเยื้องกำลังเดินอยู่: หันตามทิศเดินต่อ แค่ก้มเงยตาม)
 func _on_look() -> void:
-	if _strafe or (not dodging() and ArenaCombat.faces_aim(weapons.trigger, speed() > 0.1, _since_act)):
-		_face_camera()
-	else:
-		_call_fig("set_aim", [rig.pitch])
+	_face_camera()
 	rig.follow(global_position)
 	_aim_dirty = true
 	set_physics_process(true)
@@ -785,15 +761,12 @@ func _face_camera() -> void:
 	_call_fig("set_aim", [rig.pitch])
 
 
-## H9 โหมดยิง: หันหาเป้า (ยืน ยิง ฟัน ต่อย และค้าง hold_aim วิ) หรือหันตามทิศเดิน · คืน true ถ้ายังหันไม่ถึง
-func _shoot_turn(delta: float, want: Vector3) -> bool:
-	var target := rig.yaw + PI
-	if not ArenaCombat.faces_aim(weapons.trigger, want.length_squared() > 0.0001, _since_act):
-		target = atan2(want.x, want.z)
-	face = lerp_angle(face, target, 1.0 - exp(-AIM_TURN * delta))
-	rotation.y = face
-	_call_fig("set_aim", [rig.pitch])
-	return absf(angle_difference(face, target)) > 0.01
+## กล้องหมุน (ลากจอ/เมาส์ทั้งสองโหมด): ตัวหันตาม (ไม่แตะท่าเล็ง) · ตามนุ่มที่ yaw ไม่เปลี่ยนจบที่การเทียบค่าเดียว
+func _on_turned() -> void:
+	var f := rig.yaw + PI
+	if f != face:
+		face = f
+		rotation.y = f
 
 
 func _end_dodge() -> void:

@@ -174,7 +174,7 @@ All neutral; with no pack each hook is a no-op. Surgical edits only.
 | H4 | `export_presets.cfg` (both presets) and `tools/validate_data.py` | `exclude_filter="packs/*"` on Windows and Android. The data lint (which already checks the keystore fields of this file) fails when either preset's `exclude_filter` lacks `packs/*`, with a failing fixture `tests/data_fixtures/fail_pack_filter/` like the existing ones. |
 | H5 (optional, not this round) | `scenes/arena/arena_actors.gd`, `ui/widgets/kit_turntable.gd` | `static func army_path(kit: String, manifest := PACK_MANIFEST) -> String`: the pack's display scene for a kit key (same folder rule, `PackedScene` only) or `""`. `KitTurntable.show_kit` tries it before `KitLibrary.kit_path`, frames a pack scene by its mesh box, and gets a `pack_manifest` variable that tests can point at the fixture. The battle table (`figure_pool.gd`) is never hooked. |
 | H6 (optional; specified 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | Optional `set_move_dir(local_dir: Vector2, speed: float, running: bool)`, called **instead of** `set_move` when the figure has it, so a player figure can choose side-step and back-step cycles in shoot mode. Exact rules: `ARENA_SPEC.md` §9.4 (with H7 `begin_switch` and the melee timing). |
-| H8, H9 (optional; 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | `begin_dodge(local_dir: Vector2, duration: float)`: called once when a dodge (Space / หลบ button) starts, direction in the figure's frame, `duration` 0.3 s; `uses_strafe() -> bool` (default true): false = the player turns the figure to face where it moves in shoot mode and back to the aim while standing, firing or striking (held 0.6 s). Both checked once in `setup`. Exact rules: `ARENA_SPEC.md` §9.5. |
+| H8, H9 (optional; 13 Nov, H9 changed 14 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | `begin_dodge(local_dir: Vector2, duration: float)`: called once when a dodge (Space / หลบ button) starts, direction in the figure's frame, `duration` 0.3 s; `uses_strafe() -> bool` (default true): every body faces the camera's yaw in both modes and is never turned toward its movement; false = the figure's legs get (0, 1) for forward and sideways movement and (0, −1) backwards (`ArenaCombat.leg_dir`, through H6 `set_move_dir` and H8 `begin_dodge`), so it walks forward while sliding sideways and backward when backing; true (the egg) gets the real direction and side-steps. Both checked once in `setup`. Exact rules: `ARENA_SPEC.md` §9.5. |
 
 Spec cross-reference: one line under `ARENA_SPEC.md` §9.3 ("extended by `PACK_SPEC.md`"), and §17 (as built) notes H1–H4.
 No `APP_VER` bump is needed for H1–H4 alone (nothing changes on screen without a pack); if it ships with other visible
@@ -235,6 +235,9 @@ Some features ship only in the private build. A private build drops one more fil
   (`.gitignore`), so the public build can never turn a switch on by accident.
 - Why online moved to the private build (owner, 13 Nov 2026): the online room is redesigned as a separate launch-bay room
   in the personal app, so it can be made to look right without worrying about the public build.
+- Round B (owner, 14 Nov 2026): play with friends is back in the public app, on the deck only. The online button shows
+  in every app and `hall.open_online()` / `main_menu.open_online()` no longer read the switch; `online` now only lets a
+  pack room load (`PackRooms.for_door`). With no pack room the airlock has no ring in any app (SHIP_LOBBY_SPEC round B).
 
 ## 6. The fixture pack (primitives only)
 
@@ -333,3 +336,22 @@ the spawn or a station front the room is refused at open, `RoomLayout.clear_prob
   `tests/render/test_pack_room.gd` (the whole walk with the test room, a second visit, the failure paths with
   `tests/fixtures/pack_rooms_refused/`),
   added checks in `tests/flow/test_hall_reach.gd`.
+
+### 9.5 Arena door in a pack room (round B, 14 Nov 2026)
+
+Owner, 14 Nov: "move the test room (arena) into the launch bay". A room may declare the way to the arena itself:
+
+- A station with `"action": "arena"` (usual `id`, `name` {th, en}, `c`, `h`, `front`, `sign`, `face`, `height`, `reach`)
+  is a walk-in door to the arena screen: always walk-in (`RoomLayout` sets `walk_in` for it; `"walk_in": true` is also
+  accepted on it and still refused on any action but `back` and `arena`); at most one per room
+  ("at most one station may have action arena"). `PackRooms.arena_station(room)` gives its id or "".
+- Walking into it or E: the room screen stops the avatar, sends `where = arena`, fades (same fade as the deck's arena
+  door) and pushes the arena screen. The arena files are preloaded on a thread when the station comes in reach, through
+  the deck screen that opened the room (`PackRoomScreen.hall` → `hall_screen.preload_arena` / `arena_scene`, the same
+  cache as the deck door). Coming back: the avatar stands on the station's `front` facing away from the door, the camera
+  behind it, the fade clears, then it can walk.
+- If the loaded pack room has such a station, the deck's arena door is shut (`hall_screen.arena_moved()`): no ring, no
+  prompt, no walk-in, empty sign, closed leaves drawn (SHIP_LOBBY_SPEC round B). Without one the deck door is unchanged.
+- Fixtures: `tests/fixtures/pack_rooms_arena/arena_room` (test_room plus an `arena_door` station on its left wall) and
+  `tests/fixtures/pack_rooms_bad/two_arena`. Checks: `test_pack_rooms.test_arena_station`, the broken-case table, and
+  `test_pack_room` (`_check_arena_door`).

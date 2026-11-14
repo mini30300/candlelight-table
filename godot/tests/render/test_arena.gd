@@ -118,12 +118,21 @@ func _enter() -> Node:
 	var f: Vector2 = HallLayout.STATIONS["arena"]["front"]
 	hw.call("place_avatar", Vector3(f.x, 0.0, f.y), PI)
 	await _physics(4)
-	_check(str(hall.call("station")) == "arena", "the avatar stands at the arena door")
+	# a pack room with an arena door (personal build, PACK_SPEC §9.5) shuts the deck door: that door is checked
+	# by test_pack_room, so here the deck's own entry is called directly
+	var moved := bool(hall.call("arena_moved"))
+	if moved:
+		_check(str(hall.call("station")) == "" and bool(hw.call("arena_shut")), "a pack room took the arena door: the deck door is shut")
+	else:
+		_check(str(hall.call("station")) == "arena", "the avatar stands at the arena door")
 	var longest := 0
 	var last := Time.get_ticks_msec()
-	_key(KEY_E, true)
-	await _frames(1)
-	_key(KEY_E, false)
+	if moved:
+		hall.call("enter_arena")
+	else:
+		_key(KEY_E, true)
+		await _frames(1)
+		_key(KEY_E, false)
 	for i in 120:
 		await process_frame
 		var now := Time.get_ticks_msec()

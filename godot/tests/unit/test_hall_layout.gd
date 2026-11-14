@@ -130,11 +130,13 @@ func test_flood_fill_reaches_every_station() -> void:
 
 func test_station_at_samples() -> void:
 	# 0.3 (SHIP_LOBBY_SPEC §2.2): the online gate moved from the back wall (now the great viewport) to the right wall
-	# as the docking airlock, so (0, -6.5) is open floor and (10.6, 3.0) is the airlock; the vault sits at (5, 4)
+	# as the docking airlock, so (0, -6.5) is open floor and (10.6, 3.0) is the airlock
+	# round B (14 Nov): the work desk ("vault") moved from (5, 4) to the front wall right of the exit at (5.0, 6.75)
 	var samples := {
 		Vector2(0.0, 1.0): "battle", Vector2(2.0, 0.5): "battle", Vector2(-10.0, -1.0): "army",
 		Vector2(9.0, -1.0): "settings", Vector2(10.6, 3.0): "online", Vector2(0.0, -6.5): "", Vector2(-3.0, 4.0): "adventure",
-		Vector2(0.0, 7.0): "exit", Vector2(0.0, 4.0): "", Vector2(6.0, 4.0): "vault", Vector2(3.15, 4.0): "vault",
+		Vector2(0.0, 7.0): "exit", Vector2(0.0, 4.0): "", Vector2(6.0, 4.0): "", Vector2(3.15, 4.0): "",
+		Vector2(5.0, 4.9): "vault", Vector2(5.5, 5.2): "vault", Vector2(1.8, 7.0): "exit",
 		Vector2(-6.0, -1.0): "", Vector2(5.5, -6.0): "",
 		# 0.4 (ARENA_SPEC §13.1): the arena door's front ring and the return spot
 		Vector2(-9.8, 6.95): "arena", Vector2(-9.8, 5.2): "",
@@ -309,6 +311,27 @@ func test_signs_and_cool_lights() -> void:
 	for f in HallLayout.VAULT_FLAMES:
 		var c: Vector2 = HallLayout.STATIONS["vault"]["c"]
 		assert_true(Vector2(f.x, f.z).distance_to(c) < 1.2, "vault candle %s stands inside the dais blocker" % str(f))
+		assert_true(f.z < c.y, "vault candle %s stands on the room side of the desk" % str(f))
+		assert_true(HallLayout.desk_to_world(HallLayout.desk_to_local(f)).is_equal_approx(f), "desk frame round-trips %s" % str(f))
+
+
+## round B (14 Nov): the work desk stands against the front wall on the right of the exit and faces into the room
+func test_desk_by_the_exit() -> void:
+	var s: Dictionary = HallLayout.STATIONS["vault"]
+	var c: Vector2 = s["c"]
+	var exit_c: Vector2 = HallLayout.STATIONS["exit"]["c"]
+	assert_true(c.x > exit_c.x + 2.0 and c.x < 6.0, "the desk is right of the exit, near it (x %.2f)" % c.x)
+	assert_true(c.y + float(s["h"].x) >= HallLayout.HALF.y - 0.1 and c.y + float(s["h"].x) <= HallLayout.HALF.y,
+		"its dais reaches the front wall without passing it (z %.2f)" % (c.y + float(s["h"].x)))
+	assert_eq(HallLayout.sign_normal("vault").round(), Vector2(0.0, -1.0), "its sign faces into the room (-z)")
+	var f: Vector2 = s["front"]
+	assert_true(f.y < c.y and absf(f.x - c.x) < 0.01, "its ring is in front of it, on the room side")
+	# the front of the cabinet (local -x) turns to -z, its back (local +x) to the wall
+	assert_true(HallLayout.desk_to_world(Vector3(-1.0, 0.0, 0.0)).is_equal_approx(Vector3(c.x, 0.0, c.y - 1.0)), "the cabinet front faces -z")
+	assert_true(HallLayout.desk_to_world(Vector3(1.0, 0.0, 0.0)).z > c.y, "the cabinet back is toward the front wall")
+	for slot in 6:
+		var p := HallFriends.spawn_for(slot)
+		assert_true(HallLayout.station_at(Vector2(p.x, p.z)) != "vault", "friend spawn %d is out of the desk's reach" % slot)
 
 
 func _cell(i: int, k: int) -> Vector2:

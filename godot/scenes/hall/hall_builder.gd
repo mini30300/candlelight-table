@@ -606,6 +606,47 @@ static func _arena_door(g: PropsLayer.Geo, glow_g: PropsLayer.Geo) -> void:
 		Vector3(cx - 0.07, ly + 0.06, lz)], LAMP_AMBER, n)
 
 
+## บานปิดทึบในช่องประตูอารีน่า (อารีน่าย้ายไปห้องเสริม): สองบานเหล็กชิดหลังกรอบ คานบรอนซ์ ไฟแดง · เมชเดียว สร้างครั้งเดียว
+static func arena_shutter_mesh() -> ArrayMesh:
+	if _cache.has("shutter"):
+		return _cache["shutter"]
+	var g := PropsLayer.Geo.new()
+	var glow_g := PropsLayer.Geo.new()
+	var ad := HallLayout.ARENA_DOOR
+	var a := (float(ad["x1"]) - float(ad["x0"])) * 0.5 - 0.18
+	var sp := float(ad["spring"])
+	var ap := float(ad["apex"]) - 0.24
+	var cx := (float(ad["x0"]) + float(ad["x1"])) * 0.5
+	var zd := HallLayout.HALF.y - 0.2
+	var u := Vector3(-1, 0, 0)
+	var n := Vector3(0, 0, -1)
+	var o := Vector3(cx, 0.0, zd)
+	var leaf := arch_outline(0.0, a, 0.0, sp, ap, ARENA_K)
+	var left: Array[Vector2] = []
+	var right: Array[Vector2] = []
+	for q in leaf:
+		if q.x <= 0.001:
+			left.append(q)
+		if q.x >= -0.001:
+			right.append(q)
+	left.append(Vector2(0.0, 0.0))
+	right.push_front(Vector2(0.0, 0.0))
+	_wall_poly(g, o, u, n, left, 0.0, STEEL * 0.7)
+	_wall_poly(g, o, u, n, right, 0.0, STEEL * 0.64)
+	g.poly([Vector3(cx - 0.03, 0.0, zd - 0.004), Vector3(cx + 0.03, 0.0, zd - 0.004), Vector3(cx + 0.03, ap, zd - 0.004),
+		Vector3(cx - 0.03, ap, zd - 0.004)], STEEL_DARK * 0.4, n)
+	for y in [0.8, 1.7]:
+		g.poly([Vector3(cx - a, y, zd - 0.006), Vector3(cx + a, y, zd - 0.006), Vector3(cx + a, y + 0.14, zd - 0.006),
+			Vector3(cx - a, y + 0.14, zd - 0.006)], BRONZE * 0.8, n)
+	glow_g.poly([Vector3(cx - 0.08, 2.2, zd - 0.01), Vector3(cx + 0.08, 2.2, zd - 0.01), Vector3(cx + 0.08, 2.32, zd - 0.01),
+		Vector3(cx - 0.08, 2.32, zd - 0.01)], Color(0.95, 0.25, 0.18), n)
+	bake(g, HallLayout.flames(), HallLayout.COOL_LIGHTS)
+	append(g, glow_g)
+	var m := g.mesh()
+	_cache["shutter"] = m
+	return m
+
+
 ## ทางเดินสั้นหลังประตูอารีน่า z 8.0 → 11.0 (ARENA_SPEC §2.2): ผิวในช่องผนัง พื้นเหล็กกับตะแกรง ผนังข้าง ซี่โครงหนึ่งวง
 ## เพดานโค้งแหลมต่อจากโค้งประตู รางสายไฟ ไฟอำพันใต้สัน ปิดท้ายด้วยประตูแรงดันที่ปิดสนิท (ไม่มีช่องมองทะลุ)
 ## อบแสงแยก: ไม่มีเทียน แสงอำพันดวงเดียว ARENA_STUB_LIGHT แล้วต่อท้ายโครงยาน
@@ -1285,10 +1326,23 @@ static func _ring(g: PropsLayer.Geo, c: Vector3, nrm: Vector3, r: float, w: floa
 
 ## โต๊ะทำงาน · คลังของ (เร็วๆ นี้): แท่นแปดเหลี่ยมสองขั้น ตู้คอมพิวเตอร์ทองเหลืองสูงหันหน้าไป -x ยอดโค้งแหลม
 ## จอเรืองแสงสามจอ แผงแป้นพิมพ์ลาด สายเคเบิล ขอบทองเหลือง · ของบูชา: เทียนสองเล่ม ชามถวาย ถ้วย แท่นวางหนังสือ
+## โต๊ะทำงานชิดผนังหน้า: วาดในกรอบของโต๊ะ (หน้าตู้หัน -x) แล้วหมุนเข้าที่ด้วย HallLayout.desk_to_world
 static func _work_desk(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) -> void:
-	var s: Dictionary = HallLayout.STATIONS["vault"]
-	var c: Vector2 = s["c"]
-	var top := float(s["height"])
+	var lg := PropsLayer.Geo.new()
+	var lglow := PropsLayer.Geo.new()
+	_work_desk_local(lg, lglow, sides)
+	for pair: Array in [[lg, g], [lglow, glow_g]]:
+		var src: PropsLayer.Geo = pair[0]
+		for i in src.v.size():
+			src.v[i] = HallLayout.desk_to_world(src.v[i])
+			var nn: Vector3 = src.n[i]
+			src.n[i] = Vector3(-nn.z, nn.y, nn.x)
+		append(pair[1], src)
+
+
+static func _work_desk_local(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) -> void:
+	var c := Vector2.ZERO
+	var top := float(HallLayout.STATIONS["vault"]["height"])
 	var n := maxi(sides / 2, 6)
 	g.prism(c.x, 0.0, c.y, 1.2, 0.16, 8, STEEL * 0.8, 1.0, PI / 8.0)
 	g.prism(c.x, 0.16, c.y, 0.95, 0.16, 8, BRONZE * 0.55, 1.0, PI / 8.0)
@@ -1365,10 +1419,11 @@ static func _work_desk(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) ->
 		tube(g, m, e, 0.025, tsides, IRON * 1.4)
 		tube(g, a + Vector3(0, -0.25, 0), m + Vector3(0.06, -0.1, 0), 0.018, tsides, BRASS * 0.5)
 	# ของบูชา: เทียนสองเล่มหน้าแท่น ชามถวายตรงกลาง ถ้วยสองใบบนปลายแผง แท่นวางหนังสือเปิด
-	for f in HallLayout.VAULT_FLAMES:
+	for fw in HallLayout.VAULT_FLAMES:
+		var f := HallLayout.desk_to_local(fw)
 		g.prism(f.x, 0.16, f.z, 0.07, 0.1, 6, BRONZE * 0.8)
 		_candle_at(g, Vector3(f.x, 0.26, f.z), f.y, 0.04)
-	var bx := HallLayout.VAULT_FLAMES[0].x
+	var bx := HallLayout.desk_to_local(HallLayout.VAULT_FLAMES[0]).x
 	g.prism(bx, 0.16, c.y, 0.06, 0.04, n, BRASS * 0.7, 1.6)
 	g.prism(bx, 0.2, c.y, 0.08, 0.008, n, GOLD * 0.8)
 	for sz in [-1.0, 1.0]:

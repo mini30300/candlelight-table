@@ -10,6 +10,8 @@ extends "res://tests/testing.gd"
 const FIX := "res://tests/fixtures/pack_rooms"
 const BAD := "res://tests/fixtures/pack_rooms_bad"
 const ROOM := "res://tests/fixtures/pack_rooms/test_room"
+## round B (14 Nov): the same neutral room plus a walk-in arena door (action arena) on its left wall
+const ARENA_FIX := "res://tests/fixtures/pack_rooms_arena"
 ## each broken case and a piece of the error line it must give
 const BAD_CASES := {
 	"bad_format": "format must be 1",
@@ -21,6 +23,7 @@ const BAD_CASES := {
 	"too_wide": "half must be",
 	"no_back": "exactly one station must have action back (found 0)",
 	"two_back": "exactly one station must have action back (found 2)",
+	"two_arena": "at most one station may have action arena (found 2)",
 	"bad_action": "action must be one of",
 	"spawn_blocked": "spawn (",
 	"half_api": "lacks apply_level, blockers",
@@ -146,6 +149,38 @@ func test_room_layout() -> void:
 		{"kind": "box", "c": Vector3(-3.0, 0.5, -1.6), "h": Vector3(0.3, 0.5, 0.3), "tag": "post"}])
 	var sp_bad := stuck.clear_problems()
 	assert_true(sp_bad.size() == 3, "script blockers on the spawn and on two fronts are reported", sp_bad)
+
+
+## round B (14 Nov, PACK_SPEC §9): a station with action arena is a walk-in door to the arena; at most one per room
+func test_arena_station() -> void:
+	assert_eq(PackRooms.arena_station(_room_data()), "", "test_room has no arena door (the deck's arena door stays open)")
+	assert_eq(PackRooms.arena_station({}), "", "no room, no arena door")
+	var rooms := PackRooms.list(ARENA_FIX)
+	assert_eq(rooms.size(), 1, "the arena fixture root holds one valid room")
+	if rooms.is_empty():
+		return
+	var room: Dictionary = rooms[0]
+	assert_eq(str(room["id"]), "arena_room", "it is arena_room")
+	assert_eq(PackRooms.arena_station(room), "arena_door", "its arena door is the station arena_door")
+	var lay := RoomLayout.new(room)
+	assert_true(bool(lay.stations["arena_door"]["walk_in"]), "an arena station is a walk-in door without a walk_in key")
+	assert_eq(str(lay.stations["arena_door"]["action"]), "arena", "with action arena")
+	var f: Vector2 = lay.stations["arena_door"]["front"]
+	assert_eq(lay.station_at(f), "arena_door", "its front ring is inside its reach")
+	assert_false(lay.in_walk_in("arena_door", f), "standing on the ring is not walking in")
+	var r: Rect2 = lay.rect_of("arena_door")
+	var contact := Vector2(r.end.x + HallLayout.AVATAR_R + 0.05, r.get_center().y)
+	assert_true(lay.in_walk_in("arena_door", contact), "walking into the door counts at contact")
+	# walk_in may be written on the arena door too, never on another action
+	var d: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string(ARENA_FIX + "/arena_room/room.json")) as Dictionary)
+	(d["stations"] as Array)[3]["walk_in"] = true
+	assert_eq(PackRooms.validate(d, ARENA_FIX + "/arena_room"), PackedStringArray(), "walk_in true is allowed on the arena door")
+	(d["stations"] as Array)[0]["walk_in"] = true
+	var errs := PackRooms.validate(d, ARENA_FIX + "/arena_room")
+	assert_true(errs.size() == 1 and errs[0].contains("only on the back or arena station"), "but not on a soon station (%s)" % ", ".join(errs))
+	Features.set_flag(&"online", true)
+	assert_eq(PackRooms.arena_station(PackRooms.for_door("online", ARENA_FIX)), "arena_door", "the airlock's room has the arena door")
+	Features.reset()
 
 
 func test_hex6() -> void:
