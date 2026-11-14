@@ -17,6 +17,9 @@ const INVADERS := "ผู้รุกราน: {faction} · {modifier}"
 const DIFF := "ความยาก: {name} {mult}"
 const REWARD := "รางวัลประมาณ {n} เหรียญ"
 const FEATURED := "ดาวเด่นสัปดาห์นี้ · เหรียญ ×1.5"
+const LIMIT := "เวลาจำกัด {m} นาที"
+const HOLD := "ต้านไว้ให้ครบ {m} นาที"
+const EXTRACT := "ทำเสร็จแล้วกลับจุดรับ"
 
 var spec: Dictionary = {}
 
@@ -114,6 +117,12 @@ func refresh() -> void:
 		PlanetCard.colour(I18n.t(str(p.get("th", ""))) + " · " + biome, CandleStyle.MUTED),
 		PlanetCard.colour(I18n.t(MissionTypes.name_th(t)), Color.WHITE), PlanetCard.colour(I18n.t(MAIN), CandleStyle.MUTED)]
 	var lines := PackedStringArray([PlanetCard.esc(I18n.t(MissionTypes.goal_th(t)))])
+	# กติกาที่ทำให้แพ้หรือยังไม่จบ: เวลาจำกัด/เวลาที่ต้องต้าน และต้องกลับจุดรับ
+	var lim := MissionTypes.limit_s(t)
+	if lim > 0:
+		lines.append(PlanetCard.colour(I18n.t(HOLD if t == "defend" else LIMIT).format({"m": lim / 60}), CandleStyle.GOLD))
+	if MissionTypes.extracts(t) and t != "rescue":
+		lines.append(PlanetCard.colour(I18n.t(EXTRACT), CandleStyle.GOLD))
 	_side = PackedStringArray()
 	var sec: Array = spec.get("secondary", [])
 	if sec.is_empty():
@@ -127,7 +136,9 @@ func refresh() -> void:
 		"modifier": I18n.t(str(CampaignGalaxy.modifier(str(spec["modifier"])).get("th", "")))}),
 		Color(str(f.get("col", "888888"))).lightened(0.3)))
 	var d := CampaignRules.difficulty(str(spec["difficulty"]))
-	lines.append(PlanetCard.esc(I18n.t(DIFF).format({"name": I18n.t(str(d["th"])), "mult": CampaignRules.mult_text(str(d["id"]))})))
+	lines.append(PlanetCard.esc(I18n.t(DIFF).format({"name": I18n.t(str(d["th"])), "mult": CampaignRules.mult_text(str(d["id"]))}))
+		+ "  ·  " + PlanetCard.colour(DifficultyScreen.revives_text(int(d["revives"])),
+			CandleStyle.DANGER if int(d["revives"]) == 0 else CandleStyle.MUTED))
 	var rw := I18n.t(REWARD).format({"n": CampaignRules.estimate_coins(spec, CampaignSave.is_repeat(spec))})
 	if bool(spec.get("featured", false)):
 		rw += "  ·  " + I18n.t(FEATURED)

@@ -106,6 +106,28 @@ func _run() -> void:
 	_check(gs.brief_open() and not gs.card_open(), "tapping the first event row opens the brief (%s)" % str(rr))
 	var spec: Dictionary = gs.current_spec()
 	_check(gs.brief().side_lines().size() == maxi((spec["secondary"] as Array).size(), 1), "the brief lists the side objectives")
+	# review fix: the brief states the rules that end or prolong a mission (time limit, pickup, revives)
+	var br = gs.brief()
+	var keep: Dictionary = br.spec
+	for ty in ["purge", "defend", "rescue", "destroy_camp"]:
+		for df in ["normal", "catastrophe"]:
+			var sp := keep.duplicate(true)
+			sp["primary"] = {"type": ty, "idx": 0}
+			sp["difficulty"] = df
+			br.show_spec(sp)
+			var tx: String = br.text()
+			var want := PackedStringArray()
+			if ty == "rescue":
+				want.append(str(root.get_node(^"I18n").call("t", br.LIMIT)).format({"m": 10}))
+			if ty == "defend":
+				want.append(str(root.get_node(^"I18n").call("t", br.HOLD)).format({"m": 3}))
+			if ty == "destroy_camp":
+				want.append(str(root.get_node(^"I18n").call("t", br.EXTRACT)))
+			var rv := int(CampaignRules.difficulty(df)["revives"])
+			want.append(str(root.get_node(^"I18n").call("t", "ล้มแล้วจบ" if rv == 0 else "ลุกได้ {n} ครั้ง")).format({"n": rv}))
+			var miss := Array(want).filter(func(w: String) -> bool: return not tx.contains(w))
+			_check(miss.is_empty(), "brief %s %s states its rules" % [ty, df], ", ".join(miss))
+	br.show_spec(keep)
 	gs.brief().launch_button().pressed.emit()
 	gs.brief().launch_button().pressed.emit()
 	await _frames(3)
