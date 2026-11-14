@@ -8,7 +8,7 @@ extends SceneTree
 ##     FriendTags, the 3D "you" sign hides; the host walks from the spawn row to the war table: the friend sees it
 ##     moved and standing within 0.3 m of where it stopped; everyone still → the friends stop processing
 ##  4. E at the war table → online setup: 3 teams × 1 (host · bot · bot), the host frees seat 1; the friend gets the deck
-##     note, walks to the airlock and taps นั่งที่นี่ on seat 1 (CLAIM) → the host's row 1 shows เพื่อน
+##     note, walks to the war table (round B: no pack room) and taps นั่งที่นี่ on seat 1 (CLAIM) → the host's row 1 shows เพื่อน
 ##  5. เริ่มรบ: both screens open (1 human per process + 1 bot), both turn on ให้บอทเล่นแทน at instant speed and play
 ##     to the end: the friend's final seq, digest and act log equal the host's, checks ≥ seq / 8, no desync anywhere,
 ##     every action of seat 1 carries pid n1 (seat 0 n0, the bot ""); the host has เล่นอีกครั้ง, the friend waits
@@ -19,7 +19,7 @@ extends SceneTree
 ##     log; then it leaves the room on purpose
 ##  7. a friend on another app version (hello with APP_VER "ใหม่ 0.4") is refused: its airlock screen gives the reason
 ##     in Thai and in English; nobody joins
-##  8. back to the deck → airlock → ปิดห้อง → offline; the test ports bind again; this machine's cfg files untouched
+##  8. main menu → ออนไลน์ → ปิดห้อง → offline; the test ports bind again; this machine's cfg files untouched
 ## Headless by default (CI). With FRIENDS_MEDIA=<dir> under xvfb (not headless) both processes render and the run also
 ## writes deck_two.png, lobby_room_th/en.png, battle_two.png and friends_deck.mp4 (ffmpeg) into <dir>; the friend's
 ## apps add lobby_find_th.png, lobby_seats_th.png and lobby_refused_th/en.png. Run:
@@ -57,7 +57,7 @@ var _cfg_before := {}
 
 
 func _initialize() -> void:
-	Features.set_flag(&"online", true)   # ออนไลน์เปิดเฉพาะแอปส่วนตัว (PACK_SPEC §5.1): เทสเปิดเอง
+	# round B: แอปสาธารณะเล่นกับเพื่อนได้ (ไม่มีสวิตช์ online ไม่มีห้องเสริม) — เทสไม่เปิดสวิตช์
 	Engine.max_fps = 60
 	_out = OS.get_environment("TEST_OUT")
 	if _out == "":
@@ -272,9 +272,9 @@ func _run() -> void:
 	setup.call("set_budget", 300)
 	setup.call("set_seed", 4242)
 	line = await _wait_line(_status, "toast ")
-	_check(line.contains("เลือกที่นั่งได้ที่ประตูเทียบยาน"), "the friend's deck says the host is setting up (%s)" % line)
-	line = await _wait_line(_status, "airlock ")
-	_check(line == "airlock station=online", "the friend uses the docking airlock station (%s)" % line)
+	_check(line.contains("เลือกที่นั่งได้ที่โต๊ะรบ"), "the friend's deck says the host is setting up, pick a seat at the war table (%s)" % line)
+	line = await _wait_line(_status, "table ")
+	_check(line == "table station=battle lobby=true", "the friend's war table opens host/join with the seats (%s)" % line)
 	line = await _wait_line(_status, "seat 1 ")
 	_check(line == "seat 1 mine", "the friend's claim of seat 1 came back as its own (%s)" % line)
 	var choice: Dictionary = setup.get("choice")
@@ -421,13 +421,15 @@ func _run() -> void:
 	_check((_net.call("members") as Array).filter(func(m: Dictionary) -> bool: return str(m["nm"]) == "เพื่อนรุ่นเก่า").is_empty(),
 		"nobody on another version joined the room")
 
-	# 8. airlock → ปิดห้อง → offline; sockets closed; cfg files untouched
-	hall.call("enter_airlock")
-	await _frames(4)
-	hall.call("use_station")
+	# 8. round B: main menu → ออนไลน์ (no airlock station without a pack room) → ปิดห้อง → offline; cfg files untouched
+	_check(not bool((hall.get("world") as Node).call("station_enabled", "online")), "no pack room: the airlock is no station")
+	app.call("pop")
+	await _frames(3)
+	var menu8: Node = app.call("current")
+	(menu8.get_node("%OnlineButton") as Button).pressed.emit()
 	await _frames(3)
 	lobby = app.call("current")
-	_check(lobby != null and lobby.has_method("leave_room") and str(lobby.call("view")) == "room", "the airlock station opens the room card")
+	_check(lobby != null and lobby.has_method("leave_room") and str(lobby.call("view")) == "room", "main menu → ออนไลน์ opens the room card")
 	if lobby != null and lobby.has_method("leave_room"):
 		(lobby.get_node("%LeaveButton") as Button).pressed.emit()
 		await _frames(1)

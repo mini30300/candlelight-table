@@ -45,8 +45,9 @@ const STATIONS := {
 		"front": Vector2(-2.95, 4.0), "sign": Vector3(-5.0, 2.2, 4.0), "face": PI * 0.5},
 	"exit": {"c": Vector2(0.0, 7.9), "h": Vector2(1.2, 0.2), "reach": 1.4, "height": 3.2, "round": false,
 		"front": Vector2(0.0, 6.95), "sign": Vector3(0.0, 3.75, 7.62), "face": PI},
-	"vault": {"c": Vector2(5.0, 4.0), "h": Vector2(1.2, 1.2), "reach": 1.5, "height": 1.4, "round": true,
-		"front": Vector2(3.15, 4.0), "sign": Vector3(5.0, 2.3, 4.0), "face": -PI * 0.5},
+	# โต๊ะทำงาน · คลังของ (id เดิม "vault"): ชิดผนังหน้าทางขวาของทางออก หันเข้าห้อง ตู้สูงถึงยอดจั่ว 1.95 ม. ป้ายลอยเหนือ
+	"vault": {"c": Vector2(5.0, 6.75), "h": Vector2(1.2, 1.2), "reach": 1.5, "height": 1.95, "round": true,
+		"front": Vector2(5.0, 4.9), "sign": Vector3(5.0, 2.45, 6.75), "face": PI},
 	# ประตูอารีน่าทดสอบอาวุธ (ARENA_SPEC §2): กล่องกันปิดช่องประตูเหมือนประตูทางออก ตัวผู้เล่นหยุดที่ z 7.35
 	"arena": {"c": Vector2(-9.8, 7.9), "h": Vector2(1.0, 0.2), "reach": 1.4, "height": 3.8, "round": false,
 		"front": Vector2(-9.8, 6.95), "sign": Vector3(-9.8, 4.3, 7.62), "face": PI},
@@ -111,8 +112,8 @@ const COOL_LIGHTS := [
 	{"p": Vector3(11.9, 2.3, -7.0), "k": 0.3, "d": 1.5, "col": SCREEN_GREEN},
 	{"p": Vector3(11.9, 2.3, -2.25), "k": 0.3, "d": 1.5, "col": SCREEN_AMBER},
 	{"p": Vector3(11.4, 2.5, 3.0), "k": 0.5, "d": 3.0, "col": Color("7fb8ff")},
-	# แสงทองจากร่องฝาหีบ: อ่อน (k 0.25) ไม่ให้หีบบรอนซ์สว่างจนสีแดงล้น
-	{"p": Vector3(5.0, 1.3, 4.0), "k": 0.25, "d": 2.0, "col": GOLD},
+	# แสงเขียวอ่อนจากจอโต๊ะทำงาน (k ต่ำ ไม่ให้ทองเหลืองกลายเป็นสีเขียว)
+	{"p": Vector3(5.0, 1.35, 6.65), "k": 0.25, "d": 1.5, "col": SCREEN_GREEN},
 	# แสงดาวจากหน้าต่างกระจายทั่วดาดฟ้า (D ใหญ่มาก = เกือบคงที่ทั้งห้อง) ให้เหล็กอมฟ้า ไม่เป็นสีหินอุ่น
 	{"p": Vector3(0.0, 3.0, 0.0), "k": 0.14, "d": 1.0e6, "col": Color("9fb8ff")},
 	# แสงอำพันที่ปากประตูอารีน่า
@@ -132,8 +133,8 @@ const TABLE_CANDLE_IN := 0.28
 const TABLE_FLAME_Y := 1.2
 const CONSOLE_FLAME := Vector3(10.22, 1.62, -0.72)
 const ADVENTURE_FLAME := Vector3(-5.0, 1.0, 4.0)
-## เทียนสองเล่มหน้าแท่นหีบสมบัติ (บนขั้นแท่น ในวงกันรัศมี 1.2)
-const VAULT_FLAMES: PackedVector3Array = [Vector3(4.05, 0.78, 3.45), Vector3(4.05, 0.78, 4.55)]
+## เทียนสองเล่มหน้าแท่นโต๊ะทำงาน (บนขั้นแท่น ในวงกันรัศมี 1.2)
+const VAULT_FLAMES: PackedVector3Array = [Vector3(5.55, 0.78, 5.8), Vector3(4.45, 0.78, 5.8)]
 const MAX_FLAMES := 26
 const MAX_FLAMES_MIN := 12
 
@@ -164,10 +165,13 @@ static func dist_to_station(p: Vector2, id: String) -> float:
 
 
 ## จุดใช้งานที่ตัวผู้เล่น (กลางตัวที่ p = x, z) เอื้อมถึง; หลายจุดพร้อมกันเอาที่ใกล้สุด; ไม่มีคืน ""
-static func station_at(p: Vector2) -> String:
+## off = สถานีที่ปิดอยู่ (id → true) ไม่นับ
+static func station_at(p: Vector2, off: Dictionary = {}) -> String:
 	var best := ""
 	var best_d := INF
 	for id in IDS:
+		if off.has(id):
+			continue
 		var d := dist_to_station(p, id)
 		if d <= reach_of(id) and d < best_d:
 			best = id
@@ -187,6 +191,17 @@ static func in_airlock(p: Vector2) -> bool:
 	var c: Vector2 = STATIONS["online"]["c"]
 	var h: Vector2 = STATIONS["online"]["h"]
 	return absf(p.y - c.y) <= h.y - 0.4 and p.x >= c.x - h.x - AVATAR_R - ARENA_AUTO
+
+
+## โต๊ะทำงานวาดในกรอบของตัวเอง (กลาง = 0, หน้าตู้หัน -x) แล้วหมุนให้หันเข้าห้อง (-z): จุดในกรอบ → จุดในห้อง
+static func desk_to_world(p: Vector3) -> Vector3:
+	var c: Vector2 = STATIONS["vault"]["c"]
+	return Vector3(c.x - p.z, p.y, c.y + p.x)
+
+
+static func desk_to_local(p: Vector3) -> Vector3:
+	var c: Vector2 = STATIONS["vault"]["c"]
+	return Vector3(p.z - c.y, p.y, c.x - p.x)
 
 
 static func spawn_xz() -> Vector2:

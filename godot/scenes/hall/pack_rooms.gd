@@ -9,7 +9,8 @@ const FORMAT := 1
 ## ประตูบนดาดฟ้าที่ห้องเสริมต่อได้ (v1 มีแค่ประตูเทียบยาน) และสวิตช์ฟีเจอร์ที่ต้องเปิด
 const DOORS: PackedStringArray = ["online"]
 const DOOR_FEATURE := {"online": &"online"}
-const ACTIONS: PackedStringArray = ["soon", "cards", "online", "back"]
+## arena = ประตูเดินเข้าอารีน่า (มีได้หนึ่งสถานี; ห้องที่มี = ประตูอารีน่าบนดาดฟ้าปิด) · dressing = เปิดห้องแต่งตัว
+const ACTIONS: PackedStringArray = ["soon", "cards", "online", "back", "arena", "dressing"]
 const CARD_ACTIONS: PackedStringArray = ["soon", "online"]
 const ROOM_API: PackedStringArray = ["setup", "apply_level", "blockers"]
 const ROOM_OPTIONAL: PackedStringArray = ["station_near", "station_used", "set_active", "set_english", "counts"]
@@ -104,6 +105,14 @@ static func online_station(room: Dictionary) -> String:
 	return ""
 
 
+## สถานีประตูอารีน่าของห้อง (action arena) "" = ไม่มี (ประตูอารีน่าบนดาดฟ้าเปิดตามเดิม)
+static func arena_station(room: Dictionary) -> String:
+	for s: Dictionary in room.get("stations", []):
+		if str(s.get("action", "")) == "arena":
+			return str(s["id"])
+	return ""
+
+
 ## ชื่อที่เลือกที่นั่งในห้อง (ข้อความ "เจ้าห้องกำลังตั้งเกม"): สถานีของ online_station ไม่มีใช้ชื่อห้อง
 static func setup_place(room: Dictionary) -> String:
 	var id := online_station(room)
@@ -165,6 +174,7 @@ static func validate(data: Variant, dir: String) -> PackedStringArray:
 		return e
 	var ids := {}
 	var backs := 0
+	var arenas := 0
 	var foot: Array[Dictionary] = []
 	for s: Variant in st:
 		var n := e.size()
@@ -173,8 +183,12 @@ static func validate(data: Variant, dir: String) -> PackedStringArray:
 			foot.append(s)
 			if str((s as Dictionary)["action"]) == "back":
 				backs += 1
+			elif str((s as Dictionary)["action"]) == "arena":
+				arenas += 1
 	if backs != 1 and e.is_empty():
 		e.append("exactly one station must have action back (found %d)" % backs)
+	if arenas > 1 and e.is_empty():
+		e.append("at most one station may have action arena (found %d)" % arenas)
 	if not e.is_empty():
 		return e
 	# ตำแหน่งที่ต้องไม่ติด: จุดเกิด และวงแหวนหน้าสถานี (เทียบกับรอยเท้าสถานี ตัวกันของสคริปต์ตรวจตอนเปิด)
@@ -254,8 +268,8 @@ static func _station(e: PackedStringArray, s: Variant, half: Vector2, ids: Dicti
 					e.append(tag + ": card action must be soon or online")
 				elif ca == "soon":
 					_pair(e, card.get("soon"), tag + " card soon", 120)
-	if d.has("walk_in") and (not d["walk_in"] is bool or (bool(d["walk_in"]) and act != "back")):
-		e.append(tag + ": walk_in is a bool and only on the back station")
+	if d.has("walk_in") and (not d["walk_in"] is bool or (bool(d["walk_in"]) and act != "back" and act != "arena")):
+		e.append(tag + ": walk_in is a bool and only on the back or arena station")
 	if d.has("solid") and not d["solid"] is bool:
 		e.append(tag + ": solid must be a bool")
 

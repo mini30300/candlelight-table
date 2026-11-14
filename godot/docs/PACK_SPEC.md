@@ -174,7 +174,8 @@ All neutral; with no pack each hook is a no-op. Surgical edits only.
 | H4 | `export_presets.cfg` (both presets) and `tools/validate_data.py` | `exclude_filter="packs/*"` on Windows and Android. The data lint (which already checks the keystore fields of this file) fails when either preset's `exclude_filter` lacks `packs/*`, with a failing fixture `tests/data_fixtures/fail_pack_filter/` like the existing ones. |
 | H5 (optional, not this round) | `scenes/arena/arena_actors.gd`, `ui/widgets/kit_turntable.gd` | `static func army_path(kit: String, manifest := PACK_MANIFEST) -> String`: the pack's display scene for a kit key (same folder rule, `PackedScene` only) or `""`. `KitTurntable.show_kit` tries it before `KitLibrary.kit_path`, frames a pack scene by its mesh box, and gets a `pack_manifest` variable that tests can point at the fixture. The battle table (`figure_pool.gd`) is never hooked. |
 | H6 (optional; specified 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | Optional `set_move_dir(local_dir: Vector2, speed: float, running: bool)`, called **instead of** `set_move` when the figure has it, so a player figure can choose side-step and back-step cycles in shoot mode. Exact rules: `ARENA_SPEC.md` §9.4 (with H7 `begin_switch` and the melee timing). |
-| H8, H9 (optional; 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | `begin_dodge(local_dir: Vector2, duration: float)`: called once when a dodge (Space / หลบ button) starts, direction in the figure's frame, `duration` 0.3 s; `uses_strafe() -> bool` (default true): false = the player turns the figure to face where it moves in shoot mode and back to the aim while standing, firing or striking (held 0.6 s). Both checked once in `setup`. Exact rules: `ARENA_SPEC.md` §9.5. |
+| H8, H9 (optional; 13 Nov, H9 changed 14 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | `begin_dodge(local_dir: Vector2, duration: float)`: called once when a dodge (Space / หลบ button) starts, direction in the figure's frame, `duration` 0.3 s; `uses_strafe() -> bool` (default true): every body faces the camera's yaw in both modes and is never turned toward its movement; false = the figure's legs get (0, 1) for forward and sideways movement and (0, −1) backwards (`ArenaCombat.leg_dir`, through H6 `set_move_dir` and H8 `begin_dodge`), so it walks forward while sliding sideways and backward when backing; true (the egg) gets the real direction and side-steps. Both checked once in `setup`. Exact rules: `ARENA_SPEC.md` §9.5. |
+| H10 (optional; round C, 14 Nov) | any deck figure (pack figures, `scenes/hall/kit_walker.gd`) | `apply_scheme(primary: Color, secondary: Color) -> void`: the dressing room's colour scheme (§10). Called by `Figures.dress` after `setup` (the hall and pack-room worlds) and by the dressing screen's preview; a figure may also get it before `setup` and must keep it. Fixed-colour parts (weapons, gold trim, lenses, a special arm) are the figure's business and ignore it. A figure without it keeps its own colours; set `"schemes": true` in `figures.json` only when it has it. |
 
 Spec cross-reference: one line under `ARENA_SPEC.md` §9.3 ("extended by `PACK_SPEC.md`"), and §17 (as built) notes H1–H4.
 No `APP_VER` bump is needed for H1–H4 alone (nothing changes on screen without a pack); if it ships with other visible
@@ -224,7 +225,7 @@ Some features ship only in the private build. A private build drops one more fil
 
 | Key | Off (the public app: no file) | On |
 | --- | --- | --- |
-| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7); 0.7: with a pack room for the airlock (§9) the airlock is a walk-in door into that room instead, and the online button lands in the room with host/join on top |
+| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends; 0.8: decoration only, no ring, no prompt, no panel, the sign stays); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7); 0.7: with a pack room for the airlock (§9) the airlock is a walk-in door into that room instead, and the online button lands in the room with host/join on top |
 
 - Unknown keys and non-boolean values are ignored; a broken file is the same as no file (a warning, never a crash).
 - Only the entry points are switched. The network code (`net/`, the `Net` autoload, lockstep, discovery) is unchanged and
@@ -235,6 +236,9 @@ Some features ship only in the private build. A private build drops one more fil
   (`.gitignore`), so the public build can never turn a switch on by accident.
 - Why online moved to the private build (owner, 13 Nov 2026): the online room is redesigned as a separate launch-bay room
   in the personal app, so it can be made to look right without worrying about the public build.
+- Round B (owner, 14 Nov 2026): play with friends is back in the public app, on the deck only. The online button shows
+  in every app and `hall.open_online()` / `main_menu.open_online()` no longer read the switch; `online` now only lets a
+  pack room load (`PackRooms.for_door`). With no pack room the airlock has no ring in any app (SHIP_LOBBY_SPEC round B).
 
 ## 6. The fixture pack (primitives only)
 
@@ -333,3 +337,80 @@ the spawn or a station front the room is refused at open, `RoomLayout.clear_prob
   `tests/render/test_pack_room.gd` (the whole walk with the test room, a second visit, the failure paths with
   `tests/fixtures/pack_rooms_refused/`),
   added checks in `tests/flow/test_hall_reach.gd`.
+
+### 9.5 Arena door in a pack room (round B, 14 Nov 2026)
+
+Owner, 14 Nov: "move the test room (arena) into the launch bay". A room may declare the way to the arena itself:
+
+- A station with `"action": "arena"` (usual `id`, `name` {th, en}, `c`, `h`, `front`, `sign`, `face`, `height`, `reach`)
+  is a walk-in door to the arena screen: always walk-in (`RoomLayout` sets `walk_in` for it; `"walk_in": true` is also
+  accepted on it and still refused on any action but `back` and `arena`); at most one per room
+  ("at most one station may have action arena"). `PackRooms.arena_station(room)` gives its id or "".
+- Walking into it or E: the room screen stops the avatar, sends `where = arena`, fades (same fade as the deck's arena
+  door) and pushes the arena screen. The arena files are preloaded on a thread when the station comes in reach, through
+  the deck screen that opened the room (`PackRoomScreen.hall` → `hall_screen.preload_arena` / `arena_scene`, the same
+  cache as the deck door). Coming back: the avatar stands on the station's `front` facing away from the door, the camera
+  behind it, the fade clears, then it can walk.
+- If the loaded pack room has such a station, the deck's arena door is shut (`hall_screen.arena_moved()`): no ring, no
+  prompt, no walk-in, empty sign, closed leaves drawn (SHIP_LOBBY_SPEC round B). Without one the deck door is unchanged.
+- Fixtures: `tests/fixtures/pack_rooms_arena/arena_room` (test_room plus an `arena_door` station on its left wall) and
+  `tests/fixtures/pack_rooms_bad/two_arena`. Checks: `test_pack_rooms.test_arena_station`, the broken-case table, and
+  `test_pack_room` (`_check_arena_door`).
+
+### 9.6 Dressing station (round C, 14 Nov 2026)
+
+- A station with `"action": "dressing"` (no extra keys) pushes `DressingScreen` (`ui/screens/dressing_screen.*`) over the
+  room: one button per `Figures.list()` entry, a turntable preview (`Figures.make` + `setup` role deck + H10), one swatch
+  per scheme (disabled, with "ตัวนี้ใช้สีของตัวเอง", for a figure whose `schemes` is false), three slots (load / บันทึก),
+  "ใช้ตัวนี้" = `Figures.select` and close; ‹ กลับ / Esc close without a change. Wide screens: preview, swatches and
+  ใช้ตัวนี้ left, the scrolling list and slots right; narrow: top to bottom. On min the preview never spins and redraws
+  only on a change or a drag (no per-frame work). Texts: `ui/i18n/dressing.json`. No `Figures` file = a not-ready note.
+- After ใช้ตัวนี้ the room's avatar is rebuilt by `PackRoomWorld.refresh_figure` (`App.figure_changed`); the room screen
+  rebuilds it itself only if nothing did (a stand-in API in tests). `DressingScreen.api` / `.path` point tests elsewhere.
+- Fixture `tests/fixtures/pack_rooms_dressing/dress_room` (test_room with a `wardrobe` station). Tests:
+  `tests/flow/test_dressing_flow.gd` (headless) and `tests/render/test_dressing.gd` (TH/EN, desktop and phone, preview
+  within the §3.5 figure budget), both from `tests/flow/dressing_steps.gd`; `DRESS_STUB=1` runs them against
+  `tests/unit/fixtures/figures_stub.gd` (adds the fixed-colour and H10 checks).
+
+## 10. Dressing room: figures, schemes, slots (round C, 14 Nov 2026)
+
+Owner, 14 Nov: choose which character comes out and walks on the deck and in pack rooms, in a preset colour scheme, with
+three saved characters. The public code is the registry and the walkers; the dressing screen opens only from a pack room
+station (`"action": "dressing"`), so the public app shows nothing new. Friends online still see eggs (no protocol change).
+
+- **Registry** `app/figures.gd` (`class_name Figures`, static): `list()` → `[{id, name {th, en}, kind "egg"|"kit"|"pack",
+  kit (kind kit), schemes}]` (pack figures first, then the egg, then the kits); `entry(id)`; `make(id, level)` → a deck
+  walker (not yet set up; `HallAvatar.set_figure` does that) or **`null` for the egg** (the avatar keeps its own egg) and
+  for an unknown id or a pack figure that lacks the deck API (`setup`, `set_weapon`, `play`, `set_move`, `apply_level`);
+  `dress(fig, scheme_id)` (H10 when the figure has it); `schemes()` → `[{id, name, primary, secondary, original}]`
+  (original, blue, red, green, pink, black, white, purple, gold; sRGB; `original` = the figure's own colours: `dress`
+  and the dressing screen never call H10 for it, its colours only draw the swatch); `scheme(id)`; `selected()` → `{figure, scheme}`; `select(figure_id,
+  scheme_id)` (unknown ids fall back to the defaults, writes, emits `App.figure_changed`); `slots()` → 3 × `{}` or
+  `{figure, scheme}` (a figure that no longer exists reads as `{}`); `save_slot(i, figure_id, scheme_id)`.
+- **Default**: the first pack figure, else the egg; scheme original (a figure looks as before until the owner picks).
+- **Storage**: section `[figure]` (`figure`, `scheme`, `slot0..2`) of the app's settings file (`App.settings_file`; tests
+  point it, or `Figures.store_path`, elsewhere); `App.save_settings` keeps other sections. Never `godot/data/*.json`
+  (that would change `DATA_HASH`, the online gate).
+- **Pack figures** `res://packs/figures.json` (absent = none; tests set `Figures.pack_list`):
+  `[{"id", "name": {"th", "en"}, "figure": "<path>", "schemes": bool}]`. `id` matches `^[a-z][a-z0-9_]{0,23}$`, is
+  unique, not `egg`, not `kit_*`; `en` has no Thai; `figure` is a `.gd` (`new()`) or `.tscn`/`.scn` (`instantiate()`)
+  inside the folder of `figures.json` (relative or `res://`, no `..`); `schemes` defaults to false. A broken entry is
+  skipped with a warning. Without `figures.json` an old `pack.json` `"deck"` entry is listed as one figure `"pack"`, so a
+  pack made before the dressing room keeps its deck figure as the default.
+- **Kit walkers** (`scenes/hall/kit_walker.gd`, `KitWalker extends KitBeast`): one per army, chosen by data
+  (`Figures.KITS`: skinned 23-bone foot figures with their own palette, no mount, no creature, 1.5–2.3 m tall; names are
+  the existing neutral unit names). The humanoid idle / walk / run clips of `assets/anim/humanoid.res`, `motion_scale`
+  = the kit's scale, the kit's pose holds; `deck_speeds()` = clip speed × scale × 1.4 (about 1.6 / 4.0 m/s), and the
+  playback rate follows the speed, so feet do not slide. Scheme: one row of the kit paint table (`paint_tex`,
+  `paint_row` 0; `assets/kits/CONTRACT.md` §3): armour slots primary, cloth slots (`KitWalker.SECONDARY_KEYS`)
+  secondary, and weapons, lenses, trim (`FIXED_KEYS`) and every natural slot keep their colours. Cost: one draw call,
+  about 1k triangles, per-vertex light on lo/min; standing on **lo and min** the `AnimationPlayer` holds a still pose
+  (PACK_SPEC §3.2); no `set_fade` (the walker stays opaque when the arm is squeezed).
+- **Worlds**: `HallWorld.refresh_figure()` and `PackRoomWorld.refresh_figure()` build `Figures.make(selected)`, set it on
+  the avatar and dress it; both run at build and on every `App.figure_changed`.
+- **Budgets** (measured by `tests/render/test_kit_walker.gd`, deck overview with kblade): hi 19 draws / 18.4k
+  primitives, mid 19 / 17.1k, lo 15 / 15.5k, min 15 / 14.8k — the same draw calls as the egg, about +900 primitives.
+- **Tests**: `tests/unit/test_figures.gd` (registry, kit choice by data, schemes, persistence, slots, pack list with
+  `tests/fixtures/figure_pack/figures.json` and `figure_pack_bad/figures.json`, make, the paint table, still pose),
+  `tests/render/test_kit_walker.gd` (select → rebuild, walk/run rates, every level within the deck targets, still on
+  lo/min, eight kits in eight schemes, back to the egg).

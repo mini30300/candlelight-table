@@ -525,6 +525,9 @@ targets are never raised.
 - Deck toasts (soon panel reused): "{name} เข้าห้องแล้ว", "{name} ออกจากห้อง", "{name} หลุดจากห้อง — รอต่อใหม่" (at the
   drop, slot kept) and "{name} กลับมาแล้ว", and on `SETUP open` (members) "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่ประตูเทียบยาน".
 - Main menu Back while hosting: "ออกจากเกม? ห้องจะปิด เพื่อนทุกคนจะหลุดจากห้อง".
+- Round B (14 Nov 2026): every app has the online button; with no pack room it opens host/join on top of the deck at the
+  spawn (the airlock is no station without a room), a friend's war table opens host/join while the setup is open, and
+  the setup note reads "… เลือกที่นั่งได้ที่โต๊ะรบ" (SHIP_LOBBY_SPEC round B). The network code is unchanged.
 
 ### 7.2 `ui/screens/lobby.tscn` + `lobby.gd` (built like the other screens: `CandleStyle`, safe margins, `handle_back()`)
 

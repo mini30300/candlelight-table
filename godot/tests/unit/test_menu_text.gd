@@ -57,7 +57,12 @@ func test_version_label_never_shows_thai() -> void:
 	# 0.6: battle sounds and animations from the old game, the arena dodge, online only in the personal build (0.5 -> 0.6)
 	# 0.7 (PACK_SPEC §9): pack rooms behind the docking airlock; room poses use the +30 m band, which both devices must
 	# understand, so the wrong_app gate has to keep 0.6 and 0.7 apart (0.6 -> 0.7)
-	assert_eq(v, "0.7", "this release is ใหม่ 0.7")
+	# 0.8: the deck's work desk replaces the treasure chest and the public app's airlock loses its ring (0.7 -> 0.8)
+	# 0.9: the body faces the camera in the arena, play with friends in every app (on the deck), the desk by the exit,
+	# and a pack room can take over the arena door (0.8 -> 0.9)
+	# 0.10 (PACK_SPEC §9.6, §10): the dressing room behind a pack room station (personal build); the deck figure comes
+	# from Figures (0.9 -> 0.10)
+	assert_eq(v, "0.10", "this release is ใหม่ 0.10")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 

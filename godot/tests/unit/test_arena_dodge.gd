@@ -3,9 +3,10 @@ extends "res://tests/testing.gd"
 ## the arena sound map (ArenaData.SOUNDS → the old page's DEF kinds), and a real ArenaPlayer driven tick by tick:
 ## Space / press(&"dodge") dashes 3.8 m in 0.3 s (backwards with no input, toward the stick otherwise), the first
 ## 0.25 s are invulnerable, a second dodge waits for the 0.7 s cooldown after the dash, no dodge while down, dust on
-## mid and none on min, dodge_changed says dash / cool / ready. Figure hooks H8 begin_dodge and H9 uses_strafe with
-## tests/fixtures/figure_pack/heavy_figure.gd: the player faces where this figure moves in shoot mode, turns it to the
-## aim while firing and for 0.6 s after, and sends begin_dodge the direction in its own frame. The egg's dodge clip.
+## mid and none on min, dodge_changed says dash / cool / ready. The body always faces the camera (owner, 14 Nov): walk
+## and shoot mode, moving any way, and a camera orbit while standing turns it. Figure hooks H8 begin_dodge and H9
+## uses_strafe with tests/fixtures/figure_pack/heavy_figure.gd: never turned to the move, its legs get (0, 1) for
+## forward and sideways and (0, -1) backwards (ArenaCombat.leg_dir), begin_dodge likewise. The egg's dodge clip.
 
 const EGG := "res://scenes/arena/egg_gunner.gd"
 const HEAVY := "res://tests/fixtures/figure_pack/heavy_figure.gd"
@@ -22,7 +23,7 @@ const SOUND_IDS: PackedStringArray = ["gun", "reload", "empty", "punch", "punch_
 
 func test_dodge_numbers() -> void:
 	var d := ArenaData.DODGE
-	for k in ["distance", "time", "invuln", "cooldown", "ease", "hold_aim"]:
+	for k in ["distance", "time", "invuln", "cooldown", "ease"]:
 		assert_true(d.has(k) and float(d[k]) > 0.0, "DODGE.%s is a positive number" % k, d.get(k))
 	assert_true(float(d["distance"]) >= 3.5 and float(d["distance"]) <= 4.0, "the dash is 3.5–4 m", d["distance"])
 	assert_within(float(d["time"]), 0.3, 0.001, "the dash takes 0.3 s")
@@ -63,10 +64,17 @@ func test_dodge_math() -> void:
 	assert_false(ArenaCombat.can_dodge(0.69, 0.0, true, false), "not before")
 	assert_false(ArenaCombat.can_dodge(INF, 0.0, false, false), "never while down")
 	assert_false(ArenaCombat.can_dodge(INF, 0.0, true, true), "never during a dash")
-	assert_true(ArenaCombat.faces_aim(true, true, INF), "acting: face the aim even while moving")
-	assert_true(ArenaCombat.faces_aim(false, false, INF), "standing: face the aim")
-	assert_true(ArenaCombat.faces_aim(false, true, 0.59), "moving 0.59 s after acting: still the aim")
-	assert_false(ArenaCombat.faces_aim(false, true, 0.6), "moving 0.6 s after acting: face where it moves")
+	assert_false(ArenaData.DODGE.has("hold_aim"), "hold_aim is gone (no turning to the move since 14 Nov)")
+	var s45 := Vector2(1, -1).normalized()
+	assert_eq(ArenaCombat.leg_dir(Vector2(1, 0), true), Vector2(1, 0), "strafing figure: the real direction")
+	assert_eq(ArenaCombat.leg_dir(s45, true), s45, "strafing figure: diagonals too")
+	assert_eq(ArenaCombat.leg_dir(Vector2(1, 0), false), Vector2(0, 1), "no strafe, sideways: forward legs")
+	assert_eq(ArenaCombat.leg_dir(Vector2(-1, 0), false), Vector2(0, 1), "no strafe, left: forward legs")
+	assert_eq(ArenaCombat.leg_dir(Vector2(0, 1), false), Vector2(0, 1), "no strafe, forward: forward legs")
+	assert_eq(ArenaCombat.leg_dir(Vector2(0, -1), false), Vector2(0, -1), "no strafe, back: backward legs")
+	assert_eq(ArenaCombat.leg_dir(s45, false), Vector2(0, -1), "no strafe, back-diagonal: backward legs")
+	assert_eq(ArenaCombat.leg_dir(Vector2(0.9, -0.44).normalized(), false), Vector2(0, 1), "no strafe, mostly sideways: forward legs")
+	assert_eq(ArenaCombat.leg_dir(Vector2.ZERO, false), Vector2.ZERO, "standing: zero")
 
 
 func test_sound_map() -> void:
@@ -177,43 +185,84 @@ func test_player_dodge() -> void:
 	_free(pm)
 
 
+## the body's forward (+Z) on the ground
+func _fwd(p: Node3D) -> Vector3:
+	var f := float(p.get("face"))
+	return Vector3(sin(f), 0, cos(f))
+
+
+func _cam_fwd(p: Node3D) -> Vector3:
+	var y := float((p.call("camera_rig") as Node).get("yaw")) + PI
+	return Vector3(sin(y), 0, cos(y))
+
+
+func test_faces_camera() -> void:
+	if not ResourceLoader.exists(PLAYER_SCENE):
+		return
+	for level in ["mid", "min"]:
+		var fig: Node3D = (load(EGG) as Script).new()
+		var p := _player(fig, level)
+		var rig: Node = p.call("camera_rig")
+		assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "%s: placed facing the camera" % level)
+		for m: StringName in [&"walk", &"shoot"]:
+			p.call("set_mode", m)
+			for st: Vector2 in [Vector2(1, 0), Vector2(0, -1), Vector2(-1, 0), Vector2(0, 1)]:
+				p.call("set_stick", st)
+				_ticks(p, 40)
+				assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "%s %s: moving %s the body still faces the camera" % [level, m, st])
+			assert_true((fig.call("move_dir") as Vector2).y > 0.9, "%s %s: the egg's last step is forward" % [level, m])
+			p.call("set_stick", Vector2(1, 0))
+			_ticks(p, 40)
+			assert_true((fig.call("move_dir") as Vector2).x > 0.9, "%s %s: the egg side-steps right (strafe kept)" % [level, m], fig.call("move_dir"))
+			p.call("set_stick", Vector2.ZERO)
+			_ticks(p, 90)
+			if m == &"walk":
+				rig.call("orbit", 0.8, 0.0)
+			else:
+				p.call("aim_drag", Vector2(-120, 0))
+			assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "%s %s: turning the camera while standing turns the body" % [level, m])
+		p.call("set_mode", &"walk")
+		_ticks(p, 120)
+		assert_false(p.is_physics_processing(), "%s: standing, nothing processes" % level)
+		_free(p)
+
+
 func test_heavy_figure_hooks() -> void:
 	if not ResourceLoader.exists(PLAYER_SCENE):
 		return
 	var fig: Node3D = (load(HEAVY) as Script).new()
 	var p := _player(fig, "mid")
 	assert_true(bool(p.get("_fig_dodge")) and not bool(p.call("strafes")), "setup cached H8 and H9 (uses_strafe false)")
-	p.call("set_mode", &"shoot")
-	_ticks(p, 20)
-	var rig: Node = p.call("camera_rig")
-	var aim := float(rig.get("yaw")) + PI
-	assert_within(absf(angle_difference(float(p.get("face")), aim)), 0.0, 0.02, "standing: it faces the aim")
-	p.call("set_stick", Vector2(1, 0))
-	_ticks(p, 40)
-	var right: Vector3 = rig.call("right_flat")
-	var face := float(p.get("face"))
-	assert_true(Vector3(sin(face), 0, cos(face)).dot(right) > 0.95, "moving right in shoot mode: it turns to face where it moves", face)
-	assert_true((fig.get("last_dir") as Vector2).y > 0.9, "…so the figure walks forward (local_dir y > 0.9)", fig.get("last_dir"))
+	for m: StringName in [&"walk", &"shoot"]:
+		p.call("set_mode", m)
+		for k: Array in [[Vector2(1, 0), 1.0], [Vector2(-1, 0), 1.0], [Vector2(0, 1), 1.0], [Vector2(0, -1), -1.0]]:
+			p.call("set_stick", k[0])
+			_ticks(p, 40)
+			assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "%s, stick %s: never turned to the move, it faces the camera" % [m, k[0]])
+			assert_eq(fig.get("last_dir"), Vector2(0, k[1]), "%s, stick %s: legs %s (forward for forward and sideways, back for back)" % [m, k[0], Vector2(0, k[1])])
+		p.call("set_stick", Vector2.ZERO)
+		_ticks(p, 90)
+		assert_eq(fig.get("last_dir"), Vector2.ZERO, "%s: standing, (0, 0)" % m)
+		assert_false(p.is_physics_processing(), "%s: standing, nothing processes (no hold-aim timer)" % m)
 	p.call("press", &"fire", true)
 	_ticks(p, 20)
-	assert_within(absf(angle_difference(float(p.get("face")), aim)), 0.0, 0.05, "firing while moving: it turns to the aim")
 	p.call("press", &"fire", false)
-	_ticks(p, 24)
-	assert_within(absf(angle_difference(float(p.get("face")), aim)), 0.0, 0.05, "0.4 s after firing it still holds the aim")
-	_ticks(p, 40)
-	face = float(p.get("face"))
-	assert_true(Vector3(sin(face), 0, cos(face)).dot(right) > 0.95, "after 0.6 s it faces where it moves again")
-	(fig.get("calls") as Dictionary).clear()
-	assert_true(bool(p.call("dodge")), "a dodge")
-	var c: Dictionary = fig.get("calls")
-	var ld: Dictionary = fig.get("last_dodge")
-	assert_eq(int(c.get("begin_dodge", 0)), 1, "begin_dodge is called once (H8)")
-	assert_true((ld.get("dir", Vector2.ZERO) as Vector2).y > 0.95 and absf(float(ld.get("duration", 0)) - 0.3) < 1e-4,
-		"…with the direction in its own frame (it turned to the dash: forward) and 0.3 s", ld)
-	_ticks(p, 30)
-	p.call("set_stick", Vector2.ZERO)
-	_ticks(p, 60)
-	assert_within(absf(angle_difference(float(p.get("face")), aim)), 0.0, 0.05, "standing again: it turns back to the aim")
+	assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "firing: still facing the camera")
+	_ticks(p, 120)
+	for k: Array in [[Vector2(1, 0), 1.0], [Vector2(0, -1), -1.0]]:
+		(fig.get("calls") as Dictionary).clear()
+		p.call("set_stick", k[0])
+		_ticks(p, 2)
+		assert_true(bool(p.call("dodge")), "a dodge with stick %s" % k[0])
+		var c: Dictionary = fig.get("calls")
+		var ld: Dictionary = fig.get("last_dodge")
+		assert_eq(int(c.get("begin_dodge", 0)), 1, "begin_dodge is called once (H8)")
+		assert_true(ld.get("dir", Vector2.ZERO) == Vector2(0, k[1]) and absf(float(ld.get("duration", 0)) - 0.3) < 1e-4,
+			"…with legs %s and 0.3 s; the body is not turned" % Vector2(0, k[1]), ld)
+		assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "dodging %s: facing the camera" % k[0])
+		_ticks(p, 30)
+		p.call("set_stick", Vector2.ZERO)
+		_ticks(p, 120)
 	p.call("set_mode", &"walk")
 	_free(p)
 

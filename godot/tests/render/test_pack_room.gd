@@ -13,7 +13,13 @@ extends SceneTree
 ## deck pose; the host's SETUP-open note in the room names the cards station; a second visit is a new screen that
 ## draws a friend already in the room (seed_poses), a member who leaves loses the room pose and a reused slot starts on
 ## the deck; a screen pushed during the leave fade (a friend starting a battle) leaves no black room behind: popping it
-## lands on the deck; a room whose script blocks the spawn is refused: the lobby opens, then the ROOM_FAILED note. Run:
+## lands on the deck; a room whose script blocks the spawn is refused: the lobby opens, then the ROOM_FAILED note.
+## Round B (14 Nov): with test_room (no arena door) the deck's arena door is open (ring, no shutter); pointed at the
+## arena fixture (tests/fixtures/pack_rooms_arena: the same room plus an "arena" station) the deck's arena door is shut
+## (no ring, no prompt, empty sign, the closed leaves drawn, walking into the doorway does nothing); in the room the arena
+## door has its Thai / English prompt and preloads the arena files; walking into it fades and pushes the arena screen
+## (where = arena); its ‹ lobby button lands back in the room in front of the arena door facing away from it, and the
+## room stays (no re-entry). Run:
 ##   xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 --resolution 1280x720 \
 ##     --audio-driver Dummy -s tests/render/test_pack_room.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL. PNGs in $TEST_OUT (default godot/tests/out).
@@ -22,6 +28,8 @@ const SCENE := "res://scenes/main.tscn"
 const SETTINGS_FILE := "user://test_pack_room.cfg"
 const FIX := "res://tests/fixtures/pack_rooms"
 const REFUSED := "res://tests/fixtures/pack_rooms_refused"
+const ARENA_FIX := "res://tests/fixtures/pack_rooms_arena"
+const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
 const FAKE_NET := "res://tests/unit/fixtures/fake_net.gd"
 const BUDGET_SCRIPT := "res://tests/render/room_budget.gd"
 const DEFAULT_OUT_DIR := "res://tests/out"
@@ -97,6 +105,7 @@ func _run() -> void:
 	await _check_second_visit(hall, first_id)
 	await _check_esc(hall)
 	await _check_refused(hall)
+	await _check_arena_door(hall)
 	_finish()
 
 
@@ -443,6 +452,93 @@ func _check_refused(hall: Node) -> void:
 		"back on the deck: the ROOM_FAILED note", soon.text)
 	_check(not (hall.get_node("%Fade") as CanvasItem).visible, "and no fade left")
 	hall.set("rooms_root", FIX)
+
+
+## round B: a room with an arena door shuts the deck's arena door; the room's door is a walk-in way to the arena
+func _check_arena_door(hall: Node) -> void:
+	hall.call("close_soon")
+	var world: Node3D = hall.get("world")
+	var use: Button = hall.get_node("%UseButton")
+	hall.call("refresh")
+	_check(bool(world.call("station_enabled", "arena")) and not bool(world.call("arena_shut")) and not bool(hall.call("arena_moved")),
+		"test_room has no arena door: the deck's arena door stays open (ring, no shutter)")
+	hall.set("rooms_root", ARENA_FIX)
+	hall.call("refresh")
+	var af: Vector2 = HallLayout.STATIONS["arena"]["front"]
+	world.call("place_avatar", Vector3(af.x, 0.0, af.y), 0.0)
+	(world.get("camera_rig") as Node3D).call("set_view", PI, -0.3, 6.5)
+	await _physics(4)
+	await _frames(2)
+	_check(bool(hall.call("arena_moved")) and not bool(world.call("station_enabled", "arena")) and bool(world.call("arena_shut"))
+		and str(world.call("sign_text", "arena")) == "" and str(hall.call("station")) == "" and not use.visible,
+		"the arena room: the deck's arena door is shut (no ring, no prompt, no sign, closed leaves)")
+	_save("pack_room_deck_arena_shut.png")
+	var depth := int(_app().call("depth"))
+	world.call("set_stick", Vector2(0.0, 0.84))
+	await _physics(60)
+	world.call("set_stick", Vector2.ZERO)
+	await _frames(10)
+	_check(_app().call("current") == hall and int(_app().call("depth")) == depth and not bool(hall.call("fading")),
+		"walking into the shut arena door stays on the deck")
+	var room: Node = hall.call("enter_room", true)
+	_check(room != null and room.has_method("room_id") and str(room.call("room_id")) == "arena_room", "the arena room opens")
+	if room == null or not room.has_method("room_id"):
+		hall.set("rooms_root", FIX)
+		return
+	await _frames_until(func() -> bool: return not bool(room.call("fading")), 60)
+	var rw: Node3D = room.get("world")
+	var lay: RoomLayout = rw.get("layout")
+	var f: Vector2 = lay.stations["arena_door"]["front"]
+	rw.call("place_avatar", Vector3(f.x, 0.0, f.y), -PI * 0.5)
+	await _frames(3)
+	var ruse: Button = room.get_node("%UseButton")
+	_check(str(room.call("station")) == "arena_door" and ruse.visible and ruse.text == "อารีน่าทดสอบอาวุธ · กด E", "the room's arena door prompt (Thai)", ruse.text)
+	_app().call("set_lang", "en")
+	room.call("refresh")
+	await _frames(2)
+	_check(ruse.text == "Weapons Arena · press E", "and in English", ruse.text)
+	_app().call("set_lang", "th")
+	room.call("refresh")
+	_check(int((hall.call("arena_preloaded") as Dictionary)["requested"]) > 0, "reaching the room's arena door preloads the arena files")
+	_save("pack_room_arena_door.png")
+	(rw.get("camera_rig") as Node3D).call("set_view", PI * 0.5, -0.3, 6.5)
+	var where0 := (_fake.get("calls") as Array).size()
+	rw.call("set_stick", Vector2(0.0, 0.84))
+	var arena: Node = null
+	for i in 240:
+		await physics_frame
+		var cur: Node = _app().call("current")
+		if cur != null and cur.scene_file_path == ARENA_SCREEN:
+			arena = cur
+			break
+	rw.call("set_stick", Vector2.ZERO)
+	_check(arena != null and int(_app().call("depth")) == depth + 2, "walking into the room's arena door pushes the arena screen")
+	var wh := (_fake.get("calls") as Array).slice(where0).filter(func(c: Array) -> bool: return str(c[0]) == "set_where")
+	_check(not wh.is_empty() and str(wh[0][1]) == "arena", "and tells the room where = arena", str(wh))
+	if arena == null:
+		room.call("leave")
+		hall.set("rooms_root", FIX)
+		return
+	await _frames(20)
+	var lobby: Button = arena.get_node_or_null("%LobbyButton")
+	if lobby != null:
+		lobby.pressed.emit()
+	else:
+		_app().call("pop")
+	await _frames_until(func() -> bool: return _app().call("current") == room and not bool(room.call("fading")), 120)
+	var av := rw.get("avatar") as Node3D
+	_check(_app().call("current") == room and Vector2(av.global_position.x, av.global_position.z).distance_to(f) < 0.05
+		and absf(wrapf(float(av.get("face")) - PI * 0.5, -PI, PI)) < 0.05, "back from the arena: in the room at the arena door's front facing away",
+		"%s face %.2f" % [str(av.global_position), float(av.get("face"))])
+	_check(av.process_mode == Node.PROCESS_MODE_INHERIT and not (room.get_node("%Fade") as CanvasItem).visible, "the fade cleared and the avatar walks")
+	await _frames(20)
+	_check(_app().call("current") == room, "standing at the door does not enter again")
+	_save("pack_room_arena_back.png")
+	room.call("leave")
+	await _frames_until(func() -> bool: return _app().call("current") == hall and not bool(hall.call("fading")), 90)
+	hall.set("rooms_root", FIX)
+	hall.call("refresh")
+	_check(bool(world.call("station_enabled", "arena")) and not bool(world.call("arena_shut")), "back to test_room: the deck's arena door opens again")
 
 
 # ---- ตัวช่วย ----

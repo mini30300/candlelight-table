@@ -9,7 +9,7 @@ extends SceneTree
 ##  3. hold W down the corridor: past z -11.3 shoot mode, the rifle, ammo (30, 30), aim_active(), the mouse captured;
 ##     the app going to the background pauses the fight, resume and one click re-captures;
 ## 3b. (ARENA_SPEC §9.4, H6) at (0, -14): holding D, S and A in shoot mode tells the egg it moves right, back and left
-##     (move_dir() x > 0.9, y < -0.9, x < -0.9; a figure with H9 uses_strafe() false is turned to walk forward: y > 0.9); standing again gives (0, 0) and nothing processes on min;
+##     (move_dir() x > 0.9, y < -0.9, x < -0.9; a figure with H9 uses_strafe() false: D and A y > 0.9, S y < -0.9; the body faces the camera throughout); standing again gives (0, 0) and nothing processes on min;
 ##  4. aim at the beast's chest and hold the left button: shots land, the beast dies after 25 hits and 300 damage (5
 ##     rounds left: no shot missed), the board says ล้มแล้ว · กดรีเซ็ต, the HUD showed the rifle's merged damage number;
 ##     the empty magazine reloads by itself with the button still held, R reloads a part-used one;
@@ -138,19 +138,23 @@ func _run() -> void:
 	await _physics(6)
 	var fig3: Node3D = player.call("figure")
 	var dirs := {}
+	var off_cam := 0.0
 	for k: Array in [[KEY_D, "D"], [KEY_S, "S"], [KEY_A, "A"]]:
 		_key(k[0], true)
 		await _physics(int(0.4 * Engine.physics_ticks_per_second))
 		dirs[k[1]] = fig3.call("move_dir") if fig3 != null and fig3.has_method("move_dir") else Vector2.ZERO
+		var cyaw := float((player.call("camera_rig") as Node).get("yaw")) + PI
+		off_cam = maxf(off_cam, absf(angle_difference(float(player.get("face")), cyaw)))
 		_key(k[0], false)
 		await _physics(int(0.3 * Engine.physics_ticks_per_second))
 	if not player.has_method("strafes") or bool(player.call("strafes")):
 		_check((dirs["D"] as Vector2).x > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).x < -0.9 and str(world.call("mode")) == "shoot",
 			"3b. shoot mode: D, S and A tell the egg it moves right, back and left", str(dirs))
 	else:
-		# H9 (ARENA_SPEC §9.5): a figure that does not strafe is turned to face where it moves (a pack figure)
-		_check((dirs["D"] as Vector2).y > 0.9 and (dirs["S"] as Vector2).y > 0.9 and (dirs["A"] as Vector2).y > 0.9 and str(world.call("mode")) == "shoot",
-			"3b. shoot mode, a figure without strafing (H9): D, S and A turn it to walk forward where it goes", str(dirs))
+		# H9 (ARENA_SPEC §9.5, 14 Nov): a figure that does not strafe walks forward sideways and backward when backing
+		_check((dirs["D"] as Vector2).y > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).y > 0.9 and str(world.call("mode")) == "shoot",
+			"3b. shoot mode, a figure without strafing (H9): D and A forward legs, S backward legs", str(dirs))
+	_check(off_cam < 0.01, "3b. the body faces the camera while moving every way (owner, 14 Nov)", "%.3f rad" % off_cam)
 	await _physics(int(0.5 * Engine.physics_ticks_per_second))
 	await _frames(12)
 	# move_dir() is an extra of the egg (not in FIGURE_API): read it once, guarded, so a figure without it fails the check
@@ -238,7 +242,8 @@ func _run() -> void:
 	world.disconnect("bot_toggled", cb)
 	_check(toggles[0] == 1 and bool((world.call("stats") as Dictionary)["bot_on"]) and bool(world.call("beacon_lit")),
 		"6. a 1.5 s burst at the plate turns the bot on exactly once (%d toggles), the beacon lit" % toggles[0])
-	_check((arena.get_node("%Toast") as Label).text == "บอทเปิด — สัตว์รังไล่ตามคุณแล้ว" and str(world.call("sign_text", "board_body")).begins_with("บอท: เปิด"),
+	_check((arena.get_node("%Toast") as Label).text == "บอทเปิด — %sไล่ตามคุณแล้ว" % str(arena.call("enemy_name"))
+		and (not ArenaActors.enemy_name().is_empty() or str(arena.call("enemy_name")) == "สัตว์รัง") and str(world.call("sign_text", "board_body")).begins_with("บอท: เปิด"),
 		"6. toast and board say the bot is on", (arena.get_node("%Toast") as Label).text + " | " + str(world.call("sign_text", "board_body")))
 	# 7
 	var hp_p := int(player.call("hp"))
@@ -437,6 +442,21 @@ func _walk_in(hall: Node) -> Node:
 	world.call("place_avatar", HallLayout.SPAWN, PI)
 	await _physics(4)
 	var goal: Vector2 = HallLayout.STATIONS["arena"]["front"]
+	var t0 := get_frame()
+	if bool(hall.call("arena_moved")):
+		# personal build: a pack room took the arena door (PACK_SPEC §9.5; the room door is test_pack_room's)
+		world.call("place_avatar", Vector3(goal.x, 0.0, goal.y), PI)
+		await _physics(4)
+		_check(str(hall.call("station")) == "" and bool(world.call("arena_shut")), "2. a pack room took the arena door: the deck door is shut")
+		for i in 90:
+			var dz := Vector3(0.0, 0.0, 1.0)
+			world.call("set_stick", Vector2(dz.dot(rig.call("right_flat")), dz.dot(rig.call("forward_flat"))) * STICK)
+			await physics_frame
+		world.call("set_stick", Vector2.ZERO)
+		_check(int(_app().call("depth")) == 2, "2. walking into the shut doorway does not enter")
+		hall.call("enter_arena")
+		await _frames_until(func() -> bool: return int(_app().call("depth")) == 3, 240)
+		return await _in_arena(hall, world, t0)
 	var path := _path(HallLayout.spawn_xz(), goal)
 	_check(not path.is_empty(), "2. a free path leads from the spawn to the arena door")
 	var k := 0
@@ -459,7 +479,7 @@ func _walk_in(hall: Node) -> Node:
 	_check(str(hall.call("station")) == "arena" and use.visible and use.text.contains("อารีน่าทดสอบอาวุธ"), "2. at the door the prompt names อารีน่าทดสอบอาวุธ (%s)" % use.text)
 	_check(int(_app().call("depth")) == 2, "2. the prompt alone does not enter")
 	# keep walking straight into the doorway (+z)
-	var t0 := get_frame()
+	t0 = get_frame()
 	for i in 240:
 		var p := Vector2(av.global_position.x, av.global_position.z)
 		var dir := Vector3(goal.x - p.x, 0.0, 1.0).normalized()
@@ -468,6 +488,10 @@ func _walk_in(hall: Node) -> Node:
 		if int(_app().call("depth")) == 3:
 			break
 	world.call("set_stick", Vector2.ZERO)
+	return await _in_arena(hall, world, t0)
+
+
+func _in_arena(hall: Node, world: Node3D, t0: int) -> Node:
 	await _frames(4)
 	var arena: Node = _app().call("current")
 	_check(int(_app().call("depth")) == 3 and arena != null and arena.scene_file_path == ARENA_SCREEN,

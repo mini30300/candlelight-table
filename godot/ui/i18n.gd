@@ -10,7 +10,7 @@ const EXTRA_PATH := "res://ui/i18n_extra.json"
 const PAGE_PATH := "res://data/i18n_en.json"
 const FRAGMENTS: PackedStringArray = ["res://ui/i18n/menu.json", "res://ui/i18n/hall.json", "res://ui/i18n/battle.json",
 	"res://ui/i18n/arena.json", "res://ui/i18n/arena_hud.json", "res://ui/i18n/arena_data.json", "res://ui/i18n/online.json",
-	"res://ui/i18n/online_battle.json"]
+	"res://ui/i18n/online_battle.json", "res://ui/i18n/dressing.json"]
 
 ## คำแปลที่ฝังในโค้ด (i18n_extra.json ต้องมีคู่เดียวกัน; เทสตรวจ)
 const EN: Dictionary = {

@@ -109,9 +109,10 @@ func open(r: Dictionary) -> bool:
 	_build_signs()
 	if r.has("bg"):
 		_env.background_color = Color("#" + str(r["bg"]))
-	avatar.set_figure(ArenaActors.make_figure("deck"), {"level": level if HallWorld.LEVELS.has(level) else "mid",
-		"team_colour": team_colour, "seed": 0})
-	_apply_alpha()
+	refresh_figure()
+	var app := get_node_or_null(^"/root/App")
+	if app != null and app.has_signal("figure_changed") and not app.is_connected("figure_changed", refresh_figure):
+		app.connect("figure_changed", refresh_figure)
 	apply_level(level)
 	refresh_text()
 	place_avatar(layout.spawn, layout.spawn_yaw + PI)
@@ -119,6 +120,15 @@ func open(r: Dictionary) -> bool:
 	if active:
 		camera_rig.camera.make_current()
 	return true
+
+
+## ตัวที่เลือกในห้องแต่งตัว (Figures; ไข่ = null) ทาชุดสี (H10) แล้วใช้ความจางปัจจุบัน · เรียกซ้ำเมื่อ App.figure_changed
+func refresh_figure() -> void:
+	var sel := Figures.selected()
+	var l := level if HallWorld.LEVELS.has(level) else "mid"
+	avatar.set_figure(Figures.make(StringName(sel["figure"]), StringName(l)), {"level": l, "team_colour": team_colour, "seed": 0})
+	Figures.dress(avatar.figure, str(sel["scheme"]))
+	_apply_alpha()
 
 
 ## ระดับกราฟิก: ค่ารวมของแอปแบบ HallWorld แล้วไข่/ตัวละคร เพื่อน ขอบป้าย และสคริปต์ของห้อง

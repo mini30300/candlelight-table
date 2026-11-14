@@ -129,7 +129,10 @@ static func dodge_invulnerable(t: float) -> bool:
 	return t >= 0.0 and t < float(ArenaData.DODGE["invuln"])
 
 
-## ตัวละครที่ไม่เดินเยื้อง (H9 false) ในโหมดยิง: หันตามทิศเล็งตอนยืนนิ่ง ตอนยิง/ฟัน/ต่อย (acting)
-## และอีก hold_aim วิหลังจากนั้น · นอกนั้นหันตามทิศเดิน
-static func faces_aim(acting: bool, moving: bool, since_action: float) -> bool:
-	return acting or not moving or since_action < float(ArenaData.DODGE["hold_aim"])
+## H9: ทิศขาที่ส่งให้ตัวละคร (กรอบตัว H6) · เดินเยื้องได้ = ทิศจริง · ไม่เดินเยื้อง = เดินหน้า (0, 1) ทั้งหน้าและข้าง
+## ถอยหลัง (0, −1) เมื่อ y < BACK_Y (หันหลังเกิน 120°) · หยุด = (0, 0)
+const BACK_Y := -0.5
+static func leg_dir(local: Vector2, strafe: bool) -> Vector2:
+	if strafe or local == Vector2.ZERO:
+		return local
+	return Vector2(0.0, -1.0) if local.y < BACK_Y else Vector2(0.0, 1.0)

@@ -2,6 +2,8 @@ class_name PackRoomScreen
 extends Control
 ## หน้าห้องเสริมหลังประตูบนดาดฟ้า (PACK_SPEC §9): เปิดทับหน้าดาดฟ้า ภาพของห้องมาจากชุดเสริม ปุ่มและข้อความเป็นของแอป
 ## สถานีจาก room.json: soon → แผง "เร็วๆ นี้", cards → แผงการ์ดเลือกโหมด, online → หน้าเล่นกับเพื่อน, back → กลับดาดฟ้า
+## dressing → ห้องแต่งตัว (DressingScreen) ใช้ตัวใหม่แล้วตัวผู้เล่นในห้องเปลี่ยนตาม
+## arena → เดินเข้าประตู/กด E = จอมืดแล้วเปิดหน้าอารีน่า กลับมายืนหน้าประตูหันออก (ไฟล์อารีน่าโหลดล่วงหน้าผ่านหน้าดาดฟ้า)
 ## เดินเข้าประตู (walk_in) หรือ ‹ ดาดฟ้า / Esc → จอมืดแวบหนึ่งแล้วกลับดาดฟ้า (ไม่กลับหน้าแรก)
 ## ออนไลน์: ห้องนี้เป็นส่วนหนึ่งของยาน (where = deck) ส่งท่าในแถบห้อง x + 30 ม. (PackRooms.to_band) เห็นเพื่อนที่อยู่ในห้อง
 ## ถูกหน้าอื่นทับ: หยุดห้องและสคริปต์ของห้อง; กลับมาโชว์: อ่านกราฟิก/ภาษา/ปุ่มบนจอใหม่
@@ -11,6 +13,9 @@ signal station_changed(id: String)
 
 const SETTINGS_SCREEN := "res://ui/screens/settings.tscn"
 const LOBBY_SCREEN := "res://ui/screens/lobby.tscn"
+const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
+const DRESSING_SCREEN := "res://ui/screens/dressing_screen.tscn"
+const DRESSING_NOT_READY := "ห้องแต่งตัว — ยังไม่พร้อม"
 const FADE_TIME := 0.25
 const BACK_TEXT := "‹ ดาดฟ้า"
 const CLOSE_TEXT := "ปิดแผงนี้"
@@ -57,6 +62,8 @@ var touch_mode := false
 var active := false
 var room: Dictionary = {}
 var net: Node
+## หน้าดาดฟ้าที่เปิดห้องนี้ (โหลดไฟล์อารีน่าล่วงหน้าและจำไว้) · null = โหลดตอนเข้า
+var hall: Node
 
 var _opened := false
 var _hint_done := false
@@ -65,6 +72,8 @@ var _note := ""
 var _note_args: Dictionary = {}
 var _cards := ""                      # สถานีของแผงการ์ดที่เปิดอยู่
 var _leaving := false
+var _entering := false                # กำลังจอมืดเข้าอารีน่า
+var _from_arena := ""                 # สถานีประตูอารีน่าที่เข้าไป: กลับมายืนหน้าประตูนี้
 var _pop_when_shown := false          # หน้าอื่นทับระหว่างจอมืดตอนออก: ปิดหน้านี้เมื่อกลับมาโชว์
 var _setup_open := false
 var _fading := false
@@ -160,7 +169,7 @@ func station() -> String:
 
 
 func fading() -> bool:
-	return _fading or _leaving
+	return _fading or _leaving or _entering
 
 
 func cards_open() -> bool:
@@ -211,6 +220,10 @@ func use_station() -> void:
 			open_online()
 		"back":
 			leave()
+		"arena":
+			enter_arena()
+		"dressing":
+			open_dressing()
 
 
 func show_soon(pair: Variant) -> void:
@@ -278,6 +291,89 @@ func open_online() -> Node:
 	return App.push(load(LOBBY_SCREEN))
 
 
+## เปิดห้องแต่งตัวทับห้องนี้ (ปิดแล้วกลับมาที่เดิม) · ไม่มี Figures = แผงข้อความ คืน null
+func open_dressing() -> Node:
+	if DressingScreen.figures_api() == null:
+		show_note(DRESSING_NOT_READY)
+		return null
+	close_cards()
+	close_soon()
+	stick.release()
+	world.avatar.halt()
+	var ds := App.push(load(DRESSING_SCREEN))
+	ds.connect(&"closed", _on_dressing_closed.bind(_figure_key()))
+	return ds
+
+
+## ปิดห้องแต่งตัว: ใช้ตัวใหม่ = สร้างตัวผู้เล่นในห้องใหม่ (ข้ามถ้า App.figure_changed สร้างให้แล้ว)
+func _on_dressing_closed(used: bool, before: int) -> void:
+	var f := DressingScreen.figures_api()
+	if not used or f == null or not _opened or _figure_key() != before:
+		return
+	var sel: Dictionary = f.call("selected")
+	var id := str(sel.get("figure", ""))
+	var fig: Variant = f.call("make", StringName(id), StringName(world.level))
+	world.avatar.set_figure(fig as Node3D, {"level": world.level, "team_colour": world.team_colour, "seed": 0})
+	DressingScreen.paint(fig as Node3D, f, id, str(sel.get("scheme", "")))
+	world.apply_level(world.level)
+
+
+func _figure_key() -> int:
+	return world.avatar.figure.get_instance_id() if world.avatar.figure != null else 0
+
+
+## เข้าอารีน่าจากประตูในห้อง (ครั้งเดียวต่อการกด): หยุดตัว จอมืด แล้วเปิดหน้าอารีน่าทับ · เปิดไม่ได้ = จอสว่างเดินต่อ
+func enter_arena() -> void:
+	var id := PackRooms.arena_station(room)
+	if not active or fading() or id == "":
+		return
+	_entering = true
+	preload_arena()
+	_set_where(&"arena")
+	close_cards()
+	close_soon()
+	stick.release()
+	world.avatar.halt()
+	world.avatar.process_mode = Node.PROCESS_MODE_DISABLED
+	pose_timer.stop()
+	await _fade_to(1.0)
+	_entering = false
+	var ps := _arena_scene()
+	if active and ps != null:
+		_from_arena = id
+		if App.push(ps) != null:
+			return
+		_from_arena = ""
+	world.avatar.process_mode = Node.PROCESS_MODE_INHERIT
+	_set_where(&"deck")
+	await _fade_to(0.0)
+
+
+## เริ่มโหลดไฟล์อารีน่าในเธรด (ผ่านหน้าดาดฟ้า เรียกซ้ำได้)
+func preload_arena() -> void:
+	if hall != null and is_instance_valid(hall) and hall.has_method("preload_arena"):
+		hall.call("preload_arena")
+
+
+func _arena_scene() -> PackedScene:
+	if hall != null and is_instance_valid(hall) and hall.has_method("arena_scene"):
+		return hall.call("arena_scene") as PackedScene
+	return load(ARENA_SCREEN) as PackedScene if ResourceLoader.exists(ARENA_SCREEN) else null
+
+
+## กลับจากอารีน่า: ยืนหน้าประตู หันออกจากประตู กล้องอยู่หลังตัว จอค่อย ๆ สว่างแล้วค่อยเดินได้
+func _back_from_arena(id: String) -> void:
+	var lay := world.layout
+	if lay.stations.has(id):
+		var f: Vector2 = lay.stations[id]["front"]
+		var d: Vector2 = f - (lay.stations[id]["c"] as Vector2)
+		var yaw := atan2(d.x, d.y)
+		world.place_avatar(Vector3(f.x, 0.0, f.y), yaw)
+		world.camera_rig.set_view(yaw + PI, -0.45, 6.5)
+	await _fade_to(0.0)
+	world.avatar.process_mode = Node.PROCESS_MODE_INHERIT
+
+
 ## กลับดาดฟ้า (ครั้งเดียว): หยุดตัวผู้เล่น จอมืด แล้วปิดหน้านี้ (ดาดฟ้ามาวางตัวที่หน้าประตูเอง)
 func leave() -> void:
 	if not active or _leaving:
@@ -335,6 +431,10 @@ func _activate(on: bool) -> void:
 	world.set_active(on)
 	if on:
 		refresh()
+		if _from_arena != "":
+			var back_id := _from_arena
+			_from_arena = ""
+			_back_from_arena(back_id)
 		_set_where(&"deck")
 		_send_pose(true)
 		var music := get_node_or_null(^"/root/Music")
@@ -368,6 +468,8 @@ func _on_resize() -> void:
 
 func _on_station(id: String) -> void:
 	_update_prompt()
+	if id != "" and str(world.station_data(id).get("action", "")) == "arena":
+		preload_arena()
 	if id != "" and active:
 		_sfx(&"ui")
 	station_changed.emit(id)
@@ -396,7 +498,10 @@ func _on_avatar_moved(p: Vector3) -> void:
 	_footstep(p)
 	var id := world.station()
 	if id != "" and bool(world.layout.stations[id]["walk_in"]) and world.layout.in_walk_in(id, Vector2(p.x, p.z)):
-		leave()
+		if str(world.layout.stations[id]["action"]) == "arena":
+			enter_arena()
+		else:
+			leave()
 		return
 	if soon_panel.visible:
 		close_soon()

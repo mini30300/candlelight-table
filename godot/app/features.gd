@@ -2,7 +2,7 @@ class_name Features
 extends RefCounted
 ## สวิตช์ฟีเจอร์ที่เปิดเฉพาะแอปรุ่นส่วนตัว (PACK_SPEC §5.1): อ่าน res://packs/features.json ครั้งแรกที่ถาม
 ## รูป {"online": true} · ไม่มีไฟล์ (แอปสาธารณะ) = ปิดทุกอย่าง · เทสเปิดเองด้วย set_flag()
-## online = ปุ่มออนไลน์หน้าแรก + ประตูเทียบยานเปิดหน้าเล่นกับเพื่อน (โค้ดเครือข่ายเหมือนเดิม แค่ซ่อนทางเข้า)
+## online = เปิดห้องเสริมหลังประตูเทียบยาน (รอบ B: เล่นกับเพื่อนเปิดทุกแอป ไม่ขึ้นกับสวิตช์นี้แล้ว)
 
 const PATH := "res://packs/features.json"
 const KNOWN: PackedStringArray = ["online"]

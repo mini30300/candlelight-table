@@ -63,6 +63,8 @@ var _outline: Dictionary = {}          # id → ขนาดขอบเดิ�
 var _station := ""
 var _avatar_ring := -1
 var _station_rings: Dictionary = {}    # id → ดัชนีวงแหวน
+var _off: Dictionary = {}              # สถานีที่ปิด (id → true): ไม่มีวง ไม่นับเป็นสถานี
+var _shutter: MeshInstance3D           # บานปิดทึบของประตูอารีน่า (สร้างเมื่อปิดครั้งแรก)
 var _blockers := 0
 var _sides := 0
 var _flame_count := 0
@@ -117,7 +119,9 @@ func _ready() -> void:
 	avatar.moved.connect(_on_avatar_moved)
 	var app := get_node_or_null(^"/root/App")
 	level = str(app.get("gfx")) if app != null else "mid"
-	set_figure(ArenaActors.make_figure("deck"))
+	refresh_figure()
+	if app != null and app.has_signal("figure_changed"):
+		app.connect("figure_changed", refresh_figure)
 	camera_rig.arm_settled.connect(_on_arm)
 	camera_rig.set_view(HallLayout.SPAWN_YAW, camera_rig.pitch, camera_rig.arm_length)
 	apply_level(level)
@@ -252,10 +256,55 @@ func station() -> String:
 	return _station
 
 
+## เปิด/ปิดสถานี id: ปิด = ไม่มีวงหน้าสถานี ไม่มีปุ่มใช้งาน (ของยังวาดเป็นฉาก) · แอปสาธารณะปิดประตูเทียบยาน
+func set_station_enabled(id: String, on: bool) -> void:
+	if not _station_rings.has(id) or on != _off.has(id):
+		return
+	if on:
+		_off.erase(id)
+		var f: Vector2 = HallLayout.STATIONS[id]["front"]
+		_station_rings[id] = rings.add_kind(Rings.Kind.OBJECTIVE, Vector3(f.x, 0.0, f.y), Vector3.UP, STATION_RING_R)
+	else:
+		_off[id] = true
+		rings.remove_ring(int(_station_rings[id]))
+		_station_rings[id] = -1
+	if id == "arena":
+		_set_shut(not on)
+	_update_station(avatar.global_position)
+
+
+func station_enabled(id: String) -> bool:
+	return _station_rings.has(id) and not _off.has(id)
+
+
+## ประตูอารีน่าปิดทึบ (อารีน่าอยู่ในห้องเสริม): โชว์บานปิด · เมชนิ่ง ไม่มีงานต่อเฟรม
+func _set_shut(on: bool) -> void:
+	if on and _shutter == null:
+		_shutter = MeshInstance3D.new()
+		_shutter.name = "ArenaShutter"
+		_shutter.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_shutter.material_override = HallBuilder.material()
+		_shutter.mesh = HallBuilder.arena_shutter_mesh()
+		static_root.add_child(_shutter)
+	if _shutter != null:
+		_shutter.visible = on
+
+
+func arena_shut() -> bool:
+	return _shutter != null and _shutter.visible
+
+
 ## ตัวละครชุดเสริมแทนไข่ (null = ไข่): ส่งระดับกราฟิก สีทีม แล้วใช้ความจางปัจจุบัน
 func set_figure(fig: Node3D) -> void:
 	avatar.set_figure(fig, {"level": level if LEVELS.has(level) else "mid", "team_colour": team_colour, "seed": 0})
 	_apply_alpha()
+
+
+## ตัวที่เลือกในห้องแต่งตัว (Figures; ไข่ = null) แล้วทาชุดสี (H10) · เรียกซ้ำเมื่อ App.figure_changed
+func refresh_figure() -> void:
+	var sel := Figures.selected()
+	set_figure(Figures.make(StringName(sel["figure"]), StringName(level)))
+	Figures.dress(avatar.figure, str(sel["scheme"]))
 
 
 ## วางตัวผู้เล่นที่ p หันไป yaw แล้วกล้องตามทันที
@@ -281,7 +330,11 @@ func counts() -> Dictionary:
 func _on_avatar_moved(pos: Vector3) -> void:
 	rings.set_ring(_avatar_ring, pos, Vector3.UP, AVATAR_RING_R, team_colour)
 	camera_rig.follow(pos)
-	var s := HallLayout.station_at(Vector2(pos.x, pos.z))
+	_update_station(pos)
+
+
+func _update_station(pos: Vector3) -> void:
+	var s := HallLayout.station_at(Vector2(pos.x, pos.z), _off)
 	if s == _station:
 		return
 	if _station != "":
