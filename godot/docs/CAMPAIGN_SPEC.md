@@ -902,3 +902,27 @@ Built as §6 says; the record is NET_SPEC §18. Differences and choices:
   leave → withdrew report, wallet unchanged → กลับยาน → deck, avatar still at the table, `where` back to deck).
 - Private repo (`t2-bay`): the launch-bay dropship and the hologram card "แคมเปญ" use action `campaign`; the room smoke
   checks both. Merge the public PR first.
+
+
+### 12.F Review fixes (after integration)
+
+- **Hero cameras:** `HeroKit.frame` keeps the eye ≥ `MIN_EYE_Y` (0.1 m) above the floor. Near-square cards (English
+  stats wrapping on 19.5:9 / 20:9 phones) had put the Hard camera under the floor disc (a black card). Catastrophe on
+  tall cards (every 16:9 screen) is now two ranks: three in front, four looming behind on a higher line, camera a little
+  higher. Tests: near-square hero cards, camera above the floor, every difficulty card's art not black (1560×720 EN).
+- **Score:** the defend `base` line pays only on a win (withdrawing at once paid coins for an untouched base).
+  Gun hits on ritual pylons count neither as shots nor as hits (`MissionObjectives.structure_shot`).
+- **Missions:** camp guards are dealt the 8 camp posts without repeats (shuffled with the spawn RNG, ±0.8 m jitter);
+  posted guards (camp / hostage) may hold at most `alive_cap − HUNT_RESERVE` (2) slots, so the hunting waves still come
+  while guards stand (they used to fill every slot on low levels).
+- **Brief:** time limit (rescue), hold time (defend), the walk back to the pickup (destroy_camp) and the revives.
+- **Galaxy:** a week rollover while the galaxy is open loads the new week on the next countdown tick (note shown).
+  Back on a difficulty screen opened from the galaxy chip (`ctx.change`) returns to the galaxy at the previous
+  difficulty (`CampaignFlow.cancel_difficulty`).
+- **Save:** written to `campaign.json.tmp` and renamed over the file; an unreadable file is kept as `.bad` and a newer
+  version as `.v<N>` before anything overwrites it; coins capped at 1e9; history entries checked field by field.
+- **VPN gate:** when a mobile-data card itself holds 100.64/10 (carrier NAT), the Tailscale address stays listed (joins
+  out still work) but is left out of the host gate (`vpn_ips(true)`), so carrier neighbours are refused.
+  The firewall advice now says to set the VPN adapter to Private instead of allowing Public networks.
+- **Known, not changed:** the simultaneous-enemy cap still depends on the graphics level (`ALIVE_CAP`); the same mission
+  is gentler on `min`. To settle when coins move to the server (e.g. report the level with the result).
