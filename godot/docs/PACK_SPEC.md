@@ -425,6 +425,12 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   `tests/render/test_kit_walker.gd` (select → rebuild, walk/run rates, every level within the deck targets, still on
   lo/min, eight kits in eight schemes, back to the egg).
 
+- Round D (14 Nov): the weapons arena plays the selected figure too (ARENA_SPEC §9.6): a pack figure from `figures.json`
+  is used as the arena player when it has the whole arena contract (`ArenaActors.FIGURE_API`) and is dressed with the
+  chosen scheme after `setup` (H10, only when its entry has `"schemes": true`); a deck-only figure falls back to the
+  pack's `player`. Battle-table kits play through `KitFighter`; the egg stays the egg gunner. A pack figure whose H9
+  `uses_strafe()` is false is turned by A/D (no side-walking).
+
 ### 10.1 Palettes (H11, round E, 15 Nov 2026)
 
 Owner, 15 Nov: the famous armour colour schemes on the private armour figure, chosen in the dressing room. A pack figure
@@ -447,8 +453,11 @@ can list its own palettes; every figure keeps the 9 presets.
   nothing for the original; H11 `apply_palette(s.colours)` when the figure has it, else H10. `dress(fig, scheme_id,
   figure_id = "")`. The selection and the slots keep a palette id in the same `scheme` key; `select` / `save_slot` /
   `slots` accept only ids from `palettes(figure)`, so a palette of another figure reads as the original.
-- **Worlds**: `HallWorld` and `PackRoomWorld` pass the selected figure id to `dress`; `ArenaWorld` passes
-  `"figure_id"` to `ArenaPlayer.setup`, which dresses with it (ARENA_SPEC §9.6). Friends online still see eggs.
+- **Worlds**: `HallWorld` and `PackRoomWorld` pass the selected figure id to `dress`; `ArenaWorld` and the campaign's
+  `MissionWorld` pass `"figure_id"` to `ArenaPlayer.setup`, which dresses with it (ARENA_SPEC §9.6); the campaign's
+  "normal" card (`scenes/campaign/hero_normal.gd`) dresses its figure the same way. Friends online still see eggs.
+- **Optional pack keys** (round E): `enemy_small` / `enemy_small_name` in `pack.json` name a smaller enemy figure
+  (`ArenaActors.make_figure("enemy_small")` builds it); no public mission or arena asks for it yet.
 - **Dressing screen**: the scheme row is a scrolling grid of named cards (`DressingScreen.CARD` 120 × 104, touch 132 × 116; long names wrap to two lines):
   a dot drawn once (ring = trim / metal / secondary, fill = primary, right half = left arm, top = helmet, small dots =
   lens, secondary, accent) and the name below (`เดิม` / Orig. for the original). Columns follow the width (at least 3 on a
@@ -460,8 +469,3 @@ can list its own palettes; every figure keeps the 9 presets.
   H10-only figure, a fixed-colour figure); `tests/render/test_dressing_palettes.gd` (desktop, phone landscape and phone
   portrait, TH/EN, scroll to the last card, slots, other figures, min/hi idle and preview budget).
 
-- Round D (14 Nov): the weapons arena plays the selected figure too (ARENA_SPEC §9.6): a pack figure from `figures.json`
-  is used as the arena player when it has the whole arena contract (`ArenaActors.FIGURE_API`) and is dressed with the
-  chosen scheme after `setup` (H10, only when its entry has `"schemes": true`); a deck-only figure falls back to the
-  pack's `player`. Battle-table kits play through `KitFighter`; the egg stays the egg gunner. A pack figure whose H9
-  `uses_strafe()` is false is turned by A/D (no side-walking).

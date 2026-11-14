@@ -882,7 +882,7 @@ func _spawn_player() -> void:
 		# ตัว + ชุดสีที่เลือกในห้องแต่งตัว (เหมือน ArenaWorld._spawn_actors)
 		var sel := Figures.selected()
 		player.call(&"setup", self, {"level": level, "team_colour": _team_colour, "touch": touch,
-			"figure": ArenaActors.player_figure(sel), "scheme": ArenaActors.scheme_of(sel)})
+			"figure": ArenaActors.player_figure(sel), "scheme": ArenaActors.scheme_of(sel), "figure_id": str(sel["figure"])})
 	var cam: Variant = player.call(&"camera") if player.has_method(&"camera") else null
 	if cam is Camera3D:
 		(cam as Camera3D).environment = _env

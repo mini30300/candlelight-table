@@ -121,9 +121,15 @@ func test_stage_falls_back_from_broken_packs() -> void:
 		"the built-in replacement owns the viewport's camera")
 	print("      (expected: the engine prints a script error from the broken veryhard fixture next)")
 	st.show_hero("veryhard", {"level": "mid"})
-	assert_true(st.fell_back and st.hero() != null and not CampaignHeroes.is_pack(st.hero()),
-		"a pack scene whose setup fails half-way is replaced by the built-in one (the screen goes on)")
-	assert_eq(st.viewport().get_child_count(), 1, "the broken scene is gone from the viewport")
+	if OS.is_debug_build():
+		assert_true(st.fell_back and st.hero() != null and not CampaignHeroes.is_pack(st.hero()),
+			"a pack scene whose setup fails half-way is replaced by the built-in one (the screen goes on)")
+		assert_eq(st.viewport().get_child_count(), 1, "the broken scene is gone from the viewport")
+	else:
+		# A release export (the Windows smoke job) does not stop a function at a script error: the fixture's setup runs
+		# on past parts[3] and makes its camera, so there is nothing to replace. What must hold there: the screen goes on.
+		assert_true(st.hero() != null and st.viewport().get_camera_3d() != null and st.viewport().get_child_count() == 1,
+			"release build: a pack scene with a script error in setup still leaves one working card (the screen goes on)")
 	st.free()
 	CampaignHeroes.test_dirs = PackedStringArray()
 	assert_true(CampaignHeroes.make_builtin("easy") == null, "make_builtin: unknown id gives null")

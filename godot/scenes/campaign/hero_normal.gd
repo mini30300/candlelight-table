@@ -37,7 +37,7 @@ func _build() -> void:
 	if fig.has_method("setup"):
 		fig.call("setup", {"role": &"player", "level": HeroKit.FIG_LEVEL if _manual else level,
 			"team_colour": Color(0.28, 0.52, 0.84), "seed": 0, "manual": true})
-	Figures.dress(fig, ArenaActors.scheme_of(sel))
+	Figures.dress(fig, ArenaActors.scheme_of(sel), str(sel.get("figure", "")))
 	if fig.has_method("set_weapon"):
 		fig.call("set_weapon", &"none")
 	if fig.has_method("play"):

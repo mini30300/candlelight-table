@@ -105,7 +105,9 @@ table (`RECTS`): add the projector there (its checks are unchanged). `test_hall_
   "ออกรบตามภารกิจ ได้เหรียญ" / "Fight missions, earn coins". Optional: in `.github/workflows/personal-build.yml` (step
   "Copy the pack") add `if [ -d public/godot/packs/arena/campaign ]; then mv public/godot/packs/arena/campaign public/godot/packs/campaign; fi`
   (the loader finds both places, §3.1). **Order: the public PR merges first**; a room.json with action `campaign` on an
-  older public `main` fails `PackRooms.validate` and the whole launch bay disappears.
+  older public `main` fails `PackRooms.validate`, so the personal build's room smoke fails and no new private app is
+  published (the old one stays). After merging in that wrong order, merge the public PR and run the private repo's
+  "Personal build" workflow again by hand (a public merge does not trigger it).
 
 ### 1.4 Difficulty screen (track B, `ui/screens/difficulty_screen.*`)
 
@@ -284,11 +286,14 @@ server round replaces them).
   (`current = true`) and lights / environment; `set_active(false)` stops every process, tween, animation and sound
   (no per-frame work while inactive); `set_active(true)` resumes. Optional: `set_aspect(a: float)` (called on resize).
 - On `min` a hero shows a single still pose (the stage renders it once, §3.4). A hero never touches `App`, `Net`, files
-  or other nodes outside itself, and declares no `class_name`.
+  or other nodes outside itself, and declares no `class_name`. Exception (round E integration): read-only registry
+  lookups such as `Figures.palettes()` are allowed (the private very-hard scene reads its dressing-room palette that
+  way, with its own fallback colours).
 - `CampaignHeroes.make(id)`: the first existing pack script that instantiates as a `Node3D` with both methods, else the
   built-in one (a warning names the missing methods); `pack_path`, `builtin_path`, `is_pack`, `missing_api`,
   `music_path()` (`catastrophe.ogg` in the same folders). Tests set `CampaignHeroes.test_dirs`.
-- Team 1 is adding an optional figure hook H11 `apply_palette(p: Dictionary)` on its own branch: **do not depend on it**.
+- Figure hook H11 `apply_palette(p: Dictionary)` (PACK_SPEC §10.1) landed with round E; heroes dress figures through
+  `Figures.dress(fig, scheme, figure_id)`, which uses H11 when the figure has it and H10 otherwise.
 
 ### 3.2 Framing
 
@@ -306,7 +311,7 @@ stand-ins (still readable as figures).
 
 | id | Scene |
 | --- | --- |
-| `normal` | The player's own figure: `ArenaActors.player_figure(ctx.sel)` set up with role `player` and dressed with `ArenaActors.scheme_of(ctx.sel)` (H10 when the entry has schemes) — the same factory the arena uses. Upper body close-up (camera at chest height, FOV ≈ 28°), facing the camera, idle clip slowed to 0.6 on hi/mid, still on lo/min. Background: black to dark grey vertical gradient; light from straight above the head (`sun_dir` (0, 1, 0.15), warm white, ambient 0.12). |
+| `normal` | The player's own figure: `ArenaActors.player_figure(ctx.sel)` set up with role `player` and dressed with `Figures.dress(fig, ArenaActors.scheme_of(ctx.sel), figure id)` (H11 palettes when the figure has them, else H10) — the same factory the arena uses. Upper body close-up (camera at chest height, FOV ≈ 28°), facing the camera, idle clip slowed to 0.6 on hi/mid, still on lo/min. Background: black to dark grey vertical gradient; light from straight above the head (`sun_dir` (0, 1, 0.15), warm white, ambient 0.12). |
 | `hard` | Three kits `knight`, `kcapt`, `kblade` (KitWalker, armour-like knights) in the blue scheme (`Figures.scheme("blue")`: 2f5fb0 / d6d8de), standing in a staggered line (centre forward, the sides 0.8 m back, turned 20° in), low camera looking slightly up, cool side light. Idle on hi/mid, still on lo/min. |
 | `veryhard` | A knight with a polearm: kit `pike_halb` (halberd; fallback `naginata`, then `kblade`) in a silver scheme (primary c9ccd4, secondary 3b4250). 3–4 small aliens (`hound`, fallback `gaunt`) run in from the sides; at contact he spins (whole node 360° in 0.45 s with a `Tween` while playing `swing_1`), they play `die_*` and fade; loop every ~4 s. On min: one still at the moment of the cut. |
 | `catastrophe` | The battle table's fallen knights and daemons in a row, appearing one by one (0.35 s apart) like an anime recall of every enemy a fighter has faced: `dmc`, `cxp`, `cxb`, `cxl` (centre, forward), `cxs`, `cxw`, `dmr`; dark red light from behind and above (`sun_dir` (0, 0.6, −1), `sun_colour` deep red, ambient 0.06), fog in the `Environment` on hi/mid (none on lo/min), an `AudioStreamPlayer` that plays `CampaignHeroes.music_path()` when it exists (looping, bus `Music`, stops in `set_active(false)`). On min: the full row, still, no fog, no music autoplay. |
