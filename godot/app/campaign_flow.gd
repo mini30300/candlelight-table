@@ -82,13 +82,26 @@ static func change_difficulty() -> Node:
 	var ps := _ready_scene("difficulty")
 	if ps == null:
 		return null
-	return _open_difficulty(App.replace(ps))
+	return _open_difficulty(App.replace(ps), true)
 
 
-static func _open_difficulty(ds: Node) -> Node:
+## ถอยจากหน้าความยากที่เปิดจากกาแล็กซี: กลับกาแล็กซีที่ความยากเดิม (ไม่ออกจากแคมเปญ) · false = ทำไม่ได้
+static func cancel_difficulty() -> bool:
+	if base_depth < 0 or not is_top("difficulty") or not CampaignGalaxy.DIFFICULTIES.has(difficulty):
+		return false
+	var ps := _ready_scene("galaxy")
+	if ps == null:
+		return false
+	var gs := _mark(App.replace(ps), "galaxy")
+	if gs.has_method(&"open"):
+		gs.call(&"open", {"difficulty": difficulty, "week": CampaignWeek.current()})
+	return true
+
+
+static func _open_difficulty(ds: Node, change := false) -> Node:
 	_mark(ds, "difficulty")
 	if ds.has_method(&"open"):
-		ds.call(&"open", {"last": CampaignSave.last_difficulty(), "from": from})
+		ds.call(&"open", {"last": CampaignSave.last_difficulty(), "from": from, "change": change})
 	if ds.has_signal(&"chosen"):
 		ds.connect(&"chosen", _on_difficulty.bind(ds))
 	return ds

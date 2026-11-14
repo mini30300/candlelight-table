@@ -16,5 +16,8 @@ func choose(id: StringName) -> void:
 	chosen.emit(id)
 
 
+## same contract as DifficultyScreen.handle_back (opened from the galaxy chip: back to the galaxy)
 func handle_back() -> bool:
+	if bool(ctx.get("change", false)):
+		return CampaignFlow.cancel_difficulty()
 	return false

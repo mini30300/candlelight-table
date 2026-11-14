@@ -123,7 +123,10 @@ func tab_buttons() -> Array:
 	return _tabs.get_children()
 
 
+## เปิดจากปุ่มความยากในกาแล็กซี: ถอย = กลับกาแล็กซีที่ความยากเดิม · เปิดจากยาน: ถอย = App ถอยหน้าเอง
 func handle_back() -> bool:
+	if bool(ctx.get("change", false)):
+		return CampaignFlow.cancel_difficulty()
 	return false
 
 

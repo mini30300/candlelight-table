@@ -450,7 +450,8 @@ func choose(id: StringName) -> void                      # emits chosen (cards, 
 func select(id: StringName) -> void                      # B adds: highlight + make that card's hero live
 func selected() -> StringName                            # B adds
 func stages() -> Array                                   # B adds: the four HeroStage nodes (tests)
-func handle_back() -> bool                               # false → App pops (back where you came from)
+func handle_back() -> bool                               # opened from the galaxy chip (ctx.change): CampaignFlow.cancel_difficulty()
+                                                         # → the galaxy at the previous difficulty; else false → App pops
 
 # scenes/campaign/hero_loader.gd        class_name CampaignHeroes (static)   — §3.1
 const IDS, PACK_DIRS, API, MUSIC

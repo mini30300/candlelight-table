@@ -183,6 +183,19 @@ func _run() -> void:
 	await _frames(2)
 	var thai := _thai_labels(gs)
 	_check(thai.is_empty(), "English mode: no Thai on the galaxy, card or brief", ", ".join(thai))
+	# review fix: back on the difficulty screen opened from the galaxy chip returns to the galaxy (real screens)
+	var diff0 := str(gs.get("difficulty"))
+	gs.change_difficulty()
+	await _frames(2)
+	_check(str((_app().call("current") as Node).scene_file_path).ends_with("difficulty_screen.tscn"), "the galaxy chip opens the difficulty screen")
+	_app().call("back")
+	await _frames(2)
+	gs = _app().call("current")
+	_check(str(gs.scene_file_path).ends_with("galaxy_screen.tscn") and str(gs.get("difficulty")) == diff0,
+		"back returns to the galaxy at the same difficulty", str(gs))
+	gs.select_planet("p20")
+	gs.open_brief(0)
+	await _frames(1)
 	# review fix: the week rolls over while the galaxy is open -> the next countdown tick loads the new week
 	var wk0 := int(gs.get("week"))
 	CampaignWeek.test_now = NOW + 7 * 86400

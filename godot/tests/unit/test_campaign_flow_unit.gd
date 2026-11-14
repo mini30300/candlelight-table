@@ -59,7 +59,8 @@ func test_full_round_from_the_deck() -> void:
 	var ds: Node = CampaignFlow.start("deck")
 	assert_true(ds != null and App.current() == ds, "start pushes the difficulty screen")
 	assert_eq([CampaignFlow.base_depth, App.depth(), CampaignFlow.from], [1, 2, "deck"], "base depth 1, depth 2, from deck")
-	assert_eq(ds.get("ctx"), {"last": "", "from": "deck"}, "open() gets the last difficulty and where we came from")
+	# "change" added by the review fix (false = opened from the ship, true = from the galaxy's difficulty chip)
+	assert_eq(ds.get("ctx"), {"last": "", "from": "deck", "change": false}, "open() gets the last difficulty and where we came from")
 	assert_eq(CampaignFlow.start("deck"), ds, "a second start while open returns the same screen (double press)")
 	assert_eq(App.depth(), 2, "and pushes nothing")
 	ds.call("choose", &"hard")
@@ -107,6 +108,13 @@ func test_full_round_from_the_deck() -> void:
 	ds2.call("choose", &"catastrophe")
 	var gs2 := App.current() as GalaxyScreen
 	assert_true(gs2 != null and gs2.difficulty == "catastrophe", "a new galaxy at catastrophe")
+	# review fix: back on a difficulty screen opened from the galaxy returns to the galaxy at the same difficulty
+	var ds3: Node = CampaignFlow.change_difficulty()
+	assert_true(ds3 != null and bool((ds3.get("ctx") as Dictionary)["change"]), "the screen knows it came from the galaxy")
+	App.back()
+	var gs3 := App.current() as GalaxyScreen
+	assert_true(gs3 != null and gs3.difficulty == "catastrophe" and App.depth() == 2, "back returns to the galaxy at catastrophe")
+	assert_eq(CampaignFlow.base_depth, 1, "still inside the campaign")
 	assert_eq(CampaignFlow.change_difficulty() != null, true, "change difficulty works from the galaxy")
 	(App.current() as Node).call("choose", &"normal")
 	CampaignFlow.leave()
