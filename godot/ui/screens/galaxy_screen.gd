@@ -102,8 +102,11 @@ func refresh() -> void:
 	_layout()
 
 
-## เวลาจนสุ่มใหม่ (Timer ทุก 30 วิ ไม่ใช่ทุกเฟรม)
+## เวลาจนสุ่มใหม่ (Timer ทุก 30 วิ ไม่ใช่ทุกเฟรม) · ข้ามสัปดาห์ขณะเปิดหน้าอยู่ = โหลดสัปดาห์ใหม่ + แจ้ง
 func _tick() -> void:
+	if CampaignWeek.current() != week and week != 0 and not _launching and _map != null:
+		_new_week()
+		return
 	var left := CampaignWeek.seconds_to_reroll(CampaignWeek.now_unix())
 	if CampaignWeek.current() != week:
 		left = 0
@@ -288,15 +291,22 @@ func _on_visibility() -> void:
 	_style_buttons()
 	_clear_fade()
 	if CampaignWeek.current() != week and week != 0:
-		week = CampaignWeek.current()
-		close_card()
-		show_note(NEW_WEEK)
+		_new_week()
 	elif _brief.visible:
 		# กลับจากภารกิจ: โชว์การ์ดของดาว (เหตุการณ์ที่ผ่านแล้วมีเครื่องหมาย) แทนบรีฟเดิม
 		close_brief()
 	_load_week()
 	refresh()
 	_timer.start()
+
+
+## สัปดาห์ใหม่: ปิดการ์ด/บรีฟของสัปดาห์เก่า โหลดดาวใหม่ แจ้งผู้เล่น (ทุกคนเห็นกาแล็กซีเดียวกัน)
+func _new_week() -> void:
+	week = CampaignWeek.current()
+	close_card()
+	show_note(NEW_WEEK)
+	_load_week()
+	refresh()
 
 
 func _clear_fade() -> void:

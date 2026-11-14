@@ -183,6 +183,15 @@ func _run() -> void:
 	await _frames(2)
 	var thai := _thai_labels(gs)
 	_check(thai.is_empty(), "English mode: no Thai on the galaxy, card or brief", ", ".join(thai))
+	# review fix: the week rolls over while the galaxy is open -> the next countdown tick loads the new week
+	var wk0 := int(gs.get("week"))
+	CampaignWeek.test_now = NOW + 7 * 86400
+	(gs.timer() as Timer).timeout.emit()
+	await _frames(2)
+	_check(int(gs.get("week")) == wk0 + 1 and not gs.card_open() and not gs.brief_open(),
+		"a week rollover on an open galaxy loads the new week and closes last week's brief", str(gs.get("week")))
+	_check(str(gs.get("_note_key")) == str(gs.NEW_WEEK), "and tells the player new events arrived")
+	CampaignWeek.test_now = NOW
 	CF.call("leave")
 	await _frames(3)
 	_app().call("set_lang", "th")
