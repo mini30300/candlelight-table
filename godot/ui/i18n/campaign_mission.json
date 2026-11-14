@@ -18,7 +18,6 @@
   "ออกจากภารกิจ? ผลจะนับเป็นแพ้": "Leave the mission? It will count as a loss",
   "ปล่อยตัวประกัน": "Free the hostage",
   "เปิดสัญญาณ": "Switch on the beacon",
-  "ระลอก {n}/{of} กำลังมา!": "Wave {n}/{of} incoming!",
   "หัวหน้าศัตรูปรากฏตัว!": "The enemy leader appears!",
   "ปล่อยตัวประกันแล้ว — พาไปที่จุดรับ": "Hostage freed — lead them to the pickup point",
   "ตัวประกันถึงจุดรับแล้ว": "A hostage reached the pickup point",
@@ -45,5 +44,6 @@
   "ลุกได้อีก {n} ครั้ง": "{n} revives left",
   "ล้มอีกครั้ง = ภารกิจล้มเหลว": "Fall again = mission failed",
   "หัวหน้าศัตรู": "Enemy leader",
-  "กำลังปล่อยตัวประกัน…": "Freeing the hostage…"
+  "กำลังปล่อยตัวประกัน…": "Freeing the hostage…",
+  "ระลอก {n}/{of} กำลังมา! · พลังชีวิตเต็มแล้ว": "Wave {n}/{of} incoming! · health restored"
 }

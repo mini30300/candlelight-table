@@ -106,6 +106,7 @@ var _boss: MissionEnemy
 var _sec_done: Array = []
 var _kits: Array[Resource] = []
 var _team_colour := TEAM
+var _built_level := ""
 
 
 func _ready() -> void:
@@ -188,7 +189,8 @@ func apply_level(l: String) -> void:
 	if not tv.is_empty():
 		Engine.max_fps = int(tv["fps"])
 		OS.low_processor_usage_mode = bool(tv["idle"])
-	if not layout.is_empty():
+	if not layout.is_empty() and l != _built_level:
+		_built_level = l
 		var ms := MissionBuilder.meshes(layout, l, int(spec.get("seed", 0)))
 		for i in ms.size():
 			_static[i].mesh = ms[i]
@@ -348,8 +350,17 @@ func alive_count() -> int:
 	return n
 
 
+## ศัตรูที่มีชีวิตได้พร้อมกันตอนนี้: ตามระดับ แต่ไม่ให้ตัวละครมีโครงบนจอ (ผู้เล่น ตัวประกัน ศพ) เกิน SKINNED_CAP
 func alive_cap() -> int:
-	return MissionTypes.alive_cap(level)
+	var cap := MissionTypes.alive_cap(level)
+	var extra := 1
+	for h in _hostages:
+		if h.is_alive() and h.skinned():
+			extra += 1
+	for e in _enemies:
+		if not e.is_alive() and e.skinned():
+			extra += 1
+	return clampi(MissionTypes.skinned_cap(level) - extra, 1, cap)
 
 
 func enemies() -> Array[MissionEnemy]:
@@ -498,6 +509,9 @@ func _waves() -> void:
 				_wave_alive[i] += 1
 		if not bool(w.get("guard", false)) and n_wave > 1:
 			var waves_total := plan.filter(func(x: Dictionary) -> bool: return not bool(x.get("guard", false))).size()
+			# ระลอกใหม่: ผู้เล่นที่ยังยืนอยู่ได้พลังชีวิตและกระสุนเต็ม (ไม่มีของเก็บในสนาม)
+			if player != null and bool(player.call(&"is_alive")) and player.has_method(&"heal_full"):
+				player.call(&"heal_full")
 			event.emit(&"wave", {"n": n_wave, "of": waves_total})
 
 

@@ -62,6 +62,8 @@ func _run() -> void:
 	await _win("defend", ["defend"])
 	await _win("rescue", ["destroy_camp", "purge"])
 	await _win("destroy_camp", ["rescue"])
+	# 1b. the real rifle and fist against a mission enemy
+	await _real_weapons()
 	# 2. fails
 	await _fail("purge", "normal")
 	await _fail("defend", "normal")
@@ -201,6 +203,52 @@ func _rescue(w, idx: Array, keep_one := false) -> void:
 	w.simulate(3.0)
 	for i: int in idx:
 		_check(w.obj.hostage_state(i) == MissionObjectives.SAVED or w.is_ended(), "hostage %d reached the pickup (%s, hp %d)" % [i, w.obj.hostage_state(i), w.hostages()[i].hp()])
+
+
+## The player's own rifle (aim ray from the camera, SHOT_MASK) hits a MissionEnemy: the crosshair turns red (id beast),
+## shots and hits are counted from ammo_changed / hit_landed, the enemy loses HP; a punch in reach lands too.
+func _real_weapons() -> void:
+	var spec := Specs.make("purge", {"seed": 4321, "biome": "ruin", "faction": "orcs"})
+	var ms = await _open(spec)
+	var w = ms.world()
+	w.test_god = true
+	for i in 60:
+		if not w.enemies().is_empty():
+			break
+		w.simulate(0.1)
+	var e = w.enemies()[0]
+	var foot := Vector3(0.0, 0.0, 10.0)
+	w.place_player(foot, 0.0)
+	e.global_position = foot + Vector3(0.0, 0.0, -6.0)
+	e.set_paused(true)
+	w.set_physics_process(false)
+	var rig = w.player.call("camera_rig")
+	var chest: Vector3 = e.chest()
+	for k in 3:
+		var o: Vector3 = rig.call("aim_origin")
+		var d := chest - o
+		rig.call("set_view", atan2(-d.x, -d.z), asin(clampf(d.y / d.length(), -1.0, 1.0)), 3.0)
+		w.player.call("refresh_aim")
+		await _physics(3)
+	_check(bool(w.player.call("aim_on_beast")), "the crosshair turns red on a mission enemy")
+	var hp0: int = e.hp()
+	var shots0: int = w.obj.shots
+	w.player.call("press", &"fire", true)
+	await _physics(20)
+	w.player.call("press", &"fire", false)
+	await _physics(2)
+	_check(w.obj.shots > shots0 and w.obj.hits > 0 and e.hp() < hp0,
+		"the rifle hits it: %d shots, %d hits, HP %d -> %d" % [w.obj.shots - shots0, w.obj.hits, hp0, e.hp()])
+	_check(w.obj.hits <= w.obj.shots, "hits never exceed shots")
+	if e.is_alive():
+		e.global_position = foot + Vector3(0.0, 0.0, -1.2)
+		var hp1: int = e.hp()
+		await _physics(2)
+		w.player.call("press", &"melee", true)
+		await _physics(30)
+		_check(e.hp() < hp1 or not e.is_alive(), "a punch lands on it (HP %d -> %d)" % [hp1, e.hp()])
+	ms.quit_mission()
+	await _close(ms)
 
 
 func _fail(ptype: String, diff: String) -> void:

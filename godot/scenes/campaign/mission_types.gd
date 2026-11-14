@@ -31,6 +31,8 @@ const BASE_DMG_PCT := 150
 const FLANK_PCT := {"normal": 10, "hard": 25, "veryhard": 40, "catastrophe": 55}
 ## ศัตรูที่ยังมีชีวิตพร้อมกันได้ไม่เกิน (ตามระดับกราฟิก; จำนวนทั้งภารกิจไม่เปลี่ยน ระลอกเติมเมื่อมีตัวตาย)
 const ALIVE_CAP := {"hi": 14, "mid": 10, "lo": 7, "min": 5}
+## ตัวละครมีโครง (skinned) บนจอได้ไม่เกิน (ผู้เล่น + ตัวประกัน + ศัตรู + ศพที่ยังไม่หาย) ตาม test_budgets
+const SKINNED_CAP := {"hi": 24, "mid": 16, "lo": 10, "min": 8}
 
 ## เป้าหมายรอง (เหตุการณ์อื่นบนดาวเดียวกัน) แบบย่อในแผนที่เดียวกัน
 const SECONDARY := {
@@ -95,6 +97,10 @@ static func flank_pct(difficulty: String) -> int:
 
 static func alive_cap(level: String) -> int:
 	return int(ALIVE_CAP.get(level, ALIVE_CAP["mid"]))
+
+
+static func skinned_cap(level: String) -> int:
+	return int(SKINNED_CAP.get(level, SKINNED_CAP["mid"]))
 
 
 static func par_s(t: String) -> int:
