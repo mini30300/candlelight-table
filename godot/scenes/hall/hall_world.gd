@@ -63,6 +63,7 @@ var _outline: Dictionary = {}          # id → ขนาดขอบเดิ�
 var _station := ""
 var _avatar_ring := -1
 var _station_rings: Dictionary = {}    # id → ดัชนีวงแหวน
+var _off: Dictionary = {}              # สถานีที่ปิด (id → true): ไม่มีวง ไม่นับเป็นสถานี
 var _blockers := 0
 var _sides := 0
 var _flame_count := 0
@@ -252,6 +253,25 @@ func station() -> String:
 	return _station
 
 
+## เปิด/ปิดสถานี id: ปิด = ไม่มีวงหน้าสถานี ไม่มีปุ่มใช้งาน (ของยังวาดเป็นฉาก) · แอปสาธารณะปิดประตูเทียบยาน
+func set_station_enabled(id: String, on: bool) -> void:
+	if not _station_rings.has(id) or on != _off.has(id):
+		return
+	if on:
+		_off.erase(id)
+		var f: Vector2 = HallLayout.STATIONS[id]["front"]
+		_station_rings[id] = rings.add_kind(Rings.Kind.OBJECTIVE, Vector3(f.x, 0.0, f.y), Vector3.UP, STATION_RING_R)
+	else:
+		_off[id] = true
+		rings.remove_ring(int(_station_rings[id]))
+		_station_rings[id] = -1
+	_update_station(avatar.global_position)
+
+
+func station_enabled(id: String) -> bool:
+	return _station_rings.has(id) and not _off.has(id)
+
+
 ## ตัวละครชุดเสริมแทนไข่ (null = ไข่): ส่งระดับกราฟิก สีทีม แล้วใช้ความจางปัจจุบัน
 func set_figure(fig: Node3D) -> void:
 	avatar.set_figure(fig, {"level": level if LEVELS.has(level) else "mid", "team_colour": team_colour, "seed": 0})
@@ -281,7 +301,11 @@ func counts() -> Dictionary:
 func _on_avatar_moved(pos: Vector3) -> void:
 	rings.set_ring(_avatar_ring, pos, Vector3.UP, AVATAR_RING_R, team_colour)
 	camera_rig.follow(pos)
-	var s := HallLayout.station_at(Vector2(pos.x, pos.z))
+	_update_station(pos)
+
+
+func _update_station(pos: Vector3) -> void:
+	var s := HallLayout.station_at(Vector2(pos.x, pos.z), _off)
 	if s == _station:
 		return
 	if _station != "":

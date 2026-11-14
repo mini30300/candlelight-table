@@ -41,7 +41,6 @@ const HOLO_AMBER := Color("ffc35a")
 const HAZARD := Color("d9a521")
 const HAZARD_DARK := Color("18181a")
 const LAMP_AMBER := Color(1.0, 0.72, 0.30)
-const SEAM_GLOW := Color(1.0, 0.84, 0.48)
 const AIRLOCK_GLOW := Color(0.45, 0.72, 1.0)
 const BANNER_COLS := [Color("7f1717"), Color("1f1c22"), Color("8c6630")]
 ## สีธงชายในคลังแสง 15 สี (สีล้วน ไม่มีตรา)
@@ -1067,7 +1066,7 @@ static func _airlock(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) -> v
 		Vector3(xr - 0.02, 3.66, zc - 0.12)], LAMP_AMBER, n)
 
 
-# ---- เฟอร์นิเจอร์: โต๊ะแผนที่โฮโลแกรม คลังแสง คอนโซล โต๊ะแผนที่ดาว หีบสมบัติ เชิงเทียน ----
+# ---- เฟอร์นิเจอร์: โต๊ะแผนที่โฮโลแกรม คลังแสง คอนโซล โต๊ะแผนที่ดาว โต๊ะทำงาน เชิงเทียน ----
 
 static func _furniture(sides: int, lights: PackedVector3Array) -> ArrayMesh:
 	var g := PropsLayer.Geo.new()
@@ -1078,7 +1077,7 @@ static func _furniture(sides: int, lights: PackedVector3Array) -> ArrayMesh:
 	_armoury(g, sides)
 	_console(g, glow_g, sides)
 	_adventure(g, rng, sides)
-	_vault_chest(g, glow_g, sides)
+	_work_desk(g, glow_g, sides)
 	for s in HallLayout.STANDS:
 		_stand(g, s, sides)
 	bake(g, lights, HallLayout.COOL_LIGHTS)
@@ -1284,58 +1283,106 @@ static func _ring(g: PropsLayer.Geo, c: Vector3, nrm: Vector3, r: float, w: floa
 		g.poly(q, col * 0.8, -nrm)
 
 
-## หีบสมบัติ (สถานีใหม่ ระบบสุ่มของรางวัลเร็วๆ นี้): แท่นแปดเหลี่ยมสองขั้น หีบบรอนซ์คาดเหล็ก แสงทองรั่วจากร่องฝา
-## แผ่นกุญแจมีลายเทียนของเรา เทียนสองเล่มหน้าแท่น
-static func _vault_chest(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) -> void:
+## โต๊ะทำงาน · คลังของ (เร็วๆ นี้): แท่นแปดเหลี่ยมสองขั้น ตู้คอมพิวเตอร์ทองเหลืองสูงหันหน้าไป -x ยอดโค้งแหลม
+## จอเรืองแสงสามจอ แผงแป้นพิมพ์ลาด สายเคเบิล ขอบทองเหลือง · ของบูชา: เทียนสองเล่ม ชามถวาย ถ้วย แท่นวางหนังสือ
+static func _work_desk(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) -> void:
 	var s: Dictionary = HallLayout.STATIONS["vault"]
 	var c: Vector2 = s["c"]
+	var top := float(s["height"])
+	var n := maxi(sides / 2, 6)
 	g.prism(c.x, 0.0, c.y, 1.2, 0.16, 8, STEEL * 0.8, 1.0, PI / 8.0)
 	g.prism(c.x, 0.16, c.y, 0.95, 0.16, 8, BRONZE * 0.55, 1.0, PI / 8.0)
 	var y0 := 0.32
-	var hxc := 0.375
-	var hzc := 0.65
-	var bh := 0.58
-	# บรอนซ์เข้มกว่าของอื่น: เทียนสองเล่มกับแสงทองอยู่ชิดหีบ (0.85 เดิมสว่างจนสีแดงล้น ดูเป็นหีบการ์ตูน)
-	g.box(Vector3(c.x, y0 + bh * 0.5, c.y), Vector3(hxc, bh * 0.5, hzc), BRONZE * 0.62)
-	for z in [-0.45, 0.0, 0.45]:
-		g.box(Vector3(c.x, y0 + bh * 0.5, c.y + z), Vector3(hxc + 0.012, bh * 0.5 + 0.004, 0.045), STEEL_DARK)
-	# ฝาโค้ง (ตามแกน z) กับแถบเหล็กบนฝา
-	var ly := y0 + bh + 0.02
-	var prof: Array[Vector2] = []
+	# ตู้ใหญ่: หน้าตู้ที่ xf ครึ่งกว้าง hz สูงถึง yt แล้วหน้าจั่วแหลมถึง top
+	var xf := c.x + 0.28
+	var xb := c.x + 0.72
+	var hz := 0.72
+	var yt := top - 0.2
+	g.box(Vector3((xf + xb) * 0.5, (y0 + yt) * 0.5, c.y), Vector3((xb - xf) * 0.5, (yt - y0) * 0.5, hz), STEEL_DARK * 1.1)
+	var ap := Vector3(xf, top, c.y)
+	g.poly([Vector3(xf, yt, c.y - hz), Vector3(xf, yt, c.y + hz), ap], BRONZE * 0.6, Vector3.LEFT)
+	g.poly([Vector3(xb, yt, c.y - hz), Vector3(xb, yt, c.y + hz), Vector3(xb, top, c.y)], STEEL_DARK, Vector3.RIGHT)
+	for sz in [-1.0, 1.0]:
+		g.poly([Vector3(xf, yt, c.y + sz * hz), ap, Vector3(xb, top, c.y), Vector3(xb, yt, c.y + sz * hz)], BRONZE * 0.5, Vector3(0, 1, sz * 0.6))
+		# ยอดแหลมเล็กสองข้าง กับเสาขอบทองเหลือง
+		g.prism(xf + 0.05, yt, c.y + sz * (hz - 0.05), 0.05, 0.2, 4, BRASS * 0.8, 0.0, PI / 4.0)
+		g.box(Vector3(xf - 0.012, (y0 + yt) * 0.5, c.y + sz * (hz - 0.03)), Vector3(0.014, (yt - y0) * 0.5, 0.03), BRASS * 0.75)
+	g.box(Vector3(xf - 0.012, yt - 0.03, c.y), Vector3(0.014, 0.03, hz), BRASS * 0.8)
+	g.box(Vector3(xf - 0.012, 0.98, c.y), Vector3(0.014, 0.025, hz), BRASS * 0.7)
+	emblem(g, Vector3(xf - 0.006, yt + 0.07, c.y), Vector3(0, 0, 1), Vector3.LEFT, 0.07, BRASS * 0.8, WAX, Color(0.95, 0.45, 0.12), 10)
+	# จอสามจอ (ไม่อบแสง): กลางเขียวยอดแหลม ข้างอำพัน กรอบทองเหลืองเข้ม
+	var xs := xf - 0.03
+	var fr := 0.028
+	g.box(Vector3(xf - 0.012, 1.34, c.y), Vector3(0.016, 0.26, 0.25), BRASS * 0.55)
+	glow_g.poly([Vector3(xs, 1.1, c.y - 0.22), Vector3(xs, 1.1, c.y + 0.22), Vector3(xs, 1.48, c.y + 0.22), Vector3(xs, 1.58, c.y),
+		Vector3(xs, 1.48, c.y - 0.22)], HallLayout.SCREEN_GREEN * 0.32, Vector3.LEFT)
+	for i in 5:
+		var y := 1.16 + i * 0.065
+		var w := 0.3 - 0.06 * ((i * 3) % 4)
+		glow_g.poly([Vector3(xs - 0.003, y, c.y - 0.17), Vector3(xs - 0.003, y, c.y - 0.17 + w), Vector3(xs - 0.003, y + 0.022, c.y - 0.17 + w),
+			Vector3(xs - 0.003, y + 0.022, c.y - 0.17)], HallLayout.SCREEN_GREEN * 0.95, Vector3.LEFT)
+	for sz in [-1.0, 1.0]:
+		var z0: float = c.y + sz * 0.31
+		var z1: float = c.y + sz * 0.58
+		g.box(Vector3(xf - 0.012, 1.33, (z0 + z1) * 0.5), Vector3(0.016, 0.17 + fr, absf(z1 - z0) * 0.5 + fr), BRASS * 0.55)
+		glow_g.poly([Vector3(xs, 1.18, z0), Vector3(xs, 1.18, z1), Vector3(xs, 1.48, z1), Vector3(xs, 1.48, z0)], HallLayout.SCREEN_AMBER * 0.3, Vector3.LEFT)
+		for i in 3:
+			var y := 1.24 + i * 0.08
+			glow_g.poly([Vector3(xs - 0.003, y, z0 + sz * 0.04), Vector3(xs - 0.003, y, z1 - sz * 0.06), Vector3(xs - 0.003, y + 0.02, z1 - sz * 0.06),
+				Vector3(xs - 0.003, y + 0.02, z0 + sz * 0.04)], HallLayout.SCREEN_AMBER * 0.9, Vector3.LEFT)
+	# ไฟสถานะแถวล่างจอ
 	for i in 7:
-		var t := PI * i / 6.0
-		prof.append(Vector2(cos(t) * hxc, sin(t) * 0.24))
-	for i in 6:
-		var a := prof[i]
-		var b := prof[i + 1]
-		var out := Vector3((a.x + b.x) * 0.5, (a.y + b.y) * 0.5 + 0.1, 0.0)
-		g.poly([Vector3(c.x + a.x, ly + a.y, c.y - hzc), Vector3(c.x + b.x, ly + b.y, c.y - hzc), Vector3(c.x + b.x, ly + b.y, c.y + hzc),
-			Vector3(c.x + a.x, ly + a.y, c.y + hzc)], BRONZE * 0.62, out)
-		for z in [-0.45, 0.0, 0.45]:
-			var k := 1.04
-			g.poly([Vector3(c.x + a.x * k, ly + a.y * k, c.y + z - 0.045), Vector3(c.x + b.x * k, ly + b.y * k, c.y + z - 0.045),
-				Vector3(c.x + b.x * k, ly + b.y * k, c.y + z + 0.045), Vector3(c.x + a.x * k, ly + a.y * k, c.y + z + 0.045)], STEEL_DARK, out)
+		var z := c.y - 0.45 + i * 0.15
+		glow_g.poly([Vector3(xs, 0.9, z - 0.025), Vector3(xs, 0.9, z + 0.025), Vector3(xs, 0.94, z + 0.025), Vector3(xs, 0.94, z - 0.025)],
+			(LAMP_AMBER if i % 3 != 1 else Color(0.95, 0.25, 0.18)) * 0.85, Vector3.LEFT)
+	# แผงแป้นพิมพ์ลาดหน้าตู้: ตัวแผงถึง lo ด้านหน้า hi ด้านหลัง
+	var xa := c.x - 0.12
+	var lo := 0.84
+	var hi := 0.98
+	g.box(Vector3((xa + xf) * 0.5, (y0 + lo) * 0.5, c.y), Vector3((xf - xa) * 0.5, (lo - y0) * 0.5, hz - 0.08), BRONZE * 0.42)
+	g.box(Vector3(xa - 0.006, (y0 + lo) * 0.5, c.y), Vector3(0.008, (lo - y0) * 0.5 - 0.05, hz - 0.2), STEEL_DARK)
+	var p := [Vector3(xa, lo, c.y - hz + 0.08), Vector3(xa, lo, c.y + hz - 0.08), Vector3(xf, hi, c.y + hz - 0.08), Vector3(xf, hi, c.y - hz + 0.08)]
+	var tn := Vector3(-0.4, 1, 0)
+	g.poly(p, STEEL_DARK, tn)
+	g.poly([p[0], p[1], Vector3(xa, lo - 0.05, p[1].z), Vector3(xa, lo - 0.05, p[0].z)], BRASS * 0.75, Vector3.LEFT)
+	var ty := func(x: float) -> float: return lo + (x - xa) / (xf - xa) * (hi - lo) + 0.008
+	# แป้นสองชุด ซ้าย/ขวา: สามแถว แถวละห้าแป้น
 	for sz in [-1.0, 1.0]:
-		var cap: Array[Vector3] = []
-		for q in prof:
-			cap.append(Vector3(c.x + q.x, ly + q.y, c.y + sz * hzc))
-		g.poly(cap, BRONZE * 0.56, Vector3(0, 0, sz))
-	g.box(Vector3(c.x, ly - 0.01, c.y), Vector3(hxc, 0.01, hzc), BRONZE * 0.42)
-	# แสงทองรั่วจากร่องฝา (ไม่อบแสง) ด้านหน้าและสองข้าง
-	var xs := c.x - hxc - 0.003
-	glow_g.poly([Vector3(xs, ly - 0.02, c.y - hzc + 0.02), Vector3(xs, ly - 0.02, c.y + hzc - 0.02), Vector3(xs, ly + 0.012, c.y + hzc - 0.02),
-		Vector3(xs, ly + 0.012, c.y - hzc + 0.02)], SEAM_GLOW, Vector3.LEFT)
+		for row in 3:
+			var kx := xa + 0.05 + row * 0.1
+			for i in 5:
+				var kz: float = c.y + sz * (0.1 + i * 0.09)
+				var col := (LAMP_AMBER if (i + row) % 4 != 0 else HallLayout.SCREEN_GREEN) * 0.75
+				glow_g.poly([Vector3(kx, ty.call(kx), kz - 0.03), Vector3(kx, ty.call(kx), kz + 0.03), Vector3(kx + 0.06, ty.call(kx + 0.06), kz + 0.03),
+					Vector3(kx + 0.06, ty.call(kx + 0.06), kz - 0.03)], col, tn)
+	# สายเคเบิลจากข้างตู้ลงแท่น
+	var tsides := maxi(sides / 3, 4)
 	for sz in [-1.0, 1.0]:
-		var zs: float = c.y + sz * (hzc + 0.003)
-		glow_g.poly([Vector3(c.x - hxc + 0.02, ly - 0.02, zs), Vector3(c.x + hxc - 0.02, ly - 0.02, zs), Vector3(c.x + hxc - 0.02, ly + 0.012, zs),
-			Vector3(c.x - hxc + 0.02, ly + 0.012, zs)], SEAM_GLOW, Vector3(0, 0, sz))
-	# แผ่นกุญแจกับลายเทียน
-	var lp := Vector3(c.x - hxc - 0.016, y0 + bh - 0.16, c.y)
-	g.box(lp, Vector3(0.016, 0.11, 0.09), BRASS)
-	emblem(g, lp + Vector3(-0.018, 0.0, 0.0), Vector3(0, 0, 1), Vector3.LEFT, 0.075, STEEL_DARK, WAX, Color(0.95, 0.45, 0.12), 10)
+		var a := Vector3(xb - 0.1, 1.3, c.y + sz * hz)
+		var m := Vector3(xb - 0.02, 0.7, c.y + sz * (hz + 0.12))
+		var e := Vector3(xb + 0.1, 0.33, c.y + sz * (hz + 0.06))
+		tube(g, a, m, 0.025, tsides, IRON * 1.4)
+		tube(g, m, e, 0.025, tsides, IRON * 1.4)
+		tube(g, a + Vector3(0, -0.25, 0), m + Vector3(0.06, -0.1, 0), 0.018, tsides, BRASS * 0.5)
+	# ของบูชา: เทียนสองเล่มหน้าแท่น ชามถวายตรงกลาง ถ้วยสองใบบนปลายแผง แท่นวางหนังสือเปิด
 	for f in HallLayout.VAULT_FLAMES:
 		g.prism(f.x, 0.16, f.z, 0.07, 0.1, 6, BRONZE * 0.8)
 		_candle_at(g, Vector3(f.x, 0.26, f.z), f.y, 0.04)
+	var bx := HallLayout.VAULT_FLAMES[0].x
+	g.prism(bx, 0.16, c.y, 0.06, 0.04, n, BRASS * 0.7, 1.6)
+	g.prism(bx, 0.2, c.y, 0.08, 0.008, n, GOLD * 0.8)
+	for sz in [-1.0, 1.0]:
+		var cz: float = c.y + sz * (hz - 0.14)
+		g.prism(xa + 0.08, ty.call(xa + 0.08), cz, 0.03, 0.07, 6, GOLD * 0.75, 1.3)
+	var lz := c.y - 0.62
+	var lx := c.x - 0.55
+	g.prism(lx, y0, lz, 0.025, 0.5, 6, BRONZE * 0.7)
+	var bt := y0 + 0.5
+	var bk := [Vector3(lx - 0.12, bt, lz - 0.16), Vector3(lx - 0.12, bt, lz + 0.16), Vector3(lx + 0.1, bt + 0.12, lz + 0.16), Vector3(lx + 0.1, bt + 0.12, lz - 0.16)]
+	g.poly(bk, BRONZE * 0.55, Vector3(-0.5, 1, 0))
+	var bo := Vector3(-0.004, 0.008, 0.0)
+	g.poly([bk[0] + bo, Vector3(lx - 0.12, bt, lz) + bo, Vector3(lx + 0.1, bt + 0.12, lz) + bo, bk[3] + bo], PARCHMENT, Vector3(-0.5, 1, 0))
+	g.poly([Vector3(lx - 0.12, bt, lz) + bo, bk[1] + bo, bk[2] + bo, Vector3(lx + 0.1, bt + 0.12, lz) + bo], PARCHMENT * 0.92, Vector3(-0.5, 1, 0))
 
 
 ## เชิงเทียนตั้งพื้นชิดผนัง (บรอนซ์): ฐาน ก้าน ถาด แขน เทียนสามเล่ม

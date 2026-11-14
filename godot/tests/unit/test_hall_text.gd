@@ -61,7 +61,7 @@ func test_every_station_has_thai_and_english() -> void:
 			assert_true(thai_re.search(th) != null, "station %s has a Thai text (%s)" % [id, th])
 			var en := I18n.lookup(th)
 			assert_true(en != "" and thai_re.search(en) == null, "and an English pair without Thai (%s -> %s)" % [th, en])
-	# 0.3: the vault (treasure chest) is a coming-soon station too (SHIP_LOBBY_SPEC §5)
+	# 0.3: the vault (treasure chest; the work desk since 0.8) is a coming-soon station too (SHIP_LOBBY_SPEC §5)
 	# 0.5 (NET_SPEC §12.1): with the online flag the airlock opens the online screen, so online left the SOON table;
 	# 0.6 (PACK_SPEC §5.1): without the flag (the public app) the airlock is coming soon again (sign_of / soon_of)
 	for id in ["adventure", "vault"]:
@@ -85,8 +85,17 @@ func test_every_station_has_thai_and_english() -> void:
 	var vault_en := I18n.lookup(str(soon.get("vault", "")))
 	assert_true(vault_en != "" and thai_re.search(vault_en) == null and not vault_en.contains("{"),
 		"the vault line has a plain English pair (%s)" % vault_en)
-	assert_true(str(soon.get("vault", "")).contains("ชิ้นส่วนปืน") and vault_en.contains("gun parts"),
-		"the vault line names the future random rewards (gun parts and decorations)")
+	# 0.8: the treasure chest became the work desk / storage (station id kept): its line names the campaign items and
+	# the random rewards it will keep, and its name and sign are the desk in Thai and English
+	assert_true(str(soon.get("vault", "")).contains("แคมเปญ") and str(soon.get("vault", "")).contains("ของรางวัลสุ่ม")
+		and vault_en.contains("campaign") and vault_en.contains("random rewards"),
+		"the desk line names what it will keep (campaign items and random rewards): %s" % vault_en)
+	assert_eq(str(names["vault"]), "โต๊ะทำงาน", "the vault station is named the work desk")
+	assert_eq(I18n.lookup(str(names["vault"])), "Work Desk", "and translates")
+	assert_eq(str(signs["vault"]), "โต๊ะทำงาน · คลังของ", "the desk's sign reads work desk · storage")
+	assert_eq(I18n.lookup(str(signs["vault"])), "Work Desk · Storage", "and translates")
+	for t in [names["vault"], signs["vault"], soon["vault"]]:
+		assert_false(str(t).contains("หีบ") or I18n.lookup(str(t)).to_lower().contains("chest"), "no treasure chest left in %s" % str(t))
 	var place := str(consts.get("PLACE", ""))
 	var place_en := I18n.lookup(place)
 	assert_true(thai_re.search(place) != null and place_en != "" and thai_re.search(place_en) == null,

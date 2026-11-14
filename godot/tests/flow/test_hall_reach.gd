@@ -2,8 +2,8 @@ extends SceneTree
 ## Every station of the warship deck (SHIP_LOBBY_SPEC §2.2, §9) is reachable on foot from the spawn, with the real
 ## colliders, headless: main menu → เล่นกับบอท → the lobby; for each of the eight stations the avatar starts at the spawn
 ## and the on-screen stick steers it along a free path (grid search over HallLayout with the avatar's radius) until the
-## station's prompt shows; on the way the avatar never enters a blocker (HallLayout.blocker_at). Then the treasure chest
-## (vault, the future random rewards): its prompt in Thai and English, E opens the one-line coming-soon panel and stays
+## station's prompt shows; on the way the avatar never enters a blocker (HallLayout.blocker_at). Then the work desk
+## (vault, the future storage): its prompt in Thai and English, E opens the one-line coming-soon panel and stays
 ## in the lobby, Esc closes the panel first, a second Esc returns to the main menu. 0.4 (ARENA_SPEC §13.1): the arena
 ## door is the eighth station; the walk stops on its prompt at the trigger's edge and the lobby stays (depth 2: walking
 ## into the trigger does not enter, only walking into the doorway does). Figure packs (PACK_SPEC §4.1): with no pack
@@ -11,8 +11,8 @@ extends SceneTree
 ## player and enemy figures resolve to the defaults already in it); pointed at the primitive fixture pack it also asks
 ## for the pack's figure script and loads it on the thread. Graphics level min, test settings
 ## file (never this machine's settings.cfg). 0.7 (PACK_SPEC §9): with no pack the airlock still opens host/join (online
-## on) or the coming-soon panel (online off) and walking into it stays on the deck; with the fixture pack room and online
-## off it is still coming-soon; main menu "online" with the fixture room lands in the room in front of cards_box with
+## on) and walking into it stays on the deck; 0.8: with online off (the public app), with or without the fixture pack
+## room, the airlock has no ring, no prompt and no panel; main menu "online" with the fixture room lands in the room in front of cards_box with
 ## the lobby on top, and back lands in the room. Run:
 ##   timeout 600 <godot> --headless --path godot --audio-driver Dummy -s tests/flow/test_hall_reach.gd
 ## Exit code 1 on any failure; the last line is PASS or FAIL.
@@ -80,6 +80,9 @@ func _run() -> void:
 	var use: Button = hall.get_node("%UseButton")
 	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
 	_check(HallLayout.IDS.size() == 8 and HallLayout.IDS.has("vault") and HallLayout.IDS.has("arena"), "eight stations, the vault and the arena door included")
+	# 0.8: the docking airlock is a station only with the online flag (a private build): walk to it with the flag on
+	Features.set_flag(&"online", true)
+	hall.call("refresh")
 	for id in HallLayout.IDS:
 		var t0 := Time.get_ticks_msec()
 		var res := await _walk_to(world, hall, id)
@@ -113,6 +116,8 @@ func _run() -> void:
 			_check(int(pre2["requested"]) == own_files.size() + 1 and int(pre2["loaded"]) == int(pre2["requested"]),
 				"the fixture pack: the door's preload also asks for its figure script and loads it (%d requested, %d loaded)" % [int(pre2["requested"]), int(pre2["loaded"])])
 			hall.set("pack_manifest", ArenaActors.PACK_MANIFEST)
+	Features.reset()
+	hall.call("refresh")
 	await _check_vault(world, hall)
 	await _check_airlock_rooms()
 	_finish()
@@ -139,8 +144,9 @@ func _check_airlock_rooms() -> void:
 			_app().call("pop")
 			await _frames(3)
 		else:
-			_check(top == hall and hall.get_node("%SoonPanel").visible, "no pack, online off: the airlock shows the coming-soon panel")
-			await _press(KEY_ESCAPE)
+			# 0.8: the public app has no ring, no prompt and no panel at the airlock (only decoration)
+			_check(top == hall and not hall.get_node("%SoonPanel").visible and str(hall.call("station")) == "" and not (hall.get_node("%UseButton") as Control).visible
+				and not bool(world.call("station_enabled", "online")), "no pack, online off: no ring, no prompt and no panel at the airlock")
 		(world.get("camera_rig") as Node3D).call("set_view", -PI * 0.5, -0.35, 5.5)
 		world.call("set_stick", Vector2(0.0, 0.84))
 		await _physics(60)
@@ -150,15 +156,16 @@ func _check_airlock_rooms() -> void:
 			(world.get("avatar") as Node3D).global_position.x, (world.get("avatar") as Node3D).global_position.z)),
 			"no pack, online %s: walking into the airlock stays on the deck" % ("on" if flag else "off"))
 		if flag:
-			# ห้องทดสอบมีอยู่ แต่สวิตช์ online ปิด: ยังเป็น "เร็วๆ นี้"
+			# ห้องทดสอบมีอยู่ แต่สวิตช์ online ปิด: ประตูเป็นแค่ฉาก ไม่มีวง ไม่มีแผง
 			Features.set_flag(&"online", false)
 			hall.set("rooms_root", "res://tests/fixtures/pack_rooms")
+			hall.call("refresh")
 			world.call("place_avatar", Vector3(f.x, 0.0, f.y), PI * 0.5)
 			await _physics(4)
 			await _press(KEY_E)
-			_check(_app().call("current") == hall and hall.get_node("%SoonPanel").visible and (hall.call("door_room") as Dictionary).is_empty(),
-				"the fixture room with online off: the airlock is still coming-soon")
-			await _press(KEY_ESCAPE)
+			_check(_app().call("current") == hall and not hall.get_node("%SoonPanel").visible and (hall.call("door_room") as Dictionary).is_empty()
+				and str(hall.call("station")) == "" and not bool(world.call("station_enabled", "online")),
+				"the fixture room with online off: no ring and no panel at the airlock, the deck stays")
 		await _press(KEY_ESCAPE)
 		menu = _app().call("current")
 	# หน้าแรก → ออนไลน์ ตอนมีห้องทดสอบ: เข้าห้องหน้า cards_box แล้วหน้าเล่นกับเพื่อนทับ; ย้อนกลับ = ในห้อง
@@ -240,10 +247,10 @@ func _check_vault(world: Node3D, hall: Node) -> void:
 		world.call("place_avatar", Vector3(3.15, 0.0, 4.0), -PI * 0.5)
 		await _physics(4)
 		await _frames(2)
-		var prompt := "หีบสมบัติ · กด E" if lang == "th" else "Treasure Chest · press E"
-		_check(str(hall.call("station")) == "vault" and use.visible and use.text == prompt, "%s: the chest's prompt is %s" % [lang, use.text])
+		var prompt := "โต๊ะทำงาน · กด E" if lang == "th" else "Work Desk · press E"
+		_check(str(hall.call("station")) == "vault" and use.visible and use.text == prompt, "%s: the desk's prompt is %s" % [lang, use.text])
 		await _press(KEY_E)
-		var line := "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง" if lang == "th" else "Treasure chest — coming soon: win random gun parts and decorations"
+		var line := "โต๊ะทำงาน — เร็วๆ นี้: เก็บของจากแคมเปญและของรางวัลสุ่ม" if lang == "th" else "Work desk — coming soon: keeps campaign items and random rewards"
 		_check(soon.visible and label.text == line and _app().call("current") == hall and int(_app().call("depth")) == 2,
 			"%s: E at the chest shows the coming-soon panel and stays in the lobby (%s)" % [lang, label.text])
 		await _press(KEY_ESCAPE)

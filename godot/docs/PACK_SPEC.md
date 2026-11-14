@@ -224,7 +224,7 @@ Some features ship only in the private build. A private build drops one more fil
 
 | Key | Off (the public app: no file) | On |
 | --- | --- | --- |
-| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7); 0.7: with a pack room for the airlock (§9) the airlock is a walk-in door into that room instead, and the online button lands in the room with host/join on top |
+| `online` | the main menu's online button is hidden; the deck's docking airlock is a coming-soon station again (sign "ประตูเทียบยาน · เร็วๆ นี้" / "Docking Airlock · Coming soon", its panel names the launch bay and play with friends; 0.8: decoration only, no ring, no prompt, no panel, the sign stays); `hall.open_online()` returns `null` | the online button and the airlock open the play-with-friends screen (NET_SPEC §7); 0.7: with a pack room for the airlock (§9) the airlock is a walk-in door into that room instead, and the online button lands in the room with host/join on top |
 
 - Unknown keys and non-boolean values are ignored; a broken file is the same as no file (a warning, never a crash).
 - Only the entry points are switched. The network code (`net/`, the `Net` autoload, lockstep, discovery) is unchanged and

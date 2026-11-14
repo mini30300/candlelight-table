@@ -48,9 +48,9 @@ the new keys exists yet.
 | `NAMES.adventure` | โต๊ะผจญภัย | Adventure Table | existing, kept |
 | `SIGNS.adventure` / `SOON.adventure` | โต๊ะผจญภัย · เร็วๆ นี้ / โต๊ะผจญภัย — เร็วๆ นี้ | (existing) | kept |
 | `NAMES.exit`, `SIGNS.exit` | ทางออก | Exit | existing, kept |
-| `NAMES.vault` | หีบสมบัติ | Treasure Chest | **new** |
-| `SIGNS.vault` | หีบสมบัติ · เร็วๆ นี้ | Treasure Chest · Coming soon | **new** |
-| `SOON.vault` | หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง | Treasure chest — coming soon: win random gun parts and decorations | **new** |
+| `NAMES.vault` | หีบสมบัติ | Treasure Chest | **new** (0.8: โต๊ะทำงาน / Work Desk) |
+| `SIGNS.vault` | หีบสมบัติ · เร็วๆ นี้ | Treasure Chest · Coming soon | **new** (0.8: โต๊ะทำงาน · คลังของ / Work Desk · Storage) |
+| `SOON.vault` | หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง | Treasure chest — coming soon: win random gun parts and decorations | **new** (0.8: โต๊ะทำงาน — เร็วๆ นี้: เก็บของจากแคมเปญและของรางวัลสุ่ม / Work desk — coming soon: keeps campaign items and random rewards) |
 | `PLACE` (title plaque) | ดาดฟ้ายานรบ | Warship Deck | **new** |
 
 - **Remove** "ตู้โชว์กองทัพ" and "ประตูออนไลน์" from `hall.json`: `test_hall_text.test_hall_fragment_is_clean_and_used`
@@ -508,3 +508,12 @@ its tests are the record:
 With a personal pack that ships a room for the docking airlock and the online switch on, the airlock is a walk-in
 door (same fade as the arena door) into that room; coming back places the avatar at `HallLayout.AIRLOCK_RETURN`
 (9.6, 0, 3.0) facing −x. Without such a room the deck is unchanged. See `PACK_SPEC.md` §9.
+
+## 0.8 (14 Nov 2026): the work desk, and no airlock ring in the public app
+
+| Item | As built |
+| --- | --- |
+| Work desk | The vault station (id kept, so tests, budgets and `IDS` do not churn) became "โต๊ะทำงาน · คลังของ" / "Work Desk · Storage": `HallBuilder._work_desk` on the same two-step octagonal dais (r 1.2 at (5, 4), front ring (3.15, 4)): a brass-trimmed computer cabinet facing −x with a pointed gable, two small pinnacles and our candle emblem, a green pointed-top centre screen and two amber side screens with data lines, a status-lamp row, a sloped keyboard bank (two sets of 3 × 5 keys), cables down to the dais; offerings: the two `VAULT_FLAMES` candles, a brass offering bowl, two cups, an open book on a stand. No reward or item logic: the panel says coming soon. |
+| Blocker and sign | `STATIONS.vault.height` 1.4 → 1.95 (the gable top, so the camera collides with the cabinet), sign y 2.3 → 2.45 (still > height + 0.3). The gold seam light became a weak green screen light in `COOL_LIGHTS`. |
+| Airlock (public app) | Without the `online` flag the airlock is decoration only: `HallWorld.set_station_enabled("online", false)` removes its ring and `HallLayout.station_at(p, off)` skips it (no prompt, E does nothing, no panel). With the flag the ring is back and the door works as in 0.7 (pack room, or host/join without one). `SOON_ONLINE` / `SIGN_SOON_ONLINE` stay (the sign still reads "ประตูเทียบยาน · เร็วๆ นี้"). |
+| Tests | `test_hall_text` (desk name / sign / line in Thai and English, no chest left), `test_hall_layout` (`station_at` with a switched-off id), `test_hall_reach` and `test_hall` (no ring, no prompt, no panel at the airlock with the flag off, with and without the fixture room; the ring comes back with the flag; the desk prompt, sign and panel), `test_menu_text` (APP_VER ใหม่ 0.8). |

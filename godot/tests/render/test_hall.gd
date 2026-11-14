@@ -257,9 +257,9 @@ func _check_texts(hall: Node) -> void:
 				tag + ": the vault line takes %d line(s), at most %d, all shown" % [label.get_line_count(), int(VAULT_LINES[lang])])
 			if lang == "en":
 				thai = _thai_in(hall, [])
-				_check(thai.is_empty() and label.text.begins_with("Treasure chest"), tag + ": the vault panel is English (%s)" % label.text, ", ".join(thai))
+				_check(thai.is_empty() and label.text.begins_with("Work desk"), tag + ": the vault panel is English (%s)" % label.text, ", ".join(thai))
 			else:
-				_check(label.text.begins_with("หีบสมบัติ"), tag + ": the vault panel is Thai (%s)" % label.text)
+				_check(label.text.begins_with("โต๊ะทำงาน"), tag + ": the vault panel is Thai (%s)" % label.text)
 			hall.call("close_soon")
 	await _resize(SIZES[0])
 	_app().call("set_lang", "th")
@@ -430,12 +430,24 @@ func _check_stations(hall: Node) -> void:
 	for id in HallLayout.IDS:
 		world.call("place_avatar", _front(id), PI)
 		await _settle()
+		if id == "online":
+			# 0.8: the public app (no online flag) has no ring, no prompt and no station at the docking airlock
+			_check(str(hall.call("station")) == "" and not use.visible and not bool(world.call("station_enabled", "online"))
+				and int((world.get("rings") as Node).call("count")) == HallLayout.IDS.size(),
+				"public app: no ring and no prompt at the docking airlock (%d rings: the avatar and seven stations)" % int((world.get("rings") as Node).call("count")))
+			continue
 		_check(str(hall.call("station")) == id and use.visible and use.text.contains(str(root.get_node(^"I18n").call("t", str(names[id])))),
 			"at %s the prompt names it: %s" % [id, use.text])
-	# 0.3: the airlock moved to the right wall (SHIP_LOBBY_SPEC §2.2): its prompt shows over there
+	# 0.3: the airlock moved to the right wall (SHIP_LOBBY_SPEC §2.2): its prompt shows over there (online flag on)
+	Features.set_flag(&"online", true)
+	hall.call("refresh")
+	_check(bool(world.call("station_enabled", "online")) and int((world.get("rings") as Node).call("count")) == HallLayout.IDS.size() + 1,
+		"online flag: the docking airlock's ring is back (%d rings)" % int((world.get("rings") as Node).call("count")))
 	world.call("place_avatar", _front("online"), PI)
 	await _settle()
 	_check(_avatar(world).global_position.x > 10.0 and str(hall.call("station")) == "online", "the docking airlock is on the right wall (avatar at x %.2f)" % _avatar(world).global_position.x)
+	Features.set_flag(&"online", false)
+	hall.call("refresh")
 	# the armoury and the console open their screens; back returns to an active hall
 	for pair in [["army", "the army picker", "listed_units"], ["settings", "the settings screen", "refresh"]]:
 		world.call("place_avatar", _front(pair[0]), PI)
@@ -471,15 +483,15 @@ func _check_stations(hall: Node) -> void:
 		_check(not timer.is_stopped() and timer.wait_time <= 2.6, "the panel closes itself after 2.5 s")
 		await _press(KEY_ESCAPE)
 		_check(not soon.visible and _app().call("current") == hall, "Esc closes the %s panel first and stays in the hall" % id)
-	# 0.6 (PACK_SPEC §5.1): in the public app (no online flag) the airlock is a coming-soon station again
+	# 0.6 (PACK_SPEC §5.1): in the public app (no online flag) the airlock does not open the lobby; 0.8: it is only
+	# decoration there (no ring, no prompt), so E in front of it does nothing at all
 	Features.set_flag(&"online", false)
 	hall.call("refresh")
 	world.call("place_avatar", _front("online"), PI)
 	await _settle()
 	await _press(KEY_E)
-	_check(_app().call("current") == hall and soon.visible and str(hall.get_node("%SoonLabel").text) == "ประตูเทียบยาน — เร็วๆ นี้: ลานปล่อยยานและเล่นกับเพื่อน",
-		"public app: E at the docking airlock shows its coming-soon panel, no lobby")
-	await _press(KEY_ESCAPE)
+	_check(_app().call("current") == hall and int(_app().call("depth")) == 2 and not soon.visible and str(hall.call("station")) == "",
+		"public app: E in front of the docking airlock does nothing (no panel, no lobby)")
 	# 0.5 (NET_SPEC §7.1), with the online flag of a private build: E at the docking airlock pushes the play-with-friends
 	# screen (depth 3); back returns to the deck at the airlock with the hall active and its camera current
 	Features.set_flag(&"online", true)
@@ -651,7 +663,8 @@ func _frames_until(cond: Callable, n: int) -> void:
 		await process_frame
 
 
-## The treasure chest (SHIP_LOBBY_SPEC §5): the station for the future random rewards only says "coming soon" in Thai
+## The work desk (id "vault", the treasure chest until 0.8; SHIP_LOBBY_SPEC §5): the station for the future storage of
+## campaign items and random rewards only says "coming soon" in Thai
 ## and English; Esc (App.back) closes the panel first, walking away closes it, nothing is pushed.
 func _check_vault(hall: Node) -> void:
 	var world: Node3D = hall.get("world")
@@ -665,12 +678,12 @@ func _check_vault(hall: Node) -> void:
 		world.call("place_avatar", _front("vault"), PI)
 		rig.call("set_view", PI * 0.5, -0.35, 5.5)   # from behind the chest, so the PNG shows it under the panel
 		await _settle()
-		var want_prompt := "หีบสมบัติ · กด E" if lang == "th" else "Treasure Chest · press E"
+		var want_prompt := "โต๊ะทำงาน · กด E" if lang == "th" else "Work Desk · press E"
 		_check(str(hall.call("station")) == "vault" and use.visible and use.text == want_prompt, "%s: at the chest the prompt is %s" % [lang, use.text])
 		var sign_text := str(world.call("sign_text", "vault"))
-		_check(sign_text == ("หีบสมบัติ · เร็วๆ นี้" if lang == "th" else "Treasure Chest · Coming soon"), "%s: the chest's sign reads %s" % [lang, sign_text])
+		_check(sign_text == ("โต๊ะทำงาน · คลังของ" if lang == "th" else "Work Desk · Storage"), "%s: the desk's sign reads %s" % [lang, sign_text])
 		await _press(KEY_E)
-		var want := "หีบสมบัติ — เร็วๆ นี้: สุ่มรับชิ้นส่วนปืนและของตกแต่ง" if lang == "th" else "Treasure chest — coming soon: win random gun parts and decorations"
+		var want := "โต๊ะทำงาน — เร็วๆ นี้: เก็บของจากแคมเปญและของรางวัลสุ่ม" if lang == "th" else "Work desk — coming soon: keeps campaign items and random rewards"
 		_check(soon.visible and label.text == want and _app().call("current") == hall and int(_app().call("depth")) == 2,
 			"%s: E at the chest opens the coming-soon panel (%s) and stays in the hall" % [lang, label.text])
 		if lang == "en":
@@ -709,7 +722,7 @@ func _check_touch(hall: Node) -> void:
 	# 0.3: the touch use button opens the chest's coming-soon panel too
 	world.call("place_avatar", _front("vault"), PI)
 	await _settle()
-	_check(use.visible and use.text == "หีบสมบัติ · แตะเพื่อใช้", "touch on: the chest's prompt is %s" % use.text)
+	_check(use.visible and use.text == "โต๊ะทำงาน · แตะเพื่อใช้", "touch on: the desk's prompt is %s" % use.text)
 	use.pressed.emit()
 	await _frames(2)
 	_check((hall.get_node("%SoonPanel") as Control).visible and _app().call("current") == hall, "tapping the use button at the chest opens its coming-soon panel")

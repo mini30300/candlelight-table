@@ -145,6 +145,11 @@ func test_station_at_samples() -> void:
 		var f: Vector2 = HallLayout.STATIONS[id]["front"]
 		assert_eq(HallLayout.station_at(f), id, "the ring in front of %s is inside its trigger" % id)
 		assert_false(HallLayout.blocked(f, HallLayout.AVATAR_R), "the avatar fits on the %s ring" % id)
+	# 0.8: a switched-off station (the airlock of the public app) is never reported, the others still are
+	var air: Vector2 = HallLayout.STATIONS["online"]["front"]
+	assert_eq(HallLayout.station_at(air, {"online": true}), "", "the switched-off airlock is no station at its own ring")
+	assert_eq(HallLayout.station_at(air + Vector2(0.0, 2.0), {"online": true}), "", "nor next to it")
+	assert_eq(HallLayout.station_at(HallLayout.STATIONS["vault"]["front"], {"online": true}), "vault", "the desk stays a station")
 
 
 func test_ties_go_to_the_nearest_station() -> void:
