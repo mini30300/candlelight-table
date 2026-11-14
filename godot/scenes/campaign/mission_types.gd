@@ -3,20 +3,34 @@ extends RefCounted
 ## ประเภทภารกิจและลักษณะพิเศษของศัตรู (CAMPAIGN_SPEC §2.4, track C เป็นเจ้าของไฟล์และปรับตัวเลข)
 ## ชื่อไทยมีคำแปลใน ui/i18n/campaign_mission.json · ตัวเลขเป็นจำนวนเต็ม (วินาที จำนวนตัว ร้อยละ)
 ## CampaignRules อ่าน par_s() ไปคิดโบนัสเวลา · หน้าการ์ดดาวอ่าน name_th() / goal_th()
-## TODO(track C): ปรับตัวเลขหลังเล่นจริง (บันทึกใน CAMPAIGN_SPEC §12.C ว่าเปลี่ยนอะไร เพราะอะไร)
+## ตัวเลขที่ปรับแล้วบันทึกใน CAMPAIGN_SPEC §12.C
 
 ## par_s = เวลามาตรฐาน (0 = ไม่มีโบนัสเวลา), limit_s = หมดเวลาแล้วแพ้ (0 = ไม่มี; ป้องกันฐานชนะเมื่อครบเวลา)
 ## enemies = จำนวนศัตรูทั้งภารกิจที่ความยากธรรมดา (คูณ count_pct ของความยาก), waves = จำนวนระลอก
+## bosses = หัวหน้าที่มาเพิ่มในระลอกสุดท้าย (champion เพิ่มอีก 1) · guards = ยามค่ายลัทธิ (ไม่นับใน enemies)
+## extract = ทำเป้าหมายครบแล้วต้องเดินกลับวงจุดรับจึงชนะ · wave_at = วินาทีที่ระลอกเริ่ม (−1 = รอเคลียร์ระลอกก่อน)
 const TYPES := {
 	"purge": {"th": "กวาดล้างผู้รุกราน", "goal": "กำจัดศัตรูให้หมดพื้นที่", "par_s": 240, "limit_s": 0,
-		"enemies": 24, "waves": 3},
+		"enemies": 24, "waves": 3, "bosses": 1, "wave_at": [0, -1, -1]},
 	"defend": {"th": "ป้องกันฐาน", "goal": "รักษาฐานไว้จนกว่ากำลังเสริมจะมาถึง", "par_s": 0, "limit_s": 180,
-		"enemies": 30, "waves": 5, "base_hp": 1000},
+		"enemies": 30, "waves": 5, "base_hp": 1000, "bosses": 1, "wave_at": [3, 30, 62, 96, 130]},
 	"rescue": {"th": "ช่วยตัวประกัน", "goal": "พาตัวประกันทุกคนกลับถึงจุดรับ", "par_s": 300, "limit_s": 600,
-		"enemies": 18, "waves": 2, "hostages": 3},
+		"enemies": 18, "waves": 2, "hostages": 3, "bosses": 0, "wave_at": [0, 90], "extract": true},
 	"destroy_camp": {"th": "ทำลายค่ายลับลัทธิมืด", "goal": "ทำลายเสาพิธีกรรมทั้งสามในค่าย", "par_s": 270,
-		"limit_s": 0, "enemies": 20, "waves": 2, "pylons": 3, "pylon_hp": 400},
+		"limit_s": 0, "enemies": 20, "waves": 2, "pylons": 3, "pylon_hp": 400, "bosses": 1, "guards": 6,
+		"wave_at": [0, 120], "extract": true},
 }
+## ตัวประกัน: พลังชีวิต, เวลากดปล่อย (ยืนในวง), รัศมีวงปล่อย / วงจุดรับ / วงสัญญาณ (ม.)
+const HOSTAGE := {"hp": 120, "free_s": 1.5, "free_r": 1.6, "follow_gap": 1.4, "speed": 4.2}
+const PICKUP_R := 2.6
+const BEACON_R := 2.4
+## ฐาน (ป้องกันฐาน): รัศมีที่ศัตรูตีโดน (ม.) · ความเสียหายต่อฐานคูณจากดาเมจศัตรู (ร้อยละ)
+const BASE_R := 2.2
+const BASE_DMG_PCT := 150
+## ร้อยละของศัตรูที่อ้อมโอบแทนเดินตรงเข้ามา (ตามความยาก)
+const FLANK_PCT := {"normal": 10, "hard": 25, "veryhard": 40, "catastrophe": 55}
+## ศัตรูที่ยังมีชีวิตพร้อมกันได้ไม่เกิน (ตามระดับกราฟิก; จำนวนทั้งภารกิจไม่เปลี่ยน ระลอกเติมเมื่อมีตัวตาย)
+const ALIVE_CAP := {"hi": 14, "mid": 10, "lo": 7, "min": 5}
 
 ## เป้าหมายรอง (เหตุการณ์อื่นบนดาวเดียวกัน) แบบย่อในแผนที่เดียวกัน
 const SECONDARY := {
@@ -47,6 +61,40 @@ static func goal_th(t: String) -> String:
 
 static func secondary_th(t: String) -> String:
 	return str(SECONDARY.get(t, {}).get("th", ""))
+
+
+## ข้อมูลของประเภท (สำเนา) หรือ {}
+static func type_row(t: String) -> Dictionary:
+	return (TYPES.get(t, {}) as Dictionary).duplicate(true)
+
+
+static func extracts(t: String) -> bool:
+	return bool(TYPES.get(t, {}).get("extract", false))
+
+
+## จำนวนหัวหน้าทั้งภารกิจ (ประเภท + champion)
+static func boss_count(spec: Dictionary) -> int:
+	var t := str((spec.get("primary", {}) as Dictionary).get("type", ""))
+	var n := int(TYPES.get(t, {}).get("bosses", 0))
+	n += int(MODIFIERS.get(str(spec.get("modifier", "")), {}).get("extra_boss", 0))
+	return n
+
+
+## จำนวนยามค่ายลัทธิ (ทำลายค่าย) หลังคูณจำนวนของความยาก
+static func guard_count(spec: Dictionary) -> int:
+	var t := str((spec.get("primary", {}) as Dictionary).get("type", ""))
+	var g := int(TYPES.get(t, {}).get("guards", 0))
+	if g <= 0:
+		return 0
+	return maxi(g * int((spec.get("diff", {}) as Dictionary).get("count_pct", 100)) / 100, 1)
+
+
+static func flank_pct(difficulty: String) -> int:
+	return int(FLANK_PCT.get(difficulty, 10))
+
+
+static func alive_cap(level: String) -> int:
+	return int(ALIVE_CAP.get(level, ALIVE_CAP["mid"]))
 
 
 static func par_s(t: String) -> int:
