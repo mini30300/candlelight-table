@@ -698,6 +698,60 @@ catastrophe music (the slot exists: `catastrophe.ogg`); internet relay play (NET
 
 ### 12.A Core, galaxy, report, entries
 
+As built on `t2-campaign` (track A, 15 Nov 2026). Everything in §1.1–§1.3, §1.5, §1.7 and §5.2 holds except the
+points marked **changed**.
+
+- **CampaignFlow** (`app/campaign_flow.gd`): `start`, `change_difficulty`, `launch`, `retry`, `back_to_galaxy` (new,
+  the report's "กลับแผนที่กาแล็กซี" and its Esc), `leave`, `is_top(kind)`, `running()`. Every screen it opens carries
+  the meta `campaign_screen` = `difficulty|galaxy|mission|report`; double presses are ignored (`start` while a campaign
+  screen is on top returns it; `launch` while the mission is on top returns null; `chosen` from a screen that is no
+  longer on top is ignored; `finished` is connected one-shot). `_on_finished` records the score once, sets
+  `where = deck` and music `deck`, pops anything pushed over the mission (settings) and replaces the mission with the
+  report; `score.repeat` (bool) is added for the report's note. `_start_mission` sets `where = arena` (C may set it
+  too; same value). Tests point the screens elsewhere with `CampaignFlow.test_scenes`.
+- **CampaignRules.estimate_coins(spec, repeat)** = `max((1000 + 500 + 300 × n_secondary) × score_x10 / 10 / 40, 10)`,
+  then featured ×150 % and repeat ×25 % — equal to the coins of a clean win with every secondary and no kill/time bonus.
+- **CampaignSave** now checks every field it reads (unknown difficulty, non-numeric weeks, non-number bests, non-true
+  clears and non-dictionary history entries are dropped; the good parts are kept).
+- **GalaxyScreen** (`ui/screens/galaxy_screen.*`): top bar (‹ ยาน, one rich text with title + coins + countdown, the
+  difficulty chip = change difficulty), `GalaxyMap`, `PlanetCard`, `MissionBrief`, a note toast and a fade. Wide: the
+  card/brief is a right panel (≤ 470 px) and the map sits left; narrow or portrait: a bottom sheet (42 % of the
+  height) and the map above. Esc: brief → card → map → leave. **Changed:** back from a mission the brief closes and
+  the planet's card shows (refreshed, the event marked cleared). The week check and the coins refresh on every show.
+  Test hooks: `map() card() brief() card_open() brief_open() current_spec() countdown_text() coins_text() narrow()`.
+- **GalaxyMap** (`ui/campaign/galaxy_map.gd`): background baked once per size with `GalaxyMap.bake` (arm light at
+  256², cubic upscale, then 700–2600 hashed stars; cached in a static), markers and every icon drawn as **one triangle
+  array** (`GalaxyMap.Pen` → `RenderingServer.canvas_item_add_triangle_array`) = one draw call for all 44 planets.
+  Marker = faction-colour ring, dark gap, biome-colour core; gold star = featured; green check = cleared at this
+  difficulty; small dots under a planet = its number of events. Drag pans (tap slop 12 px), wheel / pinch / magnify
+  zooms 1×–3× around the pointer, tap radius ≥ 22 px. Redraws only on input, resize or data (`draws()` for tests).
+- **PlanetCard / MissionBrief**: the planet name, biome, invaders (in the faction colour), featured line, "รีเซ็ตใน {d}
+  วัน {h} ชม." and the events heading are one RichTextLabel; all event rows (background, border, icon, three text
+  lines) are one `EventList` control (triangles + `TextParagraph`, bold pass then regular pass); the brief is an icon,
+  one bold header text, one body text and ออกรบ. Close/back buttons on the panels are gold text only. This keeps the
+  galaxy screen at ≤ 15 draw calls on min with the card or the brief open (measured 15; map alone 9).
+- **ReportScreen** (`ui/screens/report_screen.*`): **changed title texts** "ผลภารกิจ: สำเร็จ / ล้มเหลว / ถอนตัว" (the
+  plain "ภารกิจสำเร็จ / ภารกิจล้มเหลว" belong to track C's mission banner; a key may live in one fragment only).
+  Six stat boxes (one control), the score lines as one rich text with a tab-stop value column, raw and multiplier,
+  score, grade, +coins, featured / repeat notes, wallet. hi/mid count up with one Tween (1.0 s), lo/min none. On min
+  the two secondary buttons are gold text only. Measured 19 draw calls (hi/mid/lo), 16 (min).
+- **Deck station** as §1.2; the holo disc (core, four arms, rim, 44 amber planet dots) is drawn into `HallBuilder.holo_mesh`
+  (no new mesh) and spins only on hi/mid in `holo.gdshader` (a vertex rotation for vertices above 1.4 m within 0.85 m
+  of (5.5, −5.5)); lo/min use the plain holo material (no `TIME`). One soft holo `COOL_LIGHTS` entry at the disc.
+  The deck's ring capacity is 17 (was 16). **Changed checks:** the spawn is 10.9 m from the projector's edge (the
+  11.9 m of §1.2 is to its centre); camera for the projector view is yaw 0 (it stands toward −z).
+- **Pack rooms**: `campaign` in `ACTIONS` and `CARD_ACTIONS`; `PackRoomScreen.open_campaign()`; campaign cards are
+  primary (amber) buttons like online cards. PACK_SPEC §9.7 documents it.
+- **i18n**: all new keys in `ui/i18n/campaign.json` (36) and `hall.json` (3); reused: "‹ กลับ", "เล่นอีกครั้ง",
+  "ความแม่นยำ", "เป้าหมายหลัก", "สังหารศัตรู", "ความเสียหายที่ได้รับ".
+- **Tests** (all new unless marked): unit `test_campaign_flow_unit` (stub screens in `tests/fixtures/campaign_flow/`),
+  `test_campaign_rules` (+ estimate_coins), `test_campaign_save` (+ field checks), `test_hall_layout` (changed: nine
+  ids, + `test_campaign_table`), `test_hall_text` (+ campaign), `test_hall_friends` (changed: 17 rings),
+  `test_pack_rooms` (+ `test_campaign_action`, + `card_bad_action`); flow `test_campaign_flow` (deck → table → hard →
+  galaxy → tap p00 → tap the event row → brief → ออกรบ → stub mission → report → Esc paths → deck; English; the fixture
+  room's card and dropship), `test_hall_reach` and `test_lobby_flow` (changed: nine stations, the projector blocker);
+  render `test_campaign_galaxy`, `test_campaign_report`, `test_hall` (changed: 11 labels, + the projector view).
+
 ### 12.B Difficulty screen and heroes
 
 ### 12.C Missions

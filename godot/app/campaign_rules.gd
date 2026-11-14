@@ -123,3 +123,18 @@ static func score(spec: Dictionary, result: Dictionary, opts: Dictionary = {}) -
 
 static func _line(lines: Array[Dictionary], key: String, value: int) -> void:
 	lines.append({"key": key, "th": str(LINE_TH[key]), "value": value})
+
+
+## เหรียญโดยประมาณบนการ์ดดาว (CAMPAIGN_SPEC §1.5): ชนะเป้าหมายหลัก + ไม่ล้ม + ทำเป้าหมายรองครบ คูณความยาก
+## แล้วคิดแบบเดียวกับ score(): อย่างน้อย COIN_MIN_WIN, ดาวเด่น × FEATURED_PCT, เล่นซ้ำ × REPEAT_PCT (ไม่รวมแต้มสังหาร/เวลา)
+static func estimate_coins(spec: Dictionary, repeat := false) -> int:
+	if spec.is_empty():
+		return 0
+	var n_sec := (spec.get("secondary", []) as Array).size()
+	var mx := int(difficulty(str(spec.get("difficulty", "normal")))["score_x10"])
+	var coins := maxi((PRIMARY + NO_DOWN + SECONDARY * n_sec) * mx / 10 / COIN_DIV_WIN, COIN_MIN_WIN)
+	if bool(spec.get("featured", false)):
+		coins = coins * FEATURED_PCT / 100
+	if repeat:
+		coins = coins * REPEAT_PCT / 100
+	return coins

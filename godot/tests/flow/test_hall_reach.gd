@@ -1,6 +1,6 @@
 extends SceneTree
 ## Every station of the warship deck (SHIP_LOBBY_SPEC §2.2, §9) is reachable on foot from the spawn, with the real
-## colliders, headless: main menu → เล่นกับบอท → the lobby; for each of the eight stations the avatar starts at the spawn
+## colliders, headless: main menu → เล่นกับบอท → the lobby; for each of the nine stations (round E: + campaign) the avatar starts at the spawn
 ## and the on-screen stick steers it along a free path (grid search over HallLayout with the avatar's radius) until the
 ## station's prompt shows; on the way the avatar never enters a blocker (HallLayout.blocker_at). Then the work desk
 ## (vault, the future storage): its prompt in Thai and English, E opens the one-line coming-soon panel and stays
@@ -81,8 +81,9 @@ func _run() -> void:
 		"no figure pack: the avatar is the egg (no deck figure)")
 	var names: Dictionary = (hall.get_script() as Script).get_script_constant_map()["NAMES"]
 	var use: Button = hall.get_node("%UseButton")
-	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station
-	_check(HallLayout.IDS.size() == 8 and HallLayout.IDS.has("vault") and HallLayout.IDS.has("arena"), "eight stations, the vault and the arena door included")
+	# 0.4 (ARENA_SPEC §13.1): the arena door is the eighth station; round E (CAMPAIGN_SPEC §1.2): the campaign table the ninth
+	_check(HallLayout.IDS.size() == 9 and HallLayout.IDS.has("vault") and HallLayout.IDS.has("arena") and HallLayout.IDS.has("campaign"),
+		"nine stations, the vault, the arena door and the campaign table included")
 	# round B: the docking airlock is a station only with a pack room; switch it on by hand to walk to it
 	hall.call("refresh")
 	world.call("set_station_enabled", "online", true)

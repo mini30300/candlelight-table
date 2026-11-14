@@ -10,8 +10,9 @@ const FORMAT := 1
 const DOORS: PackedStringArray = ["online"]
 const DOOR_FEATURE := {"online": &"online"}
 ## arena = ประตูเดินเข้าอารีน่า (มีได้หนึ่งสถานี; ห้องที่มี = ประตูอารีน่าบนดาดฟ้าปิด) · dressing = เปิดห้องแต่งตัว
-const ACTIONS: PackedStringArray = ["soon", "cards", "online", "back", "arena", "dressing"]
-const CARD_ACTIONS: PackedStringArray = ["soon", "online"]
+## campaign = เปิดแคมเปญ (CampaignFlow.start("room"), CAMPAIGN_SPEC §1.3) ได้ทั้งสถานีและการ์ด มีกี่อันก็ได้
+const ACTIONS: PackedStringArray = ["soon", "cards", "online", "back", "arena", "dressing", "campaign"]
+const CARD_ACTIONS: PackedStringArray = ["soon", "online", "campaign"]
 const ROOM_API: PackedStringArray = ["setup", "apply_level", "blockers"]
 const ROOM_OPTIONAL: PackedStringArray = ["station_near", "station_used", "set_active", "set_english", "counts"]
 ## แถบห้อง (NetProto ไม่เปลี่ยน): ท่าในห้องส่ง x + 30 ม.; x ≥ 13.5 ม. = อยู่ในห้อง (ดาดฟ้าอยู่ใน ±12.5 ม.)
@@ -265,7 +266,7 @@ static func _station(e: PackedStringArray, s: Variant, half: Vector2, ids: Dicti
 				_pair(e, card.get("text"), tag + " card text", 80)
 				var ca := str(card.get("action", ""))
 				if not CARD_ACTIONS.has(ca):
-					e.append(tag + ": card action must be soon or online")
+					e.append(tag + ": card action must be soon, online or campaign")
 				elif ca == "soon":
 					_pair(e, card.get("soon"), tag + " card soon", 120)
 	if d.has("walk_in") and (not d["walk_in"] is bool or (bool(d["walk_in"]) and act != "back" and act != "arena")):

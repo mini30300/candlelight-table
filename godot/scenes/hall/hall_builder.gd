@@ -1119,6 +1119,7 @@ static func _furniture(sides: int, lights: PackedVector3Array) -> ArrayMesh:
 	_console(g, glow_g, sides)
 	_adventure(g, rng, sides)
 	_work_desk(g, glow_g, sides)
+	_projector(g, glow_g, sides)
 	for s in HallLayout.STANDS:
 		_stand(g, s, sides)
 	bake(g, lights, HallLayout.COOL_LIGHTS)
@@ -1308,6 +1309,36 @@ static func _adventure(g: PropsLayer.Geo, rng: RandomNumberGenerator, sides: int
 	_ring(g, ac, Vector3(1, 0, 0), 0.135, 0.018, 12, BRASS * 0.85)
 	_ring(g, ac, Vector3(0, 0.7, 0.7).normalized(), 0.12, 0.018, 12, BRONZE)
 	_candle(g, HallLayout.ADVENTURE_FLAME, top, 0.045, sides)
+
+
+## โต๊ะแคมเปญ (CAMPAIGN_SPEC §1.2): แท่นเหล็กแปดเหลี่ยมสองขั้น เสาทองเหลือง ชามกระจกมืด วงทองเหลืองรับจานโฮโล
+## ค้ำทองเหลืองสี่อัน ไฟอำพันรอบขั้นบน ตราเทียนหน้าเสา (จานกาแล็กซีอยู่ใน holo_mesh)
+static func _projector(g: PropsLayer.Geo, glow_g: PropsLayer.Geo, sides: int) -> void:
+	var s: Dictionary = HallLayout.STATIONS["campaign"]
+	var c: Vector2 = s["c"]
+	var rad: float = (s["h"] as Vector2).x
+	var dy := HallLayout.CAMPAIGN_DISC_Y
+	g.prism(c.x, 0.0, c.y, rad, 0.12, 8, STEEL_DARK, 1.0, PI / 8.0)
+	g.prism(c.x, 0.12, c.y, rad * 0.78, 0.12, 8, STEEL, 1.0, PI / 8.0)
+	g.prism(c.x, 0.24, c.y, 0.3, 0.08, sides, BRASS * 0.6)
+	g.prism(c.x, 0.32, c.y, 0.17, 0.68, sides, BRASS * 0.8, 0.75)
+	g.prism(c.x, 1.0, c.y, 0.2, 0.2, sides, Color("12161c"), 2.6)
+	g.prism(c.x, 1.18, c.y, 0.52, 0.03, sides + 4, BRONZE * 0.9)
+	# วงทองเหลืองรับจาน + ค้ำสี่อันจากขั้นบนถึงวง
+	var ring_c := Vector3(c.x, dy - 0.06, c.y)
+	_ring(g, ring_c, Vector3.UP, HallLayout.CAMPAIGN_DISC_R + 0.06, 0.05, sides + 6, BRASS)
+	for i in 4:
+		var a := PI * 0.25 + i * PI * 0.5
+		var d := Vector3(cos(a), 0.0, sin(a))
+		tube(g, Vector3(c.x, 0.24, c.y) + d * rad * 0.62, ring_c + d * (HallLayout.CAMPAIGN_DISC_R + 0.03), 0.025, 4, BRASS * 0.85)
+	# ไฟอำพันแปดดวงบนขอบขั้นบน (ไม่อบแสง)
+	for i in 8:
+		var a := PI / 8.0 + i * TAU / 8.0
+		var q := Vector3(c.x + cos(a) * rad * 0.7, 0.245, c.y - sin(a) * rad * 0.7)
+		glow_g.poly([q + Vector3(-0.04, 0, -0.04), q + Vector3(-0.04, 0, 0.04), q + Vector3(0.04, 0, 0.04),
+			q + Vector3(0.04, 0, -0.04)], LAMP_AMBER, Vector3.UP)
+	# ตราเทียนหน้าเสา หันไป +z (ทางจุดเกิด)
+	emblem(g, Vector3(c.x, 0.68, c.y + 0.16), Vector3.RIGHT, Vector3.BACK, 0.11, BRASS, WAX, LAMP_AMBER, 12)
 
 
 ## วงแหวนบาง (สองหน้า) กลาง c ระนาบตั้งฉากกับ nrm รัศมี r กว้าง w
@@ -1560,9 +1591,61 @@ static func holo_mesh(level: String) -> ArrayMesh:
 			var d0 := Vector3(cos(a0), 0, sin(a0))
 			var d1 := Vector3(cos(a1), 0, sin(a1))
 			g.poly([cc + d0 * 0.22, cc + d1 * 0.22, cc + d1 * (0.22 + lw * 1.4), cc + d0 * (0.22 + lw * 1.4)], HOLO_AMBER * 0.8, Vector3.UP)
+	_galaxy_disc(g, thick)
 	var m := g.mesh()
 	_cache[key] = m
 	return m
+
+
+## จานกาแล็กซีโฮโลเหนือโต๊ะแคมเปญ: แกนสว่าง แขนก้นหอยสี่แขน ขอบวง ดาวเล็ก ๆ (ไม่อบแสง ตำแหน่งตายตัว)
+## hi/mid หมุนช้า ๆ ใน holo.gdshader (เฉพาะจุดในรัศมีจาน) · lo/min นิ่ง
+static func _galaxy_disc(g: PropsLayer.Geo, thick: bool) -> void:
+	var c: Vector2 = HallLayout.STATIONS["campaign"]["c"]
+	var y := HallLayout.CAMPAIGN_DISC_Y
+	var r := HallLayout.CAMPAIGN_DISC_R
+	var cc := Vector3(c.x, y, c.y)
+	var n := 16
+	# แกนกลางสองชั้น
+	for k in 2:
+		var rr := r * (0.16 if k == 0 else 0.08)
+		var pts: Array[Vector3] = []
+		for i in n:
+			var a := TAU * i / n
+			pts.append(cc + Vector3(cos(a) * rr, 0.002 * (k + 1), -sin(a) * rr))
+		g.poly(pts, (HOLO.lerp(Color.WHITE, 0.3 + 0.4 * k)) * (0.55 + 0.25 * k), Vector3.UP)
+	# ขอบวง
+	var lw := 0.03 if thick else 0.018
+	for i in 24:
+		var a0 := TAU * i / 24.0
+		var a1 := TAU * (i + 1) / 24.0
+		var d0 := Vector3(cos(a0), 0, -sin(a0))
+		var d1 := Vector3(cos(a1), 0, -sin(a1))
+		g.poly([cc + d0 * (r - lw), cc + d1 * (r - lw), cc + d1 * r, cc + d0 * r], HOLO * 0.6, Vector3.UP)
+	# แขนก้นหอย: แถบเรียวจากในออกนอก
+	var steps := 10
+	for arm in 4:
+		var prev_in := Vector3.ZERO
+		var prev_out := Vector3.ZERO
+		for k in steps + 1:
+			var t := float(k) / steps
+			var ang := arm * TAU / 4.0 + t * 2.4 + 0.35
+			var rr := r * (0.14 + 0.8 * t)
+			var w := r * (0.09 * (1.0 - t) + 0.02) + (0.01 if thick else 0.0)
+			var dir := Vector3(cos(ang), 0, -sin(ang))
+			var side := Vector3(-dir.z, 0, dir.x)
+			var mid := cc + dir * rr + Vector3(0, 0.001, 0)
+			var pin := mid - side * w
+			var pout := mid + side * w
+			if k > 0:
+				g.poly([prev_in, prev_out, pout, pin], HOLO.lerp(Color("7fd0ff"), t) * (0.75 - 0.35 * t), Vector3.UP)
+			prev_in = pin
+			prev_out = pout
+	# ดาว 44 จุด (ตำแหน่งเดียวกับแผนที่กาแล็กซี) สีอำพัน
+	var ds := 0.022 if thick else 0.016
+	for i in CampaignGalaxy.PLANETS.size():
+		var p2 := CampaignGalaxy.position(i) * r
+		var q := cc + Vector3(p2.x, 0.004, -p2.y)
+		g.poly([q + Vector3(-ds, 0, 0), q + Vector3(0, 0, ds), q + Vector3(ds, 0, 0), q + Vector3(0, 0, -ds)], HOLO_AMBER * 0.9, Vector3.UP)
 
 
 ## ไข่โฮโลแกรมหยาบ (โปรไฟล์ HOLO_EGG) ฐานที่ p

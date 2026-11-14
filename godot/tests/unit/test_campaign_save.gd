@@ -66,3 +66,26 @@ func test_broken_files() -> void:
 	_fresh()
 	CampaignSave.path = CampaignSave.PATH
 	CampaignSave._loaded = false
+
+
+## track A: every field read back is checked; wrong parts are dropped, good parts are kept
+func test_field_checks() -> void:
+	_fresh()
+	var f := FileAccess.open(TEST_PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"v": 1, "coins": 12.0, "last_difficulty": "impossible",
+		"weeks": {"2967": {"best": {"p01:0:hard": 900.0, "bad": "x"}, "clears": {"p01:0:hard": true, "p02:0:hard": "yes"}},
+			"abc": {"best": {}}, "2966": [1, 2]},
+		"history": [{"week": 2967}, 5, "x"]}))
+	f = null
+	CampaignSave._loaded = false
+	assert_eq(CampaignSave.coins(), 12, "coins read as an int")
+	assert_eq(CampaignSave.last_difficulty(), "", "an unknown difficulty is dropped")
+	var weeks: Dictionary = CampaignSave.data()["weeks"]
+	assert_eq(weeks.keys(), ["2967"], "only a numeric week holding a dictionary is kept")
+	assert_eq(weeks["2967"]["best"], {"p01:0:hard": 900}, "best keeps numbers only")
+	assert_eq(weeks["2967"]["clears"], {"p01:0:hard": true}, "clears keeps true only")
+	assert_eq((CampaignSave.data()["history"] as Array).size(), 1, "history keeps dictionaries only")
+	assert_true(CampaignSave.is_repeat({"week": 2967, "planet": "p01", "primary": {"idx": 0}, "difficulty": "hard"}), "the kept clear still counts")
+	_fresh()
+	CampaignSave.path = CampaignSave.PATH
+	CampaignSave._loaded = false

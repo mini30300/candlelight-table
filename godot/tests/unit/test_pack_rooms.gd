@@ -12,6 +12,8 @@ const BAD := "res://tests/fixtures/pack_rooms_bad"
 const ROOM := "res://tests/fixtures/pack_rooms/test_room"
 ## round B (14 Nov): the same neutral room plus a walk-in arena door (action arena) on its left wall
 const ARENA_FIX := "res://tests/fixtures/pack_rooms_arena"
+## round E (campaign): the same neutral room plus a campaign station (dropship) and a third card with action campaign
+const CAMP_FIX := "res://tests/fixtures/pack_rooms_campaign"
 ## each broken case and a piece of the error line it must give
 const BAD_CASES := {
 	"bad_format": "format must be 1",
@@ -25,6 +27,8 @@ const BAD_CASES := {
 	"two_back": "exactly one station must have action back (found 2)",
 	"two_arena": "at most one station may have action arena (found 2)",
 	"bad_action": "action must be one of",
+	# round E: the card error names the new campaign action too
+	"card_bad_action": "card action must be soon, online or campaign",
 	"spawn_blocked": "spawn (",
 	"half_api": "lacks apply_level, blockers",
 	"missing_script": "does not exist",
@@ -181,6 +185,33 @@ func test_arena_station() -> void:
 	Features.set_flag(&"online", true)
 	assert_eq(PackRooms.arena_station(PackRooms.for_door("online", ARENA_FIX)), "arena_door", "the airlock's room has the arena door")
 	Features.reset()
+
+
+## CAMPAIGN_SPEC §1.3: "campaign" is a station action and a card action; any number of them may exist
+func test_campaign_action() -> void:
+	assert_true(PackRooms.ACTIONS.has("campaign"), "campaign is a station action")
+	assert_true(PackRooms.CARD_ACTIONS.has("campaign"), "campaign is a card action")
+	var rooms := PackRooms.list(CAMP_FIX)
+	assert_eq(rooms.size(), 1, "the campaign fixture root holds one valid room")
+	if rooms.is_empty():
+		return
+	var room: Dictionary = rooms[0]
+	assert_eq(str(room["id"]), "camp_room", "it is camp_room")
+	var lay := RoomLayout.new(room)
+	assert_eq(str(lay.stations["dropship"]["action"]), "campaign", "the dropship station opens the campaign")
+	var f: Vector2 = lay.stations["dropship"]["front"]
+	assert_eq(lay.station_at(f), "dropship", "its front ring is inside its reach")
+	var cards: Array = (room["stations"] as Array)[1]["cards"]
+	assert_eq(str(cards[2]["action"]), "campaign", "the third card opens the campaign")
+	assert_eq(PackRooms.arena_station(room), "", "a campaign room keeps the deck's arena door")
+	# two campaign stations are fine (the launch bay has the dropship and a holo card)
+	var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CAMP_FIX + "/camp_room/room.json"))
+	(d["stations"] as Array)[0]["action"] = "campaign"
+	(d["stations"] as Array)[0].erase("soon")
+	assert_eq(PackRooms.validate(d, CAMP_FIX + "/camp_room"), PackedStringArray(), "two campaign stations are allowed")
+	# a campaign card needs no extra keys
+	var card: Dictionary = (d["stations"] as Array)[1]["cards"][2]
+	assert_eq(card.keys().size(), 3, "a campaign card holds only title, text and action")
 
 
 func test_hex6() -> void:

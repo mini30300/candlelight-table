@@ -60,3 +60,25 @@ func test_score_fail_and_edges() -> void:
 	var tiny := {"outcome": "win", "time_s": 999.0, "kills": {}, "downs": 1, "damage_taken": 400}
 	assert_eq(CampaignRules.score(_spec("normal"), tiny)["coins"], 15, "a win with the damage cap reached still pays (1000 - 400) / 40")
 	assert_true(CampaignRules.COIN_MIN_WIN <= 15, "the minimum win payout never exceeds the worst real win")
+
+
+## estimate_coins (track A, CAMPAIGN_SPEC §1.5): (1000 + 500 + 300 per secondary) × difficulty / 40, then featured and repeat
+func test_estimate_coins() -> void:
+	var s := _spec("normal")
+	s["secondary"] = []
+	assert_eq(CampaignRules.estimate_coins(s), 37, "normal, no secondary: 1500 / 40")
+	s["secondary"] = [{"type": "rescue", "idx": 1}, {"type": "defend", "idx": 2}]
+	assert_eq(CampaignRules.estimate_coins(s), 52, "two secondaries: 2100 / 40")
+	var h := _spec("catastrophe")
+	h["secondary"] = [{"type": "rescue", "idx": 1}]
+	assert_eq(CampaignRules.estimate_coins(h), 180, "catastrophe x4: 1800 * 40 / 10 / 40")
+	assert_eq(CampaignRules.estimate_coins(h, true), 45, "a repeat pays 25 %")
+	var f := _spec("hard", "purge", true)
+	f["secondary"] = []
+	assert_eq(CampaignRules.estimate_coins(f), 84, "hard x1.5 = 2250 / 40 = 56, featured x1.5 = 84")
+	assert_eq(CampaignRules.estimate_coins({}), 0, "no spec, no estimate")
+	# the estimate matches score() for a perfect bare run (no kills, no time, no damage)
+	var perfect := {"outcome": "win", "time_s": 9999.0, "kills": {}, "downs": 0, "secondary_done": [true]}
+	assert_eq(CampaignRules.score(h, perfect)["coins"], CampaignRules.estimate_coins(h), "the estimate equals the coins of a clean win with every secondary")
+	var real := CampaignGalaxy.mission_spec(2967, "p00", 0, "veryhard")
+	assert_true(CampaignRules.estimate_coins(real) >= CampaignRules.COIN_MIN_WIN, "a real spec gives at least the minimum")

@@ -3,6 +3,7 @@ extends Control
 ## หน้าห้องเสริมหลังประตูบนดาดฟ้า (PACK_SPEC §9): เปิดทับหน้าดาดฟ้า ภาพของห้องมาจากชุดเสริม ปุ่มและข้อความเป็นของแอป
 ## สถานีจาก room.json: soon → แผง "เร็วๆ นี้", cards → แผงการ์ดเลือกโหมด, online → หน้าเล่นกับเพื่อน, back → กลับดาดฟ้า
 ## dressing → ห้องแต่งตัว (DressingScreen) ใช้ตัวใหม่แล้วตัวผู้เล่นในห้องเปลี่ยนตาม
+## campaign (สถานีหรือการ์ด) → แคมเปญ (CampaignFlow.start("room")) ออกจากแคมเปญแล้วกลับมาที่ห้องเหมือนเดิม
 ## arena → เดินเข้าประตู/กด E = จอมืดแล้วเปิดหน้าอารีน่า กลับมายืนหน้าประตูหันออก (ไฟล์อารีน่าโหลดล่วงหน้าผ่านหน้าดาดฟ้า)
 ## เดินเข้าประตู (walk_in) หรือ ‹ ดาดฟ้า / Esc → จอมืดแวบหนึ่งแล้วกลับดาดฟ้า (ไม่กลับหน้าแรก)
 ## ออนไลน์: ห้องนี้เป็นส่วนหนึ่งของยาน (where = deck) ส่งท่าในแถบห้อง x + 30 ม. (PackRooms.to_band) เห็นเพื่อนที่อยู่ในห้อง
@@ -16,6 +17,8 @@ const LOBBY_SCREEN := "res://ui/screens/lobby.tscn"
 const ARENA_SCREEN := "res://ui/screens/arena_screen.tscn"
 const DRESSING_SCREEN := "res://ui/screens/dressing_screen.tscn"
 const DRESSING_NOT_READY := "ห้องแต่งตัว — ยังไม่พร้อม"
+## คีย์เดียวกับดาดฟ้า (ui/i18n/hall.json)
+const CAMPAIGN_NOT_READY := "แคมเปญ — ยังไม่พร้อม"
 const FADE_TIME := 0.25
 const BACK_TEXT := "‹ ดาดฟ้า"
 const CLOSE_TEXT := "ปิดแผงนี้"
@@ -224,6 +227,8 @@ func use_station() -> void:
 			enter_arena()
 		"dressing":
 			open_dressing()
+		"campaign":
+			open_campaign()
 
 
 func show_soon(pair: Variant) -> void:
@@ -306,6 +311,18 @@ func open_dressing() -> Node:
 
 
 ## ปิดห้องแต่งตัว: ใช้ตัวใหม่ = สร้างตัวผู้เล่นในห้องใหม่ (ข้ามถ้า App.figure_changed สร้างให้แล้ว)
+## เปิดแคมเปญทับห้องนี้ (CAMPAIGN_SPEC §1.3) · หน้ายังไม่พร้อม = แผงข้อความ คืน null
+func open_campaign() -> Node:
+	close_cards()
+	close_soon()
+	stick.release()
+	world.avatar.halt()
+	var cs := CampaignFlow.start("room")
+	if cs == null:
+		show_note(CAMPAIGN_NOT_READY)
+	return cs
+
+
 func _on_dressing_closed(used: bool, before: int) -> void:
 	var f := DressingScreen.figures_api()
 	if not used or f == null or not _opened or _figure_key() != before:
@@ -531,7 +548,7 @@ func _fill_cards(id: String) -> void:
 		b.custom_minimum_size = Vector2(0.0, CARD_H)
 		b.focus_mode = Control.FOCUS_NONE
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		CandleStyle.button(b, str(card.get("action", "")) == "online")
+		CandleStyle.button(b, ["online", "campaign"].has(str(card.get("action", ""))))
 		b.pressed.connect(_use_card.bind(card))
 		cards_box.add_child(b)
 		i += 1
@@ -547,6 +564,8 @@ func _use_card(card: Dictionary) -> void:
 			show_soon(card.get("soon"))
 		"online":
 			open_online()
+		"campaign":
+			open_campaign()
 
 
 func _footstep(p: Vector3) -> void:

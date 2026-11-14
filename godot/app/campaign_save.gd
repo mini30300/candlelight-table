@@ -4,7 +4,7 @@ extends RefCounted
 ## ไฟล์ user://campaign.json (มีเลขรุ่น "v") · ไม่ใช่ data/*.json (DATA_HASH ไม่เปลี่ยน) · ไม่ใช่ settings.cfg
 ## รอบหน้าเหรียญย้ายไปเซิร์ฟเวอร์ (กันโกง): ไฟล์นี้จะเหลือแค่ความยากล่าสุดกับประวัติ
 ## เทสชี้ไฟล์อื่นด้วย CampaignSave.path · ไฟล์เสีย/รุ่นไม่รู้จัก = เริ่มใหม่ (คำเตือน ไม่ล่ม)
-## TODO(track A): ตรวจค่าที่อ่านมาให้ครบ (ชนิด ช่วง) และเทสไฟล์เสียทุกแบบ
+## ค่าที่อ่านมาตรวจทุกช่อง (ชนิด ช่วง): ส่วนที่ผิดถูกทิ้ง ส่วนที่ถูกเก็บไว้
 
 const PATH := "user://campaign.json"
 const VERSION := 1
@@ -36,12 +36,43 @@ static func load_file() -> void:
 	if not d is Dictionary or int((d as Dictionary).get("v", 0)) != VERSION:
 		push_warning("campaign save: %s is unreadable or of another version; starting fresh" % path)
 		return
-	for k in ["last_difficulty", "weeks", "history"]:
-		if (d as Dictionary).has(k) and typeof(d[k]) == typeof(_data[k]):
-			_data[k] = d[k]
+	var ld: Variant = (d as Dictionary).get("last_difficulty", "")
+	if ld is String and CampaignGalaxy.DIFFICULTIES.has(ld):
+		_data["last_difficulty"] = ld
+	_data["weeks"] = _clean_weeks((d as Dictionary).get("weeks", {}))
+	var h: Variant = (d as Dictionary).get("history", [])
+	if h is Array:
+		for e: Variant in h:
+			if e is Dictionary and (_data["history"] as Array).size() < HISTORY:
+				(_data["history"] as Array).append(e)
 	# JSON อ่านเลขเป็น float
 	var c: Variant = (d as Dictionary).get("coins", 0)
 	_data["coins"] = maxi(int(c), 0) if c is float or c is int else 0
+
+
+## weeks ที่อ่านมา: คีย์เป็นเลขสัปดาห์ best = {key: เลข ≥ 0}, clears = {key: true} · ที่เหลือทิ้ง
+static func _clean_weeks(w: Variant) -> Dictionary:
+	var out := {}
+	if not w is Dictionary:
+		return out
+	for wk: Variant in w:
+		var v: Variant = w[wk]
+		if not str(wk).is_valid_int() or not v is Dictionary:
+			continue
+		var best := {}
+		var clears := {}
+		var b: Variant = (v as Dictionary).get("best", {})
+		if b is Dictionary:
+			for k: Variant in b:
+				if b[k] is float or b[k] is int:
+					best[str(k)] = maxi(int(b[k]), 0)
+		var cl: Variant = (v as Dictionary).get("clears", {})
+		if cl is Dictionary:
+			for k: Variant in cl:
+				if cl[k] is bool and cl[k]:
+					clears[str(k)] = true
+		out[str(int(str(wk)))] = {"best": best, "clears": clears}
+	return out
 
 
 static func save() -> bool:

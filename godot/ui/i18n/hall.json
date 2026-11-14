@@ -25,5 +25,8 @@
   "‹ ดาดฟ้า": "‹ Deck",
   "ปิดแผงนี้": "Close",
   "เปิดห้องไม่ได้ — เปิดหน้าเล่นกับเพื่อนแทน": "Couldn't open the room — opening play with friends instead",
-  "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่{place}": "The host is setting up a game — pick a seat at the {place}"
+  "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่{place}": "The host is setting up a game — pick a seat at the {place}",
+  "โต๊ะแคมเปญ": "Campaign Table",
+  "โต๊ะแคมเปญ · แผนที่ดวงดาว": "Campaign Table · Star Map",
+  "แคมเปญ — ยังไม่พร้อม": "Campaign — not ready yet"
 }

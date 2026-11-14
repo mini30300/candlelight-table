@@ -67,6 +67,11 @@ func test_every_station_has_thai_and_english() -> void:
 	for id in ["adventure", "vault"]:
 		assert_true(soon.has(id) and I18n.has_key(str(soon[id])), "the coming-soon panel of %s is translated" % id)
 	assert_eq(soon.size(), 2, "exactly two coming-soon stations: adventure, vault")
+	# round E (CAMPAIGN_SPEC §1.2): the campaign table is open (not coming soon) and has its not-ready note
+	assert_false(soon.has("campaign"), "the campaign table is not coming soon")
+	assert_eq(I18n.lookup(str(names.get("campaign", ""))), "Campaign Table", "the campaign table's name translates")
+	assert_eq(I18n.lookup(str(signs.get("campaign", ""))), "Campaign Table · Star Map", "and its sign")
+	assert_eq(I18n.lookup(str(consts["CAMPAIGN_NOT_READY"])), "Campaign — not ready yet", "and its not-ready note")
 	assert_false(soon.has("online"), "the docking airlock is not coming soon any more")
 	assert_eq(str(signs.get("online", "")), "ประตูเทียบยาน · เล่นกับเพื่อน", "the airlock's sign names play with friends")
 	assert_eq(I18n.lookup(str(signs.get("online", ""))), "Docking Airlock · Play with friends", "and translates")
