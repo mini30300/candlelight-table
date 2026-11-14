@@ -14,7 +14,7 @@
   "เข้าร่วม": "Join",
   "ใส่ IP ของเจ้าห้อง": "Host's IP address",
   "ต่อด้วย IP": "Join by IP",
-  "ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (ถ้าใช้ VPN ติ๊กทั้งส่วนตัวและสาธารณะ)": "Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (with a VPN, tick both private and public)",
+  "ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (VPN: ตั้งการ์ด VPN เป็นเครือข่ายส่วนตัว)": "Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (VPN: set the VPN adapter to Private)",
   "เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง": "Friends in other houses: everyone joins the same Hamachi / Radmin VPN / Tailscale network, then types the host's VPN IP",
   "กำลังเชื่อมต่อ…": "Connecting…",
   "IP ของเครื่องนี้: {ips}": "This device's IP: {ips}",

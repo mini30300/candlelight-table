@@ -615,7 +615,7 @@ static func check_hello(hello, n_members, max_players, remote_ip, known_nid, clo
 | reason `no_vpn` | เครื่องนี้ยังไม่ได้ต่อ {vpn} — เปิดโปรแกรมแล้วเข้าเครือข่ายเดียวกับเจ้าห้องก่อน | This device is not on {vpn} — open it and join the host's network first |
 | host, in a room, under "IP ของเครื่องนี้" | IP VPN ของเครื่องนี้ ({vpn}): {ips} | This device's VPN IP ({vpn}): {ips} |
 | button next to it | คัดลอก IP VPN | Copy VPN IP |
-| help line (finding state, replaces `T_HELP`) | ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (ถ้าใช้ VPN ติ๊กทั้งส่วนตัวและสาธารณะ) | Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (with a VPN, tick both private and public) |
+| help line (finding state, replaces `T_HELP`) | ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (VPN: ตั้งการ์ด VPN เป็นเครือข่ายส่วนตัว) | Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (VPN: set the VPN adapter to Private) |
 | help line 2 | เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง | Friends in other houses: everyone joins the same Hamachi / Radmin VPN / Tailscale network, then types the host's VPN IP |
 
 The VPN line shows only when `vpn_ips()` is not empty (one line per range, first IP of each; the copy button copies

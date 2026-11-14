@@ -25,8 +25,14 @@
    กด **ต่อด้วย IP**
    - ห้องจะไม่ขึ้นเองในรายการ "ห้องที่พบใน Wi-Fi เดียวกัน" ต้องพิมพ์ IP ทุกครั้ง
 5. **ไฟร์วอลล์ของ Windows**: ครั้งแรกที่กดเปิดห้องหรือต่อด้วย IP จะมีหน้าต่างถามขึ้นมา
-   ให้ **ติ๊กทั้ง "ส่วนตัว (Private)" และ "สาธารณะ (Public)"** แล้วกด **อนุญาต (Allow access)** — ต้องทำ **ทั้งสองเครื่อง**
-   (Hamachi ถูก Windows นับเป็นเครือข่ายสาธารณะ ถ้าติ๊กแค่ส่วนตัวจะต่อไม่ติด)
+   ให้ติ๊ก **"ส่วนตัว (Private)"** แล้วกด **อนุญาต (Allow access)** — ต้องทำ **ทั้งสองเครื่อง**
+   - Windows มักนับการ์ด Hamachi / Radmin VPN เป็น "เครือข่ายสาธารณะ" ทำให้ต่อไม่ติด วิธีที่ปลอดภัยคือ
+     **ตั้งการ์ด VPN ให้เป็นเครือข่ายส่วนตัว**: เปิด Settings → Network & internet → Advanced network settings →
+     เลือกการ์ด Hamachi (หรือ Radmin VPN) → Network profile type → **Private**
+     (ถ้าไม่มีตัวเลือกนี้: เปิด PowerShell แบบ Run as administrator แล้วพิมพ์
+     `Set-NetConnectionProfile -InterfaceAlias "Hamachi" -NetworkCategory Private` — เปลี่ยน "Hamachi" เป็นชื่อการ์ดของเครื่องนั้น)
+   - **อย่าติ๊ก "สาธารณะ (Public)"** เพื่อแก้ปัญหานี้: ถ้าติ๊กแล้วเปิดห้องตอนต่อ Wi-Fi ร้านกาแฟ / โรงแรม คนแปลกหน้าใน Wi-Fi
+     นั้นก็เห็นห้องได้ ถ้าเคยติ๊กไว้แล้ว อย่าเปิดห้องบน Wi-Fi สาธารณะ
 
 ## ถ้าต่อไม่ได้
 
@@ -39,7 +45,7 @@
 
 **ลืมกดอนุญาตไฟร์วอลล์ (หรือเผลอกดยกเลิก):** เปิด Windows Security → Firewall & network protection →
 Allow an app through firewall → Change settings → หา **Candlelight Table** (หรือ CandlelightTable.exe) →
-ติ๊กทั้ง Private และ Public → OK แล้วลองใหม่
+ติ๊ก Private → OK แล้วลองใหม่ (ถ้ายังต่อไม่ติด ให้ตั้งการ์ด VPN เป็นเครือข่ายส่วนตัวตามข้อ 5)
 
 ## เรื่องความปลอดภัย
 

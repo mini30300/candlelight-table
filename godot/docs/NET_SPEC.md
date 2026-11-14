@@ -541,7 +541,7 @@ The screen reads `Net` through `var net: Node` (default `/root/Net`; render test
    "{n}/{max} คน" · "เข้าร่วม" (mismatched rows greyed with the reason line); while empty "กำลังค้นหาห้อง…" then after
    4 s "ยังไม่พบห้อง — ให้เพื่อนกดเปิดห้อง หรือใส่ IP ของเจ้าห้องด้านบน"; with no Wi-Fi on this device (`has_lan()` false)
    the empty list says `no_lan` instead; help "ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์
-   ให้กดอนุญาต (ถ้าใช้ VPN ติ๊กทั้งส่วนตัวและสาธารณะ)" and a second help line for friends in other houses (round E, §18).
+   ให้กดอนุญาต (VPN: ตั้งการ์ด VPN เป็นเครือข่ายส่วนตัว)" and a second help line for friends in other houses (round E, §18).
 2. **Connecting**: "กำลังเชื่อมต่อ…" + "ยกเลิก" (existing key if present, else new).
 3. **In a room** (hosting or joined): card "ห้องของ {name}"; host only: "IP ของเครื่องนี้: {ips}" (28 px, readable across a
    table) with "คัดลอก IP" (copies the first IP; the button then reads "คัดลอกแล้ว") and "ให้เพื่อนที่อยู่ Wi-Fi
@@ -593,7 +593,7 @@ Before adding a key, check it is not already in `data/i18n_en.json`, `ui/i18n_ex
 | เข้าร่วม | Join | `online.json` | list row |
 | ใส่ IP ของเจ้าห้อง | Host's IP address | `online.json` | IP placeholder |
 | ต่อด้วย IP | Join by IP | `online.json` | IP button |
-| ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (ถ้าใช้ VPN ติ๊กทั้งส่วนตัวและสาธารณะ) | Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (with a VPN, tick both private and public) | `online.json` | help (round E text, §18) |
+| ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (VPN: ตั้งการ์ด VPN เป็นเครือข่ายส่วนตัว) | Same Wi-Fi or the same VPN · Windows: if a firewall window appears, allow it (VPN: set the VPN adapter to Private) | `online.json` | help (round E text, §18) |
 | เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง | Friends in other houses: everyone joins the same Hamachi / Radmin VPN / Tailscale network, then types the host's VPN IP | `online.json` | help line 2 (round E) |
 | กำลังเชื่อมต่อ… | Connecting… | `online.json` | state 2 |
 | IP ของเครื่องนี้: {ips} | This device's IP: {ips} | `online.json` | host card |
