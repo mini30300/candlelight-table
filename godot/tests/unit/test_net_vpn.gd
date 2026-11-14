@@ -57,7 +57,10 @@ func test_vpn_from_fake_interfaces() -> void:
 	assert_eq(ips, ["100.88.7.6", "25.1.2.3", "25.4.5.6", "26.10.0.5", "100.101.102.103", "100.90.0.1", "100.65.0.2"],
 		"VPN addresses in card order: rmnet / ccmni 100.x skipped, Wi-Fi and Ethernet 100.64.x (carrier NAT) skipped, "
 		+ "Android tun0, Hamachi, ham0, Radmin VPN, tailscale0, utun and the Windows Tailscale adapter kept")
-	assert_eq(got[1], {"ip": "25.1.2.3", "vpn": "hamachi", "name": "Hamachi"}, "a row carries the range and the card's friendly name")
+	# "cgnat" added in the round E fix: rows now say whether a Tailscale address shares 100.64/10 with the carrier
+	assert_eq(got[1], {"ip": "25.1.2.3", "vpn": "hamachi", "name": "Hamachi", "cgnat": false},
+		"a row carries the range and the card's friendly name")
+	assert_true(bool(got[0]["cgnat"]), "tun0 100.88.x next to a carrier 100.70.x on rmnet is flagged cgnat")
 	assert_eq(str(got[3]["vpn"]), "radmin", "26.x is Radmin VPN")
 	assert_eq(str(got[0]["vpn"]), "tailscale", "100.88.x on tun0 is Tailscale")
 	assert_eq(NetSession.vpn_from([{"name": "v4-rmnet_data0", "addresses": ["25.1.1.1"]}]).size(), 1,
@@ -66,6 +69,29 @@ func test_vpn_from_fake_interfaces() -> void:
 		{"name": "wwan0", "addresses": ["100.64.0.6"]}, {"name": "ppp0", "addresses": ["100.64.0.7"]}]).size(), 0,
 		"100.64/10 on clat / pdp / wwan / ppp cards is never Tailscale")
 	assert_eq(NetSession.vpn_from([]), [], "no cards, no VPN")
+
+
+## review fix: a phone on carrier NAT (100.64/10 on rmnet) with a VPN on tun0 must not accept its carrier neighbours
+func test_cgnat_phone_gate() -> void:
+	var n := _bare([{"name": "rmnet_data0", "addresses": ["100.70.1.2"]}, {"name": "wlan0", "addresses": ["192.168.1.5"]},
+		{"name": "tun0", "addresses": ["100.88.7.6"]}])
+	assert_eq(n.vpn_ips(), PackedStringArray(["100.88.7.6"]), "the Tailscale address is still listed (it can join out)")
+	assert_eq(n.vpn_ips(true), PackedStringArray(), "but it is not part of the host's gate")
+	assert_false(n.peer_ok("100.70.9.9"), "a carrier neighbour 100.70.x is refused")
+	assert_false(n.peer_ok("100.88.1.1"), "so is any 100.64/10 address while the carrier is on carrier NAT")
+	assert_true(n.peer_ok("192.168.1.9"), "the Wi-Fi friend still passes")
+	var g := NetGate.check_hello({"g": NetProto.GAME}, 1, 4, "100.70.9.9", false, false, n.vpn_ips(true))
+	assert_eq(str(g["key"]), "not_lan", "the hello gate stops the carrier neighbour at not_lan")
+	# join() tests exactly this before opening a socket (no packet is sent here)
+	assert_true(NetGate.peer_allowed("100.101.1.1", n.vpn_ips()), "joining a Tailscale friend (outbound) is allowed")
+	# the same phone on a carrier that hands out 10.x keeps Tailscale in the gate
+	n.itfs_override = [{"name": "rmnet_data0", "addresses": ["10.20.30.40"]}, {"name": "tun0", "addresses": ["100.88.7.6"]}]
+	assert_eq(n.vpn_ips(true), PackedStringArray(["100.88.7.6"]), "no carrier NAT: Tailscale stays in the gate")
+	assert_true(n.peer_ok("100.101.1.1"), "and a tailnet friend passes")
+	# Hamachi / Radmin are unaffected by carrier NAT
+	n.itfs_override = [{"name": "rmnet_data0", "addresses": ["100.70.1.2"]}, {"name": "ham0", "addresses": ["25.1.1.1"]}]
+	assert_eq(n.vpn_ips(true), PackedStringArray(["25.1.1.1"]), "Hamachi on a carrier-NAT phone stays in the gate")
+	n.free()
 
 
 func test_vpn_ips_through_override() -> void:
