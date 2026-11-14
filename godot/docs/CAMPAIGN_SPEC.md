@@ -889,3 +889,15 @@ Built as §6 says; the record is NET_SPEC §18. Differences and choices:
   address in any test.
 - **Thai how-to for Mini:** `godot/docs/HAMACHI_TH.md` (integration copies it into the release note).
 
+
+### 12.E Integration (tracks A–D merged)
+
+- `t2-hero`, `t2-missions` and `t2-net` merged into `t2-campaign` without textual conflicts.
+- Fix: choosing a difficulty with E/Enter (or a tap) on the real screen let CampaignFlow replace the screen inside
+  `_unhandled_input`, which then called `get_viewport()` on a node already out of the tree (script error). The viewport
+  is now taken before `choose()`, and the card tap only calls `accept_event()` while the screen is still in the tree.
+- New flow test `tests/flow/test_campaign_e2e.gd`: the whole public flow with every real screen (deck → difficulty by
+  keys → galaxy → card → brief → real mission won by fast-forward → real report, coins saved once → retry → pause →
+  leave → withdrew report, wallet unchanged → กลับยาน → deck, avatar still at the table, `where` back to deck).
+- Private repo (`t2-bay`): the launch-bay dropship and the hologram card "แคมเปญ" use action `campaign`; the room smoke
+  checks both. Merge the public PR first.

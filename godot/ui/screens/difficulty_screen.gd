@@ -444,6 +444,8 @@ func _set_unlocked() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or event.is_echo():
 		return
+	# เลือกแล้ว CampaignFlow แทนที่หน้านี้ทันที (หลุดจาก tree): จับ viewport ไว้ก่อน
+	var vp := get_viewport()
 	if event.is_action_pressed(&"move_left") or event.is_action_pressed(&"ui_left"):
 		_step(-1)
 	elif event.is_action_pressed(&"move_right") or event.is_action_pressed(&"ui_right"):
@@ -452,7 +454,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		choose(_sel)
 	else:
 		return
-	get_viewport().set_input_as_handled()
+	vp.set_input_as_handled()
 
 
 ## แตะ/คลิกการ์ด: ใบใหม่ = ชี้ · ใบที่ชี้อยู่ = ยืนยัน · จอแคบปัดซ้าย/ขวา = ใบถัดไป (สัมผัสมาเป็นเมาส์จำลอง)
@@ -475,7 +477,8 @@ func _on_card_input(event: InputEvent, id: String) -> void:
 			choose(StringName(id))
 		else:
 			select(StringName(id))
-	accept_event()
+	if is_inside_tree():
+		accept_event()
 
 
 func _on_back() -> void:
