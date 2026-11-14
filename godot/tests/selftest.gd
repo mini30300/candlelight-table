@@ -70,6 +70,10 @@ func _run() -> void:
 				t.call(name)
 		passed += int(t.get("passed"))
 		failed += int(t.get("failed"))
+		# บรรทัด FAIL ลงรายงานด้วย (บันทึก CI ตัดหัวทิ้ง เหลือแต่รายงาน)
+		var fl: Variant = t.get("fail_lines")
+		if fl is PackedStringArray:
+			_lines.append_array(fl)
 	var secs := (Time.get_ticks_msec() - started) / 1000.0
 	if scripts.is_empty():
 		_say("FAIL  no test scripts found under " + TESTS_DIR + " (are tests/**/*.gd in the export?)")
