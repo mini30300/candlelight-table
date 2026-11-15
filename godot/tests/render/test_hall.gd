@@ -1366,6 +1366,8 @@ func _check_friends(hall: Node) -> void:
 	_check(moving.size() >= 2 and moving.size() <= walked_ms / 100 + 2, "walking sends poses, at most one per 100 ms (%d in %d ms)" % [moving.size(), walked_ms])
 	var last: Dictionary = moving[moving.size() - 1][1] if not moving.is_empty() else {}
 	_check(not last.is_empty() and typeof(last["x"]) == TYPE_INT and typeof(last["yaw"]) == TYPE_INT and int(last["sp"]) > 0, "a pose is ints (cm, mrad, cm/s): %s" % str(last))
+	# the stamp is the throttle's own time (a second clock read could make two poses 99 ms apart)
+	_check(not last.is_empty() and int(last["t"]) == int(hall.get("_pose_ms")), "a moving pose carries the throttle's time")
 	await _until_still(_avatar(world))
 	await create_timer(0.35).timeout
 	var stops: Array = []

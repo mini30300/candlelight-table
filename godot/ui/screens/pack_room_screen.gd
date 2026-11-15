@@ -505,7 +505,7 @@ func _on_avatar_moved(p: Vector3) -> void:
 		var now := Time.get_ticks_msec()
 		if now - _pose_ms >= POSE_MS:
 			_pose_ms = now
-			_send_pose(false)
+			_send_pose(false, now)
 		pose_timer.start()
 		if tags.visible:
 			tags.refresh()
@@ -719,15 +719,15 @@ func _set_where(w: StringName) -> void:
 		net.call("set_where", w)
 
 
-## ท่าของตัวเองในแถบห้อง (x + 30 ม.) · stop = ท่าหยุด
-func _send_pose(stop: bool) -> void:
+## ท่าของตัวเองในแถบห้อง (x + 30 ม.) · stop = ท่าหยุด · at = เวลาของตัวจำกัดความถี่ (ไม่อ่านนาฬิกาซ้ำ: ห่างกัน ≥ 100 มิลลิวิ จริง)
+func _send_pose(stop: bool, at := -1) -> void:
 	if not online() or not _opened:
 		return
 	var av := world.avatar
 	var p := av.global_position
 	var pose := {"x": clampi(roundi(PackRooms.to_band(p.x) * 100.0), -5000, 5000), "z": clampi(roundi(p.z * 100.0), -5000, 5000),
 		"yaw": roundi(wrapf(av.face, -PI, PI) * 1000.0), "sp": 0 if stop else clampi(roundi(av.speed() * 100.0), 0, 2000),
-		"run": false if stop else av.running(), "t": Time.get_ticks_msec()}
+		"run": false if stop else av.running(), "t": at if at >= 0 else Time.get_ticks_msec()}
 	net.call("send_pose", pose, stop)
 
 
