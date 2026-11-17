@@ -5,7 +5,8 @@ extends "res://tests/testing.gd"
 ## Contract: Figures.DECK_API for the deck and ArenaActors.FIGURE_API (twelve methods) plus clip_event for the player,
 ## the optional hooks (deck_speeds, H6, H8, H9 false). Assets: the 23 game bones with their parents, every helper bone has
 ## a driver rule, every blend shape is known, one surface per level within the triangle budget, min skinned to game bones
-## only, no blend shapes on lo/min, an unshaded body shader without TIME, every dependency inside the soldier folder.
+## only, no blend shapes on lo/min, an unshaded body shader without TIME, every dependency inside the soldier folder,
+## meshes and clips within SIZE_CAP (the 90 MB APK target of docs/ARCHITECTURE.md).
 ## Clips: the soldier's copy keeps every mapped clip and its metadata, its wrists are eased (twist and bend within
 ## limits, hands still, no hand position tracks) and the shared humanoid.res is untouched. Behaviour (manual clock):
 ## walk/run rates, still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
@@ -17,6 +18,8 @@ const NONE := "res://tests/unit/fixtures/no_such_pack/figures.json"
 const NONE_PACK := "res://tests/unit/fixtures/no_such_pack/pack.json"
 const SCRIPT := "res://scenes/arena/soldier_figure.gd"
 const DIR := "res://assets/figures/soldier/"
+## bytes: the APK grows by the soldier's files (80.8 MB in build-143 + 6.5 MB stays under the 90 MB target)
+const SIZE_CAP := 6500000
 const LIB := "res://assets/anim/humanoid.res"
 const DT := 1.0 / 30.0
 const TMP_PACK := "user://test_soldier_pack/"
@@ -222,6 +225,13 @@ func test_assets() -> void:
 		for d in ResourceLoader.get_dependencies(DIR + f):
 			var path := d.get_slice("::", d.get_slice_count("::") - 1)
 			assert_true(path.begins_with(DIR), "%s depends only on the soldier folder" % f, d)
+	# ขนาดที่ APK โตขึ้น: ร่างใหม่ที่ใหญ่เกินต้องลดก่อน (เช่น ตัด blend shape ของ mid)
+	var total := 0
+	for f in ["skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_crowd.res", "clips.res"]:
+		if FileAccess.file_exists(DIR + f):
+			var fa := FileAccess.open(DIR + f, FileAccess.READ)
+			total += fa.get_length() if fa != null else 0
+	assert_true(total > 0 and total <= SIZE_CAP, "the meshes and clips total %.2f MB, at most %.1f MB" % [total / 1e6, SIZE_CAP / 1e6])
 
 
 func test_clips() -> void:

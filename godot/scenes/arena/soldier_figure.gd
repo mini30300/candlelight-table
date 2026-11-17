@@ -122,7 +122,10 @@ var _last_dodge := Vector2.ZERO
 # ================= สัญญาตัวละคร =================
 
 ## opts: {"role" &"player"|&"enemy"|&"deck"|อื่น ๆ = ผู้เล่น, "level", "team_colour" (ไม่ใช้: สีผิวของตัวเอง), "seed"}
+## + "manual" (เดินท่าด้วย step() ของฉาก เช่นการ์ดฮีโร่)
 func setup(opts: Dictionary) -> void:
+	if bool(opts.get("manual", false)):
+		_manual = true
 	role = StringName(str(opts.get("role", "player")))
 	_clips = ENEMY_CLIPS if role == &"enemy" else PLAYER_CLIPS
 	_rng.seed = int(opts.get("seed", 1))

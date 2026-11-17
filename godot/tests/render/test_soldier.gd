@@ -12,7 +12,8 @@ extends SceneTree
 ##  - the arena: the player is the soldier (A/D turn, no strafe), the overview within ARENA_SPEC §11.2 on every level, a
 ##    shot leaves a tracer from a muzzle by the hands, D turns without sliding, on min nothing processes and it is still;
 ##  - a campaign mission at hi and min: the player is the soldier, the overview within CAMPAIGN_SPEC §4;
-##  - the campaign's "normal" hero card shows the soldier on every level within §4 with head and chest in the frame;
+##  - the campaign's "normal" hero card shows the soldier on every level within §4 with head and chest in the frame; the
+##    card's clock moves it on hi/mid, and on lo/min (drawn once) its animation player does not advance;
 ##  - English mode: the dressing room names it "Infantry (preview)" and shows no Thai; the deck and the arena HUD show
 ##    no Thai with the soldier.
 ## PNGs (TEST_OUT, default tests/out): soldier_levels.png, soldier_deck_<level>.png, soldier_arena_<level>.png,
@@ -413,6 +414,16 @@ func _hero() -> void:
 			h.call("seek", float(h.call("poster_t")))
 		var fig: Node3D = h.get("figure")
 		_check(fig != null and _is_soldier(fig), "%s: the normal card shows the soldier" % lv)
+		# the card's clock moves the soldier on hi/mid; on lo/min the card is drawn once and the soldier does nothing
+		var ap: AnimationPlayer = fig.call("animation_player") if fig != null and fig.has_method("animation_player") else null
+		_check(ap != null, "%s: the soldier has its animation player" % lv)
+		if ap != null:
+			var p0 := ap.current_animation_position
+			await _frames(20)
+			var moves: bool = lv == "hi" or lv == "mid"
+			var moved := absf(ap.current_animation_position - p0) > 0.0001
+			_check(moved == moves, "%s: the soldier %s" % [lv, "follows the card's clock" if moves else "does nothing per frame on the card"],
+				"%.4f -> %.4f" % [p0, ap.current_animation_position])
 		var m := await _measure_vp(vp)
 		var b: Array = HERO_BUDGET[lv]
 		print("hero normal soldier %-4s: %d draws, %d primitives" % [lv, m[0], m[1]])
