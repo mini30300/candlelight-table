@@ -41,6 +41,7 @@
 | `assets/fonts/` | Sarabun (SIL OFL, `OFL.txt`) เป็นฟอนต์เริ่มต้นของธีม ภาษาไทยจึงแสดงได้ทุกที่ |
 | `assets/shaders/table.gdshader` | พื้นโต๊ะลายหมากรุก + noise (ไม่ใช้เท็กซ์เจอร์) |
 | `assets/kits/` | **สร้างขึ้นเอง ไม่ commit**: `tools/export_kits.js` ส่งออกฟิกเกอร์ทุกชุดจากหน้าเก่าเป็น `.glb` (312 ไฟล์, 48 MB) + `kits.json` (ดูด้านล่าง) |
+| `assets/figures/soldier/`, `scenes/arena/soldier_figure.gd` | ทหารราบรุ่นทดลอง (รุ่นใหม่ 0.13, ตัวในแอป kind `builtin` ของ `Figures`): ไฟล์ที่อบแล้ว **commit ไว้** (โครง ผิว 4 ระดับ เชดเดอร์ วัสดุ) นำเข้าด้วยคำสั่งเดียว `bash tools/soldier/import_stage.sh <โฟลเดอร์ขั้นปั้น>` จากรากของ repo · ตัวสร้าง (Python + Godot) และวิธีใช้อยู่ที่ `../tools/soldier/README.md` · ห้ามแก้ไฟล์ในโฟลเดอร์นี้ด้วยมือ |
 | `data/` | ตารางข้อมูลเกมที่ `tools/export_data.js` ส่งออกจากหน้าเก่า (`data/README.md` อธิบายทุกไฟล์) — ห้ามแก้ด้วยมือ |
 | `tools/` | `export_kits.js` (ฟิกเกอร์), `export_data.js` (ข้อมูลเกม), `record_oracle.js` (อัดเกมอ้างอิงจากหน้าเก่า), `validate_data.py` (ตรวจข้อมูล ชื่อต้องห้าม คำแปล ลูกเต๋า), `gen_bt_data.py` (ไฟล์ให้เซิร์ฟเวอร์), `godot.sh` (ดาวน์โหลด Godot ตรวจลายเซ็น), `kits.sh` (สร้างชุดโมเดล อบภาพ อบท่าทาง), `bake_impostors.gd`, `bake_anim.js` + `bake_anim.gd` (ท่าทางจากหน้าเก่า), `mount_rig.js` (หาชิ้นส่วนที่ขยับของพาหนะ เช่น ขา หาง ปีก) |
 | `data/schema/` | JSON schema ของทุกตาราง + `legacy_tokens.sha1`; `data/version.json` ตราข้อมูล |

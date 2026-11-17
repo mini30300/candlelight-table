@@ -771,7 +771,9 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   `figures.json` entry's script (`Figures.pack_figure(id)`), and when it lacks part of `FIGURE_API` (a deck-only figure)
   the pack's `player` role or the default, as before. The deck door preloads `ArenaActors.player_preload(sel)` (the
   kit model or the pack script) beside the old paths. The arena screen is built on each entry, so a new selection
-  shows the next time the door is used.
+  shows the next time the door is used. ใหม่ 0.13: kind `builtin` → that figure's own script (`Figures.builtin_figure`;
+  the infantry soldier preview `SoldierFigure`, `scenes/arena/soldier_figure.gd`), the default when it lacks part of
+  `FIGURE_API`; the door preloads its script.
 - **`KitFighter`** (`scenes/arena/kit_fighter.gd`, extends `KitWalker`): the battle-table kits as arena players. The
   weapon is part of the kit mesh. Clips from `humanoid.res`: idle / walk / run (rate matched to the speed like the
   beast), backward = walk played in reverse (H6 local y < −0.5, never run), `fire` = the kit's own weapon clip (`hold`
