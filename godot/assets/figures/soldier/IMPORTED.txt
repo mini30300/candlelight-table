@@ -1,0 +1,23 @@
+Soldier assets imported by tools/soldier/import_stage.sh from stage 'stage1'.
+Do not edit these files by hand: change the generator (tools/soldier/generator) and import again.
+
+level  surfaces  verts   tris  blend_shapes    bytes
+hi            1  11774  23598            14  3579331
+mid           1   7825  15700            14  2381638
+lo            1   4400   8848             0   160903
+min           1   2438   4920             0    86692
+
+bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
+motion_scale: 1.1125
+driver constants: from the stage's rig.json
+soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrists eased)
+
+sha256:
+  4c81d4e1b8767b0a71ac539180818b63c4d81adc7b187d726b1d84066932dc0c  body.gdshader  2333 bytes
+  af49532e6f730320e8ac059d5b81232ca2431f17eb5c09b8444cda1dd6311dbf  body_hi.res  3579331 bytes
+  20eff8c4bfb921555f8a0c37cb8b90e4d716e09583d945ba23324f78775b2969  body_lo.res  160903 bytes
+  f9e37d6325cbcbb441653259f3d1122128e8d6740d865cc77d5b4f87194a4b34  body_material.tres  537 bytes
+  afb2d220fc1db383862f1debdcc2d657ea0edcd73a3254d0ffd7aa8da03ee23c  body_mid.res  2381638 bytes
+  964e97de352413c6ec2275a7606b1e753f3061bc8fca2d3d2319fcdbdb1ea212  body_min.res  86692 bytes
+  59715859decc5150a3877210edf99eac5996e1941e5f8742073232387f9608d1  rig.tscn  10967 bytes
+  2ec7fb8658170cc2e446d406f801f5c0d56e5edc0d579bb2e9edae1764ce8721  skin.res  4807 bytes
