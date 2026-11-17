@@ -5,7 +5,7 @@ extends SceneTree
 ## within §4 (hi 60 / 80k, mid 45 / 60k, lo 30 / 35k; min is a still, measured once and kept under the lo numbers);
 ## framing: the subject's head and feet project inside the frame in both aspects (the normal hero: head and chest, it is
 ## an upper-body close-up); the picture is not empty (the subject is brighter than the backdrop's corners); the normal
-## hero shows the selected figure (the egg, a kit, the fixture pack figure); the catastrophe row has 7 figures, all
+## hero shows the selected figure (the egg, a kit, the fixture pack figure, the soldier preview); the catastrophe row has 7 figures, all
 ## visible in the poster; no processing once inactive. PNGs (TEST_OUT, default tests/out): hero_<id>_<level>_<w>x<h>.png
 ## and hero_normal_<figure>.png. Run:
 ##   xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 --resolution 1280x720 \
@@ -114,14 +114,15 @@ func _one(id: String, lv: String, sz: Vector2i, sel: Dictionary, png := "") -> S
 
 func _normal_figures() -> void:
 	for sel: Dictionary in [{"figure": "egg", "scheme": "original"}, {"figure": "kit_kblade", "scheme": "blue"},
-			{"figure": "kit_cxw", "scheme": "original"}, {"figure": "prim", "scheme": "pink"}]:
+			{"figure": "kit_cxw", "scheme": "original"}, {"figure": "prim", "scheme": "pink"}, {"figure": "soldier", "scheme": "original"}]:
 		var fid := str(sel["figure"])
 		if fid.begins_with("kit_") and not KitLibrary.has_kit(fid.trim_prefix("kit_")):
 			continue
 		if fid == "prim":
 			Figures.pack_list = FIG_LIST
 		var fig := await _one("normal", "hi", Vector2i(640, 360), sel, "hero_normal_%s.png" % fid)
-		var want := "egg_gunner.gd" if fid == "egg" else ("kit_fighter.gd" if fid.begins_with("kit_") else "prim_figure.gd")
+		var want := "egg_gunner.gd" if fid == "egg" else ("kit_fighter.gd" if fid.begins_with("kit_") else
+			("soldier_figure.gd" if fid == "soldier" else "prim_figure.gd"))
 		_check(fig.ends_with(want), "normal shows the selected figure: " + fid, fig)
 		Figures.pack_list = Figures.PACK_LIST
 
