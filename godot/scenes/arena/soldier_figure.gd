@@ -187,7 +187,13 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 
 
 ## ความเร็ว (ม./วิ ตามทิศหน้า): idle / walk / run และอัตราเล่น = ความเร็ว / (ความเร็วของท่า × S) เท้าจึงไม่ไถล
+## set_move ตรง ๆ = เดินหน้าเสมอ (PACK_SPEC H6: ทิศกลับเป็น (0, 1))
 func set_move(speed: float, running: bool) -> void:
+	_back = false
+	_move(speed, running)
+
+
+func _move(speed: float, running: bool) -> void:
 	if _ap == null or _dead:
 		return
 	var logical: StringName = &"idle" if speed < 0.05 else (&"run" if running else &"walk")
@@ -303,7 +309,7 @@ func uses_strafe() -> bool:
 ## H6: ขาเดินหน้า (y ≥ −0.5) หรือถอยหลัง (walk เล่นกลับ ไม่วิ่งถอยหลัง)
 func set_move_dir(local_dir: Vector2, speed: float, running: bool) -> void:
 	_back = local_dir.y < -0.5 and speed >= 0.05
-	set_move(speed, running and not _back)
+	_move(speed, running and not _back)
 
 
 ## H8: เอนไปทางที่พุ่ง ย่อลงแล้วตั้งตัวกลับใน duration วิ (Tween มีเฉพาะตอนพุ่ง)
