@@ -1,6 +1,6 @@
 extends Control
 ## หน้าเล่นกับเพื่อน = ประตูเทียบยาน (NET_SPEC §7.2): ชื่อของตัวเอง, เปิดห้อง, ต่อด้วย IP (ใต้ชื่อ: แป้นพิมพ์บนจอไม่บัง),
-## รายชื่อห้องใน Wi-Fi เดียวกัน (ไม่มี Wi-Fi = บอกให้ต่อ Wi-Fi), IP ตัวใหญ่พร้อมปุ่มคัดลอก,
+## รายชื่อห้องใน Wi-Fi เดียวกัน (ไม่มี Wi-Fi = บอกให้ต่อ Wi-Fi), IP ตัวใหญ่พร้อมปุ่มคัดลอก, IP VPN (Hamachi ฯลฯ) พร้อมปุ่มคัดลอก,
 ## การ์ดห้อง (IP ของเจ้าห้อง ที่นั่งตอนเจ้าห้องตั้งเกม (ขึ้นก่อนรายชื่อ กดนั่งได้ทันที) คนในห้อง กองทัพที่อยากใช้)
 ## และออกจากห้อง/ปิดห้อง
 ## อ่านทุกอย่างจาก net (autoload Net; เทสใส่ของปลอมแบบเดียวกัน) ไม่เปิดช่องสื่อสารเอง: เปิดหน้า = net.find(true),
@@ -19,10 +19,12 @@ const T_COUNT := "{n}/{max} คน"
 const T_JOIN := "เข้าร่วม"
 const T_IP_HINT := "ใส่ IP ของเจ้าห้อง"
 const T_IP_JOIN := "ต่อด้วย IP"
-const T_HELP := "ต้องอยู่ Wi-Fi เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (เครือข่ายส่วนตัว)"
+const T_HELP := "ต้องอยู่ Wi-Fi เดียวกัน หรือ VPN เดียวกัน · Windows: ถ้ามีหน้าต่างไฟร์วอลล์ ให้กดอนุญาต (VPN: ตั้งการ์ด VPN เป็นเครือข่ายส่วนตัว)"
+const T_HELP_VPN := "เล่นกับเพื่อนต่างบ้าน: ทุกคนเปิด Hamachi / Radmin VPN / Tailscale เข้าเครือข่ายเดียวกัน แล้วใส่ IP VPN ของเจ้าห้อง"
 const T_CONNECTING := "กำลังเชื่อมต่อ…"
 const T_CANCEL := "ยกเลิก"
 const T_IPS := "IP ของเครื่องนี้: {ips}"
+const T_VPN_IPS := "IP VPN ของเครื่องนี้ ({vpn}): {ips}"
 const T_HOST_HELP := "ให้เพื่อนที่อยู่ Wi-Fi เดียวกันกดประตูเทียบยานแล้วเลือกห้องนี้ หรือใส่ IP นี้"
 const T_MEMBERS := "คนในห้อง"
 const T_IS_HOST := "(เจ้าห้อง)"
@@ -40,6 +42,7 @@ const T_LEAVE := "ออกจากห้อง"
 const T_CLOSE := "ปิดห้อง"
 const T_CLOSE_ASK := "ปิดห้อง? เพื่อนทุกคนจะหลุดจากห้อง"
 const T_COPY := "คัดลอก IP"
+const T_COPY_VPN := "คัดลอก IP VPN"
 const T_COPIED := "คัดลอกแล้ว"
 const ROW_H := 56.0
 const SWATCH := 22.0
@@ -68,6 +71,10 @@ const SWATCH := 22.0
 @onready var room_note: Label = %RoomNote
 @onready var host_ips: Label = %HostIps
 @onready var copy_ip_button: Button = %CopyIpButton
+@onready var host_vpn_row: HBoxContainer = %HostVpnRow
+@onready var host_vpn: Label = %HostVpn
+@onready var copy_vpn_button: Button = %CopyVpnButton
+@onready var help_vpn: Label = %HelpVpn
 @onready var host_help: Label = %HostHelp
 @onready var disc_off: Label = %DiscOff
 @onready var members_title: Label = %MembersTitle
@@ -104,15 +111,17 @@ func _ready() -> void:
 	for l: Label in [name_label, found_title, members_title, seats_title, connect_label]:
 		CandleStyle.text(l, 22)
 	CandleStyle.title(room_title, 28)
-	for l: Label in [found_empty, help, host_help, room_note]:
+	for l: Label in [found_empty, help, help_vpn, host_help, room_note]:
 		CandleStyle.text(l, 18, true)
 	CandleStyle.text(disc_off, 20)
 	CandleStyle.title(host_ips, 28)   # IP ตัวใหญ่ อ่านข้ามโต๊ะได้
+	CandleStyle.title(host_vpn, 24)
 	CandleStyle.text(reason_label, 20)
 	reason_label.add_theme_color_override(&"font_color", CandleStyle.DANGER)
 	disc_off.add_theme_color_override(&"font_color", CandleStyle.DANGER)
 	CandleStyle.title(confirm_text, 28)
-	for b: Button in [back_button, ip_button, cancel_button, pick_button, leave_button, confirm_no, copy_ip_button]:
+	for b: Button in [back_button, ip_button, cancel_button, pick_button, leave_button, confirm_no, copy_ip_button,
+			copy_vpn_button]:
 		CandleStyle.button(b)
 	CandleStyle.button(host_button, true)
 	CandleStyle.button(confirm_yes, true)
@@ -125,6 +134,7 @@ func _ready() -> void:
 	cancel_button.pressed.connect(leave_room)
 	pick_button.pressed.connect(cycle_pick)
 	copy_ip_button.pressed.connect(copy_ip)
+	copy_vpn_button.pressed.connect(copy_vpn_ip)
 	leave_button.pressed.connect(_on_leave_pressed)
 	confirm_yes.pressed.connect(func() -> void:
 		confirm.hide()
@@ -191,6 +201,7 @@ func refresh() -> void:
 	ip_edit.placeholder_text = I18n.t(T_IP_HINT)
 	ip_button.text = I18n.t(T_IP_JOIN)
 	help.text = I18n.t(T_HELP)
+	help_vpn.text = I18n.t(T_HELP_VPN)
 	connect_label.text = I18n.t(T_CONNECTING)
 	cancel_button.text = I18n.t(T_CANCEL)
 	members_title.text = I18n.t(T_MEMBERS)
@@ -287,6 +298,28 @@ func copy_ip() -> void:
 		return
 	DisplayServer.clipboard_set(ips[0])
 	copy_ip_button.text = I18n.t(T_COPIED)   # จนการ์ดห้องวาดใหม่ครั้งถัดไป
+
+
+## คัดลอก IP VPN อันแรกของเครื่องนี้ (Hamachi 25.x ฯลฯ) ให้เพื่อนต่างบ้านพิมพ์
+func copy_vpn_ip() -> void:
+	var ips := _vpn_ips()
+	if ips.is_empty():
+		return
+	DisplayServer.clipboard_set(ips[0])
+	copy_vpn_button.text = I18n.t(T_COPIED)
+
+
+## บรรทัด IP VPN: วงละบรรทัด IP แรกของแต่ละวง ("" = เครื่องนี้ไม่ได้ต่อ VPN)
+func vpn_text() -> String:
+	var lines := PackedStringArray()
+	var seen := PackedStringArray()
+	for ip: String in _vpn_ips():
+		var r := NetGate.vpn_range(ip)
+		if r == "" or seen.has(r):
+			continue
+		seen.append(r)
+		lines.append(I18n.t(T_VPN_IPS).format({"vpn": NetGate.vpn_name(r), "ips": ip}))
+	return "\n".join(lines)
 
 
 ## นั่งที่ k (−1 = ลุกจากที่นั่งของตัวเอง) ตอนเจ้าห้องเปิดหน้าตั้งเกม
@@ -403,6 +436,11 @@ func _update_room() -> void:
 		copy_ip_button.disabled = ips.is_empty()
 		copy_ip_button.text = I18n.t(T_COPY)
 		host_help.text = I18n.t(T_HOST_HELP)
+	var vt := vpn_text() if host else ""
+	host_vpn_row.visible = vt != ""
+	if vt != "":
+		host_vpn.text = vt
+		copy_vpn_button.text = I18n.t(T_COPY_VPN)
 	for c in member_list.get_children():
 		member_list.remove_child(c)
 		c.queue_free()
@@ -517,6 +555,13 @@ func _my_pick() -> String:
 	if net == null:
 		return ""
 	return str((net.call("member", int(net.call("my_slot"))) as Dictionary).get("pick", ""))
+
+
+## IP VPN ของเครื่องนี้จาก net (net ที่ไม่มี vpn_ips = ไม่มี)
+func _vpn_ips() -> PackedStringArray:
+	if net == null or not net.has_method("vpn_ips"):
+		return PackedStringArray()
+	return net.call("vpn_ips")
 
 
 ## ไม่มีเครือข่ายในบ้าน (Wi-Fi/ฮอตสปอต/สายแลน) บนเครื่องนี้

@@ -176,6 +176,7 @@ All neutral; with no pack each hook is a no-op. Surgical edits only.
 | H6 (optional; specified 13 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | Optional `set_move_dir(local_dir: Vector2, speed: float, running: bool)`, called **instead of** `set_move` when the figure has it, so a player figure can choose side-step and back-step cycles in shoot mode. Exact rules: `ARENA_SPEC.md` §9.4 (with H7 `begin_switch` and the melee timing). |
 | H8, H9 (optional; 13 Nov, H9 changed 14 Nov) | `scenes/arena/arena_player.gd`, `scenes/arena/egg_gunner.gd` | `begin_dodge(local_dir: Vector2, duration: float)`: called once when a dodge (Space / หลบ button) starts, direction in the figure's frame, `duration` 0.3 s; `uses_strafe() -> bool` (default true): every body faces the camera's yaw in both modes and is never turned toward its movement; false = the figure's legs get (0, 1) for forward and sideways movement and (0, −1) backwards (`ArenaCombat.leg_dir`, through H6 `set_move_dir` and H8 `begin_dodge`), so it walks forward while sliding sideways and backward when backing; true (the egg) gets the real direction and side-steps. Both checked once in `setup`. Exact rules: `ARENA_SPEC.md` §9.5. |
 | H10 (optional; round C, 14 Nov) | any deck figure (pack figures, `scenes/hall/kit_walker.gd`) | `apply_scheme(primary: Color, secondary: Color) -> void`: the dressing room's colour scheme (§10). Called by `Figures.dress` after `setup` (the hall and pack-room worlds) and by the dressing screen's preview; a figure may also get it before `setup` and must keep it. Fixed-colour parts (weapons, gold trim, lenses, a special arm) are the figure's business and ignore it. A figure without it keeps its own colours; set `"schemes": true` in `figures.json` only when it has it. |
+| H11 (optional; round E, 15 Nov) | any deck figure with H10 | `apply_palette(p: Dictionary) -> void`: a palette with more regions than H10 (§10.1). Called by `Figures.apply_entry` (through `Figures.dress` and the dressing screen's preview) **instead of** H10 when the figure has it, for presets too (as `{primary, secondary}`); a figure without it gets H10 with the palette's primary and secondary. Same timing rules as H10 (before or after `setup`, kept across levels and fades, no per-frame work). |
 
 Spec cross-reference: one line under `ARENA_SPEC.md` §9.3 ("extended by `PACK_SPEC.md`"), and §17 (as built) notes H1–H4.
 No `APP_VER` bump is needed for H1–H4 alone (nothing changes on screen without a pack); if it ships with other visible
@@ -372,6 +373,15 @@ Owner, 14 Nov: "move the test room (arena) into the launch bay". A room may decl
   within the §3.5 figure budget), both from `tests/flow/dressing_steps.gd`; `DRESS_STUB=1` runs them against
   `tests/unit/fixtures/figures_stub.gd` (adds the fixed-colour and H10 checks).
 
+### 9.7 Campaign station and card (round E, 15 Nov 2026)
+
+- `"action": "campaign"` is allowed on a station **and** on a card (no extra keys; any number of them). Both call
+  `PackRoomScreen.open_campaign()` → `CampaignFlow.start("room")` (CAMPAIGN_SPEC §1.3); leaving the campaign shows the
+  room as it was. A card with another unknown action is refused with "card action must be soon, online or campaign".
+- An older public app refuses a room that uses `campaign` (the whole room is skipped): merge the public side first.
+- Fixture `tests/fixtures/pack_rooms_campaign/camp_room` (test_room plus a `dropship` station and a third card), broken
+  case `tests/fixtures/pack_rooms_bad/card_bad_action`.
+
 ## 10. Dressing room: figures, schemes, slots (round C, 14 Nov 2026)
 
 Owner, 14 Nov: choose which character comes out and walks on the deck and in pack rooms, in a preset colour scheme, with
@@ -414,3 +424,48 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   `tests/fixtures/figure_pack/figures.json` and `figure_pack_bad/figures.json`, make, the paint table, still pose),
   `tests/render/test_kit_walker.gd` (select → rebuild, walk/run rates, every level within the deck targets, still on
   lo/min, eight kits in eight schemes, back to the egg).
+
+- Round D (14 Nov): the weapons arena plays the selected figure too (ARENA_SPEC §9.6): a pack figure from `figures.json`
+  is used as the arena player when it has the whole arena contract (`ArenaActors.FIGURE_API`) and is dressed with the
+  chosen scheme after `setup` (H10, only when its entry has `"schemes": true`); a deck-only figure falls back to the
+  pack's `player`. Battle-table kits play through `KitFighter`; the egg stays the egg gunner. A pack figure whose H9
+  `uses_strafe()` is false is turned by A/D (no side-walking).
+
+### 10.1 Palettes (H11, round E, 15 Nov 2026)
+
+Owner, 15 Nov: the famous armour colour schemes on the private armour figure, chosen in the dressing room. A pack figure
+can list its own palettes; every figure keeps the 9 presets.
+
+- **figures.json**: an entry may carry `"palettes": [{"id", "name": {"th", "en"}, "primary": "#rrggbb", ...}]` (at most
+  `Figures.PAL_MAX` = 64; only read when the entry has `"schemes": true`). Colour keys (`Figures.PAL_KEYS`, `#rrggbb` sRGB):
+  `primary` (required: armour plates), `secondary` (undersuit, recesses), `trim` (plate edges, e.g. pauldron rims),
+  `metal` (the other gilded / metal parts), `lens` (eye lenses), `helmet` (head plates), `arm_l` (left arm and left
+  pauldron), `accent` (cloth, pouches, belts). Optional `"metallic": ["primary" | "helmet" | "arm_l", ...]` renders those
+  regions as bare polished metal instead of paint. A key that is left out means: `helmet` and `arm_l` follow `primary`
+  (and its finish), `secondary` keeps the figure's own colour for H11 and is the primary for the H10 fallback, every
+  other region keeps the figure's own colour. Which mesh parts a region covers is the figure's business. `id` matches
+  `Figures.ID_RE`, is unique in the figure and is not a preset id; `en` has no Thai; a bad colour or a missing primary
+  skips that palette with a warning (the others stay).
+- **Registry** (`app/figures.gd`): `palettes(figure_id)` → the presets (`pack` false, `colours` `{primary, secondary}`)
+  then that figure's pack palettes (`pack` true, `colours` = the parsed keys as `Color` plus `metallic`); every entry has
+  `id, name, primary, secondary, original, pack, colours`. `palette(id, figure_id = "")` (an unknown id or another
+  figure's palette = the original preset; without a figure id: presets, then every pack figure). `apply_entry(fig, s)`:
+  nothing for the original; H11 `apply_palette(s.colours)` when the figure has it, else H10. `dress(fig, scheme_id,
+  figure_id = "")`. The selection and the slots keep a palette id in the same `scheme` key; `select` / `save_slot` /
+  `slots` accept only ids from `palettes(figure)`, so a palette of another figure reads as the original.
+- **Worlds**: `HallWorld` and `PackRoomWorld` pass the selected figure id to `dress`; `ArenaWorld` and the campaign's
+  `MissionWorld` pass `"figure_id"` to `ArenaPlayer.setup`, which dresses with it (ARENA_SPEC §9.6); the campaign's
+  "normal" card (`scenes/campaign/hero_normal.gd`) dresses its figure the same way. Friends online still see eggs.
+- **Optional pack keys** (round E): `enemy_small` / `enemy_small_name` in `pack.json` name a smaller enemy figure
+  (`ArenaActors.make_figure("enemy_small")` builds it); no public mission or arena asks for it yet.
+- **Dressing screen**: the scheme row is a scrolling grid of named cards (`DressingScreen.CARD` 120 × 104, touch 132 × 116; long names wrap to two lines):
+  a dot drawn once (ring = trim / metal / secondary, fill = primary, right half = left arm, top = helmet, small dots =
+  lens, secondary, accent) and the name below (`เดิม` / Orig. for the original). Columns follow the width (at least 3 on a
+  phone held upright), two rows show, the rest scrolls. Picking a figure reloads its list (`schemes_of(api, id)`; a stub
+  without `palettes` falls back to `schemes`); a palette the new figure lacks falls back to the original. No per-frame
+  work: the dots draw once; on min the preview still redraws only on a change or a drag.
+- **Tests**: `tests/unit/test_figures.gd` (registry, broken palettes skipped, lookups, selection and slots, H11 and the H10
+  fallback) with the fixture `tests/fixtures/figure_pack_palettes/` (24 palettes + 6 broken ones on an H11 figure, an
+  H10-only figure, a fixed-colour figure); `tests/render/test_dressing_palettes.gd` (desktop, phone landscape and phone
+  portrait, TH/EN, scroll to the last card, slots, other figures, min/hi idle and preview budget).
+

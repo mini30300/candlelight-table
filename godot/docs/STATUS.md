@@ -1,7 +1,25 @@
-# Where the game work stands (13 Nov 2569)
+# Where the game work stands (15 Nov 2569)
 
 The owner paused the game on 9 Oct to work on another project and resumed it on 12 Nov with the front page and the
 walkable lobby (below). Everything here is what a later session needs to pick up.
+
+## 15 Nov: ใหม่ 0.12 — campaign, VPN joins, pack palettes (round E, `docs/CAMPAIGN_SPEC.md`)
+- Campaign (public and personal app): deck station `campaign` (personal: the launch bay's dropship and holo card,
+  pack-room action `campaign`) → difficulty screen with four live hero cards (pack scenes override the built-ins via
+  `res://packs/campaign/hero_<id>.gd`) → weekly galaxy (44 planets, 8 factions × 6 modifiers, rolled from the week
+  number with the core Rng; reroll Monday 00:00 UTC) → planet card → brief → mission (4 types, secondary objectives,
+  seeded per spec) → report (score lines, grade, coins in `user://campaign.json`). Single player; no protocol change.
+- VPN joins (NET_SPEC): typed join and the host gate accept Hamachi 25/8, Radmin 26/8 and Tailscale 100.64/10 only
+  while this device has an address in that range (not on carrier-NAT phones for hosting); discovery stays LAN-only.
+  Owner how-to: `docs/HAMACHI_TH.md`.
+- Dressing room: pack palettes (H11 `apply_palette`, PACK_SPEC) in a scrolling named grid.
+- Open: enemies alive at once depend on the graphics level (ALIVE_CAP); coins and items move to the server later;
+  VPN joins untested on real machines; pack hero scenes exist for "very hard" only.
+
+## 14 Nov: ใหม่ 0.7–0.11 (rounds A–D)
+Pack rooms behind the docking airlock (0.7, PACK_SPEC §9), the deck's work desk (0.8), body facing the camera in the
+arena and play with friends in every app (0.9), the dressing room in a pack room (0.10), the dressed figure in the
+arena with A/D turning for figures that do not side-step (0.11, ARENA_SPEC §9.5–9.6). Notes in `web/`.
 
 ## 13 Nov: ใหม่ 0.6 (sounds, battle animations, arena dodge, online only in the personal build)
 - Sounds: the old page's 42 `DEF` sounds and 5 music loops baked by `tools/bake_sfx.js` into `assets/sfx/` (git-ignored,

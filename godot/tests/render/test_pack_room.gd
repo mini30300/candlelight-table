@@ -320,6 +320,8 @@ func _check_friends(hall: Node, room: Node) -> void:
 		gaps_ok = gaps_ok and int(moving[i][1]["t"]) - int(moving[i - 1][1]["t"]) >= 100
 	_check(not poses.is_empty() and in_band, "my poses from the room are in the band (%d sent)" % poses.size())
 	_check(gaps_ok and _stops() == 1, "at most one per 100 ms while walking, then one stop pose", "%d moving, %d stop" % [moving.size(), _stops()])
+	# the stamp is the throttle's own time (a second clock read could make two poses 99 ms apart)
+	_check(not moving.is_empty() and int(moving[moving.size() - 1][1]["t"]) == int(room.get("_pose_ms")), "a moving pose carries the throttle's time")
 
 
 func _check_leave(hall: Node, room: Node) -> void:

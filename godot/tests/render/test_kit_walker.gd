@@ -73,8 +73,13 @@ func _run() -> void:
 	var av: Node3D = world.get("avatar")
 	var rig: Node3D = world.get("camera_rig")
 	var egg := av.get_node("Egg") as MeshInstance3D
-	_check(av.get("figure") == null and egg.visible and Figures.selected()["figure"] == "egg",
-		"nothing chosen (no pack): the deck avatar is the egg")
+	# ไม่ได้เลือก: ตัวเริ่มต้น = ไข่ (ไม่มีชุดเสริม) หรือตัวแรกของชุดเสริม (Figures.default_figure)
+	if Figures.default_figure() == "egg":
+		_check(av.get("figure") == null and egg.visible and Figures.selected()["figure"] == "egg",
+			"nothing chosen (no pack): the deck avatar is the egg")
+	else:
+		_check(av.get("figure") != null and not egg.visible and Figures.selected()["figure"] == Figures.default_figure(),
+			"nothing chosen (with a pack): the deck avatar is the pack's first figure '%s', the egg hidden" % Figures.default_figure())
 	# choose a kit: App.figure_changed rebuilds the avatar
 	Figures.select("kit_kblade", "pink")
 	await _frames(2)

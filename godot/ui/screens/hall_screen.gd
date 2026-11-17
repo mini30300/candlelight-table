@@ -3,6 +3,7 @@ extends Control
 ## ข้อความไทยทั้งหมดของล็อบบี้อยู่ในไฟล์นี้ (ป้าย 3 มิติรวมป้ายชื่อสถานที่ "title" รับข้อความผ่าน world.set_sign_text)
 ## เดินถึงสถานีแล้วกด E หรือแตะ %UseButton: โต๊ะรบโฮโลแกรม → ตั้งเกม, คลังแสง → หน้าจัดกองทัพ, คอนโซล → ตั้งค่า,
 ## ประตูเทียบยาน → หน้าเล่นกับเพื่อน (lobby.tscn, NET_SPEC §7), โต๊ะผจญภัย / โต๊ะทำงาน → แผง "เร็วๆ นี้",
+## โต๊ะแคมเปญ → แคมเปญ (CampaignFlow.start("deck"), CAMPAIGN_SPEC §1.2),
 ## ประตูทางออก (หรือ ‹ หน้าแรก) → กลับหน้าแรก
 ## ออนไลน์ (NET_SPEC §6): ส่งท่าตัวเองผ่าน Net (≤ 1 ครั้ง / 100 มิลลิวิ ตอนเดิน + ท่าหยุดหนึ่งครั้ง) ไข่เพื่อนบนดาดฟ้า
 ## ป้ายชื่อและบรรทัดสถานะใน %FriendTags แผง "เร็วๆ นี้" ใช้แจ้งเพื่อนเข้า/ออก · ออฟไลน์ทุกอย่างเหมือนเดิม
@@ -40,6 +41,7 @@ const NAMES := {
 	"exit": "ทางออก",
 	"vault": "โต๊ะทำงาน",
 	"arena": "อารีน่าทดสอบอาวุธ",
+	"campaign": "โต๊ะแคมเปญ",
 }
 ## ป้าย 3 มิติเหนือสถานี
 const SIGNS := {
@@ -51,6 +53,7 @@ const SIGNS := {
 	"exit": "ทางออก",
 	"vault": "โต๊ะทำงาน · คลังของ",
 	"arena": "อารีน่าทดสอบอาวุธ",
+	"campaign": "โต๊ะแคมเปญ · แผนที่ดวงดาว",
 }
 ## แผง "เร็วๆ นี้" ของสถานีที่ยังไม่เปิด (โต๊ะทำงาน = คลังของจากแคมเปญและของรางวัลสุ่มรอบหน้า ตอนนี้ยังไม่มีของจริง)
 ## ประตูเทียบยานเปิดแล้ว (NET_SPEC §7.1): ไม่อยู่ในนี้
@@ -81,6 +84,8 @@ const SETUP_OPEN := "เจ้าห้องกำลังตั้งเก�
 ## มีห้องเสริม: บอกที่เลือกที่นั่งเป็นชื่อสถานีในห้อง ({place} จาก room.json) · เปิดห้องไม่ได้ = เปิดหน้าเล่นกับเพื่อนแทน
 const SETUP_OPEN_AT := "เจ้าห้องกำลังตั้งเกม — เลือกที่นั่งได้ที่{place}"
 const ROOM_FAILED := "เปิดห้องไม่ได้ — เปิดหน้าเล่นกับเพื่อนแทน"
+## หน้าของแคมเปญยังไม่มี (CampaignFlow.start คืน null)
+const CAMPAIGN_NOT_READY := "แคมเปญ — ยังไม่พร้อม"
 const POSE_MS := 100          # ส่งท่าตอนเดินไม่ถี่กว่านี้
 const MAX_PLAYERS := 6        # NetSession.MAX_PLAYERS
 const USE_H := 64.0
@@ -192,6 +197,9 @@ func refresh() -> void:
 		world.set_sign_text(id, PackRooms.text(room["door_sign"]) if id == "online" and not room.is_empty() else I18n.t(sign_of(id)))
 	if shut:
 		world.set_sign_text("arena", "")
+	# min: ป้ายโต๊ะแคมเปญว่าง (ป้าย 3 มิติหนึ่งป้าย = หนึ่ง draw call; ปุ่มใช้งานยังบอกชื่อเมื่อเดินถึง)
+	if App.gfx == "min":
+		world.set_sign_text("campaign", "")
 	world.set_sign_text("title", I18n.t(PLACE))
 	world.set_sign_text("you", I18n.t(YOU))
 	hint.text = I18n.t(HINT_TOUCH if touch_mode else HINT_KEYS)
@@ -240,6 +248,21 @@ func use_station() -> void:
 			_go_menu()
 		"arena":
 			enter_arena()
+		"campaign":
+			open_campaign()
+
+
+## เปิดแคมเปญทับดาดฟ้า (กลับมาแล้วยืนที่เดิมหน้าโต๊ะ) · หน้ายังไม่พร้อม = แผงข้อความ คืน null
+func open_campaign() -> Node:
+	if not active:
+		return null
+	world.avatar.halt()
+	stick.release()
+	close_soon()
+	var cs := CampaignFlow.start("deck")
+	if cs == null:
+		show_note(CAMPAIGN_NOT_READY)
+	return cs
 
 
 ## แผง "เร็วๆ นี้" ของสถานีที่ยังไม่เปิด ปิดเองใน 2.5 วิ เมื่อเดิน หรือเมื่อกดย้อนกลับ
@@ -372,7 +395,7 @@ func _on_avatar_moved(p: Vector3) -> void:
 		var now := Time.get_ticks_msec()
 		if now - _pose_ms >= POSE_MS:
 			_pose_ms = now
-			_send_pose(false)
+			_send_pose(false, now)
 		pose_timer.start()
 		if tags.visible:
 			tags.refresh()
@@ -521,6 +544,7 @@ func preload_arena() -> void:
 	# ตัวละครชุดเสริม (PACK_SPEC §4 H3): ไม่มีชุดเสริม = ทางเดิมใน ARENA_PRELOAD (ข้ามเพราะซ้ำ)
 	paths.append(ArenaActors.resolve("player", pack_manifest))
 	paths.append(ArenaActors.resolve("enemy", pack_manifest))
+	paths.append(ArenaActors.player_preload(Figures.selected()))
 	for p: String in paths:
 		if _arena_res.has(p) or not ResourceLoader.exists(p):
 			continue
@@ -748,14 +772,15 @@ func _set_where(w: StringName) -> void:
 
 
 ## ท่าของตัวเอง (ซม. มิลลิเรเดียน ซม./วิ) ไปให้ห้อง; stop = ท่าหยุด (ส่งแบบไม่หาย)
-func _send_pose(stop: bool) -> void:
+## at = เวลาของตัวจำกัดความถี่ (ไม่อ่านนาฬิกาซ้ำ: ท่าเดินห่างกัน ≥ 100 มิลลิวิ จริง)
+func _send_pose(stop: bool, at := -1) -> void:
 	if not online() or _from_room:
 		return
 	var av := world.avatar
 	var p := av.global_position
 	var pose := {"x": clampi(roundi(p.x * 100.0), -5000, 5000), "z": clampi(roundi(p.z * 100.0), -5000, 5000),
 		"yaw": roundi(wrapf(av.face, -PI, PI) * 1000.0), "sp": 0 if stop else clampi(roundi(av.speed() * 100.0), 0, 2000),
-		"run": false if stop else av.running(), "t": Time.get_ticks_msec()}
+		"run": false if stop else av.running(), "t": at if at >= 0 else Time.get_ticks_msec()}
 	net.call("send_pose", pose, stop)
 
 

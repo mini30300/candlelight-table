@@ -5,7 +5,9 @@ extends "res://tests/testing.gd"
 ## schemes, the selection (default, persistence in the settings file next to App's own keys, unknown ids fall back,
 ## App.figure_changed), the three slots, make() for each kind (egg = null, kit = KitWalker, pack = the pack script,
 ## a half-contract pack figure = null) and KitWalker's paint table (H10: armour primary, cloth secondary, weapons, lenses,
-## trim and natural slots fixed), its deck speeds and its still pose on lo and min.
+## trim and natural slots fixed), its deck speeds and its still pose on lo and min. Palettes (H11, PACK_SPEC §10.1): the
+## presets for every figure plus a pack figure's own palettes from figures.json (every broken palette skipped), lookups,
+## selection and slots with a pack palette, and dressing through H11 apply_palette or, without it, H10 apply_scheme.
 
 const STORE := "user://test_figures.cfg"
 const FIX_LIST := "res://tests/fixtures/figure_pack/figures.json"
@@ -14,6 +16,8 @@ const FIX_PACK := "res://tests/fixtures/figure_pack/pack.json"
 const NONE := "res://tests/unit/fixtures/no_such_pack/figures.json"
 const NONE_PACK := "res://tests/unit/fixtures/no_such_pack/pack.json"
 const LIB := "res://assets/anim/humanoid.res"
+const PAL_LIST := "res://tests/fixtures/figure_pack_palettes/figures.json"
+const PAL_DIR := "res://tests/fixtures/figure_pack_palettes/"
 
 var _changed := 0
 
@@ -222,4 +226,88 @@ func test_make_and_paint() -> void:
 	w.set_move(1.5, false)
 	assert_true(w.playing_clip().ends_with("/walk"), "set_move picks walk")
 	w.free()
+	_reset()
+
+
+func test_palettes_registry() -> void:
+	setup()
+	assert_eq(Figures.palettes("egg").size(), Figures.SCHEMES.size(), "no pack: every figure gets the presets only")
+	Figures.pack_list = PAL_LIST
+	var ids := _ids()
+	assert_true(ids.has("palettes") and ids.has("h10_only") and ids.has("fixed"), "the palette fixture's figures are listed", ids)
+	var all := Figures.palettes("palettes")
+	assert_eq(all.size(), Figures.SCHEMES.size() + 24, "the presets plus the 24 good pack palettes (broken ones skipped)")
+	for i in Figures.SCHEMES.size():
+		assert_eq(str(all[i]["id"]), str(Figures.SCHEMES[i]["id"]), "preset %d comes first, in order" % i)
+		assert_false(bool(all[i]["pack"]), "a preset is not a pack palette")
+	assert_true(bool(all[0]["original"]), "the first entry is still the original colours")
+	var pk := all.slice(Figures.SCHEMES.size())
+	assert_eq(pk.map(func(e: Dictionary) -> String: return str(e["id"])), range(24).map(func(i: int) -> String: return "p%02d" % i),
+		"pack palettes keep the order of figures.json")
+	var thai := RegEx.create_from_string("[฀-๿]")
+	for e: Dictionary in pk:
+		var c: Dictionary = e["colours"]
+		assert_true(bool(e["pack"]) and not bool(e["original"]) and c["primary"] is Color and e["primary"] == c["primary"],
+			"%s: a pack palette with Color values" % e["id"])
+		assert_true(str(e["name"]["th"]) != "" and thai.search(str(e["name"]["en"])) == null, "%s: Thai and English names" % e["id"])
+	assert_eq(Array(pk[1]["colours"]["metallic"]), ["arm_l"], "metallic keeps known regions only")
+	assert_true(pk[0]["colours"]["helmet"] is Color and not (pk[1]["colours"] as Dictionary).has("helmet"), "optional regions are kept as given")
+	var red := Figures.palette("q_red", "h10_only")
+	assert_eq(red["secondary"], red["primary"], "a palette without secondary uses the primary for H10")
+	assert_eq(Figures.palettes("fixed").size(), Figures.SCHEMES.size(), "a figure that keeps its own colours gets no pack palettes")
+	assert_eq(Figures.palettes("kit_samurai").size(), Figures.SCHEMES.size(), "kits get the presets only")
+	assert_eq(str(Figures.palette("p05", "palettes")["id"]), "p05", "palette() finds a figure's palette")
+	assert_eq(str(Figures.palette("p05", "egg")["id"]), "original", "another figure's palette falls back to the original")
+	assert_eq(str(Figures.palette("p05")["id"]), "p05", "without a figure, palette() searches every pack figure")
+	assert_eq(str(Figures.palette("red", "palettes")["id"]), "red", "presets stay available for a pack figure")
+	assert_true(Figures.palette("red")["colours"] is Dictionary, "a preset entry carries its colours too")
+	_reset()
+
+
+func test_palette_selection_and_slots() -> void:
+	setup()
+	Figures.pack_list = PAL_LIST
+	Figures.select("palettes", "p07")
+	assert_eq(Figures.selected(), {"figure": "palettes", "scheme": "p07"}, "a pack palette can be selected")
+	Figures.select("egg", "p07")
+	assert_eq(str(Figures.selected()["scheme"]), "original", "a pack palette is not valid for another figure")
+	Figures.select("h10_only", "p07")
+	assert_eq(str(Figures.selected()["scheme"]), "original", "nor for another pack figure")
+	Figures.select("h10_only", "q_teal")
+	assert_eq(Figures.selected(), {"figure": "h10_only", "scheme": "q_teal"}, "its own palette is")
+	Figures.save_slot(0, "palettes", "p03")
+	Figures.save_slot(1, "palettes", "zz_none")
+	var sl := Figures.slots()
+	assert_eq(sl[0], {"figure": "palettes", "scheme": "p03"}, "a slot keeps a pack palette")
+	assert_eq(str(sl[1]["scheme"]), "original", "an unknown palette in a slot falls back to the original")
+	_reset()
+
+
+func test_dress_with_palettes() -> void:
+	setup()
+	Figures.pack_list = PAL_LIST
+	var f: Node3D = (load(PAL_DIR + "palette_figure.gd") as GDScript).new()
+	Figures.dress(f, "p01", "palettes")
+	var want: Dictionary = Figures.palette("p01", "palettes")["colours"]
+	assert_eq(f.get("palette"), want, "H11: the figure gets the whole palette")
+	assert_eq(int(f.get("calls").get("apply_palette", 0)), 1, "H11 is called once")
+	assert_eq(int(f.get("calls").get("apply_scheme", 0)), 0, "H10 is not called when H11 exists")
+	Figures.dress(f, "red", "palettes")
+	var rs := Figures.scheme("red")
+	assert_eq(f.get("palette"), {"primary": rs["primary"], "secondary": rs["secondary"]}, "a preset reaches H11 as primary and secondary")
+	Figures.dress(f, "original", "palettes")
+	assert_eq(int(f.get("calls").get("apply_palette", 0)), 2, "the original colours call nothing")
+	f.free()
+	var g: Node3D = (load(PAL_DIR + "h10_figure.gd") as GDScript).new()
+	Figures.dress(g, "q_teal", "h10_only")
+	var t := Figures.palette("q_teal", "h10_only")
+	assert_eq(g.get("scheme"), [t["primary"], t["secondary"]], "without H11 a pack palette falls back to H10 (primary, secondary)")
+	Figures.dress(g, "q_red", "h10_only")
+	assert_eq(g.get("scheme"), [Color.html("#b01818"), Color.html("#b01818")], "a palette without secondary paints both with the primary")
+	g.free()
+	Figures.apply_entry(null, Figures.palette("p01"))
+	var bare := Node3D.new()
+	Figures.apply_entry(bare, Figures.palette("p01"))
+	bare.free()
+	assert_true(true, "apply_entry ignores null and figures without hooks")
 	_reset()

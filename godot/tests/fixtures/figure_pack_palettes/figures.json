@@ -1,0 +1,399 @@
+[
+ {
+  "id": "palettes",
+  "name": {
+   "th": "หุ่นหลายชุดสี",
+   "en": "Palette dummy"
+  },
+  "figure": "palette_figure.gd",
+  "schemes": true,
+  "palettes": [
+   {
+    "id": "p00",
+    "name": {
+     "th": "ครามทอง",
+     "en": "Indigo & Gold"
+    },
+    "primary": "#bf3939",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2"
+   },
+   {
+    "id": "p01",
+    "name": {
+     "th": "แดงชาดดำ",
+     "en": "Vermilion & Black"
+    },
+    "primary": "#bf5a39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "arm_l": "#c2c7cd",
+    "metallic": [
+     "arm_l",
+     "nonsense"
+    ]
+   },
+   {
+    "id": "p02",
+    "name": {
+     "th": "เขียวป่างาช้าง",
+     "en": "Forest & Ivory"
+    },
+    "primary": "#bf7c39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "lens": "#3ad15a",
+    "accent": "#9c1a1e"
+   },
+   {
+    "id": "p03",
+    "name": {
+     "th": "เทาฟ้าเหลือง",
+     "en": "Slate & Yellow"
+    },
+    "primary": "#bf9d39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2"
+   },
+   {
+    "id": "p04",
+    "name": {
+     "th": "เหลืองมะนาวดำ",
+     "en": "Lemon & Black"
+    },
+    "primary": "#bfbf39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p05",
+    "name": {
+     "th": "ขาวแดงชาด",
+     "en": "White & Vermilion"
+    },
+    "primary": "#9dbf39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "arm_l": "#c2c7cd",
+    "metallic": [
+     "arm_l",
+     "nonsense"
+    ]
+   },
+   {
+    "id": "p06",
+    "name": {
+     "th": "ดำเงิน",
+     "en": "Black & Silver"
+    },
+    "primary": "#7cbf39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2"
+   },
+   {
+    "id": "p07",
+    "name": {
+     "th": "เขียวใบไม้ทอง",
+     "en": "Leaf & Gold"
+    },
+    "primary": "#5abf39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "lens": "#3ad15a",
+    "accent": "#9c1a1e"
+   },
+   {
+    "id": "p08",
+    "name": {
+     "th": "ดำหัวขาว",
+     "en": "Black, White Head"
+    },
+    "primary": "#39bf39",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p09",
+    "name": {
+     "th": "เงินแดง",
+     "en": "Silver & Red"
+    },
+    "primary": "#39bf5a",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2",
+    "arm_l": "#c2c7cd",
+    "metallic": [
+     "arm_l",
+     "nonsense"
+    ]
+   },
+   {
+    "id": "p10",
+    "name": {
+     "th": "ดำขอบขาว",
+     "en": "Black, White Edge"
+    },
+    "primary": "#39bf7c",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p11",
+    "name": {
+     "th": "ดำแขนเงิน",
+     "en": "Black, Silver Arm"
+    },
+    "primary": "#39bf9d",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p12",
+    "name": {
+     "th": "แดงเข้มครีม",
+     "en": "Maroon & Cream"
+    },
+    "primary": "#39bfbf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2",
+    "lens": "#3ad15a",
+    "accent": "#9c1a1e"
+   },
+   {
+    "id": "p13",
+    "name": {
+     "th": "เขียวน้ำทะเล",
+     "en": "Teal & Brass"
+    },
+    "primary": "#399dbf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "arm_l": "#c2c7cd",
+    "metallic": [
+     "arm_l",
+     "nonsense"
+    ]
+   },
+   {
+    "id": "p14",
+    "name": {
+     "th": "แดงสดทองเหลือง",
+     "en": "Scarlet & Brass"
+    },
+    "primary": "#397cbf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p15",
+    "name": {
+     "th": "เขียวขี้ม้าสนิม",
+     "en": "Olive & Rust"
+    },
+    "primary": "#395abf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2"
+   },
+   {
+    "id": "p16",
+    "name": {
+     "th": "ฟ้าสดทอง",
+     "en": "Sky & Gold"
+    },
+    "primary": "#3939bf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p17",
+    "name": {
+     "th": "ม่วงทอง",
+     "en": "Purple & Gold"
+    },
+    "primary": "#5a39bf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "arm_l": "#c2c7cd",
+    "metallic": [
+     "arm_l",
+     "nonsense"
+    ],
+    "lens": "#3ad15a",
+    "accent": "#9c1a1e"
+   },
+   {
+    "id": "p18",
+    "name": {
+     "th": "กรมท่าครีม",
+     "en": "Navy & Cream"
+    },
+    "primary": "#7c39bf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2"
+   },
+   {
+    "id": "p19",
+    "name": {
+     "th": "เหล็กเหลือง",
+     "en": "Iron & Yellow"
+    },
+    "primary": "#9d39bf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p20",
+    "name": {
+     "th": "แดงไวน์ดำ",
+     "en": "Wine & Black"
+    },
+    "primary": "#bf39bf",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p21",
+    "name": {
+     "th": "ส้มดำ",
+     "en": "Orange & Black"
+    },
+    "primary": "#bf399d",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "helmet": "#e6e6e2",
+    "arm_l": "#c2c7cd",
+    "metallic": [
+     "arm_l",
+     "nonsense"
+    ]
+   },
+   {
+    "id": "p22",
+    "name": {
+     "th": "ชมพูเทา",
+     "en": "Rose & Grey"
+    },
+    "primary": "#bf397c",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a",
+    "lens": "#3ad15a",
+    "accent": "#9c1a1e"
+   },
+   {
+    "id": "p23",
+    "name": {
+     "th": "น้ำตาลทอง",
+     "en": "Brown & Gold"
+    },
+    "primary": "#bf395a",
+    "secondary": "#2a2b30",
+    "trim": "#d8b05a"
+   },
+   {
+    "id": "p00",
+    "name": {
+     "th": "ซ้ำ",
+     "en": "Repeated"
+    },
+    "primary": "#ff0000"
+   },
+   {
+    "id": "blue",
+    "name": {
+     "th": "ชนชุดสำเร็จรูป",
+     "en": "Preset id"
+    },
+    "primary": "#0000ff"
+   },
+   {
+    "id": "Bad id",
+    "name": {
+     "th": "ผิด",
+     "en": "Bad id"
+    },
+    "primary": "#00ff00"
+   },
+   {
+    "id": "no_primary",
+    "name": {
+     "th": "ไม่มีสีหลัก",
+     "en": "No primary"
+    },
+    "secondary": "#00ff00"
+   },
+   {
+    "id": "bad_colour",
+    "name": {
+     "th": "สีผิด",
+     "en": "Bad colour"
+    },
+    "primary": "#00ff00",
+    "trim": "gold-ish"
+   },
+   {
+    "id": "thai_en",
+    "name": {
+     "th": "ไทย",
+     "en": "ไทย"
+    },
+    "primary": "#00ff00"
+   },
+   "not an object"
+  ]
+ },
+ {
+  "id": "h10_only",
+  "name": {
+   "th": "หุ่นสองสี",
+   "en": "Two-colour dummy"
+  },
+  "figure": "h10_figure.gd",
+  "schemes": true,
+  "palettes": [
+   {
+    "id": "q_red",
+    "name": {
+     "th": "แดงล้วน",
+     "en": "Plain red"
+    },
+    "primary": "#b01818",
+    "trim": "#ffffff"
+   },
+   {
+    "id": "q_teal",
+    "name": {
+     "th": "เขียวน้ำทะเลเทา",
+     "en": "Teal & Grey"
+    },
+    "primary": "#0e6a72",
+    "secondary": "#555a60"
+   }
+  ]
+ },
+ {
+  "id": "fixed",
+  "name": {
+   "th": "หุ่นสีตายตัว",
+   "en": "Fixed-colour dummy"
+  },
+  "figure": "palette_figure.gd",
+  "schemes": false,
+  "palettes": [
+   {
+    "id": "z_hidden",
+    "name": {
+     "th": "ไม่แสดง",
+     "en": "Not shown"
+    },
+    "primary": "#123456"
+   }
+  ]
+ }
+]

@@ -46,6 +46,50 @@ static func make_figure(role: String, manifest: String = PACK_MANIFEST) -> Node3
 	return fig
 
 
+## ตัวผู้เล่นจากตัวที่เลือกในห้องแต่งตัว sel = Figures.selected() {figure, scheme} (ARENA_SPEC §9.6)
+## ชุดเสริม → ตัวของรายการนั้น (ขาด FIGURE_API = ตัวผู้เล่นของ pack.json) · ไข่ → ไข่ถือปืน · ชุดโมเดล → KitFighter
+## ชุดสีทาหลัง ArenaPlayer.setup (scheme_of)
+static func player_figure(sel: Dictionary, manifest: String = PACK_MANIFEST) -> Node3D:
+	var e := Figures.entry(str(sel.get("figure", "")))
+	match str(e.get("kind", "")):
+		"egg":
+			var egg := _instance(str(DEFAULT["player"]))
+			if egg != null:
+				return egg
+		"kit":
+			var k := KitFighter.new()
+			k.walk_kit = str(e["kit"])
+			return k
+		"pack":
+			var path := Figures.pack_figure(str(e["id"]))
+			var fig := _instance(path)
+			if fig != null and missing_api(fig).is_empty():
+				return fig
+			push_warning("arena pack: the selected figure %s is not an arena figure" % path)
+			if fig != null:
+				fig.free()
+	return make_figure("player", manifest)
+
+
+## ชุดสีที่อารีน่าทาให้ตัวผู้เล่น: ของ sel ถ้าตัวนั้นรับชุดสี ไม่งั้นสีเดิม
+static func scheme_of(sel: Dictionary) -> String:
+	var e := Figures.entry(str(sel.get("figure", "")))
+	if not bool(e.get("schemes", false)):
+		return Figures.DEFAULT_SCHEME
+	return str(sel.get("scheme", Figures.DEFAULT_SCHEME))
+
+
+## ไฟล์ที่ประตูอารีน่าโหลดล่วงหน้าสำหรับตัวที่เลือก ("" ไม่มีเพิ่ม)
+static func player_preload(sel: Dictionary) -> String:
+	var e := Figures.entry(str(sel.get("figure", "")))
+	match str(e.get("kind", "")):
+		"kit":
+			return KitLibrary.kit_path(str(e["kit"]))
+		"pack":
+			return Figures.pack_figure(str(e["id"]))
+	return ""
+
+
 ## ชื่อเมธอดของ FIGURE_API ที่ fig ไม่มี
 static func missing_api(fig: Object) -> PackedStringArray:
 	var out := PackedStringArray()

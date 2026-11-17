@@ -5,8 +5,8 @@ extends "res://tests/testing.gd"
 ## 0.25 s are invulnerable, a second dodge waits for the 0.7 s cooldown after the dash, no dodge while down, dust on
 ## mid and none on min, dodge_changed says dash / cool / ready. The body always faces the camera (owner, 14 Nov): walk
 ## and shoot mode, moving any way, and a camera orbit while standing turns it. Figure hooks H8 begin_dodge and H9
-## uses_strafe with tests/fixtures/figure_pack/heavy_figure.gd: never turned to the move, its legs get (0, 1) for
-## forward and sideways and (0, -1) backwards (ArenaCombat.leg_dir), begin_dodge likewise. The egg's dodge clip.
+## uses_strafe with tests/fixtures/figure_pack/heavy_figure.gd: never turned to the move, its legs get (0, 1) forward,
+## (0, -1) backwards and stay still while a sideways stick turns it (round D, test_arena_selection), begin_dodge likewise. The egg's dodge clip.
 
 const EGG := "res://scenes/arena/egg_gunner.gd"
 const HEAVY := "res://tests/fixtures/figure_pack/heavy_figure.gd"
@@ -235,11 +235,12 @@ func test_heavy_figure_hooks() -> void:
 	assert_true(bool(p.get("_fig_dodge")) and not bool(p.call("strafes")), "setup cached H8 and H9 (uses_strafe false)")
 	for m: StringName in [&"walk", &"shoot"]:
 		p.call("set_mode", m)
-		for k: Array in [[Vector2(1, 0), 1.0], [Vector2(-1, 0), 1.0], [Vector2(0, 1), 1.0], [Vector2(0, -1), -1.0]]:
+		# owner 14 Nov (round D): sideways input turns the body and camera instead of sliding, so the legs stay still
+		for k: Array in [[Vector2(1, 0), 0.0], [Vector2(-1, 0), 0.0], [Vector2(0, 1), 1.0], [Vector2(0, -1), -1.0]]:
 			p.call("set_stick", k[0])
 			_ticks(p, 40)
 			assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "%s, stick %s: never turned to the move, it faces the camera" % [m, k[0]])
-			assert_eq(fig.get("last_dir"), Vector2(0, k[1]), "%s, stick %s: legs %s (forward for forward and sideways, back for back)" % [m, k[0], Vector2(0, k[1])])
+			assert_eq(fig.get("last_dir"), Vector2(0, k[1]), "%s, stick %s: legs %s (still while turning, forward, back)" % [m, k[0], Vector2(0, k[1])])
 		p.call("set_stick", Vector2.ZERO)
 		_ticks(p, 90)
 		assert_eq(fig.get("last_dir"), Vector2.ZERO, "%s: standing, (0, 0)" % m)
@@ -249,7 +250,8 @@ func test_heavy_figure_hooks() -> void:
 	p.call("press", &"fire", false)
 	assert_true(_fwd(p).dot(_cam_fwd(p)) > 0.999, "firing: still facing the camera")
 	_ticks(p, 120)
-	for k: Array in [[Vector2(1, 0), 1.0], [Vector2(0, -1), -1.0]]:
+	# a sideways stick only turns (round D), so its dodge goes backwards like no input
+	for k: Array in [[Vector2(1, 0), -1.0], [Vector2(0, 1), 1.0], [Vector2(0, -1), -1.0]]:
 		(fig.get("calls") as Dictionary).clear()
 		p.call("set_stick", k[0])
 		_ticks(p, 2)

@@ -157,8 +157,9 @@ func _run() -> void:
 	# 0.3 (SHIP_LOBBY_SPEC §9.1): two vault candles (24 -> 26 flames), the vault sign and the title plaque (7 -> 9 labels),
 	# the space mesh behind the viewport (3 -> 4 static meshes)
 	# 0.4 (ARENA_SPEC §13.1): the arena door's sign (9 -> 10 labels)
-	_check(int(c["flames"]) == 26 and int(c["signs"]) == 10 and int(c["static_meshes"]) <= 4 and int(c["blockers"]) >= 21,
-		"mid: 26 flames, 8 station signs + the title plaque + the name tag, at most 4 static meshes, every blocker built", str(c))
+	# round E (CAMPAIGN_SPEC §1.2): the campaign table's sign (10 -> 11 labels), its blocker (+1)
+	_check(int(c["flames"]) == 26 and int(c["signs"]) == 11 and int(c["static_meshes"]) <= 4 and int(c["blockers"]) >= 22,
+		"mid: 26 flames, 9 station signs + the title plaque + the name tag, at most 4 static meshes, every blocker built", str(c))
 	var table := get_first_node_in_group("table_view") as Node3D
 	_check(table == null or (not table.visible and table.process_mode == Node.PROCESS_MODE_DISABLED), "the battle table stays hidden and disabled under the hall")
 	_check(_camera(world).current, "the hall camera is current")
@@ -230,7 +231,8 @@ func _check_texts(hall: Node) -> void:
 						signs += 1
 				# 0.3: seven station signs, the title plaque and the name tag (was six signs + the name tag)
 				# 0.4 (ARENA_SPEC §13.1): + the arena door's sign (eight station signs)
-				_check(signs == 10, tag + ": the eight station signs, the title plaque and the name tag are Thai (%d)" % signs)
+				# round E (CAMPAIGN_SPEC §1.2): + the campaign table's sign (nine station signs)
+				_check(signs == 11, tag + ": the nine station signs, the title plaque and the name tag are Thai (%d)" % signs)
 				_check(str(world.call("sign_text", "title")) == "ดาดฟ้ายานรบ", tag + ": the title plaque reads ดาดฟ้ายานรบ")
 				_check(use.text == "โต๊ะรบ · กด E", tag + ": Thai prompt " + use.text)
 				_check(_thai_re.search((hall.get_node("%MenuButton") as Button).text) != null, tag + ": the menu button is Thai")
@@ -607,6 +609,7 @@ func _check_arena_door(hall: Node) -> void:
 	_app().call("set_gfx", "mid")
 	hall.call("refresh")
 	await _check_door_view(hall)
+	await _check_projector_view(hall)
 
 
 ## The door view (ARENA_SPEC §11.2): the avatar on the arena door's ring, camera yaw pi, pitch -0.3, arm 6.5; desktop
@@ -655,6 +658,67 @@ func _check_door_view(hall: Node) -> void:
 	hint.modulate = hint_modulate
 	_app().call("set_gfx", "mid")
 	_app().call("set_touch", "off")
+	hall.call("refresh")
+	await _resize(size0)
+	world.call("place_avatar", HallLayout.SPAWN, PI)
+	rig.call("set_view", 0.0, -0.45, 6.5)
+	await _settle()
+
+
+## Round E (CAMPAIGN_SPEC §1.2, §4): the campaign table: the avatar on its front ring looking at the projector (yaw 0,
+## the projector stands toward -z), desktop and phone layout within the deck targets on all four levels; its prompt and
+## sign in Thai and English; the holo disc is part of the holo layer (no extra mesh) and is static (no shader) on lo/min.
+## hall_campaign_table.png (mid) and hall_campaign_table_min.png.
+func _check_projector_view(hall: Node) -> void:
+	var world: Node3D = hall.get("world")
+	var rig: Node3D = world.get("camera_rig")
+	var use: Button = hall.get_node("%UseButton")
+	var size0 := root.size
+	for layout in ["desktop", "phone"]:
+		var phone: bool = layout == "phone"
+		_app().call("set_touch", "on" if phone else "off")
+		await _resize(Vector2i(1600, 720) if phone else Vector2i(1280, 720))
+		for level in LEVELS:
+			_app().call("set_gfx", level)
+			hall.call("refresh")
+			world.call("place_avatar", _front("campaign"), 0.0)
+			rig.call("set_view", 0.0, -0.3, 6.5)
+			var idle := OS.low_processor_usage_mode
+			OS.low_processor_usage_mode = false
+			await _physics(4)
+			await _frames(4)
+			var draws := 0
+			var prims := 0
+			for i in 4:
+				await process_frame
+				draws = maxi(draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+				prims = maxi(prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+			OS.low_processor_usage_mode = idle
+			print("hall campaign table view %-7s %-4s draw calls %4d  primitives %7d" % [layout, level, draws, prims])
+			var t: Array = SHIP_TARGET[level]
+			_check(draws <= int(t[0]) and prims <= int(t[1]), "%s, %s: the campaign table view, %d draw calls, %d primitives within the deck target %d / %d"
+				% [level, layout, draws, prims, int(t[0]), int(t[1])])
+			_check(str(hall.call("station")) == "campaign" and use.visible, "%s, %s: the campaign table's prompt shows" % [level, layout])
+			_check((str(world.call("sign_text", "campaign")) == "") == (level == "min"), "%s: the campaign table's sign is %s" % [level, "empty on min (one draw call less)" if level == "min" else "shown"])
+			var flick := bool((world.call("counts") as Dictionary)["holo_flicker"])
+			_check(flick == (level == "hi" or level == "mid"), "%s: the holo disc %s" % [level, "spins in the holo shader" if flick else "is static (no TIME)"])
+			if not phone and (level == "mid" or level == "min"):
+				rig.call("set_view", -0.35, -0.22, 4.0)
+				await _physics(4)
+				await _frames(4)
+				_save("hall_campaign_table%s.png" % ("" if level == "mid" else "_min"))
+	_app().call("set_gfx", "mid")
+	_app().call("set_touch", "off")
+	hall.call("refresh")
+	await _frames(2)
+	_check(use.text == "โต๊ะแคมเปญ · กด E", "Thai prompt at the campaign table: " + use.text)
+	_check(str(world.call("sign_text", "campaign")) == "โต๊ะแคมเปญ · แผนที่ดวงดาว", "its sign reads โต๊ะแคมเปญ · แผนที่ดวงดาว")
+	_app().call("set_lang", "en")
+	hall.call("refresh")
+	await _frames(2)
+	_check(use.text == "Campaign Table · press E" and str(world.call("sign_text", "campaign")) == "Campaign Table · Star Map",
+		"English prompt and sign: %s / %s" % [use.text, str(world.call("sign_text", "campaign"))])
+	_app().call("set_lang", "th")
 	hall.call("refresh")
 	await _resize(size0)
 	world.call("place_avatar", HallLayout.SPAWN, PI)
@@ -1117,7 +1181,8 @@ func _check_friends(hall: Node) -> void:
 	# offline: nothing of it shows
 	_check(not friends.visible and int(friends.call("friend_count")) == 0 and not tags.visible and you.visible,
 		"offline: no friend drawn, FriendTags hidden, the 3D you sign shows")
-	_check(int(rings.get("capacity")) == HallWorld.ring_capacity() and HallWorld.ring_capacity() == 16, "the deck's Rings hold 16 (avatar, stations, spares, five friends)")
+	# round E (CAMPAIGN_SPEC §1.2): the campaign table's ring makes it 17 on purpose
+	_check(int(rings.get("capacity")) == HallWorld.ring_capacity() and HallWorld.ring_capacity() == 17, "the deck's Rings hold 17 (avatar, stations, spares, five friends)")
 	var rings0 := int(rings.call("count"))
 	var colour0: Color = world.get("team_colour")
 	# online: host with five friends on the deck
@@ -1301,6 +1366,8 @@ func _check_friends(hall: Node) -> void:
 	_check(moving.size() >= 2 and moving.size() <= walked_ms / 100 + 2, "walking sends poses, at most one per 100 ms (%d in %d ms)" % [moving.size(), walked_ms])
 	var last: Dictionary = moving[moving.size() - 1][1] if not moving.is_empty() else {}
 	_check(not last.is_empty() and typeof(last["x"]) == TYPE_INT and typeof(last["yaw"]) == TYPE_INT and int(last["sp"]) > 0, "a pose is ints (cm, mrad, cm/s): %s" % str(last))
+	# the stamp is the throttle's own time (a second clock read could make two poses 99 ms apart)
+	_check(not last.is_empty() and int(last["t"]) == int(hall.get("_pose_ms")), "a moving pose carries the throttle's time")
 	await _until_still(_avatar(world))
 	await create_timer(0.35).timeout
 	var stops: Array = []

@@ -304,7 +304,7 @@ func set_figure(fig: Node3D) -> void:
 func refresh_figure() -> void:
 	var sel := Figures.selected()
 	set_figure(Figures.make(StringName(sel["figure"]), StringName(level)))
-	Figures.dress(avatar.figure, str(sel["scheme"]))
+	Figures.dress(avatar.figure, str(sel["scheme"]), str(sel["figure"]))
 
 
 ## วางตัวผู้เล่นที่ p หันไป yaw แล้วกล้องตามทันที

@@ -1,0 +1,5 @@
+[
+  {"id": "painted", "name": {"th": "หุ่นทาสี", "en": "Painted dummy"}, "figure": "paint_figure.gd", "schemes": true},
+  {"id": "plain", "name": {"th": "หุ่นสีเดิม", "en": "Plain dummy"}, "figure": "paint_figure.gd", "schemes": false},
+  {"id": "deck_only", "name": {"th": "หุ่นดาดฟ้า", "en": "Deck-only dummy"}, "figure": "deck_figure.gd", "schemes": true}
+]

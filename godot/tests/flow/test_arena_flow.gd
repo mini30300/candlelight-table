@@ -138,11 +138,14 @@ func _run() -> void:
 	await _physics(6)
 	var fig3: Node3D = player.call("figure")
 	var dirs := {}
+	var turned := {}
 	var off_cam := 0.0
 	for k: Array in [[KEY_D, "D"], [KEY_S, "S"], [KEY_A, "A"]]:
+		var yaw0 := float((player.call("camera_rig") as Node).get("yaw"))
 		_key(k[0], true)
 		await _physics(int(0.4 * Engine.physics_ticks_per_second))
 		dirs[k[1]] = fig3.call("move_dir") if fig3 != null and fig3.has_method("move_dir") else Vector2.ZERO
+		turned[k[1]] = angle_difference(yaw0, float((player.call("camera_rig") as Node).get("yaw")))
 		var cyaw := float((player.call("camera_rig") as Node).get("yaw")) + PI
 		off_cam = maxf(off_cam, absf(angle_difference(float(player.get("face")), cyaw)))
 		_key(k[0], false)
@@ -151,9 +154,12 @@ func _run() -> void:
 		_check((dirs["D"] as Vector2).x > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).x < -0.9 and str(world.call("mode")) == "shoot",
 			"3b. shoot mode: D, S and A tell the egg it moves right, back and left", str(dirs))
 	else:
-		# H9 (ARENA_SPEC §9.5, 14 Nov): a figure that does not strafe walks forward sideways and backward when backing
-		_check((dirs["D"] as Vector2).y > 0.9 and (dirs["S"] as Vector2).y < -0.9 and (dirs["A"] as Vector2).y > 0.9 and str(world.call("mode")) == "shoot",
-			"3b. shoot mode, a figure without strafing (H9): D and A forward legs, S backward legs", str(dirs))
+		# H9 (ARENA_SPEC §9.6, round D 14 Nov): a figure that does not strafe turns with A/D (camera and body together,
+		# no step sideways: the legs stand) and walks backward with S. Round B's "D and A walk forward" changed on purpose.
+		_check((dirs["D"] as Vector2).length() < 0.1 and (dirs["A"] as Vector2).length() < 0.1 and (dirs["S"] as Vector2).y < -0.9
+			and absf(float(turned["D"])) > 0.5 and absf(float(turned["A"])) > 0.5 and signf(float(turned["D"])) != signf(float(turned["A"]))
+			and str(world.call("mode")) == "shoot",
+			"3b. shoot mode, a figure without strafing (H9): D and A turn without a side-step, S backward legs", str([dirs, turned]))
 	_check(off_cam < 0.01, "3b. the body faces the camera while moving every way (owner, 14 Nov)", "%.3f rad" % off_cam)
 	await _physics(int(0.5 * Engine.physics_ticks_per_second))
 	await _frames(12)
