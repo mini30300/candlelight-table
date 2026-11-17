@@ -4,9 +4,11 @@
     python3 tools/soldier/check_names.py [--fix-math] <dir> [<dir> ...]
 
 Uses the repository's own list (godot/tools/validate_data.py banned_hits), so the generator, which lives outside
-godot/ and is not covered by the data lint, follows the same rule. --fix-math renames the one known false positive,
-a Greek-letter maths variable in Python sources, to "tn" (a whole-word rename inside .py files only). Exit code 1 when
-any banned name remains.
+godot/ and is not covered by the data lint, follows the same rule. --fix-math renames the known false positives in
+Python sources (whole words, .py files only): the Greek-letter maths variable to "tn" and the upper-case constant of the
+same spelling to "SOFT_T". The lint lets that constant pass because Godot's 2*pi constant has the name, but the rule
+still bans it in our own code. A rename is refused (and counted as a problem) when the new name is already used in that
+file, so two variables never merge silently. Exit code 1 when any banned name remains.
 """
 import importlib.util
 import os
@@ -31,6 +33,8 @@ def main(argv):
     dirs = [a for a in argv if not a.startswith("--")]
     lint = load_lint()
     math_word = re.compile(r"\b%s\b" % re.escape("".join(chr(c) for c in (116, 97, 117))))
+    upper_word = re.compile(r"\b%s\b" % re.escape("".join(chr(c) for c in (84, 65, 85))))
+    renames = ((math_word, "tn"), (upper_word, "SOFT_T"))
     bad = 0
     for d in dirs:
         for root, subdirs, files in os.walk(d):
@@ -43,10 +47,16 @@ def main(argv):
                 if not f.endswith(TEXT):
                     continue
                 text = open(p, encoding="utf-8", errors="replace").read()
-                if fix and f.endswith(".py") and math_word.search(text):
-                    text = math_word.sub("tn", text)
+                for word, new in (renames if fix and f.endswith(".py") else ()):
+                    if not word.search(text):
+                        continue
+                    if re.search(r"\b%s\b" % new, text):
+                        print("%s: cannot rename a maths name to %r, the file already uses that name" % (p, new))
+                        bad += 1
+                        continue
+                    text = word.sub(new, text)
                     open(p, "w", encoding="utf-8").write(text)
-                    print("%s: renamed a maths variable that reads as a banned name" % p)
+                    print("%s: renamed a maths name that reads as a banned name to %r" % (p, new))
                 for a, e, pat, tok in lint.banned_hits(text):
                     print("%s:%d: banned name %r (AGENTS.md rule 1)" % (p, text.count("\n", 0, a) + 1, tok))
                     bad += 1

@@ -8,7 +8,7 @@ from mesh import adjacency
 
 NB = len(rig.BONES)
 BI = rig.BI
-TAU = 0.004
+SOFT_T = 0.004
 
 
 def _profile_rigid(p, param):
@@ -81,7 +81,7 @@ def structure_weights(V, G, prims, mus):
     owner = np.full(n, -1)
     best = np.full(n, 1e9)
     for r, (idx, dd, (kind, obj, param)) in enumerate(recs):
-        e = np.exp(-(dd - dmin[idx]) / TAU)
+        e = np.exp(-(dd - dmin[idx]) / SOFT_T)
         keep = e > 1e-3
         if not np.any(keep):
             continue
