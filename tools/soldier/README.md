@@ -12,7 +12,7 @@ Build folders (fields, renders, logs: hundreds of MB) always live outside the re
 
 | Path | What |
 | --- | --- |
-| `generator/` | The generator exactly as the imported stage had it: `project.godot` (a small gl_compatibility project), `src/py/*.py` (the Python pipeline), `src/gd/*.gd` + shaders (Godot assembly, renders, inspection and the viewer figure it renders with), `src/run_all.sh` |
+| `generator/` | The generator exactly as the imported stage had it: `project.godot` (a small gl_compatibility project), `src/py/*.py` (the Python pipeline), `src/gd/*.gd` + shaders (Godot assembly, renders, inspection and the viewer figure it renders with), `src/run_all.sh`; the import copies every source file under the stage's `src/` (`.py .gd .gdshader .sh .json .md .txt`, no caches) |
 | `import_stage.sh <stage_dir>` | One command from a finished build folder to the game: re-saves the stage's Godot files with the game's paths, syncs `generator/` from the stage, re-imports the game project, writes `godot/assets/figures/soldier/IMPORTED.txt` |
 | `new_stage.sh <empty_dir>` | Makes a build folder from `generator/` and fills its `ref/` with the game's generated inputs |
 | `gd/import_stage.gd` | The Godot half of the import (run by `import_stage.sh` in a scratch project) |
@@ -43,7 +43,10 @@ captions in `out/renders/`). Look at the sheets before importing.
 
 To swap in a newer stage (for example a stage-1b folder another agent built): run `import_stage.sh <that folder>` and
 then the tests below. The import refuses to touch the repository when a required file is missing, Godot cannot load
-the stage's files, or the source holds a banned name.
+the stage's files, or the source holds a banned name. The game's drivers are a port, not a copy: when the stage changed
+`src/gd/soldier_figure.gd`, `src/py/correctives.py` or `src/py/rig.py`, the import prints a note, and
+`git diff tools/soldier/generator` shows what to carry over into `SoldierFigure` (`helper_rule`, `shape_weights`, the
+still rules).
 
 ## Tests after an import
 

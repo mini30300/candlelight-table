@@ -70,12 +70,13 @@ echo "== 1. re-save the stage's files with the game's paths =="
 
 echo "== 2. generator source: banned-name check =="
 NEWGEN="$WORK/generator"
-mkdir -p "$NEWGEN/src/py" "$NEWGEN/src/gd"
-cp "$STAGE"/src/py/*.py "$NEWGEN/src/py/"
-for f in "$STAGE"/src/gd/*.gd "$STAGE"/src/gd/*.gdshader; do
-  if [ -f "$f" ]; then cp "$f" "$NEWGEN/src/gd/"; fi
+mkdir -p "$NEWGEN/src"
+# every source file under src/ (new modules and sub-folders included), never caches
+(cd "$STAGE/src" && find . -name __pycache__ -prune -o -type f \( -name '*.py' -o -name '*.gd' -o -name '*.gdshader' \
+    -o -name '*.sh' -o -name '*.json' -o -name '*.md' -o -name '*.txt' \) -print) | LC_ALL=C sort | while read -r f; do
+  mkdir -p "$NEWGEN/src/$(dirname "$f")"
+  cp "$STAGE/src/$f" "$NEWGEN/src/$f"
 done
-cp "$STAGE/src/run_all.sh" "$NEWGEN/src/"
 if [ -f "$STAGE/project.godot" ]; then cp "$STAGE/project.godot" "$NEWGEN/"; fi
 "$PY" "$HERE/check_names.py" --fix-math "$NEWGEN" || { echo "banned names in the stage's source: nothing was changed" >&2; exit 1; }
 
@@ -92,6 +93,12 @@ for f in "$DEST"/*; do
   if [ ! -f "$NEW/$base" ]; then echo "remove $base"; rm -f "$f" "$f.uid"; fi
 done
 cp "$NEW"/* "$DEST/"
+# the game's drivers are a port (SoldierFigure): say when the stage changed the code they were ported from
+for f in src/gd/soldier_figure.gd src/py/correctives.py src/py/rig.py; do
+  if [ -f "$GEN/$f" ] && ! cmp -s "$GEN/$f" "$NEWGEN/$f"; then
+    echo "note: the stage changed $f: compare it with godot/scenes/arena/soldier_figure.gd (helper_rule, shape_weights, still rules)"
+  fi
+done
 rm -rf "$GEN"
 mkdir -p "$GEN"
 cp -r "$NEWGEN"/. "$GEN"/
