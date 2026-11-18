@@ -6,7 +6,8 @@ extends "res://tests/testing.gd"
 ## the optional hooks (deck_speeds, H6, H8, H9 false). Assets: the 23 game bones with their parents, every helper bone has
 ## a driver rule, every blend shape is known, one surface per level within the triangle budget, min skinned to game bones
 ## only, no blend shapes on lo/min, an unshaded body shader without TIME, every dependency inside the soldier folder,
-## meshes and clips within SIZE_CAP (the 90 MB APK target of docs/ARCHITECTURE.md).
+## meshes, clips and the wound layers (inner_bone/inner_flesh, tests/unit/test_soldier_wounds.gd) within SIZE_CAP (the
+## 90 MB APK target of docs/ARCHITECTURE.md).
 ## Clips: the soldier's copy keeps every mapped clip and its metadata, its wrists are eased (twist and bend within
 ## limits, hands still, no hand position tracks) and the shared humanoid.res is untouched. Behaviour (manual clock):
 ## walk/run rates, still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
@@ -221,13 +222,15 @@ func test_assets() -> void:
 	assert_true(RegEx.create_from_string("\\bTIME\\b").search(bare) == null, "…and uses no TIME (comments aside)")
 	var mat := load(DIR + "body_material.tres") as ShaderMaterial
 	assert_true(mat != null and mat.shader != null and mat.shader.resource_path == DIR + "body.gdshader", "the material uses that shader")
-	for f in ["rig.tscn", "skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_material.tres"]:
+	for f in ["rig.tscn", "skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_material.tres",
+			"inner_bone.res", "inner_flesh.res"]:
 		for d in ResourceLoader.get_dependencies(DIR + f):
 			var path := d.get_slice("::", d.get_slice_count("::") - 1)
 			assert_true(path.begins_with(DIR), "%s depends only on the soldier folder" % f, d)
 	# ขนาดที่ APK โตขึ้น: ร่างใหม่ที่ใหญ่เกินต้องลดก่อน (เช่น ตัด blend shape ของ mid)
 	var total := 0
-	for f in ["skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_crowd.res", "clips.res"]:
+	for f in ["skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_crowd.res", "clips.res",
+			"inner_bone.res", "inner_flesh.res"]:
 		if FileAccess.file_exists(DIR + f):
 			var fa := FileAccess.open(DIR + f, FileAccess.READ)
 			total += fa.get_length() if fa != null else 0
