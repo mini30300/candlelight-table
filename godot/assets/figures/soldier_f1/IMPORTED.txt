@@ -1,0 +1,34 @@
+Soldier assets imported by tools/soldier/import_stage.sh from stage 'f1'.
+Do not edit these files by hand: change the generator (tools/soldier/generator) and import again.
+body: f1 (female 1.60 m, tan skin, Southeast Asian face, straight black hair in a high bun, pear shape), stature 1.60 m, k 0.8989, S 1.00000, head 1.0661
+
+level  surfaces  verts   tris  blend_shapes    bytes
+hi            1  11529  23054             0   402162
+mid           1   7698  15392             0   271097
+lo            1   4422   8840             0   159319
+min           1   2468   4932             0    87906
+
+wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)
+bone          1   2839   5164             -    76511  depth 3.16 mm / 2.75 mm
+flesh         1   3502   7000             -   117326  depth 1.50 mm / 1.50 mm
+posed (355 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm): flesh above the hi skin at most 0.32 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 2 verts, at most 5.95 mm
+
+bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
+motion_scale: 1.0000
+driver constants: from the stage's rig.json
+soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrists eased)
+
+sha256:
+  73946fdf628a387a5f336c36c68153dfdd86129b698eca0785816262c2829177  body.gdshader  2612 bytes
+  b8b8c8db4d8dcf42a943f74089a63f5934fe60011e1f697b62504deb2f1a9f5a  body_hi.res  402162 bytes
+  bd03d7cbaa187851f238c8ba49679f4f462372475e1d11f1e1b1ee930029c3ba  body_lo.res  159319 bytes
+  957920eb031cb848d445c4ef3b73bbc767a6e1ad09c3528100d1e46c8b887d27  body_material.tres  540 bytes
+  8cf48f1d90888f2fd674423271a0d7cca9305c7d01ea1ba379dda64aa60a0be3  body_mid.res  271097 bytes
+  6c9130ea6e04f9c8b9ff580ca9542dc7299b2d98e0f14f8be2054a30bf2f893c  body_min.res  87906 bytes
+  b28dbda8c9fd39644499b7ba8901ab4fc2a6b715aa7f68605266d64e053e03f6  body_wound.gdshader  3345 bytes
+  7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
+  afa685b3fdb14dd64b229b04b69d21eb7d7139e0a8091727f303f929a7c83b1b  inner_bone.res  76511 bytes
+  70ac0edd401ea0d36740396af7fbbb0a65664361011279916455acdffe565e8d  inner_flesh.res  117326 bytes
+  460e3617f40cf2c24927ecdbc73e7fa7a0db1d332e535fbc1d5d215b1b655e71  rig.tscn  10496 bytes
+  d27074257c3264fbc47b15a272253c46deeeea4caab1ad4a620bb813e7d4c39c  skin.res  4807 bytes
+  41ed3ca5a9bab06a3dfd2716639d12ffd171a8665825d6e1f1efb51501e9d405  wound.gdshaderinc  3211 bytes

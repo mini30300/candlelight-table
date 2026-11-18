@@ -3,7 +3,8 @@ extends SceneTree
 ## + เชดเดอร์ผิวมีแผล (body_wound.gdshader + wound.gdshaderinc ที่ include กันแบบทางสัมพัทธ์ ชื่อเดียวกันทั้งสองที่)
 ## + ชั้นในของบาดแผล (inner_bone/inner_flesh + inner.gdshader) ถ้าขั้นปั้นทำมา
 ## โปรเจกต์ชั่วคราววางไฟล์ของขั้นปั้นไว้ที่เดิม (res://out/godot, res://src/gd) จึงโหลดได้ตามที่ทำมา
-## แล้วบันทึกใหม่ที่ res://assets/figures/soldier/ ด้วยชื่อกลางและทางไฟล์ของเกม (เมชอ้างวัสดุของเกม ไม่อ้างโฟลเดอร์ขั้นปั้น)
+## แล้วบันทึกใหม่ที่ res://assets/figures/soldier/ (หรือ soldier_<id>/ ของร่างอื่น) ด้วยชื่อกลางและทางไฟล์ของเกม
+## (เมชอ้างวัสดุของเกม ไม่อ้างโฟลเดอร์ขั้นปั้น)
 ## UID เดิมของเกม (สำเนาใน res://old/) ใช้ต่อ ไฟล์จึงเปลี่ยนเฉพาะเนื้อหา · รายงานต่อระดับพิมพ์ออกจอ + REPORT
 
 const SRC := "res://out/godot/"
@@ -11,7 +12,8 @@ const SHADER_SRC := "res://src/gd/soldier_skin.gdshader"
 const INNER_SHADER_SRC := "res://src/gd/soldier_inner.gdshader"
 const WOUND_SHADER_SRC := "res://src/gd/soldier_skin_wound.gdshader"
 const WOUND_INC_SRC := "res://src/gd/wound.gdshaderinc"
-const DST := "res://assets/figures/soldier/"
+## โฟลเดอร์ปลายทางของร่าง (import_stage.sh --as: SOLDIER_DST) ค่าเริ่ม = ร่างหลัก
+var DST := OS.get_environment("SOLDIER_DST") if OS.get_environment("SOLDIER_DST") != "" else "res://assets/figures/soldier/"
 const OLD := "res://old/"
 const RIG_JSON := "res://out/data/rig.json"
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min", "crowd"]

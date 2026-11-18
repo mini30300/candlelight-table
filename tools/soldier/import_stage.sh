@@ -1,26 +1,43 @@
 #!/usr/bin/env bash
 # Import one soldier stage into the game in a single step:
-#   bash tools/soldier/import_stage.sh <stage_dir>
+#   bash tools/soldier/import_stage.sh <stage_dir>                     # the base body -> godot/assets/figures/soldier/
+#   bash tools/soldier/import_stage.sh --as soldier_f1 <stage_dir>     # another body -> godot/assets/figures/soldier_f1/
+# --as <target> picks the asset folder (soldier or soldier_<id>, the folders SoldierFigure.folder() maps body ids to).
+# The generator source is imported once: with the base body (only when it changed). Another body's import leaves
+# tools/soldier/generator alone and only says when the stage's source differs from it; --source copies it anyway.
 # <stage_dir> is a generator folder (tools/soldier/README.md): project.godot, src/ (py, gd, run_all.sh) and its build in
 # out/godot/ (rig.tscn, skin.res, body_hi/mid/lo/min.res, optional body_crowd.res and clips.res, soldier_skin.tres,
 # optional wound shaders src/gd/soldier_skin_wound.gdshader + src/gd/wound.gdshaderinc, optional inner_bone.res +
 # inner_flesh.res with src/gd/soldier_inner.gdshader, which need the wound shaders) and out/data/rig.json. Steps, and
 # nothing in the repository changes unless the first two succeed:
 #  1. Godot re-saves the stage's files in a scratch project, so every path inside them points at the game's copy:
-#     godot/assets/figures/soldier/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres, clips.res,
+#     godot/assets/figures/<target>/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres, clips.res,
 #     body_wound.gdshader, wound.gdshaderinc, inner_bone.res, inner_flesh.res, inner.gdshader};
 #     rig.json's driver constants travel inside rig.tscn (metadata "soldier_rig"); existing UIDs are kept.
 #  2. The stage's generator source is checked for the banned names of AGENTS.md rule 1.
-#  3. Assets go to godot/assets/figures/soldier/ (files the stage no longer makes are removed) and the source to
-#     tools/soldier/generator/ (the durable copy matches the assets), the game project is re-imported and IMPORTED.txt
-#     records the stage, the levels and the hashes.
+#  3. Assets go to godot/assets/figures/<target>/ (files the stage no longer makes are removed) and, for the base body or
+#     with --source, the source to tools/soldier/generator/ (the durable copy matches the assets), the game project is
+#     re-imported and IMPORTED.txt records the stage, the body (out/data/variant.json), the levels and the hashes.
 # Then run the tests listed in tools/soldier/README.md. Environment: GODOT (default ~/godot-bin/godot, then godot on PATH).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-[ $# -eq 1 ] || { echo "usage: $0 <stage_dir>" >&2; exit 2; }
-STAGE="$(cd "$1" && pwd)"
+TARGET=soldier
+SYNC_SRC=""
+STAGE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --as) TARGET="${2:-}"; shift 2 ;;
+    --source) SYNC_SRC=1; shift ;;
+    -*) echo "unknown option $1" >&2; exit 2 ;;
+    *) [ -z "$STAGE" ] || { echo "one stage at a time" >&2; exit 2; }; STAGE="$1"; shift ;;
+  esac
+done
+[ -n "$STAGE" ] || { echo "usage: $0 [--as soldier|soldier_<id>] [--source] <stage_dir>" >&2; exit 2; }
+[[ "$TARGET" =~ ^soldier(_[a-z][a-z0-9]{0,11})?$ ]] || { echo "--as takes soldier or soldier_<id> (got '$TARGET')" >&2; exit 2; }
+[ "$TARGET" = soldier ] && SYNC_SRC=1
+STAGE="$(cd "$STAGE" && pwd)"
 if [ -z "${GODOT:-}" ]; then
   for c in "$HOME/godot-bin/godot" "$(command -v godot 2>/dev/null || true)"; do
     if [ -n "$c" ] && [ -x "$c" ]; then GODOT="$c"; break; fi
@@ -29,7 +46,7 @@ fi
 if [ -z "${GODOT:-}" ] || [ ! -x "$GODOT" ]; then echo "no Godot binary: set GODOT" >&2; exit 2; fi
 PY=/usr/bin/python3
 [ -x "$PY" ] || PY=python3
-DEST="$REPO/godot/assets/figures/soldier"
+DEST="$REPO/godot/assets/figures/$TARGET"
 GEN="$HERE/generator"
 OUTG="$STAGE/out/godot"
 
@@ -84,8 +101,9 @@ renderer/rendering_method.mobile="gl_compatibility"
 EOF
 cp "$HERE/gd/import_stage.gd" "$WORK/import_stage.gd"
 
-echo "== 1. re-save the stage's files with the game's paths =="
-"$GODOT" --headless --path "$WORK" -s import_stage.gd 2>&1 | grep -v -e '^Godot Engine' -e '^$' || true
+echo "== 1. re-save the stage's files with the game's paths ($TARGET) =="
+SOLDIER_DST="res://assets/figures/$TARGET/" "$GODOT" --headless --path "$WORK" -s import_stage.gd 2>&1 \
+  | grep -v -e '^Godot Engine' -e '^$' || true
 [ -f "$WORK/report.json" ] || { echo "the Godot step failed (no report): nothing was changed" >&2; exit 1; }
 
 echo "== 2. generator source: banned-name check =="
@@ -102,7 +120,7 @@ if [ -f "$STAGE/project.godot" ]; then cp "$STAGE/project.godot" "$NEWGEN/"; fi
 
 echo "== 3. copy into the repository =="
 mkdir -p "$DEST"
-NEW="$WORK/assets/figures/soldier"
+NEW="$WORK/assets/figures/$TARGET"
 # files the new stage no longer makes (a crowd level, a clip copy) go; .uid sidecars of kept files stay
 for f in "$DEST"/*; do
   [ -f "$f" ] || continue
@@ -119,11 +137,23 @@ for f in src/gd/soldier_figure.gd src/py/correctives.py src/py/rig.py; do
     echo "note: the stage changed $f: compare it with godot/scenes/arena/soldier_figure.gd (helper_rule, shape_weights, still rules)"
   fi
 done
-rm -rf "$GEN"
-mkdir -p "$GEN"
-cp -r "$NEWGEN"/. "$GEN"/
 echo "assets -> $DEST"
-echo "source -> $GEN"
+# the generator source comes in once: unchanged = nothing to do; another body's stage never replaces it unless --source
+# (another body's build folder has its own project.godot name: only src/ counts there)
+if diff -rq "$GEN/src" "$NEWGEN/src" > /dev/null 2>&1 && { [ "$TARGET" != soldier ] || cmp -s "$GEN/project.godot" "$NEWGEN/project.godot"; }; then
+  echo "source: tools/soldier/generator already matches the stage"
+elif [ -n "$SYNC_SRC" ] && [ "$TARGET" = soldier ]; then
+  rm -rf "$GEN"
+  mkdir -p "$GEN"
+  cp -r "$NEWGEN"/. "$GEN"/
+  echo "source -> $GEN"
+elif [ -n "$SYNC_SRC" ]; then
+  rm -rf "$GEN/src"
+  cp -r "$NEWGEN/src" "$GEN/src"
+  echo "source (src/ only, the generator keeps its project.godot) -> $GEN"
+else
+  echo "note: the stage's source differs from tools/soldier/generator (left as it is; --source copies it)"
+fi
 
 echo "== import the game project =="
 LOCK="$REPO/godot/.import.lock"
@@ -135,13 +165,17 @@ fi
 if grep -q 'ERROR' "$WORK/import.log"; then grep 'ERROR' "$WORK/import.log" | head -10; fi
 
 echo "== record =="
-"$PY" - "$WORK/report.json" "$DEST" "$(basename "$STAGE")" <<'PY'
+"$PY" - "$WORK/report.json" "$DEST" "$(basename "$STAGE")" "$STAGE/out/data/variant.json" <<'PY'
 import hashlib, json, os, sys
 rep = json.load(open(sys.argv[1]))
 dest, stage = sys.argv[2], sys.argv[3]
 lines = ["Soldier assets imported by tools/soldier/import_stage.sh from stage '%s'." % stage,
-         "Do not edit these files by hand: change the generator (tools/soldier/generator) and import again.", "",
-         "level  surfaces  verts   tris  blend_shapes    bytes"]
+         "Do not edit these files by hand: change the generator (tools/soldier/generator) and import again."]
+if os.path.exists(sys.argv[4]):
+    v = json.load(open(sys.argv[4]))
+    lines.append("body: %s (%s), stature %.2f m, k %.4f, S %.5f, head %.4f" % (v.get("variant", "?"), v.get("label_en", ""),
+                 float(v.get("stature", 0)), float(v.get("k", 1)), float(v.get("S", 0)), float(v.get("head_k", 1))))
+lines += ["", "level  surfaces  verts   tris  blend_shapes    bytes"]
 for lv in ["hi", "mid", "lo", "min", "crowd"]:
     if lv in rep["levels"]:
         r = rep["levels"][lv]
@@ -153,6 +187,15 @@ if rep.get("inner"):
         dep = r.get("depth_mm", {})
         lines.append("%-6s %8d %6d %6d %13s %8d  depth %s" % (lv, r["surfaces"], r["verts"], r["tris"], "-", r["bytes"],
                      " / ".join("%.2f mm" % dep[k] for k in ("hi", "mid") if k in dep) or "-"))
+    pj = os.path.join(os.path.dirname(sys.argv[4]), "inner_posed.json")
+    if os.path.exists(pj):
+        p = json.load(open(pj))
+        f, li = p["flesh"], p["flesh"].get("lbs_inverted", {})
+        lines.append("posed (%d frames of the game's clips, inner_posed.py; %s): flesh above the hi skin at most %.2f mm, "
+                     "chest front %.2f mm, hips %.2f mm; where LBS turns the depth against the skin: %s"
+                     % (p["frames"], p["gate"], max(f["max_mm"], 0.0), max(f["regions"]["chest_front"]["max_mm"], 0.0),
+                        max(f["regions"]["hips"]["max_mm"], 0.0),
+                        "none" if not li.get("verts") else "%d verts, at most %.2f mm" % (li["verts"], li["max_mm"])))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
 if "clips" in rep:
