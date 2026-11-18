@@ -793,6 +793,23 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   reverse walk, dodge, paint, the min still pose), `tests/render/test_arena_figures.gd` (the arena with a kit selected
   and with the dressed fixture `tests/fixtures/figure_pack_paint`: figure and scheme, the §11.2 overview budget on
   hi/mid/lo/min, a tracer from the muzzle, D turning without sliding, min idle; `arena_fig_<kit|pack>_<mid|min>.png`).
+- **Wounds on the soldier** (visual only; owner: "เวลาตายหรือโดนอะไรจะได้เห็นเป็นกระดูก กับเนื้อ"):
+  `SoldierFigure.add_wound(bone, local_offset, radius)` puts a wound sphere on a bone (centre in the bone's frame).
+  `play(&"hit")` (and `hit_heavy`) adds one small wound (3.2–4.5 cm), `play(&"die")` two or three larger ones (6–8.5 cm
+  on the torso, 4.5–6 cm on a limb), at seeded-random skin spots of the torso and limbs (`wound_spots()`: body_min
+  vertices whose bone holds ≥ 0.8 of the weight; the centre 0.3 r under the skin; the figure's own RNG from the setup
+  seed, so the same seed repeats them). At most 8 (the oldest is replaced). Each frame while wounds exist the centres
+  follow their bones (`mixer_applied`; never on min). Cleared on `setup` and when a dead figure plays a loop again (the
+  arena's revive). hi/mid: the figure's own copy of the skin material (`body.gdshader`, `wound_mode` 2) discards the skin
+  inside each wound with a ragged, deterministic edge (value noise in the bone's frame, no TIME; the discard branch
+  only runs when `wound_count` > 0) and a dark-red rim; under it the inner layers show: `inner_flesh.res` (the skin
+  inset by the fat thickness, skinned like the skin) as wet red flesh with a fat band under the skin edge, cut away in
+  the core (0.55 r) so `inner_bone.res` (the anatomical bones, bound rigidly) shows, and a dark cavity behind (the
+  flesh's inner side, only along view rays through a wound). The inner layers are made at the first wound and are
+  hidden (`visible = false`) when there is none: two draw calls more only while wounded. lo: a red tint on the skin per
+  vertex (`wound_mode` 1), no inner layers, no extra draw call. min: nothing (no wound kept, no material copy, nothing per
+  frame). The shared material is never changed. Tests: `tests/unit/test_soldier_wounds.gd`,
+  `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`).
 
 ## 10. Screens, flow and transitions (ROOM)
 

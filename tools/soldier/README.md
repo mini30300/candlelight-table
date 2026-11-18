@@ -38,8 +38,11 @@ bash tools/soldier/import_stage.sh /tmp/soldier_build         # into godot/asset
 ```
 
 `run_all.sh` runs `build.py` (skin, weights, correctives, export), `measure.py` (proportions), `limits_check.py`
-(clips against joint limits), the Godot assembly (`out/godot/`), the renders and `sheet.py` (owner sheets with Thai
-captions in `out/renders/`). Look at the sheets before importing.
+(clips against joint limits), `inner_layers.py` (the wound layers), the Godot assembly (`out/godot/`: `assemble.gd`,
+then `assemble_inner.gd`), the renders and `sheet.py` (owner sheets with Thai captions in `out/renders/`). Look at the
+sheets before importing. Only the wound layers again, in a few seconds, from a folder that has `work/stage_skin.npz`,
+`work/stage_weights.npz` and `out/data/skeleton.bin`:
+`(cd <stage>/src/py && /usr/bin/python3 inner_layers.py) && ~/godot-bin/godot --headless --path <stage> -s res://src/gd/assemble_inner.gd`.
 
 To swap in a newer stage (for example a stage-1b folder another agent built): run `import_stage.sh <that folder>` and
 then the tests below. The import refuses to touch the repository when a required file is missing, Godot cannot load
@@ -51,14 +54,15 @@ still rules).
 ## Tests after an import
 
 ```bash
-bash godot/tests/run.sh soldier                               # tests/unit/test_soldier.gd: contract, assets, clips, rules
+bash godot/tests/run.sh soldier                               # tests/unit/test_soldier.gd + test_soldier_wounds.gd
 bash godot/tests/run.sh figures                               # the registry
 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot --rendering-driver opengl3 --resolution 1280x720 \
   --audio-driver Dummy -s tests/render/test_soldier.gd        # in the game: budgets, foot slide, deck, arena, mission, card, English
 ```
-Then the render suites that touch figures (`test_campaign_heroes`, `test_arena_figures`, `test_kit_walker`,
-`test_dressing`, `test_dressing_palettes`, `test_hall`, `test_mission`, `test_anim_footslide`, `test_budgets`,
-`test_lineup`) or simply `bash godot/tests/run.sh full`. The PNGs of `test_soldier.gd` (deck, arena, mission, hero card,
+Then `tests/render/test_soldier_wounds.gd` (the same way: flesh and bone in a chest wound on hi/mid, tint on lo, min
+unchanged, real hits and death in the arena) and the render suites that touch figures (`test_campaign_heroes`,
+`test_arena_figures`, `test_kit_walker`, `test_dressing`, `test_dressing_palettes`, `test_hall`, `test_mission`,
+`test_anim_footslide`, `test_budgets`, `test_lineup`) or simply `bash godot/tests/run.sh full`. The PNGs of `test_soldier.gd` (deck, arena, mission, hero card,
 dressing room, the four levels) are the quickest look at a new body in the game.
 
 ## The contract between the generator and the game
@@ -74,6 +78,7 @@ dressing room, the four levels) are the quickest look at a new body in the game.
 | blend shapes | named `shoulder_down`, `shoulder_front`, `shoulder_up`, `elbow_flex`, `knee_flex`, `hip_flex`, `hip_ext` + `L`/`R`, driven on hi/mid from the joint angles by the formulas of `src/py/correctives.py` (`SoldierFigure.shape_weights`); a weight under 0.05 is 0. Another name fails the unit test: port its formula into `shape_weights`. |
 | `soldier_skin.tres` + `src/gd/soldier_skin.gdshader` | an unshaded material that computes its own light (uniforms `sun_dir`, `sun_colour`, `ambient_colour`, `per_vertex`), no `TIME`; the game copies it to `body.gdshader` / `body_material.tres` |
 | `out/data/rig.json` | `drivers`, `keys`, `bind_angles`, `arm_keys`: the driver constants; the import stores them in `rig.tscn` (metadata `soldier_rig`) |
+| optional `inner_bone.res` + `inner_flesh.res` + `src/gd/soldier_inner.gdshader` (a set) | the wound layers (`inner_layers.py`, `assemble_inner.gd`): one surface each, bound to the binds of `skin.res`. Bone: the anatomical bone parts of `skeleton.bin` decimated per part to about 5k triangles, each part rigid on its own bone (one weight of 1; the clavicle and scapula ride `clavicle<L/R>`, the kneecap `knee_half<L/R>`), pushed at least 4 mm under the skin. Flesh: the sculpt decimated to 7k and inset by the fat map (3–16 mm), at least 2 mm under the skin, weights from the hi/mid weights. Material on the inner shader (unshaded, own light, no `TIME`) with the layer's values; the game copies the shader to `inner.gdshader`. The skin shader's wound section and the inner shader's must stay the same text (`test_soldier_wounds.gd`) |
 | optional `clips.res` | a soldier copy of the clips (an AnimationLibrary with `humanoid.res`'s clip names and metadata). Used as it is: tracks it has for helper bones or blend shapes are not driven again. Without it the figure copies the clips it uses from `humanoid.res` and eases their wrists (wrist and hand turn together, twist and bend each at most 45°, no hand position tracks) because the shared clips turn the hand up to 180° for the rigid kits' weapons, which tears a continuous skin. |
 
 ## What the game does with it
@@ -87,6 +92,10 @@ dressing room, the four levels) are the quickest look at a new body in the game.
 - Levels: hi/mid helpers + correctives, lo helpers only, min nothing per frame and a still pose within 10 frames of
   stopping; as the deck figure also still on lo. Meshes, materials and clips are cached in static variables.
 - The hero card lights it through `set_light` on its own material copy (`HeroLight.apply`).
+- Wounds (visual only): `add_wound(bone, local_offset, radius)`; a hit adds one small seeded-random wound, death two or
+  three larger ones, at most 8, cleared on `setup` and on the revive. hi/mid: the figure's own skin material cuts the
+  skin (ragged edge, dark-red rim) and the wound layers show wet flesh, a fat band and bone; lo: a red tint only; min:
+  nothing. The wound layers exist only after the first wound and are hidden without one (godot/docs/ARENA_SPEC.md §9.6).
 
 ## Sizes (stage 1c: soft muscle and abdomen detail on the stage-1b body, olive training shorts)
 
@@ -95,6 +104,9 @@ dressing room, the four levels) are the quickest look at a new body in the game.
 already zstd-compressed, so the APK and the Windows build each grow by about 6.2 MB. `tests/unit/test_soldier.gd` fails
 above 6.5 MB (the 90 MB APK target; its set, skin and the four bodies, is 6.19 MB). Compressed vertex attributes or
 fewer shapes on mid are the next saving.
+
+The wound layers add `inner_bone.res` 75 KB and `inner_flesh.res` 116 KB (and the 6 KB shader), about 0.19 MB more in
+the APK and the Windows build: the test's `SIZE_CAP` set now counts them too, 6,379,501 bytes of 6,500,000.
 
 Stage 1c's abdominal grooves and navel also get a little vertex shade (`mesh.colours`: `CAV_K`, on lo `FAR_K`), because
 the game's top light gives a vertical groove almost no shading.
