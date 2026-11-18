@@ -327,7 +327,8 @@ func _body_assets(d: String, body: String, want_s: float, base: Dictionary) -> v
 	assert_true(mat != null and mat.shader != null and mat.shader.resource_path == d + "body.gdshader", "%s: the material uses that shader" % tag)
 	for f in ["rig.tscn", "skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_material.tres",
 			"inner_bone.res", "inner_flesh.res"]:
-		assert_true(FileAccess.file_exists(d + f), "%s: has %s" % [tag, f])
+		# แอปที่ส่งออกแปลง .tscn/.tres เป็นไบนารี (มี .remap): ตรวจด้วย ResourceLoader.exists ไม่ใช่ FileAccess
+		assert_true(ResourceLoader.exists(d + f), "%s: has %s" % [tag, f])
 		for dep in ResourceLoader.get_dependencies(d + f):
 			var path := dep.get_slice("::", dep.get_slice_count("::") - 1)
 			assert_true(path.begins_with(d), "%s: %s depends only on its own folder" % [tag, f], dep)
