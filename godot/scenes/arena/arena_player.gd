@@ -369,6 +369,11 @@ func take_hit(hit: Dictionary) -> Dictionary:
 	_call_fig("set_flash", [1.0])
 	hp_changed.emit(_hp, _hp_max)
 	hurt.emit({"amount": applied, "from": hit.get("from", global_position)})
+	var from: Variant = hit.get("from")
+	if from is Vector3:
+		var d: Vector3 = (from as Vector3) - global_position
+		d.y = 0.0
+		_call_fig("set_hit_from", [d])        # ทหาร: แผลขึ้นด้านที่หันหาผู้ตี
 	if bool(r["killed"]):
 		_go_down()
 	else:

@@ -17,6 +17,7 @@ import weights as WT
 import correctives as CR
 import layers as LY
 import fatmap as FM
+import parts as PT
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -395,7 +396,7 @@ def main():
             Wl = ME.transfer(Vs, V, src_w, k=3)
             bi, bw = WT.top4(Wl)
             arrays = {"pos": V, "nrm": N, "col": np.c_[C, np.ones(len(V))],
-                      "cus": np.c_[np.zeros(len(V)), np.zeros(len(V)), fl, np.zeros(len(V))],
+                      "cus": np.c_[np.zeros(len(V)), np.zeros(len(V)), fl, PT.part_ids(bi)],   # w = ส่วนร่างกาย (แผล)
                       "bones": bi, "weights": bw, "idx": F[:, ::-1]}          # Godot: หน้าตามเข็มนาฬิกา
             shapes = []
             if lv in ("hi", "mid"):

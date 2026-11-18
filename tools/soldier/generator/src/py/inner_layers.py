@@ -2,6 +2,9 @@
 #   out/data/inner_bone.bin  = กระดูกจริง (skeleton.bin ท่าผูก) ลดเหลือ ~5k สามเหลี่ยม ผูกแข็งกับกระดูกของแต่ละชิ้น
 #   out/data/inner_flesh.bin = ผิวปั้น (work/stage_skin.npz) ลดเหลือ ~7k แล้วหดเข้าเท่าความหนาไขมัน (fatmap)
 #                              น้ำหนักย้ายจากผิว (work/stage_weights.npz: Wh4 ชุดเดียวกับ hi/mid)
+#   ทั้งสองชั้นมี part = ส่วนร่างกายต่อจุดยอด (parts.py) และถูกตรวจทีละจุดยอดว่าอยู่ใต้ผิว hi และ mid จริง (ระยะถึง
+#   สามเหลี่ยมที่ใกล้สุด มีเครื่องหมาย): เนื้อลึก >= FLESH_HI_MM กระดูก >= BONE_HI_MM ไม่งั้นกดเข้า / ไม่ผ่าน = หยุด
+#   ร่างแบบอื่น (variants: out/data/variant.json มี k) ผิวปั้นอยู่ในกรอบ 1.78 ม. -> คิดในกรอบนั้นแล้วคูณ k
 #   /usr/bin/python3 inner_layers.py [--out DIR] [--work DIR]      (~5 วินาที ; ต่อด้วย src/gd/assemble_inner.gd)
 import argparse
 import json
@@ -17,6 +20,7 @@ import mesh as ME
 import weights as WT
 import layers as LY
 import fatmap as FM
+import parts as PT
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -27,6 +31,10 @@ FAT_LO, FAT_HI = 0.003, 0.016   # ระยะหดเข้าจากผิ�
 FLESH_SMOOTH = 4          # เกลี่ย Taubin หลังหด (กันรอยพับในซอก)
 BONE_UNDER = 0.004        # กระดูกอยู่ใต้ผิวอย่างน้อยเท่านี้ (ม.): ชั้นภาพเดิมมีขอบสะบักโผล่หลังผิว ~3 ซม. -> กดกลับเข้าใต้ผิว
 FLESH_UNDER = 0.002       # เนื้ออยู่ใต้ผิวอย่างน้อยเท่านี้ (ซอกนิ้ว ข้อเท้า)
+# ใต้ผิวที่เกมวาดจริง (hi/mid ลดจากผิวปั้น นูนน้อยกว่าเล็กน้อย): กดถึงระยะ PUSH ตรวจผ่านที่ระยะ MIN (เทสในเกมใช้ค่า MIN)
+FLESH_PUSH, FLESH_MIN = 0.0015, 0.001
+BONE_PUSH, BONE_MIN_D = 0.0025, 0.002
+CAND_K = 16               # จุดยอดผิวใกล้สุดที่ใช้หาสามเหลี่ยมผู้สมัคร
 
 
 def read_bin(path):
@@ -58,6 +66,105 @@ def _under_skin(V, Vs, Ns, margin, it=3):
     return V, int(moved.sum())
 
 
+def _closest_on_tris(P, A, B, C):
+    """จุดใกล้สุดบนสามเหลี่ยม ABC ของแต่ละจุด P (Ericson) -> พิกัดแบรีเซนทริก (m,3)"""
+    ab, ac, ap = B - A, C - A, P - A
+    d1, d2 = np.einsum('ij,ij->i', ab, ap), np.einsum('ij,ij->i', ac, ap)
+    bp = P - B
+    d3, d4 = np.einsum('ij,ij->i', ab, bp), np.einsum('ij,ij->i', ac, bp)
+    cp = P - C
+    d5, d6 = np.einsum('ij,ij->i', ab, cp), np.einsum('ij,ij->i', ac, cp)
+    va, vb, vc = d3 * d6 - d5 * d4, d5 * d2 - d1 * d6, d1 * d4 - d3 * d2
+    den = va + vb + vc
+    den = np.where(np.abs(den) < 1e-30, 1e-30, den)
+    v, w = vb / den, vc / den
+    bc = np.c_[1 - v - w, v, w]                                   # ในสามเหลี่ยม
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t = (d4 - d3) / ((d4 - d3) + (d5 - d6))
+        m = (va <= 0) & (d4 - d3 >= 0) & (d5 - d6 >= 0)
+        bc[m] = np.c_[np.zeros(m.sum()), 1 - t[m], t[m]]
+        t = d2 / (d2 - d6)
+        m = (vb <= 0) & (d2 >= 0) & (d6 <= 0)
+        bc[m] = np.c_[1 - t[m], np.zeros(m.sum()), t[m]]
+        m = (d6 >= 0) & (d5 <= d6)
+        bc[m] = [0.0, 0.0, 1.0]
+        t = d1 / (d1 - d3)
+        m = (vc <= 0) & (d1 >= 0) & (d3 <= 0)
+        bc[m] = np.c_[1 - t[m], t[m], np.zeros(m.sum())]
+        m = (d3 >= 0) & (d4 <= d3)
+        bc[m] = [0.0, 1.0, 0.0]
+        m = (d1 <= 0) & (d2 <= 0)
+        bc[m] = [1.0, 0.0, 0.0]
+    return bc
+
+
+class SkinDepth:
+    """ระยะมีเครื่องหมายจากจุดถึงผิว (เมชปิด ท่าผูก): บวก = นอกผิว ; นอร์มอล = นอร์มอลจุดยอดเฉลี่ยตามแบรีเซนทริก"""
+
+    def __init__(self, V, F):
+        self.V, self.F = np.asarray(V, np.float64), np.asarray(F, np.int64)
+        self.N = ME.vnormals(self.V, self.F)
+        self.tree = cKDTree(self.V)
+        n = len(self.V)
+        order = np.argsort(self.F.ravel(), kind="stable")
+        cnt = np.bincount(self.F.ravel(), minlength=n)
+        self.start = np.r_[0, np.cumsum(cnt)]
+        self.tri_of = order // 3
+        self.maxdeg = int(cnt.max())
+
+    def query(self, P):
+        P = np.asarray(P, np.float64)
+        _, vi = self.tree.query(P, k=CAND_K)
+        cand = -np.ones((len(P), CAND_K * self.maxdeg), np.int64)
+        for j in range(CAND_K):
+            s0, s1 = self.start[vi[:, j]], self.start[vi[:, j] + 1]
+            for d in range(self.maxdeg):
+                ok = s0 + d < s1
+                cand[ok, j * self.maxdeg + d] = self.tri_of[(s0 + d)[ok]]
+        rows, cols = np.nonzero(cand >= 0)
+        t = cand[rows, cols]
+        A, B, C = (self.V[self.F[t, k]] for k in range(3))
+        bc = _closest_on_tris(P[rows], A, B, C)
+        Q = bc[:, :1] * A + bc[:, 1:2] * B + bc[:, 2:] * C
+        d2 = ((P[rows] - Q) ** 2).sum(1)
+        best = np.full(len(P), np.inf)
+        np.minimum.at(best, rows, d2)
+        pick = np.flatnonzero(d2 <= best[rows])
+        first = np.full(len(P), -1)
+        first[rows[pick[::-1]]] = pick[::-1]
+        Qb, bcb, tb = Q[first], bc[first], t[first]
+        Nq = sum(bcb[:, k:k + 1] * self.N[self.F[tb, k]] for k in range(3))
+        Nq /= np.maximum(np.linalg.norm(Nq, axis=1, keepdims=True), 1e-12)
+        return np.einsum('ij,ij->i', P - Qb, Nq), Nq
+
+
+def _push_under(V, skins, margin, it=4):
+    """กดจุดที่อยู่นอกผิวใด ๆ หรือลึกไม่ถึง margin เข้าใต้ผิวทุกชั้นใน skins ; คืน (V, จำนวนที่เลื่อน)"""
+    V = np.array(V, np.float64)
+    moved = np.zeros(len(V), bool)
+    for _ in range(it):
+        any_m = False
+        for sk in skins:
+            s, Nq = sk.query(V)
+            m = s > -margin
+            if m.any():
+                any_m = True
+                V[m] -= Nq[m] * (s[m] + margin)[:, None]
+                moved |= m
+        if not any_m:
+            break
+    return V, int(moved.sum())
+
+
+def _depths(V, skins):
+    """ความลึกใต้ผิวต่ำสุด (มม.) ต่อผิว + จำนวนจุดที่ลึกไม่ถึง 0"""
+    out = {}
+    for name, sk in skins.items():
+        s, _ = sk.query(V)
+        out[name] = {"min_mm": round(float(-s.max()) * 1000, 3), "outside": int((s > 0).sum())}
+    return out
+
+
 def _sub(V, F):
     used = np.unique(F)
     remap = -np.ones(len(V), np.int64)
@@ -80,7 +187,7 @@ def _decimate_part(V, F, tgt):
     return best
 
 
-def bone_layer(data, Vs, Ns):
+def bone_layer(data, Vs, Ns, skins):
     """ชิ้นกระดูกของ skeleton.bin (ท่าผูก A) ทีละชิ้นที่ต่อกัน -> ลดตามสัดส่วน (ชิ้นเล็กไม่หาย) -> ผูกแข็งกับกระดูกของชิ้น
     -> กดส่วนที่โผล่พ้นผิวกลับเข้าใต้ผิว BONE_UNDER"""
     d = read_bin(os.path.join(data, "skeleton.bin"))
@@ -112,22 +219,25 @@ def bone_layer(data, Vs, Ns):
     F = np.vstack(Fs_)
     B = np.concatenate(Bs)
     V, moved = _under_skin(V, Vs, Ns, BONE_UNDER)
+    V, moved2 = _push_under(V, skins, BONE_PUSH)
     N = ME.vnormals(V, F)
-    return V, F, N, B, [groups[k] for k in sorted(groups, key=lambda s: rig.BI[s])], moved
+    return V, F, N, B, [groups[k] for k in sorted(groups, key=lambda s: rig.BI[s])], moved + moved2
 
 
-def flesh_layer(work, Gb, Vs, Fs, Ns, fat):
-    """ผิวปั้นลดเหลือ FLESH_TRIS แล้วหดเข้าตามนอร์มอลเท่าความหนาไขมัน -> ผิวของกล้าม/เนื้อใต้ไขมัน ; น้ำหนักจากผิว"""
+def flesh_layer(work, Gb, Vs, Fs, Ns, fat, k, skins):
+    """ผิวปั้นลดเหลือ FLESH_TRIS แล้วหดเข้าตามนอร์มอลเท่าความหนาไขมัน -> ผิวของกล้าม/เนื้อใต้ไขมัน ; น้ำหนักจากผิว
+    คิดในกรอบผิวปั้น (Vs, Gb) แล้วคูณ k ไปกรอบของผิวที่ส่งออก"""
     W = np.load(os.path.join(work, "stage_weights.npz"))["Wh4"]
     V, F = ME.decimate(Vs, Fs, FLESH_TRIS)
     N = ME.vnormals(V, F)
     T, _ = FM.maps(V, Gb)
     t = np.clip(T * fat, FAT_LO, FAT_HI)
     Vi = ME.taubin(V - N * t[:, None], F, it=FLESH_SMOOTH)
-    Vi, moved = _under_skin(Vi, Vs, Ns, FLESH_UNDER)
     Wl = ME.transfer(Vs, V, W, k=3)                   # จากตำแหน่งบนผิว (ก่อนหด)
+    Vi, moved = _under_skin(Vi * k, Vs * k, Ns, FLESH_UNDER)
+    Vi, moved2 = _push_under(Vi, skins, FLESH_PUSH)
     bi, bw = WT.top4(Wl)
-    return Vi, F, ME.vnormals(Vi, F), bi, bw, t, moved
+    return Vi, F, ME.vnormals(Vi, F), bi, bw, t * k, moved + moved2
 
 
 def main():
@@ -141,24 +251,43 @@ def main():
     z = np.load(os.path.join(args.work, "stage_skin.npz"))
     Vs, Fs = z["Vs"], z["Fs"]
     Ns = ME.vnormals(Vs, Fs)
-    Vb, Fb, Nb, Bb, groups, moved_b = bone_layer(data, Vs, Ns)
+    # ผิวที่เกมวาด (ท่าผูก) ของ hi และ mid: ชั้นในต้องอยู่ใต้ทั้งสอง
+    skins = {}
+    for lv in ("hi", "mid"):
+        b = read_bin(os.path.join(data, "body_%s.bin" % lv))
+        skins[lv] = SkinDepth(b["pos"], b["idx"][:, ::-1])
+    k = 1.0
+    vj = os.path.join(data, "variant.json")
+    if os.path.exists(vj):
+        k = float(json.load(open(vj)).get("k", 1.0))
+    top = float(skins["hi"].V[:, 1].max())
+    if abs(top - k * float(Vs[:, 1].max())) > 0.003:
+        raise SystemExit("inner layers: the sculpt (x k %.4f) and body_hi differ in height: %.4f vs %.4f m"
+                         % (k, k * float(Vs[:, 1].max()), top))
+    Vb, Fb, Nb, Bb, groups, moved_b = bone_layer(data, Vs * k, Ns, list(skins.values()))
     nb = len(Vb)
     bones4 = np.zeros((nb, 4), np.int32)
     bones4[:, 0] = Bb
     w4 = np.zeros((nb, 4))
     w4[:, 0] = 1.0
+    part_b = PT.part_ids(Bb)
     LY.write_bin(os.path.join(data, "inner_bone.bin"), {"pos": Vb, "nrm": Nb, "bones": bones4, "weights": w4,
-                                                        "idx": Fb[:, ::-1]},
+                                                        "part": part_b, "idx": Fb[:, ::-1]},
                  {"layer": "bone", "verts": nb, "tris": int(len(Fb)), "bones": rig.BONES, "space": "bind"})
-    Vf, Ff, Nf, bi, bw, t, moved_f = flesh_layer(args.work, Gb, Vs, Fs, Ns, float(z["fat"]))
+    Vf, Ff, Nf, bi, bw, t, moved_f = flesh_layer(args.work, Gb, Vs, Fs, Ns, float(z["fat"]), k, list(skins.values()))
+    part_f = PT.part_ids(bi)
     LY.write_bin(os.path.join(data, "inner_flesh.bin"), {"pos": Vf, "nrm": Nf, "bones": bi, "weights": bw,
-                                                         "idx": Ff[:, ::-1]},
+                                                         "part": part_f, "idx": Ff[:, ::-1]},
                  {"layer": "flesh", "verts": int(len(Vf)), "tris": int(len(Ff)), "bones": rig.BONES, "space": "bind"})
     used_b = sorted({rig.BONES[i] for i in np.unique(Bb)})
     used_f = sorted({rig.BONES[i] for i in np.unique(bi[bw > 0])})
-    rep = {"bone": {"verts": nb, "tris": int(len(Fb)), "groups": len(groups), "bones": used_b, "parts": groups,
-                    "pushed_under_skin": moved_b},
+    dep_b, dep_f = _depths(Vb, skins), _depths(Vf, skins)
+    rep = {"k": k,
+           "bone": {"verts": nb, "tris": int(len(Fb)), "groups": len(groups), "bones": used_b, "parts": groups,
+                    "pushed_under_skin": moved_b, "depth": dep_b,
+                    "body_parts": {PT.NAMES[i]: int((part_b == i).sum()) for i in range(len(PT.NAMES))}},
            "flesh": {"verts": int(len(Vf)), "tris": int(len(Ff)), "bones": used_f, "pushed_under_skin": moved_f,
+                     "depth": dep_f, "body_parts": {PT.NAMES[i]: int((part_f == i).sum()) for i in range(len(PT.NAMES))},
                      "inset_mm": {"min": round(float(t.min()) * 1000, 2), "mean": round(float(t.mean()) * 1000, 2),
                                   "max": round(float(t.max()) * 1000, 2)}},
            "time_s": round(time.time() - t0, 1)}
@@ -167,6 +296,12 @@ def main():
           % (len(Fb), nb, len(groups), moved_b, " ".join(used_b)))
     print("inner flesh: %d tris %d verts, inset %s mm, %d verts pushed under the skin, %.1fs"
           % (len(Ff), len(Vf), rep["flesh"]["inset_mm"], moved_f, rep["time_s"]))
+    print("depth under the skin (min mm): bone %s, flesh %s"
+          % ({l: dep_b[l]["min_mm"] for l in dep_b}, {l: dep_f[l]["min_mm"] for l in dep_f}))
+    bad = [("bone", l) for l in dep_b if dep_b[l]["min_mm"] < BONE_MIN_D * 1000] + \
+          [("flesh", l) for l in dep_f if dep_f[l]["min_mm"] < FLESH_MIN * 1000]
+    if bad:
+        raise SystemExit("inner layers not deep enough under the skin: %s" % bad)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ extends SceneTree
 ## ประกอบชั้นในของทหาร (บาดแผล: เนื้อ/กระดูก) เป็นทรัพยากร Godot (รันแบบ headless หลัง assemble.gd)
 ## อ่าน out/data/inner_bone.bin + inner_flesh.bin (จาก src/py/inner_layers.py) -> out/godot/inner_bone.res + inner_flesh.res
 ## 1 พื้นผิวต่อชั้น ผูกกับ skin.res ชุดเดียวกับผิว (bind ตามชื่อ) ; วัสดุ soldier_inner.gdshader ฝังในเมช (ค่าต่างกันต่อชั้น)
+## CUSTOM0.x = ส่วนร่างกายต่อจุดยอด (parts.py) ; meta "depth_mm" = ความลึกใต้ผิว hi/mid ต่ำสุดที่ inner_layers.py ตรวจ
 
 const DATA := "res://out/data/"
 const OUT := "res://out/godot/"
@@ -9,10 +10,10 @@ const SHADER := "res://src/gd/soldier_inner.gdshader"
 const ASM := preload("res://src/gd/assemble.gd")     # read_bin / v3
 ## ค่าของวัสดุแต่ละชั้น (uniform ของ soldier_inner.gdshader)
 const LAYER := {
-	"flesh": {"base_colour": Vector3(0.50, 0.07, 0.06), "inner_colour": Vector3(0.13, 0.015, 0.012), "core": 0.55,
-		"keep": 1.2, "fat_band": 1.0, "wet": 0.5},
+	"flesh": {"base_colour": Vector3(0.50, 0.07, 0.06), "inner_colour": Vector3(0.30, 0.05, 0.04), "core": 0.4,
+		"keep": 1.2, "fat_band": 1.0, "blood": 0.0, "wet": 0.5},
 	"bone": {"base_colour": Vector3(0.90, 0.86, 0.76), "inner_colour": Vector3(0.42, 0.07, 0.05), "core": 0.0,
-		"keep": 1.0, "fat_band": 0.0, "wet": 0.12},
+		"keep": 1.0, "fat_band": 0.0, "blood": 0.6, "wet": 0.18},
 }
 
 
@@ -23,6 +24,8 @@ func _initialize() -> void:
 		quit(1)
 		return
 	var report := {}
+	var rep_py: Variant = JSON.parse_string(FileAccess.get_file_as_string(DATA + "inner_layers.json")) \
+		if FileAccess.file_exists(DATA + "inner_layers.json") else null
 	for lv in ["bone", "flesh"]:
 		var path := DATA + "inner_%s.bin" % lv
 		if not FileAccess.file_exists(path):
@@ -37,13 +40,25 @@ func _initialize() -> void:
 		arr[Mesh.ARRAY_BONES] = d["bones"]
 		arr[Mesh.ARRAY_WEIGHTS] = d["weights"]
 		arr[Mesh.ARRAY_INDEX] = d["idx"]
+		if not d.has("part"):
+			push_error(path + " has no part array (run the current src/py/inner_layers.py)")
+			quit(1)
+			return
+		arr[Mesh.ARRAY_CUSTOM0] = d["part"]
 		var am := ArrayMesh.new()
 		am.resource_name = "soldier_inner_" + lv
-		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {},
+			Mesh.ARRAY_CUSTOM_R_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+		if rep_py is Dictionary and (rep_py as Dictionary).has(lv):
+			var dep: Dictionary = rep_py[lv].get("depth", {})
+			var dm := {}
+			for k in dep:
+				dm[k] = float(dep[k]["min_mm"])
+			am.set_meta("depth_mm", dm)
 		var mat := ShaderMaterial.new()
 		mat.shader = sh
 		mat.resource_name = "soldier_inner_" + lv
-		mat.render_priority = -1      # วาดหลังผิว: ส่วนที่ผิวบังถูกตัดทิ้งก่อนคิดสี
+		mat.render_priority = 1       # วาดหลังผิว (เลขมากวาดทีหลัง): ส่วนที่ผิวบังถูกตัดทิ้งก่อนคิดสี
 		for k in LAYER[lv]:
 			mat.set_shader_parameter(k, LAYER[lv][k])
 		am.surface_set_material(0, mat)

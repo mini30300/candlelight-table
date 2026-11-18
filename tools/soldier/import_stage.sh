@@ -3,11 +3,12 @@
 #   bash tools/soldier/import_stage.sh <stage_dir>
 # <stage_dir> is a generator folder (tools/soldier/README.md): project.godot, src/ (py, gd, run_all.sh) and its build in
 # out/godot/ (rig.tscn, skin.res, body_hi/mid/lo/min.res, optional body_crowd.res and clips.res, soldier_skin.tres,
-# optional inner_bone.res + inner_flesh.res with src/gd/soldier_inner.gdshader) and out/data/rig.json. Steps, and nothing
-# in the repository changes unless the first two succeed:
+# optional wound shaders src/gd/soldier_skin_wound.gdshader + src/gd/wound.gdshaderinc, optional inner_bone.res +
+# inner_flesh.res with src/gd/soldier_inner.gdshader, which need the wound shaders) and out/data/rig.json. Steps, and
+# nothing in the repository changes unless the first two succeed:
 #  1. Godot re-saves the stage's files in a scratch project, so every path inside them points at the game's copy:
 #     godot/assets/figures/soldier/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres, clips.res,
-#     inner_bone.res, inner_flesh.res, inner.gdshader};
+#     body_wound.gdshader, wound.gdshaderinc, inner_bone.res, inner_flesh.res, inner.gdshader};
 #     rig.json's driver constants travel inside rig.tscn (metadata "soldier_rig"); existing UIDs are kept.
 #  2. The stage's generator source is checked for the banned names of AGENTS.md rule 1.
 #  3. Assets go to godot/assets/figures/soldier/ (files the stage no longer makes are removed) and the source to
@@ -38,9 +39,16 @@ done
 for f in src/gd/soldier_skin.gdshader src/run_all.sh; do
   [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f" >&2; exit 1; }
 done
-# the wound layers are optional, but come as a set: both meshes and their shader
+# the wound shaders are optional, but come as a pair (the skin shader includes the wound code)
+if [ -f "$STAGE/src/gd/soldier_skin_wound.gdshader" ] || [ -f "$STAGE/src/gd/wound.gdshaderinc" ]; then
+  for f in src/gd/soldier_skin_wound.gdshader src/gd/wound.gdshaderinc; do
+    [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f (the wound shaders come as a pair)" >&2; exit 1; }
+  done
+fi
+# the wound layers are optional, but come as a set: both meshes, their shader and the wound shaders
 if [ -f "$OUTG/inner_bone.res" ] || [ -f "$OUTG/inner_flesh.res" ]; then
-  for f in out/godot/inner_bone.res out/godot/inner_flesh.res src/gd/soldier_inner.gdshader; do
+  for f in out/godot/inner_bone.res out/godot/inner_flesh.res src/gd/soldier_inner.gdshader \
+      src/gd/soldier_skin_wound.gdshader src/gd/wound.gdshaderinc; do
     [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f (the inner layers come as a set)" >&2; exit 1; }
   done
 fi
@@ -54,6 +62,9 @@ for f in rig.tscn skin.res soldier_skin.tres body_hi.res body_mid.res body_lo.re
 done
 if [ -f "$STAGE/out/data/rig.json" ]; then cp "$STAGE/out/data/rig.json" "$WORK/out/data/"; fi
 cp "$STAGE/src/gd/soldier_skin.gdshader" "$WORK/src/gd/"
+for f in soldier_skin_wound.gdshader wound.gdshaderinc; do
+  if [ -f "$STAGE/src/gd/$f" ]; then cp "$STAGE/src/gd/$f" "$WORK/src/gd/"; fi
+done
 if [ -f "$WORK/out/godot/inner_bone.res" ]; then cp "$STAGE/src/gd/soldier_inner.gdshader" "$WORK/src/gd/"; fi
 # the game's current files: only their UIDs are read, so a re-import changes content, not identity
 if [ -d "$DEST" ]; then
@@ -82,7 +93,7 @@ NEWGEN="$WORK/generator"
 mkdir -p "$NEWGEN/src"
 # every source file under src/ (new modules and sub-folders included), never caches
 (cd "$STAGE/src" && find . -name __pycache__ -prune -o -type f \( -name '*.py' -o -name '*.gd' -o -name '*.gdshader' \
-    -o -name '*.sh' -o -name '*.json' -o -name '*.md' -o -name '*.txt' \) -print) | LC_ALL=C sort | while read -r f; do
+    -o -name '*.gdshaderinc' -o -name '*.sh' -o -name '*.json' -o -name '*.md' -o -name '*.txt' \) -print) | LC_ALL=C sort | while read -r f; do
   mkdir -p "$NEWGEN/src/$(dirname "$f")"
   cp "$STAGE/src/$f" "$NEWGEN/src/$f"
 done
@@ -136,10 +147,12 @@ for lv in ["hi", "mid", "lo", "min", "crowd"]:
         r = rep["levels"][lv]
         lines.append("%-6s %8d %6d %6d %13d %8d" % (lv, r["surfaces"], r["verts"], r["tris"], r["shapes"], r["bytes"]))
 if rep.get("inner"):
-    lines += ["", "wound layers (hi/mid, hidden until the first wound)"]
+    lines += ["", "wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)"]
     for lv in ["bone", "flesh"]:
         r = rep["inner"][lv]
-        lines.append("%-6s %8d %6d %6d %13s %8d" % (lv, r["surfaces"], r["verts"], r["tris"], "-", r["bytes"]))
+        dep = r.get("depth_mm", {})
+        lines.append("%-6s %8d %6d %6d %13s %8d  depth %s" % (lv, r["surfaces"], r["verts"], r["tris"], "-", r["bytes"],
+                     " / ".join("%.2f mm" % dep[k] for k in ("hi", "mid") if k in dep) or "-"))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
 if "clips" in rep:

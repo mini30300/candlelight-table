@@ -1,5 +1,6 @@
 extends SceneTree
 ## นำเข้าผลของขั้นปั้นทหารเข้าเกม (tools/soldier/import_stage.sh เรียก รันแบบ headless ในโปรเจกต์ชั่วคราว)
+## + เชดเดอร์ผิวมีแผล (body_wound.gdshader + wound.gdshaderinc ที่ include กันแบบทางสัมพัทธ์ ชื่อเดียวกันทั้งสองที่)
 ## + ชั้นในของบาดแผล (inner_bone/inner_flesh + inner.gdshader) ถ้าขั้นปั้นทำมา
 ## โปรเจกต์ชั่วคราววางไฟล์ของขั้นปั้นไว้ที่เดิม (res://out/godot, res://src/gd) จึงโหลดได้ตามที่ทำมา
 ## แล้วบันทึกใหม่ที่ res://assets/figures/soldier/ ด้วยชื่อกลางและทางไฟล์ของเกม (เมชอ้างวัสดุของเกม ไม่อ้างโฟลเดอร์ขั้นปั้น)
@@ -8,6 +9,8 @@ extends SceneTree
 const SRC := "res://out/godot/"
 const SHADER_SRC := "res://src/gd/soldier_skin.gdshader"
 const INNER_SHADER_SRC := "res://src/gd/soldier_inner.gdshader"
+const WOUND_SHADER_SRC := "res://src/gd/soldier_skin_wound.gdshader"
+const WOUND_INC_SRC := "res://src/gd/wound.gdshaderinc"
 const DST := "res://assets/figures/soldier/"
 const OLD := "res://old/"
 const RIG_JSON := "res://out/data/rig.json"
@@ -35,6 +38,13 @@ func _run() -> bool:
 		push_error("the shader does not load")
 		return false
 	report["files"].append("body.gdshader")
+	# ผิวมีแผล (ถ้ามี มาเป็นคู่): ส่วน include ก่อน แล้วเชดเดอร์ที่ include มัน
+	if FileAccess.file_exists(WOUND_SHADER_SRC) or FileAccess.file_exists(WOUND_INC_SRC):
+		if not (_copy_text(WOUND_INC_SRC, "wound.gdshaderinc", report) and _copy_text(WOUND_SHADER_SRC, "body_wound.gdshader", report)):
+			return false
+		if load(DST + "body_wound.gdshader") as Shader == null:
+			push_error("the wound skin shader does not load")
+			return false
 	# วัสดุ: ค่าที่ขั้นปั้นตั้งไว้ (ถ้ามี) บนเชดเดอร์ชื่อใหม่
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
@@ -128,6 +138,9 @@ func _inner(report: Dictionary) -> bool:
 	if not FileAccess.file_exists(INNER_SHADER_SRC):
 		push_error("no shader at " + INNER_SHADER_SRC)
 		return false
+	if not FileAccess.file_exists(DST + "wound.gdshaderinc"):
+		push_error("the inner layers need the wound shaders (src/gd/wound.gdshaderinc)")
+		return false
 	var f := FileAccess.open(DST + "inner.gdshader", FileAccess.WRITE)
 	f.store_string(FileAccess.get_file_as_string(INNER_SHADER_SRC))
 	f.close()
@@ -159,7 +172,19 @@ func _inner(report: Dictionary) -> bool:
 		var arr := m.surface_get_arrays(0)
 		report["inner"][lv] = {"surfaces": 1, "verts": (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(),
 			"tris": (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3,
-			"bytes": FileAccess.get_file_as_bytes(DST + "inner_%s.res" % lv).size()}
+			"bytes": FileAccess.get_file_as_bytes(DST + "inner_%s.res" % lv).size(), "depth_mm": m.get_meta("depth_mm", {})}
+	return true
+
+
+## คัดลอกข้อความไฟล์ (เชดเดอร์) จากขั้นปั้นเป็นชื่อของเกม
+func _copy_text(src: String, name: String, report: Dictionary) -> bool:
+	if not FileAccess.file_exists(src):
+		push_error("missing " + src)
+		return false
+	var f := FileAccess.open(DST + name, FileAccess.WRITE)
+	f.store_string(FileAccess.get_file_as_string(src))
+	f.close()
+	report["files"].append(name)
 	return true
 
 

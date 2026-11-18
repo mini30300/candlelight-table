@@ -7,8 +7,9 @@ extends Node3D
 ## ไม่งั้นสำเนาท่าใน humanoid.res ที่แต่งข้อมือแล้ว (ผิวต่อเนื่องบิดเกือบรอบไม่ได้) · โครง 23 กระดูกของเกม + กระดูกช่วย
 ## ตัวขับกระดูกช่วย/ท่าแก้ทำงานใน mixer_applied (ไม่มี _process): hi/mid = กระดูกช่วย + ท่าแก้ · lo = กระดูกช่วย ·
 ## min = ไม่มีงานเพิ่ม ยืนนิ่งท่าเดียว · ดาดฟ้ายืนนิ่งทั้ง lo และ min · เมช วัสดุ ท่า เก็บ static ใช้ร่วมทุกตัว · ภาพล้วน
-## บาดแผล (add_wound, โดน/ตายลงแผลสุ่มแบบมี seed ≤ 8 แผล ติดกระดูก): hi/mid = ผิวขาดเห็นเนื้อและกระดูก (inner_*.res
-## ซ่อนจนแผลแรก) · lo = สีแผลบนผิว · min = ไม่มีเลย · อัปเดตตามท่าเฉพาะตอนมีแผล ล้างตอน setup / ลุกขึ้นใหม่
+## บาดแผล (add_wound, โดน/ตายลงแผลสุ่มแบบมี seed ≤ 8 แผล ติดกระดูก ด้านที่ถูกตีถ้ารู้ set_hit_from): hi/mid = ผิวขาด
+## เห็นเนื้อและกระดูก (inner_*.res ซ่อนจนแผลแรก) · lo = สีแผลบนผิว · min = ไม่มีเลย (วัสดุร่วมไม่มีโค้ดแผล) ·
+## แผลตัดเฉพาะส่วนร่างกายเดียวกับกระดูกแผล · อัปเดตตามท่าเฉพาะตอนมีแผล ล้างตอน setup / ลุกขึ้นใหม่
 
 signal clip_event(kind: StringName)
 
@@ -61,19 +62,33 @@ const SHAPE_KINDS: PackedStringArray = ["shoulder_down", "shoulder_front", "shou
 	"hip_flex", "hip_ext"]
 const SHAPE_ZERO := 0.05         # น้ำหนักต่ำกว่านี้ = 0 (ไม่เสียรอบวาดท่าแก้)
 const DOWN := Vector3(0.0, -1.0, 0.0)
-## บาดแผล: ชั้นในจาก tools/soldier (inner_layers.py) · แผลสูงสุด (เกินแล้วทับแผลเก่าสุด)
-const INNER := {"flesh": DIR + "inner_flesh.res", "bone": DIR + "inner_bone.res"}
+## บาดแผล: ชั้นในจาก tools/soldier (inner_layers.py) · ผิวตอนมีแผล (วัสดุของตัวเอง) · แผลสูงสุด (เกินแล้วทับแผลเก่าสุด)
+const INNER := {"flesh": "inner_flesh.res", "bone": "inner_bone.res"}
+const WOUND_SHADER := DIR + "body_wound.gdshader"
 const MAX_WOUNDS := 8
-## ที่ลงแผลสุ่ม: กระดูก → น้ำหนักการสุ่ม (ลำตัวมากกว่าแขนขา ไม่ลงหัว มือ เท้า)
-const WOUND_BONES := {&"chest": 3.0, &"spine": 3.0, &"pelvis": 1.0, &"shoulderL": 1.2, &"shoulderR": 1.2, &"elbowL": 0.8,
-	&"elbowR": 0.8, &"hipL": 1.4, &"hipR": 1.4, &"kneeL": 0.9, &"kneeR": 0.9}
-const TRUNK_BONES: Array[StringName] = [&"chest", &"spine", &"pelvis"]
+## ส่วนร่างกาย (CUSTOM0.w ของผิว / CUSTOM0.x ของชั้นใน จาก parts.py ของ tools/soldier): แผลมีผลเฉพาะส่วนของกระดูกแผล
+const PARTS: PackedStringArray = ["torso", "head", "armL", "armR", "legL", "legR"]
+## ที่ลงแผลสุ่ม: กระดูก → น้ำหนักการสุ่ม (ลำตัวมากกว่าแขนขา ไม่ลงหัว มือ เท้า) · clavicle = อกบน/ไหล่ (กระดูกช่วย)
+const WOUND_BONES := {&"chest": 2.2, &"clavicleL": 0.4, &"clavicleR": 0.4, &"spine": 3.0, &"pelvis": 1.0, &"shoulderL": 1.2,
+	&"shoulderR": 1.2, &"elbowL": 0.8, &"elbowR": 0.8, &"hipL": 1.4, &"hipR": 1.4, &"kneeL": 0.9, &"kneeR": 0.9}
+const TRUNK_BONES: Array[StringName] = [&"chest", &"clavicleL", &"clavicleR", &"spine", &"pelvis"]
 ## รัศมีแผล (ม. ต่ำ-สูง): โดน / ตายที่ลำตัว / ตายที่แขนขา
 const WOUND_HIT := Vector2(0.032, 0.045)
 const WOUND_DIE := Vector2(0.06, 0.085)
 const WOUND_DIE_LIMB := Vector2(0.045, 0.06)
 const WOUND_DEPTH := 0.3         # ศูนย์กลางแผลอยู่ใต้ผิว (เท่าของรัศมี)
 const WOUND_SPOT_W := 0.8        # จุดลงแผล: จุดผิวที่กระดูกนั้นถือน้ำหนักอย่างน้อยเท่านี้ (ไม่ลงตรงข้อพับ)
+## จุดลงแผลมาจากผิว lo (น้ำหนักชุดเดียวกับ hi/mid: รอยต่อส่วนร่างกายตรงกับที่เชดเดอร์ตัด) ทุกระดับใช้ชุดเดียวกัน
+const SPOT_MESH := "body_lo.res"
+## แขนขา: รัศมี ≤ ค่านี้ × ระยะจุดผิวถึงแกนกระดูก (ท่าผูก) ปลายแขน/หน้าแข้งไม่ทะลุเป็นหน้าต่าง
+const WOUND_AXIS := {&"shoulderL": &"elbowL", &"elbowL": &"wristL", &"shoulderR": &"elbowR", &"elbowR": &"wristR",
+	&"hipL": &"kneeL", &"kneeL": &"ankleL", &"hipR": &"kneeR", &"kneeR": &"ankleR"}
+const WOUND_AXIS_K := 0.55
+## รัศมี ≤ (ระยะถึงรอยต่อกับส่วนอื่นบนผิวเดียวกัน − WOUND_SEAM_PAD) / ค่านี้: ขอบแผลไม่จบเป็นเส้นตรงตรงรอยต่อ
+const WOUND_SEAM_K := 1.35
+const WOUND_SEAM_PAD := 0.01
+const WOUND_ROOM := 0.6          # จุดที่รัศมีลงได้ < ค่านี้ × รัศมีต่ำสุดของช่วง ไม่ใช้
+const WOUND_FACING := 0.25       # set_hit_from: ลงแผลเฉพาะจุดที่นอร์มอลตามท่า · ทิศหาผู้ตี > ค่านี้ (ไม่มีจุดเลย = ทุกจุด)
 
 static var _rig: PackedScene
 static var _skin: Skin
@@ -87,8 +102,9 @@ static var _drv: Dictionary = {}
 static var _rules: Array = []      # [ดัชนี, ชนิด, ต้นทาง, ต้นทาง 2, ข้าง ±1] ของกระดูกช่วยที่ต้องขับ
 static var _rules_ready := false
 static var _scale := 1.0
-static var _inner_cache: Dictionary = {}
-static var _spots: Dictionary = {}
+static var _inner_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ชั้น -> เมช
+static var _spots: Dictionary = {}         # โฟลเดอร์ร่าง -> จุดลงแผล
+static var _wound_sh: Shader
 
 var role: StringName = &"player"
 var level := "mid"
@@ -135,12 +151,14 @@ var _rest := Transform3D.IDENTITY
 var _tw: Tween
 var _last_dodge := Vector2.ZERO
 var _own_lit := false            # _own_mat มาจาก set_light (ไม่ใช่เพื่อแผลอย่างเดียว)
-var _wounds: Array = []          # [ชื่อกระดูก, ดัชนีกระดูก, ศูนย์กลางในกรอบกระดูก, รัศมี] เก่า → ใหม่
+var _wounds: Array = []          # [ชื่อกระดูก, ดัชนีกระดูก, ศูนย์กลางในกรอบกระดูก, รัศมี, ส่วนร่างกาย] เก่า → ใหม่
 var _wound_next := 0             # ช่องที่ทับเมื่อครบ MAX_WOUNDS (เก่าสุด)
 var _wrng := RandomNumberGenerator.new()
 var _inner: Array = []           # [เนื้อ, กระดูก] MeshInstance3D (สร้างตอนแผลแรกบน hi/mid)
 var _inner_mats: Array = []      # วัสดุชั้นในของตัวนี้เอง (ค่าแผล)
 var _wound_updates := 0          # ครั้งที่ส่งตำแหน่งแผลให้เชดเดอร์ (เทส)
+var _hit_from := Vector3.ZERO    # ทิศ (โลก) ไปหาผู้ตีของแผลครั้งถัดไป (set_hit_from) · ศูนย์ = ไม่รู้
+var _body := DIR                 # โฟลเดอร์ร่างของตัวนี้ (ชั้นในและจุดลงแผลแยกตามร่าง)
 
 
 # ================= สัญญาตัวละคร =================
@@ -218,9 +236,11 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 	match logical:
 		&"hit", &"hit_heavy":
 			_random_wound(WOUND_HIT * (1.25 if logical == &"hit_heavy" else 1.0), WOUND_HIT)
+			_hit_from = Vector3.ZERO
 		&"die":
-			for i in 2 + (_wrng.randi_range(0, 1) if level != "min" else 0):
+			for i in 2 + (1 if _wrng.randf() < 0.5 else 0):      # สุ่มทุกระดับ (min ด้วย): ลำดับสุ่มไม่ขึ้นกับระดับ
 				_random_wound(WOUND_DIE, WOUND_DIE_LIMB)
+			_hit_from = Vector3.ZERO
 	return anim.length / speed
 
 
@@ -462,14 +482,15 @@ func active_shapes() -> int:
 # ================= บาดแผล (ภาพล้วน ไม่เกี่ยวกับกติกา) =================
 
 ## แผลที่กระดูก bone (ชื่อกระดูกในโครง) ศูนย์กลาง local_offset ในกรอบกระดูก รัศมี radius ม. · คืน true = ลงแผลแล้ว
-## ติดกระดูก (ตามท่าทุกเฟรมตอนมีแผล) · ครบ MAX_WOUNDS แล้วทับแผลเก่าสุด · min ไม่มีแผลเลย (ไม่เก็บ ไม่มีงานต่อเฟรม)
+## ติดกระดูก (ตามท่าทุกเฟรมตอนมีแผล) · ตัดเฉพาะส่วนร่างกายของ bone · ครบ MAX_WOUNDS แล้วทับแผลเก่าสุด ·
+## min ไม่มีแผลเลย (ไม่เก็บ ไม่มีงานต่อเฟรม) · ไม่มีเชดเดอร์แผลในโฟลเดอร์ = ไม่มีแผล
 func add_wound(bone: StringName, local_offset: Vector3, radius: float) -> bool:
-	if not _built or level == "min" or radius <= 0.0:
+	if not _built or level == "min" or radius <= 0.0 or wound_shader() == null:
 		return false
 	var bi := int(_idx.get(String(bone), -1))
 	if bi < 0:
 		return false
-	var w := [bone, bi, local_offset, radius]
+	var w := [bone, bi, local_offset, radius, body_part(String(bone))]
 	if _wounds.size() < MAX_WOUNDS:
 		_wounds.append(w)
 	else:
@@ -489,12 +510,18 @@ func wound_count() -> int:
 	return _wounds.size()
 
 
-## แผลทั้งหมด [{bone, offset, radius}] (เทส: seed เดิมได้ตำแหน่งเดิม)
+## แผลทั้งหมด [{bone, offset, radius, part}] (เทส: seed เดิมได้ตำแหน่งเดิม)
 func wounds() -> Array:
 	var out := []
 	for w: Array in _wounds:
-		out.append({"bone": w[0], "offset": w[2], "radius": w[3]})
+		out.append({"bone": w[0], "offset": w[2], "radius": w[3], "part": w[4]})
 	return out
+
+
+## ทิศ (โลก) จากตัวนี้ไปหาผู้ตี สำหรับแผลของ play(&"hit"/&"hit_heavy"/&"die") ครั้งถัดไป: ลงแผลด้านที่หันหาผู้ตี
+## (ใช้ครั้งเดียวแล้วลืม · ไม่เรียก = สุ่มทุกด้าน) · นอกสัญญาตัวละคร (ตัวอื่นไม่มี: ผู้เรียกเช็ก has_method)
+func set_hit_from(world_dir: Vector3) -> void:
+	_hit_from = world_dir.normalized() if world_dir.length() > 0.0001 else Vector3.ZERO
 
 
 ## ศูนย์กลางแผล i ในพิกัดโลกตามท่าปัจจุบัน
@@ -514,18 +541,43 @@ func wound_updates() -> int:
 	return _wound_updates
 
 
-## จุดผิวที่ลงแผลได้ของกระดูก bone ที่หันไปทาง dir (กรอบโครงตอนผูก) มากสุด: [ศูนย์กลางในกรอบกระดูก, นอร์มอล] (เทส/ภาพ)
-static func wound_spot(bone: StringName, dir: Vector3) -> Array:
-	var list: Array = wound_spots().get(bone, [])
+## จุดผิวที่ลงแผลได้ของกระดูก bone ที่หันไปทาง dir (กรอบโครงตอนผูก) มากสุด เฉพาะจุดที่รัศมีลงได้ ≥ min_room (เทส/ภาพ)
+## [ศูนย์กลางในกรอบกระดูก, นอร์มอลในกรอบกระดูก, รัศมีที่ลงได้สูงสุด] · body = โฟลเดอร์ร่าง
+static func wound_spot(bone: StringName, dir: Vector3, min_room := 0.0, body := DIR) -> Array:
+	var list: Array = wound_spots(body).get(bone, [])
+	var skin := _skin_of(body)
 	var best := []
 	var score := -INF
-	var bp := _skin.get_bind_pose(_bind_index(bone)) if _skin != null else Transform3D.IDENTITY
+	var bp := skin.get_bind_pose(_bind_index(bone, skin)) if skin != null else Transform3D.IDENTITY
 	for s: Array in list:
+		if float(s[2]) < min_room:
+			continue
 		var d := (bp.basis.inverse() * (s[1] as Vector3)).dot(dir.normalized())
 		if d > score:
 			score = d
 			best = s
 	return best
+
+
+## ส่วนร่างกายของกระดูก (ตามชื่อ เหมือน parts.py ของ tools/soldier): 0 ลำตัว 1 หัว 2/3 แขนซ้าย/ขวา 4/5 ขาซ้าย/ขวา
+static func body_part(bone: String) -> int:
+	if bone.begins_with("neck") or bone.begins_with("head"):
+		return 1
+	var side := 0 if bone.ends_with("L") else 1
+	for a in ["shoulder", "uparm", "elbow", "wrist", "hand"]:
+		if bone.begins_with(a):
+			return 2 + side
+	for a in ["hip", "knee", "ankle", "toe", "heel"]:
+		if bone.begins_with(a):
+			return 4 + side
+	return 0
+
+
+## เชดเดอร์ผิวตอนมีแผล (โหลดตอนแผลแรก) · null = โฟลเดอร์ไม่มี (ไม่มีแผล)
+static func wound_shader() -> Shader:
+	if _wound_sh == null and ResourceLoader.exists(WOUND_SHADER):
+		_wound_sh = load(WOUND_SHADER) as Shader
+	return _wound_sh
 
 
 # ================= ข้อมูลร่วม (static) =================
@@ -538,52 +590,116 @@ static func body_mesh(l: String) -> ArrayMesh:
 	return _mesh_cache[l]
 
 
-## ชั้นในของแผล "flesh" / "bone" (โหลดตอนแผลแรกบน hi/mid) · null = ไม่มีไฟล์
-static func inner_mesh(l: String) -> ArrayMesh:
-	if not _inner_cache.has(l):
-		var p: String = INNER.get(l, "")
-		_inner_cache[l] = load(p) as ArrayMesh if p != "" and ResourceLoader.exists(p) else null
-	return _inner_cache[l]
+## ชั้นในของแผล "flesh" / "bone" ของร่างในโฟลเดอร์ body (โหลดตอนแผลแรกบน hi/mid) · null = ไม่มีไฟล์
+static func inner_mesh(l: String, body := DIR) -> ArrayMesh:
+	var key := body + l
+	if not _inner_cache.has(key):
+		var p: String = body + str(INNER[l]) if INNER.has(l) else ""
+		_inner_cache[key] = load(p) as ArrayMesh if p != "" and ResourceLoader.exists(p) else null
+	return _inner_cache[key]
 
 
-## จุดลงแผลต่อกระดูกใน WOUND_BONES: จุดยอดของ body_min ที่กระดูกนั้นถือน้ำหนัก ≥ WOUND_SPOT_W
-## {กระดูก: [[จุดในกรอบกระดูก, นอร์มอลในกรอบกระดูก], ...]} ตามลำดับจุดยอด (กำหนดแน่นอน) · คิดครั้งเดียว
-static func wound_spots() -> Dictionary:
-	if not _spots.is_empty():
-		return _spots
-	_load_static()
-	var m := body_mesh("min")
-	if m == null or _skin == null:
-		return _spots
+## จุดลงแผลต่อกระดูกใน WOUND_BONES ของร่างในโฟลเดอร์ body (คิดครั้งเดียวต่อร่าง ตามลำดับจุดยอด กำหนดแน่นอน):
+## จุดยอดของ SPOT_MESH ที่กระดูกนั้นถือน้ำหนัก ≥ WOUND_SPOT_W · {กระดูก: [[จุดในกรอบกระดูก, นอร์มอลในกรอบกระดูก,
+## รัศมีสูงสุด], ...]} · รัศมีสูงสุด = ระยะถึงรอยต่อส่วนร่างกาย (ท่าผูก) และแขนขา: ระยะถึงแกนกระดูก (WOUND_AXIS_K)
+static func wound_spots(body := DIR) -> Dictionary:
+	if _spots.has(body):
+		return _spots[body]
+	var out := {}
+	_spots[body] = out
+	var skin := _skin_of(body)
+	var m := load(body + SPOT_MESH) as ArrayMesh if ResourceLoader.exists(body + SPOT_MESH) else null
+	if m == null or skin == null:
+		return out
 	var arr := m.surface_get_arrays(0)
 	var pos: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 	var nrm: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
 	var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
 	var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
-	var per := bones.size() / maxi(pos.size(), 1)
-	for v in pos.size():
-		var top := -1
+	var tri: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	var cus: Variant = arr[Mesh.ARRAY_CUSTOM0]
+	var nv := pos.size()
+	var per := bones.size() / maxi(nv, 1)
+	var top := PackedInt32Array()
+	var topw := PackedFloat32Array()
+	var part := PackedInt32Array()
+	top.resize(nv)
+	topw.resize(nv)
+	part.resize(nv)
+	for v in nv:
+		var tb := -1
 		var tw := -1.0
 		for k in per:
 			if wts[v * per + k] > tw:
 				tw = wts[v * per + k]
-				top = bones[v * per + k]
-		if tw < WOUND_SPOT_W or top < 0 or top >= _skin.get_bind_count():
+				tb = bones[v * per + k]
+		top[v] = tb
+		topw[v] = tw
+		# ส่วนร่างกาย: ค่าที่อบไว้ใน CUSTOM0.w (ที่เชดเดอร์ใช้) ไม่มีก็คิดจากกระดูกหลัก
+		if cus is PackedFloat32Array and (cus as PackedFloat32Array).size() == nv * 4:
+			part[v] = int(round((cus as PackedFloat32Array)[v * 4 + 3]))
+		else:
+			part[v] = body_part(String(skin.get_bind_name(tb))) if tb >= 0 and tb < skin.get_bind_count() else 0
+	# รอยต่อ: จุดยอดที่อยู่สามเหลี่ยมเดียวกับจุดของอีกส่วน -> ตาราง (ช่องละ cell ม.) แยกตามส่วน
+	var cell := WOUND_DIE.y * WOUND_SEAM_K + WOUND_SEAM_PAD
+	var edge := PackedByteArray()
+	edge.resize(nv)
+	for t in range(0, tri.size(), 3):
+		if part[tri[t]] != part[tri[t + 1]] or part[tri[t + 1]] != part[tri[t + 2]]:
+			edge[tri[t]] = 1
+			edge[tri[t + 1]] = 1
+			edge[tri[t + 2]] = 1
+	var seam := {}
+	for v in nv:
+		if edge[v] == 1:
+			var key := Vector4i(part[v], floori(pos[v].x / cell), floori(pos[v].y / cell), floori(pos[v].z / cell))
+			var at: PackedVector3Array = seam.get(key, PackedVector3Array())
+			at.append(pos[v])
+			seam[key] = at
+	for v in nv:
+		var tb := top[v]
+		if topw[v] < WOUND_SPOT_W or tb < 0 or tb >= skin.get_bind_count():
 			continue
-		var name := StringName(_skin.get_bind_name(top))
+		var name := StringName(skin.get_bind_name(tb))
 		if not WOUND_BONES.has(name):
 			continue
-		var bp := _skin.get_bind_pose(top)
-		if not _spots.has(name):
-			_spots[name] = []
-		_spots[name].append([bp * pos[v], (bp.basis * nrm[v]).normalized()])
-	return _spots
+		var p := pos[v]
+		var clear := cell
+		var ci := Vector3i(floori(p.x / cell), floori(p.y / cell), floori(p.z / cell))
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				for dz in range(-1, 2):
+					var key := Vector4i(part[v], ci.x + dx, ci.y + dy, ci.z + dz)
+					if seam.has(key):
+						for q: Vector3 in seam[key]:
+							clear = minf(clear, p.distance_to(q))
+		var room := maxf(clear - WOUND_SEAM_PAD, 0.0) / WOUND_SEAM_K
+		var bp := skin.get_bind_pose(tb)
+		var lp := bp * p
+		if WOUND_AXIS.has(name):
+			var ch := _bind_index(WOUND_AXIS[name], skin)
+			if ch >= 0:
+				var tip := bp * skin.get_bind_pose(ch).affine_inverse().origin
+				var axis := Geometry3D.get_closest_point_to_segment(lp, Vector3.ZERO, tip).distance_to(lp)
+				room = minf(room, axis * WOUND_AXIS_K)
+		if not out.has(name):
+			out[name] = []
+		out[name].append([lp, (bp.basis * nrm[v]).normalized(), room])
+	return out
 
 
-static func _bind_index(bone: StringName) -> int:
-	if _skin != null:
-		for i in _skin.get_bind_count():
-			if _skin.get_bind_name(i) == bone:
+static func _skin_of(body: String) -> Skin:
+	if body == DIR:
+		_load_static()
+		return _skin
+	return load(body + "skin.res") as Skin if ResourceLoader.exists(body + "skin.res") else null
+
+
+static func _bind_index(bone: StringName, skin: Skin = null) -> int:
+	var sk := skin if skin != null else _skin
+	if sk != null:
+		for i in sk.get_bind_count():
+			if sk.get_bind_name(i) == bone:
 				return i
 	return -1
 
@@ -1043,6 +1159,12 @@ func _update_overlay() -> void:
 	if _mi == null:
 		return
 	var tint := _tele if level != "min" else 0.0
+	if _own_mat != null and _mi.material_override == _own_mat:
+		# วัสดุของตัวเอง (มีแผล/ไฟฉากโชว์): แสงวาบ/สีเตือนผ่าน uniform ของผิว ไม่มีชั้นทับ (ไม่ทับรูแผล ไม่เพิ่ม draw)
+		_own_mat.set_shader_parameter("flash", _flash)
+		_own_mat.set_shader_parameter("telegraph", tint)
+		_mi.material_overlay = null
+		return
 	var mat: StandardMaterial3D = null
 	if _flash > 0.0 or tint > 0.0:
 		if _overlay == null:
@@ -1065,36 +1187,72 @@ func _dodge_pose(f: float, lean: float) -> void:
 	_model.transform = Transform3D(Basis(Vector3.RIGHT, lean * f), Vector3(0.0, -DODGE_DIP * f, 0.0)) * _rest
 
 
-## แผลสุ่มแบบมี seed (_wrng): กระดูกตามน้ำหนัก WOUND_BONES แล้วจุดผิวของกระดูกนั้น ศูนย์กลางลึกใต้ผิว WOUND_DEPTH
-## trunk = ช่วงรัศมีที่ลำตัว · limb = ที่แขนขา · min ไม่สุ่ม (ไม่มีแผลเลย)
+## แผลสุ่มแบบมี seed (_wrng): สุ่ม 3 ค่าต่อแผลทุกระดับ (min ด้วย ลำดับสุ่มจึงไม่ขึ้นกับระดับ) แล้ว min ไม่ลงแผล
+## กระดูกตามน้ำหนัก WOUND_BONES × สัดส่วนจุดที่ใช้ได้ แล้วจุดผิวของกระดูกนั้น: เฉพาะจุดที่รัศมีลงได้พอ และ (set_hit_from)
+## หันหาผู้ตี (ไม่มีจุดหันหาเลย = ทุกด้าน) · รัศมีไม่เกินที่จุดนั้นลงได้ · ศูนย์กลางลึกใต้ผิว WOUND_DEPTH
+## trunk = ช่วงรัศมีที่ลำตัว · limb = ที่แขนขา
 func _random_wound(trunk: Vector2, limb: Vector2) -> bool:
-	if not _built or level == "min":
+	var r_bone := _wrng.randf()
+	var r_spot := _wrng.randf()
+	var r_rad := _wrng.randf()
+	if not _built or level == "min" or wound_shader() == null:
 		return false
-	var spots := wound_spots()
+	var spots := wound_spots(_body)
+	var cand := {}
+	for facing in [_hit_from != Vector3.ZERO, false]:
+		cand = _wound_candidates(spots, trunk, limb, facing)
+		if not cand.is_empty() or not facing:
+			break
+	# น้ำหนักกระดูก × สัดส่วนจุดที่ใช้ได้ (พื้นที่ที่ลงได้/หันหาผู้ตี)
+	var wt := {}
 	var total := 0.0
 	for b: StringName in WOUND_BONES:
-		if spots.has(b):
-			total += float(WOUND_BONES[b])
+		if cand.has(b):
+			wt[b] = float(WOUND_BONES[b]) * float((cand[b] as Array).size()) / float((spots[b] as Array).size())
+			total += float(wt[b])
 	if total <= 0.0:
 		return false
-	var x := _wrng.randf() * total
+	var x := r_bone * total
 	var pick: StringName = &""
 	for b: StringName in WOUND_BONES:
-		if not spots.has(b):
+		if not cand.has(b):
 			continue
 		pick = b
-		x -= float(WOUND_BONES[b])
+		x -= float(wt[b])
 		if x <= 0.0:
 			break
-	var list: Array = spots[pick]
-	var s: Array = list[_wrng.randi_range(0, list.size() - 1)]
+	var list: Array = cand[pick]
+	var s: Array = list[mini(int(r_spot * list.size()), list.size() - 1)]
 	var rr := trunk if TRUNK_BONES.has(pick) else limb
-	var rad := lerpf(rr.x, rr.y, _wrng.randf())
+	var rad := minf(lerpf(rr.x, rr.y, r_rad), float(s[2]))
 	return add_wound(pick, (s[0] as Vector3) - (s[1] as Vector3) * rad * WOUND_DEPTH, rad)
 
 
-## สภาพแผลตามระดับ: hi/mid = วัสดุของตัวเอง (ทิ้งผิวในแผล) + ชั้นในเห็น · lo = สีแผลบนผิว ไม่มีชั้นใน
-## min หรือไม่มีแผล = วัสดุร่วม ชั้นในซ่อน (visible = false ไม่มีต้นทุน)
+## จุดที่ลงแผลได้ต่อกระดูก: รัศมีที่ลงได้ ≥ WOUND_ROOM × ต่ำสุดของช่วง · facing = นอร์มอลตามท่าหันหา _hit_from
+func _wound_candidates(spots: Dictionary, trunk: Vector2, limb: Vector2, facing: bool) -> Dictionary:
+	var out := {}
+	for b: StringName in WOUND_BONES:
+		if not spots.has(b):
+			continue
+		var rr := trunk if TRUNK_BONES.has(b) else limb
+		var d := Vector3.ZERO
+		if facing:
+			var bi := int(_idx.get(String(b), -1))
+			if bi < 0:
+				continue
+			var gb := _sk.global_basis if _sk.is_inside_tree() else _sk.basis
+			d = ((gb * _sk.get_bone_global_pose(bi).basis).inverse() * _hit_from).normalized()
+		var list := []
+		for s: Array in spots[b]:
+			if float(s[2]) >= rr.x * WOUND_ROOM and (not facing or (s[1] as Vector3).dot(d) > WOUND_FACING):
+				list.append(s)
+		if not list.is_empty():
+			out[b] = list
+	return out
+
+
+## สภาพแผลตามระดับ: hi/mid = วัสดุของตัวเองบนเชดเดอร์แผล (ทิ้งผิวในแผล) + ชั้นในเห็น · lo = สีแผลบนผิว ไม่มีชั้นใน
+## min หรือไม่มีแผล = เชดเดอร์ผิวปกติ (ไม่มีโค้ดแผล) วัสดุร่วม ชั้นในซ่อน (visible = false ไม่มีต้นทุน)
 func _show_wounds() -> void:
 	if not _built or _mat == null:
 		return
@@ -1104,21 +1262,29 @@ func _show_wounds() -> void:
 		_own_mat = _mat.duplicate() as ShaderMaterial
 	elif _wounds.is_empty() and _own_mat != null and not _own_lit:
 		_own_mat = null
+	if _own_mat != null:
+		var sh: Shader = wound_shader() if on else _mat.shader
+		if sh != null and _own_mat.shader != sh:
+			_own_mat.shader = sh
 	if cut and _inner.is_empty():
 		_make_inner()
 	for mi: MeshInstance3D in _inner:
 		mi.visible = cut
 	_mi.material_override = _material_for(level)
 	_update_wounds()
+	_update_overlay()
 
 
-## ส่งศูนย์กลาง (กรอบโครง) + การหมุนของกระดูกของแต่ละแผลให้เชดเดอร์ (ทุกเฟรมเฉพาะตอนมีแผล · min ไม่มี)
+## ส่งศูนย์กลาง (กรอบโครง) + การหมุนของกระดูก + ส่วนร่างกายของแต่ละแผลให้เชดเดอร์ (ทุกเฟรมเฉพาะตอนมีแผล · min ไม่มี)
+## wound_mode 2 (ตัดผิว) เฉพาะ hi/mid ที่มีชั้นใน ไม่งั้น 1 (สีแผล: ไม่เห็นพื้นหลังผ่านรู)
 func _update_wounds() -> void:
 	var n := _wounds.size() if level != "min" else 0
 	var c := PackedVector4Array()
 	var q := PackedVector4Array()
+	var pt := PackedFloat32Array()
 	c.resize(MAX_WOUNDS)
 	q.resize(MAX_WOUNDS)
+	pt.resize(MAX_WOUNDS)
 	for i in n:
 		var w: Array = _wounds[i]
 		var g := _sk.get_bone_global_pose(int(w[1]))
@@ -1126,8 +1292,9 @@ func _update_wounds() -> void:
 		var r := g.basis.get_rotation_quaternion()
 		c[i] = Vector4(p.x, p.y, p.z, float(w[3]))
 		q[i] = Vector4(r.x, r.y, r.z, r.w)
+		pt[i] = float(w[4])
 	var mats: Array = []
-	if _own_mat != null:
+	if _own_mat != null and _own_mat.shader == _wound_sh:
 		mats.append(_own_mat)
 	if level == "hi" or level == "mid":
 		mats.append_array(_inner_mats)
@@ -1135,8 +1302,9 @@ func _update_wounds() -> void:
 		m.set_shader_parameter("wound_count", n)
 		m.set_shader_parameter("wounds", c)
 		m.set_shader_parameter("wound_rot", q)
-	if _own_mat != null:
-		_own_mat.set_shader_parameter("wound_mode", 2 if level == "hi" or level == "mid" else 1)
+		m.set_shader_parameter("wound_part", pt)
+	if _own_mat != null and _own_mat.shader == _wound_sh:
+		_own_mat.set_shader_parameter("wound_mode", 2 if (level == "hi" or level == "mid") and not _inner.is_empty() else 1)
 	if n > 0:
 		_wound_updates += 1
 
@@ -1144,7 +1312,7 @@ func _update_wounds() -> void:
 ## ชั้นในของตัวนี้ (ผูกโครงและ Skin เดียวกับผิว) วัสดุของตัวเอง · สร้างครั้งเดียวตอนแผลแรกบน hi/mid
 func _make_inner() -> void:
 	for l in ["flesh", "bone"]:
-		var m := inner_mesh(l)
+		var m := inner_mesh(l, _body)
 		var base := m.surface_get_material(0) as ShaderMaterial if m != null else null
 		if base == null:
 			continue

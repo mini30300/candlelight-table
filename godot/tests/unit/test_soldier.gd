@@ -21,6 +21,10 @@ const SCRIPT := "res://scenes/arena/soldier_figure.gd"
 const DIR := "res://assets/figures/soldier/"
 ## bytes: the APK grows by the soldier's files (80.8 MB in build-143 + 6.5 MB stays under the 90 MB target)
 const SIZE_CAP := 6500000
+## ร่างแบบอื่น (variants): โฟลเดอร์ย่อยละร่างใต้ assets/figures/soldier/<ชื่อ>/ (rig, skin, ผิว 4 ระดับไม่มี blend shape,
+## ชั้นในของแผลของร่างนั้น) ไม่เกิน VARIANT_CAP ต่อร่าง ; ทั้งโฟลเดอร์ทหารรวมไม่เกิน ALL_CAP (APK เป้า 90 MB)
+const VARIANT_CAP := 1250000
+const ALL_CAP := 12000000
 const LIB := "res://assets/anim/humanoid.res"
 const DT := 1.0 / 30.0
 const TMP_PACK := "user://test_soldier_pack/"
@@ -235,6 +239,26 @@ func test_assets() -> void:
 			var fa := FileAccess.open(DIR + f, FileAccess.READ)
 			total += fa.get_length() if fa != null else 0
 	assert_true(total > 0 and total <= SIZE_CAP, "the meshes and clips total %.2f MB, at most %.1f MB" % [total / 1e6, SIZE_CAP / 1e6])
+	# ร่างแบบอื่น (ถ้านำเข้าแล้ว): แต่ละโฟลเดอร์มีชุดของตัวเองครบและไม่เกิน VARIANT_CAP ; ทั้งหมดไม่เกิน ALL_CAP
+	var all := _folder_bytes(DIR)
+	for sub in DirAccess.get_directories_at(DIR):
+		var vd := DIR + sub + "/"
+		for f in ["rig.tscn", "skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res"]:
+			assert_true(FileAccess.file_exists(vd + f), "variant %s: has %s" % [sub, f])
+		var vb := _folder_bytes(vd)
+		assert_true(vb <= VARIANT_CAP, "variant %s: %.2f MB, at most %.2f MB" % [sub, vb / 1e6, VARIANT_CAP / 1e6])
+		all += vb
+	assert_true(all <= ALL_CAP, "the soldier folder with every variant: %.2f MB, at most %.1f MB" % [all / 1e6, ALL_CAP / 1e6])
+
+
+## ไบต์ของไฟล์ในโฟลเดอร์ (ไม่รวมโฟลเดอร์ย่อย, .uid, .import)
+func _folder_bytes(d: String) -> int:
+	var n := 0
+	for f in DirAccess.get_files_at(d):
+		if not f.ends_with(".uid") and not f.ends_with(".import"):
+			var fa := FileAccess.open(d + f, FileAccess.READ)
+			n += fa.get_length() if fa != null else 0
+	return n
 
 
 func test_clips() -> void:
@@ -393,10 +417,16 @@ func test_actions_and_aim() -> void:
 	_steps(f, 2)
 	assert_true(not String(ap.current_animation).ends_with("/walk") and not String(ap.current_animation).ends_with("/idle"),
 		"dead: set_move does not get it up again", String(ap.current_animation))
+	# ตายแล้วมีแผล: แสงวาบผ่าน uniform ของวัสดุตัวเอง (ไม่ทับรูแผล) · ไม่มีแผล: ชั้นทับ (overlay) บนวัสดุร่วม
 	f.call("set_flash", 1.0)
-	assert_true((f.call("body") as MeshInstance3D).material_overlay != null, "hit flash: an overlay")
+	var body := f.call("body") as MeshInstance3D
+	assert_true(int(f.call("wound_count")) > 0 and body.material_overlay == null
+		and is_equal_approx(float((body.material_override as ShaderMaterial).get_shader_parameter("flash")), 1.0),
+		"hit flash on the wounded body: the skin's own flash uniform, no overlay over the wounds")
+	f.call("clear_wounds")
+	assert_true(body.material_overlay != null, "hit flash, unwounded: an overlay")
 	f.call("set_flash", 0.0)
-	assert_true((f.call("body") as MeshInstance3D).material_overlay == null, "flash off: no overlay (no extra pass)")
+	assert_true(body.material_overlay == null, "flash off: no overlay (no extra pass)")
 	f.free()
 
 
