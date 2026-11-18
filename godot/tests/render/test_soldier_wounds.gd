@@ -5,9 +5,10 @@ extends SceneTree
 ##    and back to 1 with the same picture once the wound is cleared; a close-up on hi shows bone through the flesh;
 ##    on lo one draw call and a red tint without bone; on min add_wound does nothing and the picture, draw calls and
 ##    primitives are unchanged;
-##  - the arena: on hi a real hit (take_hit) leaves one wound and two draw calls more (only while wounded), death adds
-##    two or three wounds and the revive after the down time clears them; on lo a hit adds no draw call; on min a hit
-##    leaves no wound, no draw call and nothing processing once idle.
+##  - the arena: on hi and mid a real hit (take_hit) leaves one wound and two draw calls more (only while wounded) and the
+##    wounded overview stays within ARENA_SPEC §11.2; on hi death adds two or three wounds and the revive after the
+##    down time clears them; on lo a hit adds no draw call; on min a hit leaves no wound, no draw call and nothing
+##    processing once idle.
 ## PNGs (TEST_OUT, default tests/out): soldier_wound_alone.png (the four levels, before | after),
 ## soldier_wound_close_hi.png, soldier_wound_arena_<level>.png, soldier_wound_death_hi.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
@@ -28,6 +29,8 @@ const CAM_FROM := Vector3(0.25, 1.45, 1.6)
 ## pixels around the projected wound centre: at least this many red-flesh / bone-white pixels on hi and mid
 const MIN_FLESH := 300
 const MIN_BONE := 15
+## the arena overview with the soldier wounded stays within ARENA_SPEC §11.2 (as tests/render/test_soldier.gd unwounded)
+const ARENA_OVERVIEW := {"hi": [50, 80000], "mid": [45, 60000]}
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -162,7 +165,7 @@ func _arena() -> void:
 	_check(fig != null and fig.get_script() == S, "the arena player is the soldier", str(fig))
 	if fig == null:
 		return
-	for lv in ["hi", "lo", "min"]:
+	for lv in ["hi", "mid", "lo", "min"]:
 		_app().call("set_gfx", lv)
 		arena.call("refresh")
 		await _front(world, player)
@@ -190,7 +193,21 @@ func _arena() -> void:
 			_save("soldier_wound_arena_lo.png")
 			fig.call("clear_wounds")
 			continue
-		_check(m1 == m0 + 2, "hi: wounded, two draw calls more (flesh, bone: %d -> %d)" % [m0, m1])
+		_check(m1 == m0 + 2, "%s: wounded, two draw calls more (flesh, bone: %d -> %d)" % [lv, m0, m1])
+		# the overview of tests/render/test_soldier.gd, wounded: still within §11.2
+		world.call("place_player", ArenaLayout.RESPAWN, PI, 0.0)
+		player.call("set_mode", &"shoot")
+		(player.call("camera_rig") as Node3D).call("set_view", 0.0, -0.1, ArenaCamera.SHOULDER_ARM)
+		await _physics(6)
+		var ov := await _measure_total()
+		var t: Array = ARENA_OVERVIEW[lv]
+		print("wound arena %-4s overview draw calls %d  primitives %d" % [lv, ov[0], ov[1]])
+		_check(ov[0] <= int(t[0]) and ov[1] <= int(t[1]), "%s: the wounded overview, %d draws, %d primitives within %d / %d"
+			% [lv, ov[0], ov[1], int(t[0]), int(t[1])])
+		await _front(world, player)
+		if lv == "mid":
+			fig.call("clear_wounds")
+			continue
 		_save("soldier_wound_arena_hi.png")
 		player.call("take_hit", {"amount": 1000, "from": player.global_position + Vector3(0, 1, 2)})
 		await _physics(80)
@@ -298,6 +315,21 @@ func _measure_vp(vp: SubViewport) -> Array:
 			RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME))
 		p = maxi(p, RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE,
 			RenderingServer.VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME))
+	return [d, p]
+
+
+## the whole frame (as tests/render/test_soldier.gd): [draw calls, primitives], the most over four frames
+func _measure_total() -> Array:
+	var idle := OS.low_processor_usage_mode
+	OS.low_processor_usage_mode = false
+	await _frames(3)
+	var d := 0
+	var p := 0
+	for i in 4:
+		await process_frame
+		d = maxi(d, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+		p = maxi(p, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	OS.low_processor_usage_mode = idle
 	return [d, p]
 
 
