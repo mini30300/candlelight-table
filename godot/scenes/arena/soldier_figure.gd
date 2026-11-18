@@ -54,6 +54,8 @@ const FLASH_COLOUR := Color(1.0, 1.0, 1.0)
 const TINT_COLOUR := Color(0.9, 0.08, 0.06)
 ## ตัวขับ (ค่าของขั้น 1 ใช้เมื่อ rig.tscn ไม่มี meta "soldier_rig" จาก rig.json ของขั้นปั้น)
 const DRIVERS := {"clav_elev_k": 0.12, "clav_elev_max": 15.0, "clav_prot_k": 0.12, "twist_k": 0.5}
+## ไหล่ลดลงเมื่อแขนห้อยต่ำกว่าท่าปั้น (กาง 30°) สูงสุดกี่องศา (แขนห้อยตรง) · ไม่งั้นบ่าตั้งเป็นไม้แขวนเสื้อ · ทุกร่างเท่ากัน
+const CLAV_DROOP := 5.0
 const KEYS := {"elbow": 120.0, "knee": 120.0, "hip_flex": 100.0, "hip_ext": 25.0}
 const BIND_ELBOW := 8.0
 const ARM_KEYS := {"bind": [0.573576436, -0.819152044, 0.0], "down": [0.087155743, -0.996194698, 0.0],
@@ -1187,6 +1189,7 @@ func _drive() -> void:
 					var d := q * DOWN
 					var elev := rad_to_deg(acos(clampf(-d.y, -1.0, 1.0)))
 					var a := minf(float(_drv["clav_elev_max"]), float(_drv["clav_elev_k"]) * maxf(0.0, elev - 30.0))
+					a -= CLAV_DROOP * clampf((30.0 - elev) / 30.0, 0.0, 1.0)
 					var b := float(_drv["clav_prot_k"]) * rad_to_deg(asin(clampf(d.z, -1.0, 1.0)))
 					out = Quaternion(Vector3.UP, deg_to_rad(-sx * b)) * Quaternion(Vector3.BACK, deg_to_rad(sx * a))
 			_sk.set_bone_pose_rotation(int(r[0]), out)

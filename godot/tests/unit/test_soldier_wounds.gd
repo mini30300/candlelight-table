@@ -544,6 +544,51 @@ func test_shaders() -> void:
 		assert_true(names.has("wound_count") and names.has("wound_part"), name + " loads with the included wound uniforms", str(names))
 
 
+## แสงผิว: สำเนาทุกร่าง (และต้นฉบับของเครื่องมือปั้น ถ้ามี) เหมือนกันทุกไบต์ · per_vertex (lo/min) มีแค่แสงกระจาย + ครึ่งฟ้า
+## (ไม่มีแสงขอบ/เงาผิว) · ต่อพิกเซลมีแสงขอบและเงาผิวใน skin_gloss ที่เรียกที่เดียว
+func test_skin_light_copies() -> void:
+	S = load(SCRIPT)
+	var gen := ProjectSettings.globalize_path("res://").path_join("../tools/soldier/generator/src/gd/")
+	var strip := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/")
+	for name in ["body.gdshader", "body_wound.gdshader"]:
+		var base := FileAccess.get_file_as_string(DIR + name)
+		for body in BODIES:
+			var d := str(S.call("folder", body))
+			assert_true(FileAccess.get_file_as_string(d + name) == base, "%s: %s is the same as the base body's" % [body, name])
+		var src := gen.path_join("soldier_skin.gdshader" if name == "body.gdshader" else "soldier_skin_wound.gdshader")
+		if FileAccess.file_exists(src):
+			assert_true(FileAccess.get_file_as_string(src) == base, "the generator's %s is the same as %s" % [src.get_file(), name])
+		else:
+			print("skip  the generator's copy of %s is not here (exported self-test)" % name)
+		var code := strip.sub(base, "", true)
+		var light := _fn(code, "vec3 skin_light(")
+		var gloss := _fn(code, "vec3 skin_gloss(")
+		var pv_v := _pv_branch(_fn(code, "void vertex()"))
+		var pv_f := _pv_branch(_fn(code, "void fragment()"))
+		assert_true(light.contains("sky_tint") and light.contains("ground_tint"), name + ": skin_light has the sky/ground ambient")
+		assert_true(gloss.contains("rim_light") and gloss.contains("sheen"), name + ": rim light and sheen live in skin_gloss")
+		for k in ["rim_light", "sheen", "skin_gloss", "pow(", "VIEW"]:
+			assert_false(light.contains(k) or pv_v.contains(k) or pv_f.contains(k), "%s: per_vertex has no rim light or sheen (%s)" % [name, k])
+		assert_true(pv_v.contains("skin_light("), name + ": per_vertex lights in the vertex with skin_light()")
+		assert_eq(pv_f.strip_edges(), "lit = v_col * v_light;", name + ": the per_vertex fragment only multiplies the vertex light")
+		assert_eq(code.count("skin_gloss("), 2, name + ": skin_gloss is defined once and called once (per pixel)")
+
+
+## ตัวฟังก์ชันที่ขึ้นต้นด้วย head จนถึง } ปิดที่ต้นบรรทัด ("" = ไม่มี)
+func _fn(code: String, head: String) -> String:
+	var i := code.find(head)
+	return "" if i < 0 else code.substr(i, code.find("\n}", i) - i)
+
+
+## ข้อความในกิ่ง if (per_vertex) { ... } แรก (ก่อน } else {)
+func _pv_branch(s: String) -> String:
+	var i := s.find("if (per_vertex) {")
+	if i < 0:
+		return ""
+	i += "if (per_vertex) {".length()
+	return s.substr(i, s.find("} else {", i) - i)
+
+
 func test_inner_assets() -> void:
 	S = load(SCRIPT)
 	_inner_assets(DIR, "base")
