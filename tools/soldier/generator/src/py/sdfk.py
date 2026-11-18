@@ -73,6 +73,14 @@ class Prim:
             R = np.asarray(p.get("rot", np.eye(3)), float)
             e = np.abs(R) @ (np.asarray(p["e"], float) + p.get("round", 0.0))
             return c - e, c + e
+        if self.kind == "lid":
+            c = np.asarray(p["c"], float)
+            e = p["r"] + p["t"]
+            return c - e, c + e
+        if self.kind == "almond":
+            c = np.asarray(p["c"], float)
+            e = p["re"] + p["shell"] + 0.002
+            return c - e, c + e
         raise ValueError(self.kind)
 
     def bbox(self, M):
@@ -103,11 +111,33 @@ class Prim:
             return tube_dist(P, np.asarray(p["pts"], F32), np.asarray(p["r"], F32), p.get("scale"))
         if k == "loft":
             return loft_dist(P, p), P[:, 1]
+        if k == "lid":
+            # เปลือกตา: เปลือกบางบนลูกตา (รัศมี r+t) ตัดด้วยระนาบขอบเปลือกตา (side +1 = เก็บด้านบน, -1 = ด้านล่าง)
+            q = P - np.asarray(p["c"], F32)
+            d_shell = _len(q) - (p["r"] + p["t"])
+            s_ = q @ np.asarray(p["n"], F32) - p["off"]
+            d_cut = -s_ if p["side"] > 0 else s_
+            return np.maximum(d_shell, d_cut), P[:, 1]
         if k == "rbox":
             R = np.asarray(p.get("rot", np.eye(3)), F32)
             q = np.abs((P - np.asarray(p["c"], F32)) @ R) - np.asarray(p["e"], F32)
             out = _len(np.maximum(q, 0.0)) + np.minimum(np.max(q, axis=1), 0.0)
             return out - p.get("round", 0.0), P[:, 1]
+        if k == "almond":
+            # ช่องเปิดตา (ชิ้นลบหลังชั้นไขมัน): รูปเมล็ดอัลมอนด์บนระนาบหน้า (จุดตัดวงกลมสองวง ปลายแหลม)
+            #   เอียงให้หางตาสูงกว่าหัวตา ; ลึกเฉพาะเปลือกหน้าลูกตา (ไม่เจาะเลยลูกตา)
+            q = P - np.asarray(p["c"], F32)
+            a = np.radians(p["tilt"]) * p["sx"]
+            ca, sa = np.cos(a), np.sin(a)
+            u = ca * q[:, 0] + sa * q[:, 1]
+            v = -sa * q[:, 0] + ca * q[:, 1]
+            hw, hu, hl = p["hw"], p["hu"], p["hl"]
+            ru = (hw * hw + hu * hu) / (2 * hu)
+            rl = (hw * hw + hl * hl) / (2 * hl)
+            d2 = np.maximum(np.sqrt(u * u + (v - (hu - ru)) ** 2) - ru, np.sqrt(u * u + (v - (rl - hl)) ** 2) - rl)
+            d_sh = _len(q) - (p["re"] + p["shell"])
+            d_fr = -(q[:, 2] - p["zmin"])
+            return np.maximum(np.maximum(d2, d_sh), d_fr).astype(F32), P[:, 1]
         raise ValueError(k)
 
     def eval(self, Pw, M):

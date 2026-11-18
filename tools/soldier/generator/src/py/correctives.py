@@ -20,6 +20,9 @@ ELBOW_KEY = 120.0
 KNEE_KEY = 120.0
 HIP_FLEX_KEY = 100.0
 HIP_EXT_KEY = 25.0
+# เป้าหมายของท่าแก้ "แขนแนบตัว" คิดแบบคนจริง: เมื่อแขนลงจากท่า A สะบัก/ไหปลาร้าหมุนลง (ปลายไหล่ต่ำลง ~1-1.5 ซม.)
+#   ใช้กับสนามเป้าหมายเท่านั้น (ตัวขับในเกมไม่เปลี่ยน ไม่มีสูตรใหม่ให้พอร์ต)
+CLAV_DOWN_TARGET = 7.0
 
 SHAPES = []
 for _sd in ("L", "R"):
@@ -91,6 +94,28 @@ def key_pose(shape):
     return p, joint, box, rr
 
 
+def mirror_shapes(D, pair):
+    """ท่าแก้ฝั่งขวา = ภาพสะท้อนของฝั่งซ้าย (ผิวปั้นสมมาตรพอดี: pair = จุดคู่สะท้อน)"""
+    out = dict(D)
+    for k in list(D):
+        if k.endswith("L"):
+            out[k[:-1] + "R"] = D[k][pair] * np.array([-1.0, 1.0, 1.0])
+    return out
+
+
+def clav_lowered(G, L, sd, deg):
+    """สำเนาท่า G ที่กระดูกช่วยไหปลาร้าข้าง sd กดลงเพิ่ม deg องศา (กระดูกช่วยเป็นใบไม้ -> เปลี่ยนแค่ตัวเดียว)"""
+    sx = 1.0 if sd == "L" else -1.0
+    b = "clavicle" + sd
+    q = rig.qmul(L[b], rig.qaxis([0, 0, 1], -sx * deg))
+    M = np.eye(4)
+    M[:3, :3] = rig.qmat(q)
+    M[:3, 3] = rig.OFFSET[b]
+    Gt = dict(G)
+    Gt[b] = G[rig.PARENT[b]] @ M
+    return Gt
+
+
 def project(g, P, it=8, step=0.01, total=0.035):
     Q = P.copy()
     for _ in range(it):
@@ -107,7 +132,7 @@ def project(g, P, it=8, step=0.01, total=0.035):
     return Q
 
 
-def compute(Vb, Fb, Wh, prims, Gb, verbose=True, shapes=None):
+def compute(Vb, Fb, Wh, prims, Gb, verbose=True, shapes=None, fat=1.0):
     """Vb = เมชละเอียดท่าผูก ; Wh = น้ำหนัก (มีกระดูกช่วย) ; คืน dict ท่าแก้ -> delta (n,3) กรอบท่าผูก + สถิติ"""
     A = adjacency(Fb, len(Vb))
     from mesh import vnormals
@@ -124,11 +149,11 @@ def compute(Vb, Fb, Wh, prims, Gb, verbose=True, shapes=None):
         if side != 0:
             mask *= (Vb[:, 0] * side > -0.02).astype(float)
         sel = mask > 1e-3
-        mus = MU.build(G, prims)
+        Gt = clav_lowered(G, L, shape[-1], CLAV_DOWN_TARGET) if shape.startswith("shoulder_down") else G
+        mus = MU.build(Gt, prims)
         lo = jp - box
         hi = jp + box
-        g = FD.skin_field(G, prims, mus, h=0.003, box=(lo, hi), verbose=False)
-        FD.smooth_skin(g, G)
+        g = FD.skin_coarse(Gt, prims, mus, fat=fat, h=0.003, box=(lo, hi), sigma=0.0025)
         P, Mix = WT.lbs(Vb[sel], Wh[sel], Gb, G)
         inside = np.all((P > lo + 0.01) & (P < hi - 0.01), axis=1)
         Q = P.copy()
@@ -159,13 +184,12 @@ def compute(Vb, Fb, Wh, prims, Gb, verbose=True, shapes=None):
     return out, stats
 
 
-def evaluate(Vb, Wh, Wmin, D, prims, Gb, pose, joint, box=0.2):
+def evaluate(Vb, Wh, Wmin, D, prims, Gb, pose, joint, box=0.2, fat=1.0):
     """ท่าทดสอบ (ระหว่างท่าหลัก): ความคลาดจากผิวกล้ามจริง ของ min (LBS ล้วน) / lo (+กระดูกช่วย) / hi (+ท่าแก้)"""
     G, L = rig.fk(pose)
     jp = G[joint][:3, 3]
     mus = MU.build(G, prims)
-    g = FD.skin_field(G, prims, mus, h=0.003, box=(jp - box, jp + box), verbose=False)
-    FD.smooth_skin(g, G)
+    g = FD.skin_coarse(G, prims, mus, fat=fat, h=0.003, box=(jp - box, jp + box), sigma=0.0025)
     wts = driver_weights(L)
     Dsum = np.zeros_like(Vb)
     for k, w in wts.items():

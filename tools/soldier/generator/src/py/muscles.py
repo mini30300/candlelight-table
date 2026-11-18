@@ -71,8 +71,8 @@ def _poly_at(pl, s, Mb):
 
 
 def _belly(t, t0, t1):
-    tn = np.clip((t - t0) / max(1e-6, 1 - t0 - t1), 0, 1)
-    return np.sin(np.pi * tn) ** 0.55
+    u = np.clip((t - t0) / max(1e-6, 1 - t0 - t1), 0, 1)
+    return np.sin(np.pi * u) ** 0.55
 
 
 def _interp_knots(knots, t, default=1.0):
@@ -252,7 +252,7 @@ def muscle_eval_points(mu, P):
     bt = np.zeros(len(P), F32)
     bk = np.zeros(len(P), np.int32)
     for k, fb in enumerate(mu["fibres"]):
-        lo, hi = fibre_bbox(fb, 0.03)
+        lo, hi = fibre_bbox(fb, 0.07)
         m = np.all((P >= lo) & (P <= hi), axis=1)
         if not np.any(m):
             continue

@@ -1,6 +1,7 @@
 extends SceneTree
 ## ทำภาพทหาร (xvfb, opengl3): หมุนรอบตัว, ชั้นโครงกระดูก/กล้าม/ผิว, ท่าทดสอบก่อน/หลังท่าแก้, ท่าจากคลิปเกม
 ## + วัดงบ (draw/สามเหลี่ยม ต่อระดับ) + เวลาตัวขับ + ยืนนิ่งบน min ; เขียน PNG และ render_report.json ลง OUT_DIR
+## + ภาพตรวจผิว (หน้า hi/min, ไหปลาร้า, รักแร้, ขาหนีบ, ศอก 0-150°) + ภาพเทียบระดับไขมัน (กล้อง/แสงเดียวกัน)
 
 const Fig := preload("res://src/gd/soldier_figure.gd")
 const DATA := "res://out/data/"
@@ -49,6 +50,28 @@ func _frame_body(centre: Vector3, height: float, yaw_deg: float) -> void:
 	var dir := Vector3(sin(deg_to_rad(yaw_deg)), 0.0, cos(deg_to_rad(yaw_deg)))
 	cam.position = centre + dir * d
 	cam.look_at(centre, Vector3.UP)
+
+
+## กล้องเงย/ก้ม: pitch บวก = มองลงจากข้างบน
+func _frame_view(centre: Vector3, height: float, yaw_deg: float, pitch_deg: float) -> void:
+	var d := height / (2.0 * tan(deg_to_rad(cam.fov * 0.5))) * 1.08
+	var cp := cos(deg_to_rad(pitch_deg))
+	var dir := Vector3(sin(deg_to_rad(yaw_deg)) * cp, sin(deg_to_rad(pitch_deg)), cos(deg_to_rad(yaw_deg)) * cp)
+	cam.position = centre + dir * d
+	cam.look_at(centre, Vector3.UP)
+
+
+## ท่าจาก poses.json แล้วแทนบางกระดูก (ชื่อ -> Quaternion)
+func _pose_mod(name: String, over: Dictionary) -> void:
+	var p: Dictionary = poses[name]
+	var L := {}
+	for b in p["local"]:
+		var q: Array = p["local"][b]
+		L[b] = Quaternion(q[0], q[1], q[2], q[3])
+	for b in over:
+		L[b] = over[b]
+	var pv: Array = p["pelvis"]
+	fig.set_pose(L, Vector3(pv[0], pv[1], pv[2]))
 
 
 func _pose(name: String) -> void:
@@ -109,6 +132,10 @@ func _run() -> void:
 		await _clips()
 	if what == "" or what.contains("budget"):
 		await _budgets()
+	if what == "" or what.contains("checks"):
+		await _checks()
+	if what == "" or what.contains("fat"):
+		await _fat_levels()
 	var f := FileAccess.open(OUT + "/render_report_%s.json" % (what if what != "" else "all"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, " "))
 	quit()
@@ -341,3 +368,80 @@ func _missing_api() -> Array:
 	if not fig.has_signal("clip_event"):
 		miss.append("signal clip_event")
 	return miss
+
+
+# ---- 6) ภาพตรวจผิว: หน้า hi/min (หน้า 3/4 ข้าง + ระยะเกม), ไหปลาร้า, รักแร้ยกแขน, ขาหนีบ/สะโพก, ศอก 0-150° ----
+func _checks() -> void:
+	for lv in ["hi", "min"]:
+		_mode(lv, true, true)
+		fig.apply_level(lv)
+		_pose("bind")
+		for yaw in [0, 35, 90]:
+			_frame_body(Vector3(0, 1.655, 0.03), 0.30, yaw)
+			await _shot("face_%s_%03d" % [lv, yaw])
+		# ระยะเกม (กล้องห่าง ~3.5 ม.)
+		_frame_body(Vector3(0, 1.40, 0.0), 1.45, 20)
+		await _shot("face_%s_game" % lv)
+	_mode("hi", true, true)
+	fig.apply_level("hi")
+	_pose("bind")
+	_frame_view(Vector3(0, 1.43, 0.04), 0.42, 0, 12)
+	await _shot("check_collar_000")
+	_frame_view(Vector3(0.02, 1.43, 0.04), 0.42, 35, 8)
+	await _shot("check_collar_035")
+	_frame_view(Vector3(0, 0.90, 0.03), 0.46, 0, 0)
+	await _shot("check_groin_000")
+	_frame_view(Vector3(0, 0.90, 0.02), 0.46, 35, -8)
+	await _shot("check_groin_035")
+	_frame_view(Vector3(0, 0.90, -0.02), 0.50, 180, 0)
+	await _shot("check_hips_180")
+	_frame_view(Vector3(0.10, 0.92, 0.02), 0.50, 90, 0)
+	await _shot("check_hips_090")
+	# รักแร้ตอนยกแขนเหนือหัว (มองจากหน้าเฉียงต่ำ และจากข้าง)
+	_pose("overhead")
+	_frame_view(Vector3(0.13, 1.40, 0.0), 0.50, 45, -12)
+	await _shot("check_armpit_045")
+	_frame_view(Vector3(0.13, 1.40, -0.01), 0.50, 90, -5)
+	await _shot("check_armpit_090")
+	# ศอก 0-150° (ดูเงาด้านข้าง)
+	for a in [0, 30, 60, 90, 120, 150]:
+		_pose_mod("elbow120", {"elbowL": Quaternion(Vector3(1, 0, 0), deg_to_rad(-float(a)))})
+		var sk: Skeleton3D = fig.skeleton()
+		var c: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("elbowL")).origin
+		_frame_view(c + Vector3(0.02, -0.05, 0.06), 0.55, 55, 0)
+		await _shot("check_elbow_%03d" % a)
+	# เข่า 120° และย่อตัว: มุมกว้าง (ด้านข้าง/หน้า)
+	_pose("knee120")
+	_frame_view(Vector3(0.10, 0.55, 0.05), 0.80, 0, 0)
+	await _shot("check_knee120_000")
+	_pose("squat")
+	_frame_view(Vector3(0.0, 0.55, 0.10), 1.10, 0, 5)
+	await _shot("check_squat_000")
+	_frame_view(Vector3(0.0, 0.55, 0.05), 1.10, 90, 0)
+	await _shot("check_squat_090")
+	_pose("bind")
+
+
+# ---- 7) เทียบระดับไขมัน: ผิวนิ่ง body_static_<tag>.res กล้อง/แสง/วัสดุเดียวกันทุกแบบ ----
+func _fat_levels() -> void:
+	var tags := []
+	for t in ["fat080", "fat100", "fat130"]:
+		if ResourceLoader.exists("res://out/godot/body_static_%s.res" % t):
+			tags.append(t)
+	if tags.is_empty():
+		return
+	fig.visible = false
+	for t in tags:
+		var mi := _add_static("res://out/godot/body_static_%s.res" % t)
+		mi.material_override = load("res://out/godot/soldier_skin.tres")
+		for v in [["front", 0], ["side", 90], ["back", 180]]:
+			_frame_body(Vector3(0, 0.90, 0), 1.95, v[1])
+			await _shot("fat_%s_%s" % [t, v[0]])
+		_frame_body(Vector3(0, 1.645, 0.03), 0.34, 30)
+		await _shot("fat_%s_face" % t)
+		_frame_body(Vector3(0, 1.12, 0.0), 0.80, 30)
+		await _shot("fat_%s_torso" % t)
+		_clear_extra()
+		await _frames(2)
+	fig.visible = true
+	report["fat_levels"] = tags

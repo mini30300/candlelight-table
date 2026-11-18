@@ -120,6 +120,26 @@ func _initialize() -> void:
 		report[lv] = {"verts": int(meta["verts"]), "tris": int(meta["tris"]), "shapes": shapes.size(),
 			"bytes": FileAccess.get_file_as_bytes(outp).size()}
 		print("body_%s: %d verts %d tris %d shapes %d bytes" % [lv, meta["verts"], meta["tris"], shapes.size(), report[lv]["bytes"]])
+	# ---- ผิวนิ่งไว้เทียบระดับไขมัน (body_static_<tag>.bin จาก build.py --static) ----
+	var dst := DirAccess.open(DATA)
+	for fn in dst.get_files():
+		if not (fn.begins_with("body_static_") and fn.ends_with(".bin")):
+			continue
+		var d := read_bin(DATA + fn)
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = v3(d["pos"])
+		arr[Mesh.ARRAY_NORMAL] = v3(d["nrm"])
+		arr[Mesh.ARRAY_COLOR] = cols(d["col"])
+		arr[Mesh.ARRAY_CUSTOM0] = d["cus"]
+		arr[Mesh.ARRAY_INDEX] = d["idx"]
+		var am := ArrayMesh.new()
+		am.resource_name = fn.replace(".bin", "")
+		var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, flags)
+		am.surface_set_material(0, mat)
+		ResourceSaver.save(am, OUT + fn.replace(".bin", ".res"), ResourceSaver.FLAG_COMPRESS)
+		print(fn, " ok")
 	# ---- ชั้นโครงกระดูก (ผูกแข็งกับกระดูก -> ขยับตามโครงได้ทุกท่า) ----
 	if FileAccess.file_exists(DATA + "skeleton.bin"):
 		var d := read_bin(DATA + "skeleton.bin")

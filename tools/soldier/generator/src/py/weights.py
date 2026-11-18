@@ -60,7 +60,7 @@ def structure_weights(V, G, prims, mus):
             continue
         M = mats.setdefault(p.bone, rig.bone_xform(G, p.bone))
         lo, hi = p.bbox(M)
-        m = np.all((V >= lo - 0.03) & (V <= hi + 0.03), axis=1)
+        m = np.all((V >= lo - 0.07) & (V <= hi + 0.07), axis=1)
         idx = np.nonzero(m)[0]
         if len(idx) == 0:
             continue

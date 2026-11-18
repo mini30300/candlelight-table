@@ -1,11 +1,11 @@
-Soldier assets imported by tools/soldier/import_stage.sh from stage 'stage1'.
+Soldier assets imported by tools/soldier/import_stage.sh from stage 'stage1b'.
 Do not edit these files by hand: change the generator (tools/soldier/generator) and import again.
 
 level  surfaces  verts   tris  blend_shapes    bytes
-hi            1  11774  23598            14  3579331
-mid           1   7825  15700            14  2381638
-lo            1   4400   8848             0   160903
-min           1   2438   4920             0    86692
+hi            1  11802  23600            14  3564844
+mid           1   7851  15698            14  2376460
+lo            1   4426   8848             0   157518
+min           1   2462   4920             0    86226
 
 bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
 motion_scale: 1.1125
@@ -14,10 +14,10 @@ soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrist
 
 sha256:
   4c81d4e1b8767b0a71ac539180818b63c4d81adc7b187d726b1d84066932dc0c  body.gdshader  2333 bytes
-  af49532e6f730320e8ac059d5b81232ca2431f17eb5c09b8444cda1dd6311dbf  body_hi.res  3579331 bytes
-  20eff8c4bfb921555f8a0c37cb8b90e4d716e09583d945ba23324f78775b2969  body_lo.res  160903 bytes
+  ddfc727c7821db7b94bacb75fb1ff67ec4c58d421bbc7c68fcf923ccd71ee934  body_hi.res  3564844 bytes
+  90e0f500d59415a89e0eaf9c3580fdff7e7291d9bd33058715d2beef3b56c6d0  body_lo.res  157518 bytes
   f9e37d6325cbcbb441653259f3d1122128e8d6740d865cc77d5b4f87194a4b34  body_material.tres  537 bytes
-  afb2d220fc1db383862f1debdcc2d657ea0edcd73a3254d0ffd7aa8da03ee23c  body_mid.res  2381638 bytes
-  964e97de352413c6ec2275a7606b1e753f3061bc8fca2d3d2319fcdbdb1ea212  body_min.res  86692 bytes
-  59715859decc5150a3877210edf99eac5996e1941e5f8742073232387f9608d1  rig.tscn  10967 bytes
+  13b7495dea607a366040c139b80bb50a4e9e65a539999b5bdb1b37210bec9543  body_mid.res  2376460 bytes
+  6f0b7c11630cc35872aa3d77d54afc4d72332540cd38bbce136d40e06307ed0e  body_min.res  86226 bytes
+  4023d1b7386a2a8f4afcf54a5aa69d759957200a6511a0a33f9b8f89667ed8ef  rig.tscn  10968 bytes
   2ec7fb8658170cc2e446d406f801f5c0d56e5edc0d579bb2e9edae1764ce8721  skin.res  4807 bytes
