@@ -1,4 +1,4 @@
-# เกตตรวจผิวขั้น 1b (อ่านผลจาก out/ กับ work/ แล้วเขียน out/data/gates.json)
+# เกตตรวจผิวขั้น 1c (อ่านผลจาก out/ กับ work/ แล้วเขียน out/data/gates.json)
 #   G1 ทอพอโลยี  G2 โพรง (หน้าตัด 3 แกนทุก 5 มม. + ร่องใต้ไหปลาร้า)  G3 สมมาตร  G4 ฝ่าเท้า/ความสูง
 #   G5 งบสามเหลี่ยม/draw  G6 สัดส่วน  G8 แฮชเทียบอีกชุด (--compare OUTDIR2)
 #   /usr/bin/python3 gates.py [--out DIR] [--work DIR] [--compare DIR2] [--step 0.005]

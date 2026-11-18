@@ -1,6 +1,6 @@
 config_version=5
 [application]
-config/name="soldier-stage1b"
+config/name="soldier-stage1c"
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
