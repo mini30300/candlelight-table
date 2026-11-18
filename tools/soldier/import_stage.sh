@@ -2,10 +2,12 @@
 # Import one soldier stage into the game in a single step:
 #   bash tools/soldier/import_stage.sh <stage_dir>
 # <stage_dir> is a generator folder (tools/soldier/README.md): project.godot, src/ (py, gd, run_all.sh) and its build in
-# out/godot/ (rig.tscn, skin.res, body_hi/mid/lo/min.res, optional body_crowd.res and clips.res, soldier_skin.tres) and
-# out/data/rig.json. Steps, and nothing in the repository changes unless the first two succeed:
+# out/godot/ (rig.tscn, skin.res, body_hi/mid/lo/min.res, optional body_crowd.res and clips.res, soldier_skin.tres,
+# optional inner_bone.res + inner_flesh.res with src/gd/soldier_inner.gdshader) and out/data/rig.json. Steps, and nothing
+# in the repository changes unless the first two succeed:
 #  1. Godot re-saves the stage's files in a scratch project, so every path inside them points at the game's copy:
-#     godot/assets/figures/soldier/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres, clips.res};
+#     godot/assets/figures/soldier/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres, clips.res,
+#     inner_bone.res, inner_flesh.res, inner.gdshader};
 #     rig.json's driver constants travel inside rig.tscn (metadata "soldier_rig"); existing UIDs are kept.
 #  2. The stage's generator source is checked for the banned names of AGENTS.md rule 1.
 #  3. Assets go to godot/assets/figures/soldier/ (files the stage no longer makes are removed) and the source to
@@ -36,16 +38,23 @@ done
 for f in src/gd/soldier_skin.gdshader src/run_all.sh; do
   [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f" >&2; exit 1; }
 done
+# the wound layers are optional, but come as a set: both meshes and their shader
+if [ -f "$OUTG/inner_bone.res" ] || [ -f "$OUTG/inner_flesh.res" ]; then
+  for f in out/godot/inner_bone.res out/godot/inner_flesh.res src/gd/soldier_inner.gdshader; do
+    [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f (the inner layers come as a set)" >&2; exit 1; }
+  done
+fi
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/soldier_import.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/out/godot" "$WORK/out/data" "$WORK/src/gd" "$WORK/old"
 for f in rig.tscn skin.res soldier_skin.tres body_hi.res body_mid.res body_lo.res body_min.res body_crowd.res \
-    clips.res soldier_clips.res humanoid_soldier.res; do
+    clips.res soldier_clips.res humanoid_soldier.res inner_bone.res inner_flesh.res; do
   if [ -f "$OUTG/$f" ]; then cp "$OUTG/$f" "$WORK/out/godot/"; fi
 done
 if [ -f "$STAGE/out/data/rig.json" ]; then cp "$STAGE/out/data/rig.json" "$WORK/out/data/"; fi
 cp "$STAGE/src/gd/soldier_skin.gdshader" "$WORK/src/gd/"
+if [ -f "$WORK/out/godot/inner_bone.res" ]; then cp "$STAGE/src/gd/soldier_inner.gdshader" "$WORK/src/gd/"; fi
 # the game's current files: only their UIDs are read, so a re-import changes content, not identity
 if [ -d "$DEST" ]; then
   for f in "$DEST"/*.res "$DEST"/*.tres "$DEST"/*.tscn; do
@@ -126,6 +135,11 @@ for lv in ["hi", "mid", "lo", "min", "crowd"]:
     if lv in rep["levels"]:
         r = rep["levels"][lv]
         lines.append("%-6s %8d %6d %6d %13d %8d" % (lv, r["surfaces"], r["verts"], r["tris"], r["shapes"], r["bytes"]))
+if rep.get("inner"):
+    lines += ["", "wound layers (hi/mid, hidden until the first wound)"]
+    for lv in ["bone", "flesh"]:
+        r = rep["inner"][lv]
+        lines.append("%-6s %8d %6d %6d %13s %8d" % (lv, r["surfaces"], r["verts"], r["tris"], "-", r["bytes"]))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
 if "clips" in rep:

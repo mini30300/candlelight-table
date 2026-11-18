@@ -7,17 +7,24 @@ mid           1   7850  15696            14  2375652
 lo            1   4427   8850             0   158160
 min           1   2462   4920             0    86400
 
+wound layers (hi/mid, hidden until the first wound)
+bone          1   2819   5113             -    75489
+flesh         1   3502   7000             -   116057
+
 bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
 motion_scale: 1.1125
 driver constants: from the stage's rig.json
 soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrists eased)
 
 sha256:
-  4c81d4e1b8767b0a71ac539180818b63c4d81adc7b187d726b1d84066932dc0c  body.gdshader  2333 bytes
+  ff2a70fee09490a3c02b9af4fd295f900abb8a384437263c1c76b9a3931f826e  body.gdshader  5420 bytes
   0e1b85e9a78722c83bcc3ab01cd9566c23c994c899fa871eb32296e06a603279  body_hi.res  3562936 bytes
   b12525ec6212d65a45cd4ec28b1deaf23f2f590dd7ce82a62cd21d99bb10b187  body_lo.res  158160 bytes
-  f9e37d6325cbcbb441653259f3d1122128e8d6740d865cc77d5b4f87194a4b34  body_material.tres  537 bytes
+  1b61d5c647d5c4f46a438c0366075d91dc586b80182c13d027568b5fbdb606a9  body_material.tres  710 bytes
   03c2e919a427cbce72104e40088274194f6b2b8847243d638d8533ea59c2e5d6  body_mid.res  2375652 bytes
   51be7feddef113e16882cdb75daafc30621d8d2108c2470c0ac9eec698051d03  body_min.res  86400 bytes
+  36568be73c9282681775f49558d76ed795ba4341c203644f7fca7eb4fc86826c  inner.gdshader  5657 bytes
+  e68d69bf8e2e53269c5535049fae769a2b6f110c99308fd3495155c154970b03  inner_bone.res  75489 bytes
+  739fbbb3f97d2967f0b7e4bf79f15bcefa40212eaad619dd3601bcd86d6eb32f  inner_flesh.res  116057 bytes
   746ae975dabdbdbedb61efca3092bc60582e4f1f5ab80555538389643064404c  rig.tscn  10968 bytes
   2ec7fb8658170cc2e446d406f801f5c0d56e5edc0d579bb2e9edae1764ce8721  skin.res  4807 bytes

@@ -1,11 +1,13 @@
 extends SceneTree
 ## นำเข้าผลของขั้นปั้นทหารเข้าเกม (tools/soldier/import_stage.sh เรียก รันแบบ headless ในโปรเจกต์ชั่วคราว)
+## + ชั้นในของบาดแผล (inner_bone/inner_flesh + inner.gdshader) ถ้าขั้นปั้นทำมา
 ## โปรเจกต์ชั่วคราววางไฟล์ของขั้นปั้นไว้ที่เดิม (res://out/godot, res://src/gd) จึงโหลดได้ตามที่ทำมา
 ## แล้วบันทึกใหม่ที่ res://assets/figures/soldier/ ด้วยชื่อกลางและทางไฟล์ของเกม (เมชอ้างวัสดุของเกม ไม่อ้างโฟลเดอร์ขั้นปั้น)
 ## UID เดิมของเกม (สำเนาใน res://old/) ใช้ต่อ ไฟล์จึงเปลี่ยนเฉพาะเนื้อหา · รายงานต่อระดับพิมพ์ออกจอ + REPORT
 
 const SRC := "res://out/godot/"
 const SHADER_SRC := "res://src/gd/soldier_skin.gdshader"
+const INNER_SHADER_SRC := "res://src/gd/soldier_inner.gdshader"
 const DST := "res://assets/figures/soldier/"
 const OLD := "res://old/"
 const RIG_JSON := "res://out/data/rig.json"
@@ -99,6 +101,10 @@ func _run() -> bool:
 			"tris": (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, "shapes": shapes.size(),
 			"bytes": FileAccess.get_file_as_bytes(DST + "body_%s.res" % lv).size()}
 		report["shapes"][lv] = shapes
+	# ชั้นในของบาดแผล (ถ้าขั้นปั้นทำมา ต้องมาครบชุด): เชดเดอร์ชื่อใหม่ + วัสดุฝังในเมช ค่าเดิมของขั้นปั้น
+	if ResourceLoader.exists(SRC + "inner_bone.res") or ResourceLoader.exists(SRC + "inner_flesh.res"):
+		if not _inner(report):
+			return false
 	# ชุดท่าของทหารเอง (ถ้าขั้นปั้นทำมา)
 	for name in ["clips.res", "soldier_clips.res", "humanoid_soldier.res"]:
 		if ResourceLoader.exists(SRC + name):
@@ -114,6 +120,46 @@ func _run() -> bool:
 	out.store_string(JSON.stringify(report, " ", true))
 	out.close()
 	print(JSON.stringify(report["levels"], " ", true))
+	return true
+
+
+## ชั้นในของบาดแผล: inner.gdshader + inner_bone.res / inner_flesh.res (1 พื้นผิว วัสดุของเชดเดอร์ชื่อใหม่ บีบอัด)
+func _inner(report: Dictionary) -> bool:
+	if not FileAccess.file_exists(INNER_SHADER_SRC):
+		push_error("no shader at " + INNER_SHADER_SRC)
+		return false
+	var f := FileAccess.open(DST + "inner.gdshader", FileAccess.WRITE)
+	f.store_string(FileAccess.get_file_as_string(INNER_SHADER_SRC))
+	f.close()
+	var sh := load(DST + "inner.gdshader") as Shader
+	if sh == null:
+		push_error("the inner shader does not load")
+		return false
+	report["files"].append("inner.gdshader")
+	report["inner"] = {}
+	for lv in ["bone", "flesh"]:
+		var p := SRC + "inner_%s.res" % lv
+		var m := load(p) as ArrayMesh if ResourceLoader.exists(p) else null
+		if m == null or m.get_surface_count() != 1:
+			push_error("missing or not a one-surface ArrayMesh: " + p)
+			return false
+		var mat := ShaderMaterial.new()
+		mat.shader = sh
+		mat.resource_name = "soldier_inner_" + lv
+		var src_mat := m.surface_get_material(0) as ShaderMaterial
+		if src_mat != null:
+			mat.render_priority = src_mat.render_priority
+			for u in sh.get_shader_uniform_list():
+				var v: Variant = src_mat.get_shader_parameter(u["name"])
+				if v != null:
+					mat.set_shader_parameter(u["name"], v)
+		m.surface_set_material(0, mat)
+		if not _save(m, "inner_%s.res" % lv, ResourceSaver.FLAG_COMPRESS, report):
+			return false
+		var arr := m.surface_get_arrays(0)
+		report["inner"][lv] = {"surfaces": 1, "verts": (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(),
+			"tris": (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3,
+			"bytes": FileAccess.get_file_as_bytes(DST + "inner_%s.res" % lv).size()}
 	return true
 
 
