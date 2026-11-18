@@ -216,12 +216,16 @@ jobs:
           ~/godot-bin/godot --headless --path godot --export-release "Windows Desktop" "$GITHUB_WORKSPACE/dist-godot/windows/CandlelightTable.exe"
           ls -la dist-godot/windows
           test -s dist-godot/windows/CandlelightTable.exe
-      - name: Zip the exe (and the .pck, if separate) with the Thai readme
+      - name: Zip the exe (and the .pck, if separate) with the Thai readme (size gate 1900 MB)
         run: |
           cd dist-godot/windows
           cp "$GITHUB_WORKSPACE/godot/tools/README-windows-th.md" README-th.txt
           zip -j "$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip" CandlelightTable.exe README-th.txt $(ls CandlelightTable.pck CandlelightTable.console.exe 2> /dev/null)
           unzip -l "$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip"
+          size=$(stat -c %s "$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip")
+          echo "windows zip: $((size / 1024 / 1024)) MB"
+          # owner's app target is 3 GB, but a GitHub release file may be at most 2 GiB: 1900 MB leaves headroom under it
+          test "$size" -le $((1900 * 1024 * 1024)) || { echo "::error::Windows zip over 1900 MB ($size bytes)"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: godot-windows

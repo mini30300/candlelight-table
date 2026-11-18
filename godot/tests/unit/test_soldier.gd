@@ -13,7 +13,8 @@ extends "res://tests/testing.gd"
 ## Bodies: four more registry entries after "soldier" (Thai and English names, the English in the dictionary) whose
 ## figures carry their body id to the deck, the dressing room and the arena; each body plays at its own S (walk rate,
 ## deck speeds), stands its own height, drives helpers but no correctives, and two bodies side by side keep their own
-## meshes and scales.
+## meshes and scales; a body chosen before setup (body_id, or setup's "body" after set_light / deck_speeds) gives that
+## body's rig, S, skin, material and mesh, never a mix with the base body.
 ## Clips: the soldier's copy keeps every mapped clip and its metadata, its wrists are eased (twist and bend within
 ## limits, hands still, no hand position tracks) and the shared humanoid.res is untouched. Behaviour (manual clock):
 ## walk/run rates, still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
@@ -33,10 +34,11 @@ const VARIANT_CAP := 4000000
 const ALL_CAP := 60000000
 const FIGURES_DIR := "res://assets/figures/"
 ## ร่างอื่น (Figures.BUILTINS ที่มี body): id -> [body id, ชื่อไทย, ชื่ออังกฤษ, S = ส่วนสูง / 1.6]
-const BODIES := {"soldier_m2": ["m2", "ทหารราบ ชาย 2 (ทดลอง)", "Infantry man 2 (preview)", 1.1625],
-	"soldier_m3": ["m3", "ทหารราบ ชาย 3 (ทดลอง)", "Infantry man 3 (preview)", 1.0625],
-	"soldier_f1": ["f1", "ทหารราบ หญิง 1 (ทดลอง)", "Infantry woman 1 (preview)", 1.0],
-	"soldier_f2": ["f2", "ทหารราบ หญิง 2 (ทดลอง)", "Infantry woman 2 (preview)", 1.08125]}
+## ชื่ออังกฤษย่อ (เดิม "Infantry man 2 / woman 1 ..." ยาวเกินปุ่มห้องแต่งตัว ถูกตัดกลางคำ)
+const BODIES := {"soldier_m2": ["m2", "ทหารราบ ชาย 2 (ทดลอง)", "Infantry M2 (preview)", 1.1625],
+	"soldier_m3": ["m3", "ทหารราบ ชาย 3 (ทดลอง)", "Infantry M3 (preview)", 1.0625],
+	"soldier_f1": ["f1", "ทหารราบ หญิง 1 (ทดลอง)", "Infantry W1 (preview)", 1.0],
+	"soldier_f2": ["f2", "ทหารราบ หญิง 2 (ทดลอง)", "Infantry W2 (preview)", 1.08125]}
 const BASE_S := 1.1125
 const LIB := "res://assets/anim/humanoid.res"
 const DT := 1.0 / 30.0
@@ -341,6 +343,26 @@ func _folder_bytes(d: String) -> int:
 	return n
 
 
+## เพดานไฟล์ release ใน CI (เป้า 3 GB ใต้ 2 GiB ของ GitHub): APK และ zip ของ Windows ไม่เกิน 1900 MB
+## (อ่าน .github/workflows/godot.yml ของ repo ; ในแอปที่ส่งออกไม่มีไฟล์นี้)
+func test_release_size_gates() -> void:
+	if OS.has_feature("template"):
+		print("skip  the CI workflow is not inside the exported self-test")
+		return
+	var p := ProjectSettings.globalize_path("res://").path_join("../.github/workflows/godot.yml").simplify_path()
+	var yml := FileAccess.get_file_as_string(p)
+	assert_true(yml != "", "the CI workflow is readable (%s)" % p)
+	var gate := "test \"$size\" -le $((1900 * 1024 * 1024)) || { echo \"::error::%s over 1900 MB ($size bytes)\"; exit 1; }"
+	var apk := yml.find(gate % "APK")
+	var win := yml.find(gate % "Windows zip")
+	assert_true(apk > yml.find("--export-release \"Android\""), "CI fails an APK over 1900 MB")
+	var zip := yml.find("zip -j \"$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip\"")
+	var upload := yml.find("name: godot-windows")
+	assert_true(zip > 0 and win > zip and win < upload, "CI fails a Windows zip over 1900 MB, after zipping and before the upload")
+	var st := yml.find("stat -c %s \"$GITHUB_WORKSPACE/dist-godot/candlelight-table-godot-windows.zip\"", maxi(zip, 0))
+	assert_true(st > zip and st < win, "the Windows gate measures the zip it uploads")
+
+
 func test_clips() -> void:
 	var S: GDScript = load(SCRIPT)
 	var src := load(LIB) as AnimationLibrary
@@ -602,6 +624,44 @@ func test_bodies_behaviour() -> void:
 	assert_true(bad.call("skeleton") != null and is_equal_approx((bad.call("skeleton") as Skeleton3D).motion_scale, BASE_S),
 		"an unknown body id gives the base body")
 	bad.free()
+
+
+## ร่างเลือกก่อน setup: set_light / deck_speeds ก่อน setup ต้องได้ร่างนั้นทั้งตัว (rig, S, skin, วัสดุ, ผิว) ไม่ปนร่างหลัก
+## (Figures.make_builtin ตั้ง body_id ก่อน setup ; HeroLight.apply ถึง set_light ได้ทุกเมื่อ)
+func test_body_chosen_before_setup() -> void:
+	var S: GDScript = load(SCRIPT)
+	var d1 := SoldierFigure.folder("f1")
+	var sun := Vector3(0, 1, 0.15)
+	var f1_shader := (load(d1 + "body_material.tres") as ShaderMaterial).shader
+	var base_shader := (load(DIR + "body_material.tres") as ShaderMaterial).shader
+	# body_id ก่อน (แบบ make_builtin) แล้วไฟ + ความเร็วดาดฟ้า แล้ว setup ; ร่างหลัก แล้ว setup({"body": "f1"})
+	for how in ["body_id first", "setup body"]:
+		var f: Node3D = S.new()
+		if how == "body_id first":
+			f.set("body_id", "f1")
+		_tree().root.add_child(f)
+		f.call("set_light", sun, Color(0.98, 0.9, 0.78), Color(0.15, 0.15, 0.16))
+		var early: Vector2 = f.call("deck_speeds")
+		f.call("set_manual", true)
+		f.call("setup", {"role": &"deck", "level": "hi", "seed": 7, "body": "f1"} if how == "setup body" else {"role": &"deck", "level": "hi", "seed": 7})
+		var sk: Skeleton3D = f.call("skeleton")
+		var mi: MeshInstance3D = f.call("body")
+		assert_true(sk != null and is_equal_approx(sk.motion_scale, 1.0), "%s: f1's rig and S 1.0 (%s)" % [how, str(sk.motion_scale if sk else -1.0)])
+		assert_true(mi != null and mi.skin == load(d1 + "skin.res"), "%s: f1's skin binds" % how)
+		assert_true(mi != null and mi.mesh == S.call("body_mesh", "hi", d1), "%s: f1's hi mesh" % how)
+		var m := mi.material_override as ShaderMaterial if mi != null else null
+		assert_true(m != null and m.shader == f1_shader and m.shader != base_shader, "%s: its lit copy is f1's material" % how)
+		assert_true(m != null and m.get_shader_parameter("sun_dir") is Vector3 and (m.get_shader_parameter("sun_dir") as Vector3).is_equal_approx(sun),
+			"%s: the copy keeps the scene light" % how)
+		var sp: Vector2 = f.call("deck_speeds")
+		var lib: AnimationLibrary = S.call("clip_library")
+		var ws := float(lib.get_animation(&"walk").get_meta("speed")) * 1.0 * 1.4
+		assert_true(absf(sp.x - ws) < 0.001, "%s: deck speeds from f1's S %s" % [how, str(sp)])
+		if how == "body_id first":
+			assert_true(early.is_equal_approx(sp), "body_id first: deck speeds before setup are already f1's")
+		else:
+			assert_true(absf(early.x - ws * BASE_S) < 0.001, "setup body: before setup the base body's deck speeds")
+		f.free()
 
 
 func test_hero_light_on_own_material() -> void:

@@ -19,10 +19,14 @@ extends SceneTree
 ##    takes its deck speeds and stays within the deck targets; the arena player is that body and the overview at hi
 ##    stays within §11.2; the "normal" hero card at hi and min shows that body lit, head and chest in the frame;
 ##  - English mode: the dressing room names it "Infantry (preview)" and the four other bodies by their English names,
-##    and shows no Thai; the deck and the arena HUD show no Thai with the soldier or with a woman's body (f1).
+##    and shows no Thai; the deck and the arena HUD show no Thai with the soldier or with a woman's body (f1);
+##  - the dressing room at 1280 x 720, in Thai and in English: every character name fits its button on one line (text
+##    width <= button width minus the style's content margins), and the measure has teeth (the old long English name of
+##    soldier_f1 would not fit).
 ## PNGs (TEST_OUT, default tests/out): soldier_levels.png, soldier_deck_<level>.png, soldier_arena_<level>.png,
 ## soldier_arena_front_<level>.png, soldier_mission_<level>.png, soldier_hero_<level>.png, soldier_dressing_en.png,
-## soldier_<body>_deck_<hi|min>.png, soldier_<body>_hero_<hi|min>.png, soldier_<body>_arena_hi.png. Run:
+## soldier_<body>_deck_<hi|min>.png, soldier_<body>_hero_<hi|min>.png, soldier_<body>_arena_hi.png,
+## soldier_dressing_names_<th|en>.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_soldier.gd
 
@@ -47,9 +51,9 @@ const MAX_SLIDE_MM := 15.0
 const RATE := 240.0
 const WALK_TICKS := 45
 const CELL := Vector2i(300, 520)
-## ร่างอื่น: id ในห้องแต่งตัว -> [body id, ชื่ออังกฤษ]
-const BODIES := {"soldier_m2": ["m2", "Infantry man 2 (preview)"], "soldier_m3": ["m3", "Infantry man 3 (preview)"],
-	"soldier_f1": ["f1", "Infantry woman 1 (preview)"], "soldier_f2": ["f2", "Infantry woman 2 (preview)"]}
+## ร่างอื่น: id ในห้องแต่งตัว -> [body id, ชื่ออังกฤษ] · ชื่ออังกฤษย่อ (เดิม "Infantry man 2 / woman 1 ...") ให้พอดีปุ่มบรรทัดเดียว
+const BODIES := {"soldier_m2": ["m2", "Infantry M2 (preview)"], "soldier_m3": ["m3", "Infantry M3 (preview)"],
+	"soldier_f1": ["f1", "Infantry W1 (preview)"], "soldier_f2": ["f2", "Infantry W2 (preview)"]}
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -105,6 +109,7 @@ func _run() -> void:
 	await _mission()
 	await _hero()
 	await _bodies()
+	await _dressing_names()
 	await _english()
 	_finish()
 
@@ -625,6 +630,47 @@ func _english() -> void:
 	await _frames(4)
 	_app().call("set_lang", "th")
 	Figures.select("soldier", "original")
+
+
+## ห้องแต่งตัว 1280×720 ไทยและอังกฤษ: ชื่อทุกปุ่มตัวละครพอดีบรรทัดเดียว (เทียบข้อความอย่างเดียวจับชื่อที่ถูกตัดไม่ได้)
+func _dressing_names() -> void:
+	for lang: String in ["th", "en"]:
+		_app().call("set_lang", lang)
+		var ds: Node = _app().call("push", load(DRESSING))
+		await _frames(3)
+		ds.call("pick_figure", "soldier_f1")
+		ds.call("refresh")
+		await _frames(4)
+		var bad: PackedStringArray = []
+		var room := INF
+		var f1: Button = null
+		var btns: Array = ds.call("char_buttons")
+		for b: Button in btns:
+			room = minf(room, _room(b))
+			if _text_w(b, b.text) > _room(b):
+				bad.append("%s (%.0f > %.0f px)" % [b.text, _text_w(b, b.text), _room(b)])
+			if str(b.get_meta(&"id", "")) == "soldier_f1":
+				f1 = b
+		_check(btns.size() >= 6 and bad.is_empty(), "%s: every character name fits its dressing-room button on one line (%d buttons, %.0f px room)"
+			% [lang, btns.size(), room], ", ".join(bad))
+		if lang == "en":
+			_check(f1 != null and f1.text == "Infantry W1 (preview)" and _text_w(f1, "Infantry woman 1 (preview)") > _room(f1),
+				"the fit measure has teeth: the old English name \"Infantry woman 1 (preview)\" would not fit soldier_f1's button")
+		_save("soldier_dressing_names_%s.png" % lang)
+		ds.call("close")
+		await _frames(3)
+	_app().call("set_lang", "th")
+
+
+## ความกว้างข้อความบนปุ่ม b (ฟอนต์และขนาดของปุ่ม บรรทัดเดียว)
+func _text_w(b: Button, text: String) -> float:
+	return b.get_theme_font(&"font").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, b.get_theme_font_size(&"font_size")).x
+
+
+## ที่ว่างให้ข้อความ: กว้างปุ่ม − ขอบในซ้ายขวาของกรอบปุ่ม
+func _room(b: Button) -> float:
+	var sb := b.get_theme_stylebox(&"normal")
+	return b.size.x - (sb.get_content_margin(SIDE_LEFT) + sb.get_content_margin(SIDE_RIGHT) if sb != null else 0.0)
 
 
 # ---- helpers ----

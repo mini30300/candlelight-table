@@ -59,7 +59,8 @@ tests, Windows smoke, signed APK on main; the oracle recordings from the old pag
 - **R0-C · CI and exports** (track CI). Extend `.github/workflows/godot.yml`: `kits` job runs `godot/tools/kits.sh`
   (export kits, bake impostors under xvfb, bake clips when R1-V2 lands) with `actions/cache` keyed by
   `sha256(app/src/main/assets/battle-table.html, godot/tools/*)`; add `test-arm` (ubuntu-24.04-arm: import + unit +
-  golden); `windows` zips the exe with the ANGLE/Mesa fallback folder + Thai README; add `windows-smoke`
+  golden); `windows` zips the exe with the ANGLE/Mesa fallback folder + Thai README and fails a zip over 1900 MB (the
+  same gate as the APK); add `windows-smoke`
   (windows-latest runs `CandlelightTable.exe --headless -s res://tests/selftest.gd`); `android` on main runs
   `--export-release` with `GODOT_ANDROID_KEYSTORE_RELEASE_PATH/_USER/_PASSWORD` from the existing `KEYSTORE_BASE64`,
   `KEY_ALIAS`, `KEYSTORE_PASSWORD` secrets (decode to `$RUNNER_TEMP`, delete at job end), `version/code` from
@@ -226,8 +227,8 @@ graphics levels with adaptive scale and idle mode, sound, perf and screenshot su
   counters as a CI artifact, GPU-check screen final. Owner gate: a full game on a phone on `min`.
 
 **Acceptance tests.** `test_budgets` passes all four levels; `test_screens` green in both languages at four
-resolutions; `test_anim_footslide` ≤ 15 mm; a headless pve game through the real UI buttons finishes; APK < 1900 MB;
-owner plays a full game against bots on a phone on `min` and on Windows.
+resolutions; `test_anim_footslide` ≤ 15 mm; a headless pve game through the real UI buttons finishes; APK and Windows zip
+< 1900 MB; owner plays a full game against bots on a phone on `min` and on Windows.
 
 **Effort.** 3–4 weeks with 5 agents (15–20 sessions); ~3 months alone.
 

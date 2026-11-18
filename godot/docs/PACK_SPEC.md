@@ -404,9 +404,10 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   card (fallback to the default player when it lacks part of `FIGURE_API`); `player_preload` names its script. A pack
   entry may not take a built-in id. The first one is the infantry soldier preview `soldier` ("ทหารราบ (ทดลอง)" /
   "Infantry (preview)", `scenes/arena/soldier_figure.gd`, generator and import in the repository's `tools/soldier/`).
-  Four more bodies of the same script follow it: `soldier_m2` "ทหารราบ ชาย 2 (ทดลอง)" / "Infantry man 2 (preview)",
-  `soldier_m3` "ทหารราบ ชาย 3 (ทดลอง)" / "Infantry man 3 (preview)", `soldier_f1` "ทหารราบ หญิง 1 (ทดลอง)" / "Infantry
-  woman 1 (preview)", `soldier_f2` "ทหารราบ หญิง 2 (ทดลอง)" / "Infantry woman 2 (preview)"; an entry's `body` goes to
+  Four more bodies of the same script follow it: `soldier_m2` "ทหารราบ ชาย 2 (ทดลอง)" / "Infantry M2 (preview)",
+  `soldier_m3` "ทหารราบ ชาย 3 (ทดลอง)" / "Infantry M3 (preview)", `soldier_f1` "ทหารราบ หญิง 1 (ทดลอง)" / "Infantry
+  W1 (preview)", `soldier_f2` "ทหารราบ หญิง 2 (ทดลอง)" / "Infantry W2 (preview)" (short enough for one line on a
+  dressing-room button at 1280 × 720 in both languages); an entry's `body` goes to
   the figure's `body_id` (`Figures.make_builtin`, used by `make` and `ArenaActors.player_figure`) and selects the asset
   folder `res://assets/figures/soldier_<body>/`.
 - **Default**: the first pack figure, else the egg; scheme original (a figure looks as before until the owner picks).

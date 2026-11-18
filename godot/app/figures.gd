@@ -35,13 +35,13 @@ const KITS: Array[Dictionary] = [
 const BUILTINS: Array[Dictionary] = [
 	{"id": "soldier", "th": "ทหารราบ (ทดลอง)", "en": "Infantry (preview)", "figure": "res://scenes/arena/soldier_figure.gd",
 		"needs": "res://assets/figures/soldier/rig.tscn"},
-	{"id": "soldier_m2", "th": "ทหารราบ ชาย 2 (ทดลอง)", "en": "Infantry man 2 (preview)", "body": "m2",
+	{"id": "soldier_m2", "th": "ทหารราบ ชาย 2 (ทดลอง)", "en": "Infantry M2 (preview)", "body": "m2",
 		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_m2/rig.tscn"},
-	{"id": "soldier_m3", "th": "ทหารราบ ชาย 3 (ทดลอง)", "en": "Infantry man 3 (preview)", "body": "m3",
+	{"id": "soldier_m3", "th": "ทหารราบ ชาย 3 (ทดลอง)", "en": "Infantry M3 (preview)", "body": "m3",
 		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_m3/rig.tscn"},
-	{"id": "soldier_f1", "th": "ทหารราบ หญิง 1 (ทดลอง)", "en": "Infantry woman 1 (preview)", "body": "f1",
+	{"id": "soldier_f1", "th": "ทหารราบ หญิง 1 (ทดลอง)", "en": "Infantry W1 (preview)", "body": "f1",
 		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_f1/rig.tscn"},
-	{"id": "soldier_f2", "th": "ทหารราบ หญิง 2 (ทดลอง)", "en": "Infantry woman 2 (preview)", "body": "f2",
+	{"id": "soldier_f2", "th": "ทหารราบ หญิง 2 (ทดลอง)", "en": "Infantry W2 (preview)", "body": "f2",
 		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_f2/rig.tscn"},
 ]
 ## ชุดสีสำเร็จรูป: primary = เกราะ/ตัว, secondary = ผ้า/ชุดใน (สี sRGB) · original = สีเดิมของตัว (ไม่ทา H10; สีในปุ่มใช้วาดเท่านั้น)

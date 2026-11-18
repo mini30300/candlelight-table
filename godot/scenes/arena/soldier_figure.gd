@@ -156,6 +156,7 @@ var _inner_mats: Array = []      # วัสดุชั้นในของต
 var _wound_updates := 0          # ครั้งที่ส่งตำแหน่งแผลให้เชดเดอร์ (เทส)
 var _hit_from := Vector3.ZERO    # ทิศ (โลก) ไปหาผู้ตีของแผลครั้งถัดไป (set_hit_from) · ศูนย์ = ไม่รู้
 var _body := DIR                 # โฟลเดอร์ร่างของตัวนี้ (ทุกอย่างของร่างแยกตามโฟลเดอร์)
+var _used := ""                  # โฟลเดอร์ที่ตัวแปรของร่างด้านล่างชี้อยู่ (_use_body)
 ## ของร่างนี้ (จาก _bodies ตอน _use_body): ทุกตัวที่ใช้ร่างเดียวกันใช้ชุดเดียวกัน
 var _rig: PackedScene
 var _skin: Skin
@@ -939,10 +940,16 @@ static func _load_static(body := DIR) -> Dictionary:
 	return d
 
 
-## ชี้ข้อมูลของร่างนี้ (โฟลเดอร์ _body) ลงตัวแปรของตัว (ครั้งแรกที่ใช้)
+## ชี้ข้อมูลของร่างนี้ (โฟลเดอร์ _body) ลงตัวแปรของตัว · ก่อนสร้างครั้งแรกอ่านร่างจาก body_id ทุกครั้ง
+## (set_light / deck_speeds ก่อน setup แล้วเปลี่ยนร่าง = ชี้ร่างใหม่ วัสดุไฟของตัวเองทำใหม่จากร่างใหม่ ค่าไฟคงเดิม)
 func _use_body() -> void:
-	if not _drv.is_empty():
+	if not _built:
+		_body = folder(body_id)
+		if _body != DIR and not ResourceLoader.exists(_body + "rig.tscn"):
+			_body = DIR
+	if _used == _body:
 		return
+	_used = _body
 	var d := _load_static(_body)
 	_rig = d["rig"]
 	_skin = d["skin"]
@@ -951,6 +958,12 @@ func _use_body() -> void:
 	_drv = d["drv"]
 	_scale = float(d["scale"])
 	_wound_sh = wound_shader(_body)
+	if _own_mat != null and _mat != null and _own_mat.shader != _mat.shader:
+		var old := _own_mat
+		_own_mat = _mat.duplicate() as ShaderMaterial
+		for p in ["sun_dir", "sun_colour", "ambient_colour"]:
+			if old.get_shader_parameter(p) != null:
+				_own_mat.set_shader_parameter(p, old.get_shader_parameter(p))
 
 
 static func _vec(a: Variant) -> Vector3:
