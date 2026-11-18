@@ -83,7 +83,9 @@ dressing room, the four levels) are the quickest look at a new body in the game.
 other body: the unit tests check each `soldier_<id>/` folder against the same contract (its own S, no blend shapes, its
 own wound layers under its own skin, the folder caps), and the render tests walk each body on the deck and in the
 arena at its own S (`soldier_<id>_deck_*.png`, `_hero_*.png`, `_arena_hi.png`) and wound f1's chest
-(`soldier_wound_f1_*.png`).
+(`soldier_wound_f1_*.png`). A new body's names must fit its dressing-room button on one line at 1280 × 720 in Thai and
+English (209 px at font size 19; `test_soldier.gd` measures every button, `soldier_dressing_names_<th|en>.png`); the
+unit tests also read each other body's `IMPORTED.txt` for the posed bone check.
 
 ## The contract between the generator and the game
 
@@ -146,10 +148,10 @@ shapes on mid are still the next saving for the base.
 
 | id | dressing room (th / en) | build | S |
 | --- | --- | --- | --- |
-| m2 | ทหารราบ ชาย 2 (ทดลอง) / Infantry man 2 (preview) | man 1.86 m, deep brown skin, black buzz cut, broad jaw, heavy build | 1.1625 |
-| m3 | ทหารราบ ชาย 3 (ทดลอง) / Infantry man 3 (preview) | man 1.70 m, light skin, short brown hair, long narrow face, wiry | 1.0625 |
-| f1 | ทหารราบ หญิง 1 (ทดลอง) / Infantry woman 1 (preview) | woman 1.60 m, tan skin, Southeast Asian face, high bun, pear shape, khaki top | 1.0 |
-| f2 | ทหารราบ หญิง 2 (ทดลอง) / Infantry woman 2 (preview) | woman 1.73 m, dark brown skin, curly hair, straight athletic build, sage top | 1.08125 |
+| m2 | ทหารราบ ชาย 2 (ทดลอง) / Infantry M2 (preview) | man 1.86 m, deep brown skin, black buzz cut, broad jaw, heavy build | 1.1625 |
+| m3 | ทหารราบ ชาย 3 (ทดลอง) / Infantry M3 (preview) | man 1.70 m, light skin, short brown hair, long narrow face, wiry | 1.0625 |
+| f1 | ทหารราบ หญิง 1 (ทดลอง) / Infantry W1 (preview) | woman 1.60 m, tan skin, Southeast Asian face, high bun, pear shape, khaki top | 1.0 |
+| f2 | ทหารราบ หญิง 2 (ทดลอง) / Infantry W2 (preview) | woman 1.73 m, dark brown skin, curly hair, straight athletic build, sage top | 1.08125 |
 
 Each is a named configuration in `generator/src/py/variants.py`; with no variant every hook is skipped, so the default
 build still reproduces the base byte for byte (checked: every `body_*.bin`, both inner layers, `skeleton.bin`, the
@@ -169,7 +171,16 @@ the flesh and are reported apart (m3: 4 vertices up to 2.34 mm, f1: 2 vertices u
 inner layers are drawn only inside a wound of the same body part, and the armpit has no wound spot. The base keeps its
 stage-1c layers (byte for byte): its posed report shows flesh up to 5.16 mm above the skin at the top of the shoulder in
 the widest swings. Rigid bone pieces (shoulder blade, collarbone) can come up through the skin by 12-17 mm in the
-widest arm swings on every body; they too are drawn only inside a wound.
+widest arm swings on every body; they too are drawn only inside a wound, but the inner shader also draws bone in a
+ring just outside the hole (out to about 1.2-1.5 times the wound radius), so bone above the skin there shows over
+unbroken skin while a wounded figure runs or punches. Posed bone at the chest front and the hips is therefore gated
+for the other bodies at no more than the base body + 0.5 mm (`inner_posed.py`: `BONE_BASE_MM` 0.917 / 6.432 mm, from
+the stage-1c report; `BONE_OVER_MM`), and `inner_layers.py` first pushes the rigid bone vertices of those two regions
+that come up further than the base in any clip frame down in the bind pose (`inner_posed.push_bone`, the same solver
+as the flesh, at most 10 mm, still at least 2.5 mm under the hi and mid skin; m3 2 vertices up to 1.3 mm, f2 3 up to
+1.5 mm, m2 and f1 none). Posed bone, chest front / hips / worst (mm): base 0.92 / 6.43 / 14.77, m2 0 / 0 / 16.68,
+m3 0.82 / 6.33 / 11.94, f1 0.19 / 0 / 13.40, f2 0.82 / 6.33 / 12.66 (printed in `IMPORTED.txt`; the 6.3-6.4 mm at the
+hips is one run frame, as on the base).
 
 Stage 1c's abdominal grooves and navel also get a little vertex shade (`mesh.colours`: `CAV_K`, on lo `FAR_K`), because
 the game's top light gives a vertical groove almost no shading.
