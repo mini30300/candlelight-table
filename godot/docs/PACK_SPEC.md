@@ -398,12 +398,17 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   scheme_id)` (unknown ids fall back to the defaults, writes, emits `App.figure_changed`); `slots()` → 3 × `{}` or
   `{figure, scheme}` (a figure that no longer exists reads as `{}`); `save_slot(i, figure_id, scheme_id)`.
 - **Built-in figures** (kind `"builtin"`, ใหม่ 0.13): public figures that ship their own baked assets under
-  `res://assets/figures/<id>/`, listed by `Figures.BUILTINS` (`{id, th, en, figure, needs}`) after the egg and before the
+  `res://assets/figures/<id>/`, listed by `Figures.BUILTINS` (`{id, th, en, figure, needs, body}`) after the egg and before the
   kits whenever the script and the `needs` file exist; never the default, no schemes. One script serves every role:
   `make(id)` builds it for the deck and `ArenaActors.player_figure` for the arena, the campaign and the "normal" hero
   card (fallback to the default player when it lacks part of `FIGURE_API`); `player_preload` names its script. A pack
   entry may not take a built-in id. The first one is the infantry soldier preview `soldier` ("ทหารราบ (ทดลอง)" /
   "Infantry (preview)", `scenes/arena/soldier_figure.gd`, generator and import in the repository's `tools/soldier/`).
+  Four more bodies of the same script follow it: `soldier_m2` "ทหารราบ ชาย 2 (ทดลอง)" / "Infantry man 2 (preview)",
+  `soldier_m3` "ทหารราบ ชาย 3 (ทดลอง)" / "Infantry man 3 (preview)", `soldier_f1` "ทหารราบ หญิง 1 (ทดลอง)" / "Infantry
+  woman 1 (preview)", `soldier_f2` "ทหารราบ หญิง 2 (ทดลอง)" / "Infantry woman 2 (preview)"; an entry's `body` goes to
+  the figure's `body_id` (`Figures.make_builtin`, used by `make` and `ArenaActors.player_figure`) and selects the asset
+  folder `res://assets/figures/soldier_<body>/`.
 - **Default**: the first pack figure, else the egg; scheme original (a figure looks as before until the owner picks).
 - **Storage**: section `[figure]` (`figure`, `scheme`, `slot0..2`) of the app's settings file (`App.settings_file`; tests
   point it, or `Figures.store_path`, elsewhere); `App.save_settings` keeps other sections. Never `godot/data/*.json`

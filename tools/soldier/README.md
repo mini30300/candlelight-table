@@ -3,7 +3,9 @@
 The soldier is a public figure of the Godot app ("ทหารราบ (ทดลอง)" / "Infantry (preview)" in the dressing room,
 `Figures` kind `builtin`). Its body is built offline in anatomical order (skeleton, then muscles, then skin) by the
 deterministic generator in `generator/`, then imported into the game as baked Godot resources under
-`godot/assets/figures/soldier/`. The game side is `godot/scenes/arena/soldier_figure.gd` (`SoldierFigure`).
+`godot/assets/figures/soldier/`. Four more bodies (two men, two women: "ทหารราบ ชาย 2/3 (ทดลอง)", "ทหารราบ หญิง 1/2
+(ทดลอง)") come from the same generator (`variants.py`) and live in `godot/assets/figures/soldier_<id>/` (see
+**Bodies** below). The game side is `godot/scenes/arena/soldier_figure.gd` (`SoldierFigure`).
 
 Public CI has no generator run: the baked files are committed, and this folder is the only durable copy of the source.
 Build folders (fields, renders, logs: hundreds of MB) always live outside the repository.
@@ -13,7 +15,7 @@ Build folders (fields, renders, logs: hundreds of MB) always live outside the re
 | Path | What |
 | --- | --- |
 | `generator/` | The generator exactly as the imported stage had it: `project.godot` (a small gl_compatibility project), `src/py/*.py` (the Python pipeline), `src/gd/*.gd` + shaders (Godot assembly, renders, inspection and the viewer figure it renders with), `src/run_all.sh`; the import copies every source file under the stage's `src/` (`.py .gd .gdshader .sh .json .md .txt`, no caches) |
-| `import_stage.sh <stage_dir>` | One command from a finished build folder to the game: re-saves the stage's Godot files with the game's paths, syncs `generator/` from the stage, re-imports the game project, writes `godot/assets/figures/soldier/IMPORTED.txt` |
+| `import_stage.sh [--as soldier_<id>] <stage_dir>` | One command from a finished build folder to the game: re-saves the stage's Godot files with the game's paths, syncs `generator/` from the stage (the base body only: another body's import leaves it alone unless `--source`), re-imports the game project, writes `godot/assets/figures/<target>/IMPORTED.txt`; `--as soldier_<id>` imports another body into its own folder |
 | `new_stage.sh <empty_dir>` | Makes a build folder from `generator/` and fills its `ref/` with the game's generated inputs |
 | `gd/import_stage.gd` | The Godot half of the import (run by `import_stage.sh` in a scratch project) |
 | `gd/export_clips.gd` | Writes `clips.json` from `godot/assets/anim/humanoid.res` (the generator's pose input) |
@@ -35,6 +37,9 @@ bash tools/soldier/new_stage.sh /tmp/soldier_build            # outside the repo
 bash /tmp/soldier_build/src/run_all.sh                        # ~25 min on 4 cores (SKIP_BUILD=1 redoes Godot + renders only)
 #   or only the meshes: (cd /tmp/soldier_build/src/py && /usr/bin/python3 build.py --layers 0)   # ~4 min
 bash tools/soldier/import_stage.sh /tmp/soldier_build         # into godot/assets/figures/soldier + generator/
+# another body (variants.py: m2 m3 f1 f2), next to the build folder: <dir>/../f1, then into soldier_f1/
+VARIANT=f1 bash /tmp/soldier_build/src/run_all.sh             # ~20 min (build, measure, wound layers, posed check, Godot, renders, gates)
+bash tools/soldier/import_stage.sh --as soldier_f1 /tmp/f1
 ```
 
 `run_all.sh` runs `build.py` (skin, weights, correctives, export), `measure.py` (proportions), `limits_check.py`
@@ -42,13 +47,17 @@ bash tools/soldier/import_stage.sh /tmp/soldier_build         # into godot/asset
 then `assemble_inner.gd`), the renders and `sheet.py` (owner sheets with Thai captions in `out/renders/`). Look at the
 sheets before importing. Only the wound layers again, in a few seconds, from a folder that has `work/stage_skin.npz`,
 `work/stage_weights.npz`, `out/data/skeleton.bin` and `out/data/body_hi.bin` / `body_mid.bin`:
-`(cd <stage>/src/py && /usr/bin/python3 inner_layers.py) && ~/godot-bin/godot --headless --path <stage> -s res://src/gd/assemble_inner.gd`.
+`(cd <stage>/src/py && /usr/bin/python3 inner_layers.py) && ~/godot-bin/godot --headless --path <stage> -s res://src/gd/assemble_inner.gd`
+(another body: `inner_layers.py --out <dir>/out --work <dir>/work`, about 6 minutes with the posed push).
 `inner_layers.py` checks every inner vertex against the hi and mid skin it will be drawn under (exact distance to the
 closest triangle) and stops the build when flesh is less than 1 mm or bone less than 2 mm deep; it writes the least
 depths into `out/data/inner_layers.json`, `assemble_inner.gd` stores them on the meshes (`depth_mm`) and the import
 prints them in `IMPORTED.txt`. A build made before the body parts existed gets them without re-sculpting:
 `(cd <stage>/src/py && /usr/bin/python3 bake_parts.py)` (byte for byte what the current `build.py` writes), then
-`assemble.gd` and the two wound-layer steps.
+`assemble.gd` and the two wound-layer steps. `inner_posed.py [--out DIR]` (about 3 minutes, `run_all.sh` runs it) poses
+the hi skin and both layers through every 2nd frame of the 15 clips the soldier uses (wrists eased as in the game,
+helpers driven) and measures each inner vertex against the posed skin of its own body part, skipping points a fold of
+skin still covers (winding number): `out/data/inner_posed.json`, printed in `IMPORTED.txt`.
 
 To swap in a newer stage (for example a stage-1b folder another agent built): run `import_stage.sh <that folder>` and
 then the tests below. The import refuses to touch the repository when a required file is missing, Godot cannot load
@@ -70,7 +79,11 @@ through the hole, tint on lo, min unchanged, seven poses with nothing changed ou
 never cuts the arm in a run cycle, real hits and death in the arena) and the render suites that touch figures (`test_campaign_heroes`,
 `test_arena_figures`, `test_kit_walker`, `test_dressing`, `test_dressing_palettes`, `test_hall`, `test_mission`,
 `test_anim_footslide`, `test_budgets`, `test_lineup`) or simply `bash godot/tests/run.sh full`. The PNGs of `test_soldier.gd` (deck, arena, mission, hero card,
-dressing room, the four levels) are the quickest look at a new body in the game.
+dressing room, the four levels) are the quickest look at a new body in the game. Both soldier suites also run every
+other body: the unit tests check each `soldier_<id>/` folder against the same contract (its own S, no blend shapes, its
+own wound layers under its own skin, the folder caps), and the render tests walk each body on the deck and in the
+arena at its own S (`soldier_<id>_deck_*.png`, `_hero_*.png`, `_arena_hi.png`) and wound f1's chest
+(`soldier_wound_f1_*.png`).
 
 ## The contract between the generator and the game
 
@@ -78,10 +91,10 @@ dressing room, the four levels) are the quickest look at a new body in the game.
 
 | File (`out/godot/` of a stage → `godot/assets/figures/soldier/`) | Rule |
 | --- | --- |
-| `rig.tscn` | root Node3D > `Skeleton3D` (that name). The 23 game bones of `godot/assets/kits/CONTRACT.md` §1 with their exact names, parents and SKRIG offsets × S, in SKRIG frames, so every clip of `humanoid.res` plays unchanged; `motion_scale` = S (1.1125 for a 1.78 m man). Helper bones may follow (never between game bones). |
+| `rig.tscn` | root Node3D > `Skeleton3D` (that name). The 23 game bones of `godot/assets/kits/CONTRACT.md` §1 with their exact names, parents and SKRIG offsets × S, in SKRIG frames, so every clip of `humanoid.res` plays unchanged; `motion_scale` = S = stature / 1.6 (1.1125 for the 1.78 m base; every body has the base's 33 bones at the base offsets × its S ratio). Helper bones may follow (never between game bones). |
 | helper bones | Driven by name in `mixer_applied` on hi/mid/lo: `clavicle<L/R>` (raised and pushed forward with the upper arm), `<joint>_half<L/R>` (half the turn of `<joint><L/R>`: elbow, knee, hip), a name containing `twist` under `shoulder<L/R>` (takes back half the upper-arm twist) or under `elbow<L/R>` (takes half the wrist-and-hand twist: a forearm twist helper). A helper with no rule stays at rest and `test_soldier.gd` fails with its name: add a rule to `SoldierFigure.helper_rule`. |
 | `skin.res` | one named bind per bone (binds are matched by name) |
-| `body_hi/mid/lo/min.res`, optional `body_crowd.res` | one surface each (one draw call); triangles within `SoldierFigure.BUDGET` (24k / 16k / 9k / 5k, crowd 1.5k); soles at y = 0; `min` and `crowd` skinned to the 23 game bones only (no per-frame work there); blend shapes only on hi/mid |
+| `body_hi/mid/lo/min.res`, optional `body_crowd.res` | one surface each (one draw call); triangles within `SoldierFigure.BUDGET` (24k / 16k / 9k / 5k, crowd 1.5k); soles at y = 0; `min` and `crowd` skinned to the 23 game bones only (no per-frame work there); blend shapes only on hi/mid, and none at all on the other bodies (hi/mid run the helpers only) |
 | blend shapes | named `shoulder_down`, `shoulder_front`, `shoulder_up`, `elbow_flex`, `knee_flex`, `hip_flex`, `hip_ext` + `L`/`R`, driven on hi/mid from the joint angles by the formulas of `src/py/correctives.py` (`SoldierFigure.shape_weights`); a weight under 0.05 is 0. Another name fails the unit test: port its formula into `shape_weights`. |
 | `soldier_skin.tres` + `src/gd/soldier_skin.gdshader` | an unshaded material that computes its own light (uniforms `sun_dir`, `sun_colour`, `ambient_colour`, `per_vertex`), no `TIME`, and no wound code or `discard` (the shared material of every soldier, min included); the game copies it to `body.gdshader` / `body_material.tres` |
 | body parts | `CUSTOM0.w` of every `body_<level>.res` vertex = its body part from its dominant bone (`src/py/parts.py`: 0 torso with the clavicles, 1 head and neck, 2/3 left/right arm, 4/5 left/right leg with `hip_half`/`knee_half`); `SoldierFigure.body_part` uses the same name rules (`test_soldier_wounds.gd` checks every vertex) |
@@ -93,13 +106,18 @@ dressing room, the four levels) are the quickest look at a new body in the game.
 ## What the game does with it
 
 - Deck walker, arena and campaign player (`ArenaActors.player_figure`), the campaign's "normal" hero card and the
-  dressing room's preview all use `SoldierFigure`. It is never the default figure and takes no colour schemes.
+  dressing room's preview all use `SoldierFigure`. It is never the default figure and takes no colour schemes. Each
+  body is its own `Figures.BUILTINS` entry (`soldier`, `soldier_m2`, `soldier_m3`, `soldier_f1`, `soldier_f2`);
+  `Figures.make_builtin` sets the figure's `body_id` before `setup` (or `setup({"body": id})`), and the figure loads
+  everything from `SoldierFigure.folder(id)`; an unknown id falls back to the base body.
 - Clips: idle / walk / run at playback rate = speed / (clip speed × S); fire = the upper body held from the `fire` clip
   at its first shot plus a 0.16 s kick; punch = `bash_*`, swing = `thrust_*` at 1.8×; hit = `flinch`; die =
   `die_back` / `die_fwd` / `die_spin`; no reload clip. A/D turn it (H9 false), backwards = walk reversed, dodge = a short
   lean (H8). Deck speeds = clip speed × S × 1.4.
-- Levels: hi/mid helpers + correctives, lo helpers only, min nothing per frame and a still pose within 10 frames of
-  stopping; as the deck figure also still on lo. Meshes, materials and clips are cached in static variables.
+- Levels: hi/mid helpers + correctives (the other bodies: helpers only), lo helpers only, min nothing per frame and a
+  still pose within 10 frames of stopping; as the deck figure also still on lo. Rig, skin, materials, driver constants,
+  S, helper rules, meshes, wound layers and wound spots are cached in static variables per body folder; the clips are
+  shared. S is each rig's `motion_scale`, so playback rates and deck speeds follow each body's stature.
 - The hero card lights it through `set_light` on its own material copy (`HeroLight.apply`).
 - Wounds (visual only): `add_wound(bone, local_offset, radius)` cuts only the bone's body part; a hit adds one small
   seeded-random wound, death two or three larger ones, at most 8, cleared on `setup` and on the revive. Spots come
@@ -110,31 +128,48 @@ dressing room, the four levels) are the quickest look at a new body in the game.
   lo: a red tint only; min: nothing, on the plain `body.gdshader`. The wound layers exist only after the first wound
   and are hidden without one (godot/docs/ARENA_SPEC.md §9.6).
 
-## Sizes (stage 1c: soft muscle and abdomen detail on the stage-1b body, olive training shorts)
+## Sizes (stage 1c base body plus four bodies)
 
-`body_hi.res` 3.56 MB and `body_mid.res` 2.38 MB (14 uncompressed-float blend shapes each), `body_lo.res` 0.16 MB,
-`body_min.res` 0.09 MB, rig, skin, shader and material 18 KB: 6,201,793 bytes (stage 1b 6,203,693), about 6.2 MB,
-already zstd-compressed, so the APK and the Windows build each grow by about 6.2 MB. `tests/unit/test_soldier.gd` fails
-above 6.5 MB (the 90 MB APK target; its set, skin and the four bodies, is 6.19 MB). Compressed vertex attributes or
-fewer shapes on mid are the next saving.
+The base (`soldier/`): `body_hi.res` 3.57 MB and `body_mid.res` 2.38 MB (14 uncompressed-float blend shapes each),
+`body_lo.res` 0.16 MB, `body_min.res` 0.09 MB, the wound layers `inner_bone.res` 76 KB and `inner_flesh.res` 117 KB,
+rig, skin, shaders and material 31 KB: 6.41 MB. The other bodies have no blend shapes: 1.14-1.16 MB each with their own
+wound layers and shader copies (hi about 0.40 MB, mid 0.27 MB, lo 0.16 MB, min 0.09 MB). All five: 11.0 MB, already
+zstd-compressed, so the APK and the Windows build each grow by about that.
 
-The wound layers add `inner_bone.res` 76 KB and `inner_flesh.res` 117 KB (and 13 KB of shaders), about 0.2 MB more in
-the APK and the Windows build; the body parts in `CUSTOM0.w` add about 6 KB to the four bodies. The test's `SIZE_CAP`
-set counts them too: 6,387,336 bytes of 6,500,000.
+The owner's app target is now 3 GB, but a GitHub release file may be at most 2 GiB, so CI fails an APK above 1900 MB
+(`.github/workflows/godot.yml`, `godot/docs/ARCHITECTURE.md`). `tests/unit/test_soldier.gd` holds the soldier to a
+small share of that: the base folder at most 10 MB (`BASE_CAP`), each other body at most 4 MB (`VARIANT_CAP`), all
+soldier folders together at most 60 MB (`ALL_CAP`, about 3 % of the ceiling). Compressed vertex attributes or fewer
+shapes on mid are still the next saving for the base.
 
-## Body variants (planned, not imported yet)
+## Bodies (`variants.py`, imported into `godot/assets/figures/soldier_<id>/`)
 
-Other statures and both sexes are built in their own build folders (variant generator: `build.py --variant <name>`,
-scale k = stature / 1.78, no blend shapes). Plan for the game, enforced by `test_soldier.gd` as soon as a folder exists:
-one sub-folder per variant, `godot/assets/figures/soldier/<name>/`, with its own `rig.tscn`, `skin.res`,
-`body_hi/mid/lo/min.res` and its own wound layers (`inner_bone.res`, `inner_flesh.res`), at most 1.25 MB each
-(`VARIANT_CAP`; bodies about 0.96 MB plus 0.2 MB of wound layers), the whole soldier tree at most 12 MB (`ALL_CAP`). The
-shaders stay shared in the base folder. Every variant build runs `inner_layers.py` and `assemble_inner.gd` like the
-base: `inner_layers.py` reads `out/data/variant.json` (k) and builds the flesh in the sculpt's 1.78 m frame, then scales
-it into the exported frame, and refuses a folder whose sculpt and `body_hi` disagree in height. `SoldierFigure` keys
-its wound layers and wound spots by body folder (`inner_mesh(layer, body)`, `wound_spots(body)`, the instance's
-`_body`), so each variant gets flesh that fits its own skin; the rest of its static caches (rig, skin, meshes) are
-still the base body's until the variants are integrated.
+| id | dressing room (th / en) | build | S |
+| --- | --- | --- | --- |
+| m2 | ทหารราบ ชาย 2 (ทดลอง) / Infantry man 2 (preview) | man 1.86 m, deep brown skin, black buzz cut, broad jaw, heavy build | 1.1625 |
+| m3 | ทหารราบ ชาย 3 (ทดลอง) / Infantry man 3 (preview) | man 1.70 m, light skin, short brown hair, long narrow face, wiry | 1.0625 |
+| f1 | ทหารราบ หญิง 1 (ทดลอง) / Infantry woman 1 (preview) | woman 1.60 m, tan skin, Southeast Asian face, high bun, pear shape, khaki top | 1.0 |
+| f2 | ทหารราบ หญิง 2 (ทดลอง) / Infantry woman 2 (preview) | woman 1.73 m, dark brown skin, curly hair, straight athletic build, sage top | 1.08125 |
+
+Each is a named configuration in `generator/src/py/variants.py`; with no variant every hook is skipped, so the default
+build still reproduces the base byte for byte (checked: every `body_*.bin`, both inner layers, `skeleton.bin`, the
+muscle layers and the imported Godot files; `rig.tscn` differs only in Godot's node `unique_id`). `build.py --variant
+<id>` scales the whole body by k = stature / 1.78 at export (the head by k^-0.6 more, so its real size goes as
+k^0.4), exports no blend shapes and writes `out/data/variant.json`; `run_all.sh` with `VARIANT=<id>` builds in
+`../<id>/` next to the generator folder (`src` and `ref` linked).
+
+Wound layers of a body: `inner_layers.py` reads `variant.json`, insets the flesh by that body's own fat map (computed
+before the head warp) plus the thickness of its pad pieces (breasts, slope pads, infraclavicular fat: up to 40 mm;
+`FAT_HI_V`), scales it by k, checks it under the hi and mid skin like the base, then moves every flesh vertex that pokes
+out of the posed hi skin in any clip frame (`inner_posed.push_posed`: each such frame is a linear constraint on the
+move, solved by repeated projection, never through the other side of a thin part such as an ear). The posed check must
+then show no flesh above the skin at the chest front and the hips, and at most 0.5 mm elsewhere; the few armpit points
+where linear skinning turns the depth against the skin during the punch and thrust swings cannot be fixed by moving
+the flesh and are reported apart (m3: 4 vertices up to 2.34 mm, f1: 2 vertices up to 5.95 mm; m2 and f2: none). The
+inner layers are drawn only inside a wound of the same body part, and the armpit has no wound spot. The base keeps its
+stage-1c layers (byte for byte): its posed report shows flesh up to 5.16 mm above the skin at the top of the shoulder in
+the widest swings. Rigid bone pieces (shoulder blade, collarbone) can come up through the skin by 12-17 mm in the
+widest arm swings on every body; they too are drawn only inside a wound.
 
 Stage 1c's abdominal grooves and navel also get a little vertex shade (`mesh.colours`: `CAV_K`, on lo `FAR_K`), because
 the game's top light gives a vertical groove almost no shading.

@@ -772,7 +772,8 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   the pack's `player` role or the default, as before. The deck door preloads `ArenaActors.player_preload(sel)` (the
   kit model or the pack script) beside the old paths. The arena screen is built on each entry, so a new selection
   shows the next time the door is used. ใหม่ 0.13: kind `builtin` → that figure's own script (`Figures.builtin_figure`;
-  the infantry soldier preview `SoldierFigure`, `scenes/arena/soldier_figure.gd`), the default when it lacks part of
+  the infantry soldier preview `SoldierFigure`, `scenes/arena/soldier_figure.gd`, with its body from the entry: the base
+  or `m2`, `m3`, `f1`, `f2`, each with its own S, meshes and wound layers), the default when it lacks part of
   `FIGURE_API`; the door preloads its script.
 - **`KitFighter`** (`scenes/arena/kit_fighter.gd`, extends `KitWalker`): the battle-table kits as arena players. The
   weapon is part of the kit mesh. Clips from `humanoid.res`: idle / walk / run (rate matched to the speed like the
@@ -824,7 +825,8 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   `body.gdshader`, which has no wound code and no `discard`, so early depth tests and hidden-surface removal stay on.
   While the own material is in use the hit flash and the telegraph tint go through its `flash` / `telegraph` uniforms
   instead of `material_overlay`, so nothing washes over a fresh hole. Tests: `tests/unit/test_soldier_wounds.gd`,
-  `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`: the four levels, a close-up, seven poses, the run strip).
+  `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`: the four levels, a close-up, seven poses, the run strip,
+  and the f1 body alone and in the arena). Every body has its own wound layers and wound spots (keyed by its folder).
 
 ## 10. Screens, flow and transitions (ROOM)
 
