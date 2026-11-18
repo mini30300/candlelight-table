@@ -2,7 +2,7 @@
 #   out/data/inner_bone.bin  = กระดูกจริง (skeleton.bin ท่าผูก) ลดเหลือ ~5k สามเหลี่ยม ผูกแข็งกับกระดูกของแต่ละชิ้น
 #   out/data/inner_flesh.bin = ผิวปั้น (work/stage_skin.npz) ลดเหลือ ~7k แล้วหดเข้าเท่าความหนาไขมัน (fatmap)
 #                              น้ำหนักย้ายจากผิว (work/stage_weights.npz: Wh4 ชุดเดียวกับ hi/mid)
-#   /usr/bin/python3 inner_layers.py [--out DIR] [--work DIR]      (~30 วินาที ; ต่อด้วย src/gd/assemble_inner.gd)
+#   /usr/bin/python3 inner_layers.py [--out DIR] [--work DIR]      (~5 วินาที ; ต่อด้วย src/gd/assemble_inner.gd)
 import argparse
 import json
 import os
