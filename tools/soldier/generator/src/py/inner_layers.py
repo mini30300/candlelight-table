@@ -7,6 +7,7 @@
 #   ร่างแบบอื่น (variants: out/data/variant.json มี k และชื่อร่าง) ผิวปั้นอยู่ในกรอบ 1.78 ม. -> คิดในกรอบนั้นแล้วคูณ k
 #   ไขมันจากแผนที่ของร่างนั้นเอง (variants.use) + ความหนาของชิ้น pad (เต้านม แผ่นลาดอก ไขมันใต้ไหปลาร้า) ไม่เกิน FAT_HI_V
 #   แล้วจุดเนื้อที่โผล่พ้นผิว hi ในท่าใดของเกมถูกกดลงในท่าผูก (inner_posed.push_posed ; ตรวจซ้ำด้วย inner_posed.py)
+#   และจุดกระดูกอกหน้า/สะโพกที่โผล่ในท่าเกินร่างหลักถูกกดลงในท่าผูก (inner_posed.push_bone)
 #   /usr/bin/python3 inner_layers.py [--out DIR] [--work DIR]      (~5 วินาที ; ต่อด้วย src/gd/assemble_inner.gd)
 import argparse
 import json
@@ -299,6 +300,15 @@ def main():
     w4 = np.zeros((nb, 4))
     w4[:, 0] = 1.0
     part_b = PT.part_ids(Bb)
+    posed_b = None
+    if VR.CUR is not None:
+        import inner_posed as IP
+        clips = json.load(open(IP.clip_path(args.out)))["clips"]
+        Vb, npb, dmb = IP.push_bone(Vb, bones4.astype(np.int64), w4, part_b.astype(np.int64), data, k, clips,
+                                    list(skins.values()))
+        Nb = ME.vnormals(Vb, Fb)
+        posed_b = {"pushed_verts": npb, "max_push_mm": round(dmb * 1000, 2)}
+        print("inner bone: %d verts pushed down for the game's poses (chest front / hips, at most %.1f mm)" % (npb, dmb * 1000))
     LY.write_bin(os.path.join(data, "inner_bone.bin"), {"pos": Vb, "nrm": Nb, "bones": bones4, "weights": w4,
                                                         "part": part_b, "idx": Fb[:, ::-1]},
                  {"layer": "bone", "verts": nb, "tris": int(len(Fb)), "bones": rig.BONES, "space": "bind"})
@@ -321,7 +331,8 @@ def main():
     rep = {"k": k, "variant": VR.NAME,
            "bone": {"verts": nb, "tris": int(len(Fb)), "groups": len(groups), "bones": used_b, "parts": groups,
                     "pushed_under_skin": moved_b, "depth": dep_b,
-                    "body_parts": {PT.NAMES[i]: int((part_b == i).sum()) for i in range(len(PT.NAMES))}},
+                    "body_parts": {PT.NAMES[i]: int((part_b == i).sum()) for i in range(len(PT.NAMES))},
+                    **({"posed_push": posed_b} if posed_b else {})},
            "flesh": {"verts": int(len(Vf)), "tris": int(len(Ff)), "bones": used_f, "pushed_under_skin": moved_f,
                      "depth": dep_f, "body_parts": {PT.NAMES[i]: int((part_f == i).sum()) for i in range(len(PT.NAMES))},
                      "inset_mm": {"min": round(float(t.min()) * 1000, 2), "mean": round(float(t.mean()) * 1000, 2),

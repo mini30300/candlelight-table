@@ -8,6 +8,7 @@
 #   ร่างแบบอื่น: inner_layers.py เลื่อนเนื้อที่โผล่ลงในท่าผูกแล้ว (push_posed) -> เนื้อโผล่เกิน POKE_MM = หยุด ยกเว้นจุดที่
 #   โครงผสม (LBS) หมุนระยะลึกของเนื้อสวนนอร์มอลของผิว (A^T n · นอร์มอลท่าผูก < 0: เลื่อนเข้าลึกยิ่งโผล่ เลื่อนออกก็พ้นผิว
 #   ในท่าผูก แก้ด้วยการเลื่อนไม่ได้ เจอที่รักแร้ตอนต่อย/แทง) ซึ่งรายงานแยก ; อกหน้าและสะโพกต้องไม่โผล่เลยทุกกรณี
+#   กระดูกของร่างแบบอื่น: อกหน้า/สะโพกโผล่ได้ไม่เกินร่างหลัก + BONE_OVER_MM (inner_layers.py กดลงด้วย push_bone)
 #   ร่างหลัก: รายงานอย่างเดียว (ชั้นในต้องเหมือนขั้น 1c ทุกไบต์ ; ที่โผล่อยู่ที่บ่าตอนยกแขนสุด)
 #   /usr/bin/python3 inner_posed.py [--out DIR] [--step 2]      (~2-3 นาที)
 import argparse
@@ -28,6 +29,9 @@ POKE_MM = 0.5             # เนื้อโผล่พ้นผิวได�
 # บริเวณที่ต้องดูเป็นพิเศษ (กรอบ 1.78 ม. ท่าผูก): อก/เต้านม และสะโพก/ก้น
 REGIONS = {"chest_front": lambda P: (P[:, 1] > 1.15) & (P[:, 1] < 1.42) & (P[:, 2] > 0.03),
            "hips": lambda P: (P[:, 1] > 0.78) & (P[:, 1] < 1.05) & ((np.abs(P[:, 0]) > 0.10) | (P[:, 2] < -0.03))}
+# กระดูกโผล่พ้นผิวในท่า (มม.) ของร่างหลัก (inner_posed.json ของขั้น 1c: ชั้นในร่างหลักเหมือนขั้น 1c ทุกไบต์)
+BONE_BASE_MM = {"chest_front": 0.917, "hips": 6.432}
+BONE_OVER_MM = 0.5        # ร่างแบบอื่น: กระดูกอกหน้า/สะโพกโผล่เกินร่างหลักได้ไม่เกินเท่านี้
 
 
 def _clamp_turn(q, deg):
@@ -129,8 +133,10 @@ def poke(sk, M, P, B, W, part, full=False):
     return s, int((~same).sum()), ncov
 
 
-def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bind_margin=0.0015, rounds=4, cap=0.03):
+def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bind_margin=0.0015, rounds=4, cap=0.03,
+               allow=None):
     """ร่างแบบอื่น: เลื่อนจุดเนื้อ (กรอบที่ส่งออก) ที่โผล่พ้นผิว (หรือลึกไม่ถึง margin) ในท่าใดของเกม ในท่าผูก
+    allow (ม. ต่อจุด กรอบที่ส่งออก) = โผล่ได้ถึงเท่านี้แทน margin (inf = ไม่เลื่อน: กระดูกนอกบริเวณที่ดู)
     ทุกท่าที่จุดนั้นโผล่เป็นเงื่อนไขเชิงเส้น g·d >= ระยะที่ขาด (g = A^T n: การหมุนผสมของจุดย้อนนอร์มอลของผิวในท่านั้น ;
     รักแร้ตอนแกว่งแขนนอร์มอลท่าผูกแทบขนานผิว) -> d สั้นสุดโดยฉายทีละเงื่อนไขซ้ำ (Kaczmarz) แล้วคิดใหม่ทุกรอบ ; ไม่เกิน cap
     จุดที่เลื่อนแล้วทะลุอีกด้าน (ใบหู ข้อมือ: ในท่าผูกลึกใต้ผิว skins ไม่ถึง bind_margin) เลื่อนครึ่งเดียว ยังไม่ได้ก็ไม่เลื่อน
@@ -145,7 +151,7 @@ def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bi
         cons = {}                                     # จุด -> [(ระยะที่ขาด, g)] ในกรอบ 1.78 ม.
         for _cn, _fr, M in frames:
             s, _, _, Nq = poke(sk, M, V / k, B, W, part, full=True)
-            need = s + margin / k
+            need = s + margin / k if allow is None else s - allow / k
             idx = np.flatnonzero(need > 0)
             if len(idx) == 0:
                 continue
@@ -188,6 +194,24 @@ def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bi
     return V, int(moved.sum()), float(total.max())
 
 
+def push_bone(V, B, W, part, data, k, clips, skins, step=2):
+    """ร่างแบบอื่น: กดจุดกระดูก (ชิ้นแข็ง) ในอกหน้าและสะโพกที่โผล่ในท่าใดของเกมเกินร่างหลัก (BONE_BASE_MM − 0.1 มม.) ลงในท่าผูก
+    เฉพาะจุดในสองบริเวณนั้น ; ท่าผูกยังลึก >= 2.5 มม. ใต้ผิว hi/mid ; คืน (V, จำนวนจุดที่เลื่อน, ระยะเลื่อนมากสุด ม.)"""
+    V = np.array(V, np.float64)
+    P = V / k
+    allow = np.full(len(V), np.inf)
+    for r, f in REGIONS.items():
+        m = f(P)
+        allow[m] = np.minimum(allow[m], (BONE_BASE_MM[r] - 0.1) / 1000.0)
+    sel = np.flatnonzero(np.isfinite(allow))
+    if len(sel) == 0:
+        return V, 0, 0.0
+    Vs, nmv, dmax = push_posed(V[sel], None, B[sel], W[sel], part[sel], data, k, clips, skins, step=step,
+                               bind_margin=0.0025, cap=0.01, allow=allow[sel])
+    V[sel] = Vs
+    return V, nmv, dmax
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "out"))
@@ -211,7 +235,9 @@ def main():
     clips = json.load(open(clip_path(args.out)))["clips"]
     frames = pose_frames(clips, args.step)
     rep = {"k": k, "step": args.step, "frames": len(frames), "clips": sorted({f[0] for f in frames}, key=CLIPS.index),
-           "gate": ("flesh <= %.1f mm (LBS-inverted points reported apart), chest front and hips <= %.1f mm" % (POKE_MM, POKE_MM))
+           "gate": ("flesh <= %.1f mm (LBS-inverted points reported apart), chest front and hips <= %.1f mm; bone chest front "
+                    "<= %.2f mm, hips <= %.2f mm (base + %.1f)" % (POKE_MM, POKE_MM, BONE_BASE_MM["chest_front"] + BONE_OVER_MM,
+                                                              BONE_BASE_MM["hips"] + BONE_OVER_MM, BONE_OVER_MM))
            if variant else "report only (base layers = stage 1c)"}
     acc = {n: {"max_mm": -1e9, "worst": "", "out_vert_frames": 0, "near_other_part": 0, "covered_by_fold": 0,
                "regions": {r: {"max_mm": -1e9, "worst": ""} for r in REGIONS},
@@ -281,6 +307,10 @@ def main():
     if variant and (acc["flesh"]["max_mm"] > POKE_MM or bad):
         raise SystemExit("inner flesh above the skin in a posed frame: %.2f mm (%s), regions %s" % (
             acc["flesh"]["max_mm"], acc["flesh"]["worst"], bad))
+    bad_b = {r: v["max_mm"] for r, v in acc["bone"]["regions"].items() if v["max_mm"] > BONE_BASE_MM[r] + BONE_OVER_MM}
+    if variant and bad_b:
+        raise SystemExit("inner bone above the skin in a posed frame more than the base body + %.1f mm: %s (base %s)" % (
+            BONE_OVER_MM, bad_b, BONE_BASE_MM))
 
 
 if __name__ == "__main__":

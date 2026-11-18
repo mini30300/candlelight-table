@@ -11,7 +11,8 @@ min           1   2468   4932             0    87906
 wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)
 bone          1   2839   5164             -    76511  depth 3.16 mm / 2.75 mm
 flesh         1   3502   7000             -   117326  depth 1.50 mm / 1.50 mm
-posed (355 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm): flesh above the hi skin at most 0.32 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 2 verts, at most 5.95 mm
+posed (355 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm; bone chest front <= 1.42 mm, hips <= 6.93 mm (base + 0.5)): flesh above the hi skin at most 0.32 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 2 verts, at most 5.95 mm
+posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.19 mm, hips 0.00 mm, worst 13.40 mm (bash_1 frame 14)
 
 bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
 motion_scale: 1.0000

@@ -9,9 +9,10 @@ lo            1   4351   8698             0   157012
 min           1   2415   4826             0    85792
 
 wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)
-bone          1   2869   5198             -    77163  depth 2.50 mm / 2.98 mm
+bone          1   2869   5198             -    77161  depth 2.50 mm / 2.98 mm
 flesh         1   3502   7000             -   117207  depth 1.50 mm / 1.49 mm
-posed (355 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm): flesh above the hi skin at most 0.15 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 4 verts, at most 2.34 mm
+posed (355 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm; bone chest front <= 1.42 mm, hips <= 6.93 mm (base + 0.5)): flesh above the hi skin at most 0.15 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 4 verts, at most 2.34 mm
+posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.82 mm, hips 6.33 mm, worst 11.94 mm (thrust_1 frame 14)
 
 bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
 motion_scale: 1.0625
@@ -27,7 +28,7 @@ sha256:
   f4e8207c587e0dfed02039d3d7b8e7bbbc9ca287dd23590413e19a68d780dd99  body_min.res  85792 bytes
   b28dbda8c9fd39644499b7ba8901ab4fc2a6b715aa7f68605266d64e053e03f6  body_wound.gdshader  3345 bytes
   7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
-  90e274b2b1dc7e42f3d5d1ca9d1aa5dcd81bebf1bda6ea1c7563142a250b9aab  inner_bone.res  77163 bytes
+  3f6aa378197599cfa280a359437f30bf89c7f2d46a011fd7a2ba47021d2fe23c  inner_bone.res  77161 bytes
   72975f057b38d0720180a3451024c99c4429e94e11d015ad97b61ba25df0a33f  inner_flesh.res  117207 bytes
   f3d6d2625216a3b25d8e6e6a1f5a4571c0efeeb8464bd000471e9207bc9a9c30  rig.tscn  10825 bytes
   afb7c03cd72f44b45208c8b4d8bd1a4c171070ccfd2ff9c919801b7e0edab643  skin.res  4807 bytes

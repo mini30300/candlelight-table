@@ -196,6 +196,12 @@ if rep.get("inner"):
                      % (p["frames"], p["gate"], max(f["max_mm"], 0.0), max(f["regions"]["chest_front"]["max_mm"], 0.0),
                         max(f["regions"]["hips"]["max_mm"], 0.0),
                         "none" if not li.get("verts") else "%d verts, at most %.2f mm" % (li["verts"], li["max_mm"])))
+        b = p.get("bone")
+        if b:
+            # กระดูกโผล่พ้นผิวตามท่า: เชดเดอร์ชั้นในวาดได้ในวงรอบแผล (นอกรู) ถ้าแผลอยู่ตรงนั้น
+            lines.append("posed bone above the hi skin (drawn only in the ring just outside a wound): chest front %.2f mm, "
+                         "hips %.2f mm, worst %.2f mm (%s)" % (max(b["regions"]["chest_front"]["max_mm"], 0.0),
+                         max(b["regions"]["hips"]["max_mm"], 0.0), max(b["max_mm"], 0.0), b["worst"].split(" vertex")[0]))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
 if "clips" in rep:

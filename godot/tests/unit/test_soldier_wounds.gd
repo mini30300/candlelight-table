@@ -14,7 +14,8 @@ extends "res://tests/testing.gd"
 ## skin.res, one surface each within their budgets, drawn after the skin (render_priority 1), every vertex at least
 ## 1 mm (flesh) / 2 mm (bone) under the hi and mid skin; the wound code lives once, in wound.gdshaderinc.
 ## The other bodies (assets/figures/soldier_<id>/): each has its own inner layers that pass the same asset checks
-## against its own skin, and a figure of that body takes wounds from its own spots and shows its own layers.
+## against its own skin, and a figure of that body takes wounds from its own spots and shows its own layers; its
+## IMPORTED.txt records the posed bone check (inner_posed.py) with the chest front and hips within the base body + 0.5 mm.
 
 const SCRIPT := "res://scenes/arena/soldier_figure.gd"
 const DIR := "res://assets/figures/soldier/"
@@ -548,6 +549,25 @@ func test_inner_assets() -> void:
 	_inner_assets(DIR, "base")
 	for body in BODIES:
 		_inner_assets(str(S.call("folder", body)), body)
+
+
+## ร่างอื่น: IMPORTED.txt บันทึกกระดูกที่โผล่พ้นผิว hi ตามท่าของเกม (inner_posed.py) และอกหน้า/สะโพกไม่เกินร่างหลัก
+## (0.917 / 6.432 มม. ชั้นในขั้น 1c) + 0.5 มม. · ในแอปที่ส่งออกไม่มี IMPORTED.txt
+func test_posed_bone_record() -> void:
+	if OS.has_feature("template"):
+		print("skip  IMPORTED.txt is not inside the exported self-test")
+		return
+	S = load(SCRIPT)
+	var re := RegEx.create_from_string("posed bone above the hi skin[^:]*: chest front ([0-9.]+) mm, hips ([0-9.]+) mm, worst ([0-9.]+) mm")
+	for body in BODIES:
+		var m := re.search(FileAccess.get_file_as_string(str(S.call("folder", body)) + "IMPORTED.txt"))
+		assert_true(m != null, "%s: IMPORTED.txt records the posed bone check" % body)
+		if m == null:
+			continue
+		var chest := float(m.get_string(1))
+		var hips := float(m.get_string(2))
+		assert_true(chest <= 0.917 + 0.5 and hips <= 6.432 + 0.5,
+			"%s: posed bone at the chest front %.2f mm and the hips %.2f mm, within the base body + 0.5 mm" % [body, chest, hips])
 
 
 ## the inner layers of the body in folder d: the same rules for every body, against that body's own skin
