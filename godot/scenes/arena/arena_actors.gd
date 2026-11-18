@@ -69,7 +69,7 @@ static func player_figure(sel: Dictionary, manifest: String = PACK_MANIFEST) -> 
 			if fig != null:
 				fig.free()
 		"builtin":
-			var b := _instance(Figures.builtin_figure(str(e["id"])))
+			var b := Figures.make_builtin(str(e["id"]))
 			if b != null and missing_api(b).is_empty():
 				return b
 			push_warning("arena: the built-in figure %s is not an arena figure" % str(e["id"]))

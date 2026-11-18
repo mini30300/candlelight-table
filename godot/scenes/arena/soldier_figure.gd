@@ -3,10 +3,11 @@ extends Node3D
 ## ทหารราบ (ทดลอง): ร่างคนตามกายวิภาค (โครง → กล้าม → ผิว) จากเครื่องมือ tools/soldier · ยังไม่มีชุดและปืน
 ## ตัวในห้องแต่งตัว (Figures kind builtin): เดินบนดาดฟ้า เป็นตัวผู้เล่นในห้องทดลองและภารกิจ และในการ์ด "ธรรมดา"
 ## สัญญาตัวละคร (ARENA_SPEC §9.1): 12 เมธอด + clip_event · ดาดฟ้า (PACK_SPEC §3) + deck_speeds · H6 H8 H9 แบบ KitFighter
-## ไฟล์ทั้งหมดใน assets/figures/soldier/ (tools/soldier/import_stage.sh นำเข้า) · ท่า: clips.res ของทหารถ้ามี
+## ไฟล์ทั้งหมดใน assets/figures/soldier/ (tools/soldier/import_stage.sh นำเข้า) · ร่างอื่น (body_id) ใน assets/figures/soldier_<id>/
+## ชุดเดียวกัน (ไม่มี blend shape ได้: hi/mid ใช้กระดูกช่วยอย่างเดียว) · S จาก motion_scale ของ rig แต่ละร่าง · ท่า: clips.res ของทหารถ้ามี
 ## ไม่งั้นสำเนาท่าใน humanoid.res ที่แต่งข้อมือแล้ว (ผิวต่อเนื่องบิดเกือบรอบไม่ได้) · โครง 23 กระดูกของเกม + กระดูกช่วย
 ## ตัวขับกระดูกช่วย/ท่าแก้ทำงานใน mixer_applied (ไม่มี _process): hi/mid = กระดูกช่วย + ท่าแก้ · lo = กระดูกช่วย ·
-## min = ไม่มีงานเพิ่ม ยืนนิ่งท่าเดียว · ดาดฟ้ายืนนิ่งทั้ง lo และ min · เมช วัสดุ ท่า เก็บ static ใช้ร่วมทุกตัว · ภาพล้วน
+## min = ไม่มีงานเพิ่ม ยืนนิ่งท่าเดียว · ดาดฟ้ายืนนิ่งทั้ง lo และ min · เมช วัสดุ เก็บ static ต่อโฟลเดอร์ร่าง ท่าใช้ร่วม · ภาพล้วน
 ## บาดแผล (add_wound, โดน/ตายลงแผลสุ่มแบบมี seed ≤ 8 แผล ติดกระดูก ด้านที่ถูกตีถ้ารู้ set_hit_from): hi/mid = ผิวขาด
 ## เห็นเนื้อและกระดูก (inner_*.res ซ่อนจนแผลแรก) · lo = สีแผลบนผิว · min = ไม่มีเลย (วัสดุร่วมไม่มีโค้ดแผล) ·
 ## แผลตัดเฉพาะส่วนร่างกายเดียวกับกระดูกแผล · อัปเดตตามท่าเฉพาะตอนมีแผล ล้างตอน setup / ลุกขึ้นใหม่
@@ -65,6 +66,7 @@ const DOWN := Vector3(0.0, -1.0, 0.0)
 ## บาดแผล: ชั้นในจาก tools/soldier (inner_layers.py) · ผิวตอนมีแผล (วัสดุของตัวเอง) · แผลสูงสุด (เกินแล้วทับแผลเก่าสุด)
 const INNER := {"flesh": "inner_flesh.res", "bone": "inner_bone.res"}
 const WOUND_SHADER := DIR + "body_wound.gdshader"
+const WOUND_FILE := "body_wound.gdshader"
 const MAX_WOUNDS := 8
 ## ส่วนร่างกาย (CUSTOM0.w ของผิว / CUSTOM0.x ของชั้นใน จาก parts.py ของ tools/soldier): แผลมีผลเฉพาะส่วนของกระดูกแผล
 const PARTS: PackedStringArray = ["torso", "head", "armL", "armR", "legL", "legR"]
@@ -90,22 +92,17 @@ const WOUND_SEAM_PAD := 0.01
 const WOUND_ROOM := 0.6          # จุดที่รัศมีลงได้ < ค่านี้ × รัศมีต่ำสุดของช่วง ไม่ใช้
 const WOUND_FACING := 0.25       # set_hit_from: ลงแผลเฉพาะจุดที่นอร์มอลตามท่า · ทิศหาผู้ตี > ค่านี้ (ไม่มีจุดเลย = ทุกจุด)
 
-static var _rig: PackedScene
-static var _skin: Skin
-static var _mat: ShaderMaterial
-static var _mat_pv: ShaderMaterial
-static var _mesh_cache: Dictionary = {}
+static var _bodies: Dictionary = {}       # โฟลเดอร์ร่าง -> {rig, skin, mat, mat_pv, drv, scale, rules, rules_ready}
+static var _mesh_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ระดับ -> ผิว
 static var _lib: AnimationLibrary
 static var _lib_from := ""
 static var _baked: Dictionary = {}
-static var _drv: Dictionary = {}
-static var _rules: Array = []      # [ดัชนี, ชนิด, ต้นทาง, ต้นทาง 2, ข้าง ±1] ของกระดูกช่วยที่ต้องขับ
-static var _rules_ready := false
-static var _scale := 1.0
 static var _inner_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ชั้น -> เมช
 static var _spots: Dictionary = {}         # โฟลเดอร์ร่าง -> จุดลงแผล
-static var _wound_sh: Shader
+static var _wound_shs: Dictionary = {}     # โฟลเดอร์ร่าง -> เชดเดอร์ผิวมีแผล (null = ไม่มี)
 
+## ร่าง: "" = ร่างหลัก (assets/figures/soldier/) · อื่น = assets/figures/soldier_<id>/ · Figures ตั้งก่อน setup (หรือ opts "body")
+var body_id := ""
 var role: StringName = &"player"
 var level := "mid"
 var weapon: StringName = &"none"
@@ -158,16 +155,32 @@ var _inner: Array = []           # [เนื้อ, กระดูก] MeshIns
 var _inner_mats: Array = []      # วัสดุชั้นในของตัวนี้เอง (ค่าแผล)
 var _wound_updates := 0          # ครั้งที่ส่งตำแหน่งแผลให้เชดเดอร์ (เทส)
 var _hit_from := Vector3.ZERO    # ทิศ (โลก) ไปหาผู้ตีของแผลครั้งถัดไป (set_hit_from) · ศูนย์ = ไม่รู้
-var _body := DIR                 # โฟลเดอร์ร่างของตัวนี้ (ชั้นในและจุดลงแผลแยกตามร่าง)
+var _body := DIR                 # โฟลเดอร์ร่างของตัวนี้ (ทุกอย่างของร่างแยกตามโฟลเดอร์)
+## ของร่างนี้ (จาก _bodies ตอน _use_body): ทุกตัวที่ใช้ร่างเดียวกันใช้ชุดเดียวกัน
+var _rig: PackedScene
+var _skin: Skin
+var _mat: ShaderMaterial
+var _mat_pv: ShaderMaterial
+var _drv: Dictionary = {}
+var _scale := 1.0
+var _rules: Array = []           # [ดัชนี, ชนิด, ต้นทาง, ต้นทาง 2, ข้าง ±1] ของกระดูกช่วยที่ต้องขับ
+var _wound_sh: Shader
 
 
 # ================= สัญญาตัวละคร =================
 
 ## opts: {"role" &"player"|&"enemy"|&"deck"|อื่น ๆ = ผู้เล่น, "level", "team_colour" (ไม่ใช้: สีผิวของตัวเอง), "seed"}
-## + "manual" (เดินท่าด้วย step() ของฉาก เช่นการ์ดฮีโร่)
+## + "manual" (เดินท่าด้วย step() ของฉาก เช่นการ์ดฮีโร่) + "body" (แทน body_id; ร่างเลือกได้ก่อนสร้างครั้งแรกเท่านั้น)
 func setup(opts: Dictionary) -> void:
 	if bool(opts.get("manual", false)):
 		_manual = true
+	if opts.has("body"):
+		body_id = str(opts["body"])
+	if not _built:
+		_body = folder(body_id)
+		if _body != DIR and not ResourceLoader.exists(_body + "rig.tscn"):
+			push_warning("soldier: no body %s, using the base body" % body_id)
+			_body = DIR
 	role = StringName(str(opts.get("role", "player")))
 	_clips = ENEMY_CLIPS if role == &"enemy" else PLAYER_CLIPS
 	_rng.seed = int(opts.get("seed", 1))
@@ -355,7 +368,7 @@ func deck_speeds() -> Vector2:
 	var lib := clip_library()
 	if lib == null or not lib.has_animation(&"walk") or not lib.has_animation(&"run"):
 		return Vector2(HallAvatar.WALK, HallAvatar.RUN)
-	_load_static()
+	_use_body()
 	return Vector2(float(lib.get_animation(&"walk").get_meta("speed", 1.0)) * _scale * DECK_RATE,
 		float(lib.get_animation(&"run").get_meta("speed", 2.0)) * _scale * DECK_RATE)
 
@@ -386,7 +399,7 @@ func begin_dodge(local_dir: Vector2, duration: float) -> void:
 
 ## ไฟของฉากโชว์ (HeroLight): วัสดุของตัวนี้เอง ไม่แตะวัสดุที่ใช้ร่วม · per_pixel = คิดแสงต่อพิกเซลทุกระดับ
 func set_light(sun_dir: Vector3, sun: Color, ambient: Color, per_pixel := true) -> void:
-	_load_static()
+	_use_body()
 	if _own_mat == null:
 		_own_mat = _mat.duplicate() as ShaderMaterial
 	_own_mat.set_shader_parameter("sun_dir", sun_dir)
@@ -485,7 +498,7 @@ func active_shapes() -> int:
 ## ติดกระดูก (ตามท่าทุกเฟรมตอนมีแผล) · ตัดเฉพาะส่วนร่างกายของ bone · ครบ MAX_WOUNDS แล้วทับแผลเก่าสุด ·
 ## min ไม่มีแผลเลย (ไม่เก็บ ไม่มีงานต่อเฟรม) · ไม่มีเชดเดอร์แผลในโฟลเดอร์ = ไม่มีแผล
 func add_wound(bone: StringName, local_offset: Vector3, radius: float) -> bool:
-	if not _built or level == "min" or radius <= 0.0 or wound_shader() == null:
+	if not _built or level == "min" or radius <= 0.0 or wound_shader(_body) == null:
 		return false
 	var bi := int(_idx.get(String(bone), -1))
 	if bi < 0:
@@ -573,21 +586,28 @@ static func body_part(bone: String) -> int:
 	return 0
 
 
-## เชดเดอร์ผิวตอนมีแผล (โหลดตอนแผลแรก) · null = โฟลเดอร์ไม่มี (ไม่มีแผล)
-static func wound_shader() -> Shader:
-	if _wound_sh == null and ResourceLoader.exists(WOUND_SHADER):
-		_wound_sh = load(WOUND_SHADER) as Shader
-	return _wound_sh
+## เชดเดอร์ผิวตอนมีแผลของร่างในโฟลเดอร์ body (โหลดตอนแผลแรก) · null = โฟลเดอร์ไม่มี (ไม่มีแผล)
+static func wound_shader(body := DIR) -> Shader:
+	if not _wound_shs.has(body):
+		var p := body + WOUND_FILE
+		_wound_shs[body] = load(p) as Shader if ResourceLoader.exists(p) else null
+	return _wound_shs[body]
+
+
+## โฟลเดอร์ไฟล์ของร่าง id ("" = ร่างหลัก DIR)
+static func folder(id: String) -> String:
+	return DIR if id == "" else "res://assets/figures/soldier_%s/" % id
 
 
 # ================= ข้อมูลร่วม (static) =================
 
-## ผิวของระดับ l (hi/mid/lo/min หรือ crowd) · null = ไม่มีไฟล์
-static func body_mesh(l: String) -> ArrayMesh:
-	if not _mesh_cache.has(l):
-		var p := DIR + "body_%s.res" % l
-		_mesh_cache[l] = load(p) as ArrayMesh if ResourceLoader.exists(p) else null
-	return _mesh_cache[l]
+## ผิวของระดับ l (hi/mid/lo/min หรือ crowd) ของร่างในโฟลเดอร์ body · null = ไม่มีไฟล์
+static func body_mesh(l: String, body := DIR) -> ArrayMesh:
+	var key := body + l
+	if not _mesh_cache.has(key):
+		var p := body + "body_%s.res" % l
+		_mesh_cache[key] = load(p) as ArrayMesh if ResourceLoader.exists(p) else null
+	return _mesh_cache[key]
 
 
 ## ชั้นในของแผล "flesh" / "bone" ของร่างในโฟลเดอร์ body (โหลดตอนแผลแรกบน hi/mid) · null = ไม่มีไฟล์
@@ -689,14 +709,11 @@ static func wound_spots(body := DIR) -> Dictionary:
 
 
 static func _skin_of(body: String) -> Skin:
-	if body == DIR:
-		_load_static()
-		return _skin
-	return load(body + "skin.res") as Skin if ResourceLoader.exists(body + "skin.res") else null
+	return _load_static(body)["skin"]
 
 
 static func _bind_index(bone: StringName, skin: Skin = null) -> int:
-	var sk := skin if skin != null else _skin
+	var sk: Skin = skin if skin != null else _skin_of(DIR)
 	if sk != null:
 		for i in sk.get_bind_count():
 			if sk.get_bind_name(i) == bone:
@@ -809,11 +826,13 @@ static func helper_rule(name: String, parent: String) -> Array:
 	return ["", "", ""]
 
 
-## กระดูกช่วยทั้งหมดของโครงกับกฎ [{bone, parent, kind, src, src2}] (เทสตรวจว่ารู้จักครบ)
-static func helper_rules() -> Array:
-	_load_static()
+## กระดูกช่วยทั้งหมดของโครงของร่างในโฟลเดอร์ body กับกฎ [{bone, parent, kind, src, src2}] (เทสตรวจว่ารู้จักครบ)
+static func helper_rules(body := DIR) -> Array:
 	var out := []
-	var root := _rig.instantiate()
+	var rig: PackedScene = _load_static(body)["rig"]
+	if rig == null:
+		return out
+	var root := rig.instantiate()
 	var sk := root.get_node_or_null("Skeleton3D") as Skeleton3D
 	if sk != null:
 		for i in sk.get_bone_count():
@@ -833,11 +852,11 @@ static func shape_known(s: String) -> bool:
 
 
 ## น้ำหนักท่าแก้จากท่าข้อ (สูตรเดียวกับ tools/soldier/py/correctives.py): rot = ชื่อกระดูก → Quaternion
-## คืน {ชื่อท่าแก้: น้ำหนัก 0..1}
-static func shape_weights(rot: Dictionary) -> Dictionary:
-	_load_static()
+## คืน {ชื่อท่าแก้: น้ำหนัก 0..1} · ค่าคงที่ตัวขับของร่างในโฟลเดอร์ body
+static func shape_weights(rot: Dictionary, body := DIR) -> Dictionary:
+	var drv: Dictionary = _load_static(body)["drv"]
 	var out := {}
-	var keys: Dictionary = _drv["arm_keys"]
+	var keys: Dictionary = drv["arm_keys"]
 	for sd in ["L", "R"]:
 		var sx := 1.0 if sd == "L" else -1.0
 		var d: Vector3 = (rot["shoulder" + sd] as Quaternion) * DOWN
@@ -846,12 +865,12 @@ static func shape_weights(rot: Dictionary) -> Dictionary:
 			var r := _ang(keys["bind"], keys[k])
 			out["shoulder_%s%s" % [k, sd]] = _ease(1.0 - _ang(d, keys[k]) / r)
 		var th := _ang((rot["elbow" + sd] as Quaternion) * DOWN, DOWN)
-		out["elbow_flex" + sd] = clampf((th - float(_drv["bind_elbow"])) / (float(_drv["elbow"]) - float(_drv["bind_elbow"])), 0.0, 1.0)
-		out["knee_flex" + sd] = clampf(_ang((rot["knee" + sd] as Quaternion) * DOWN, DOWN) / float(_drv["knee"]), 0.0, 1.0)
+		out["elbow_flex" + sd] = clampf((th - float(drv["bind_elbow"])) / (float(drv["elbow"]) - float(drv["bind_elbow"])), 0.0, 1.0)
+		out["knee_flex" + sd] = clampf(_ang((rot["knee" + sd] as Quaternion) * DOWN, DOWN) / float(drv["knee"]), 0.0, 1.0)
 		var t: Vector3 = (rot["hip" + sd] as Quaternion) * DOWN
 		var phi := rad_to_deg(atan2(t.z, -t.y))
-		out["hip_flex" + sd] = clampf(phi / float(_drv["hip_flex"]), 0.0, 1.0)
-		out["hip_ext" + sd] = clampf(-phi / float(_drv["hip_ext"]), 0.0, 1.0)
+		out["hip_flex" + sd] = clampf(phi / float(drv["hip_flex"]), 0.0, 1.0)
+		out["hip_ext" + sd] = clampf(-phi / float(drv["hip_ext"]), 0.0, 1.0)
 	return out
 
 
@@ -873,40 +892,65 @@ static func _clamp_turn(q: Quaternion, max_deg: float) -> Quaternion:
 	return Quaternion.IDENTITY.slerp(q, deg_to_rad(max_deg) / a)
 
 
-static func _load_static() -> void:
-	if _rig != null:
-		return
-	_rig = load(RIG) as PackedScene
-	_skin = load(SKIN) as Skin
-	_mat = load(MATERIAL) as ShaderMaterial
-	if _mat != null:
-		_mat_pv = _mat.duplicate() as ShaderMaterial
-		_mat_pv.set_shader_parameter("per_vertex", true)
+## ข้อมูลร่วมของร่างในโฟลเดอร์ body (โหลดครั้งเดียวต่อร่าง): {rig, skin, mat, mat_pv, drv, scale, rules, rules_ready}
+## วัสดุ: body_material.tres ของโฟลเดอร์นั้น ไม่มีก็ของร่างหลัก · S = motion_scale ของ rig.tscn ของร่างนั้น
+static func _load_static(body := DIR) -> Dictionary:
+	if _bodies.has(body):
+		return _bodies[body]
+	var d := {"rig": null, "skin": null, "mat": null, "mat_pv": null, "drv": {}, "scale": 1.0, "rules": [], "rules_ready": false}
+	_bodies[body] = d
+	if ResourceLoader.exists(body + "rig.tscn"):
+		d["rig"] = load(body + "rig.tscn") as PackedScene
+	if ResourceLoader.exists(body + "skin.res"):
+		d["skin"] = load(body + "skin.res") as Skin
+	var mp := body + "body_material.tres" if ResourceLoader.exists(body + "body_material.tres") else MATERIAL
+	var mat := load(mp) as ShaderMaterial if ResourceLoader.exists(mp) else null
+	if mat != null:
+		d["mat"] = mat
+		var pv := mat.duplicate() as ShaderMaterial
+		pv.set_shader_parameter("per_vertex", true)
+		d["mat_pv"] = pv
 	# ค่าคงที่ของตัวขับ: meta ของราก rig.tscn (rig.json ของขั้นปั้น) ทับค่าของขั้น 1
-	_drv = DRIVERS.duplicate()
-	_drv["arm_keys"] = {}
+	var drv := DRIVERS.duplicate()
+	drv["arm_keys"] = {}
 	for k in ARM_KEYS:
-		_drv["arm_keys"][k] = _vec(ARM_KEYS[k])
-	_drv.merge(KEYS)
-	_drv["bind_elbow"] = BIND_ELBOW
-	if _rig == null:
-		return
-	var root := _rig.instantiate()
+		drv["arm_keys"][k] = _vec(ARM_KEYS[k])
+	drv.merge(KEYS)
+	drv["bind_elbow"] = BIND_ELBOW
+	d["drv"] = drv
+	if d["rig"] == null:
+		return d
+	var root := (d["rig"] as PackedScene).instantiate()
 	var sk := root.get_node_or_null("Skeleton3D") as Skeleton3D
 	if sk != null:
-		_scale = sk.motion_scale
+		d["scale"] = sk.motion_scale
 	var m: Variant = root.get_meta("soldier_rig", {})
 	if m is Dictionary:
 		var md: Dictionary = m
 		for k in (md.get("drivers", {}) as Dictionary):
-			_drv[k] = float(md["drivers"][k])
+			drv[k] = float(md["drivers"][k])
 		for k in (md.get("keys", {}) as Dictionary):
-			_drv[k] = float(md["keys"][k])
+			drv[k] = float(md["keys"][k])
 		if (md.get("bind_angles", {}) as Dictionary).has("elbow_flexion"):
-			_drv["bind_elbow"] = float(md["bind_angles"]["elbow_flexion"])
+			drv["bind_elbow"] = float(md["bind_angles"]["elbow_flexion"])
 		for k in (md.get("arm_keys", {}) as Dictionary):
-			_drv["arm_keys"][k] = _vec(md["arm_keys"][k])
+			drv["arm_keys"][k] = _vec(md["arm_keys"][k])
 	root.free()
+	return d
+
+
+## ชี้ข้อมูลของร่างนี้ (โฟลเดอร์ _body) ลงตัวแปรของตัว (ครั้งแรกที่ใช้)
+func _use_body() -> void:
+	if not _drv.is_empty():
+		return
+	var d := _load_static(_body)
+	_rig = d["rig"]
+	_skin = d["skin"]
+	_mat = d["mat"]
+	_mat_pv = d["mat_pv"]
+	_drv = d["drv"]
+	_scale = float(d["scale"])
+	_wound_sh = wound_shader(_body)
 
 
 static func _vec(a: Variant) -> Vector3:
@@ -918,7 +962,7 @@ static func _vec(a: Variant) -> Vector3:
 func _build() -> void:
 	if _built:
 		return
-	_load_static()
+	_use_body()
 	if _rig == null:
 		return
 	_model = _rig.instantiate() as Node3D
@@ -963,21 +1007,23 @@ func _build() -> void:
 	_set_mesh(level)
 
 
-## กฎกระดูกช่วยที่ต้องขับ (ครั้งเดียวต่อโปรแกรม หลังโหลดท่า: กระดูกที่ชุดท่ามีแทร็กเองแล้วไม่ต้องขับ)
+## กฎกระดูกช่วยที่ต้องขับ (ครั้งเดียวต่อร่าง หลังโหลดท่า: กระดูกที่ชุดท่ามีแทร็กเองแล้วไม่ต้องขับ)
 func _ready_rules() -> void:
-	if _rules_ready:
-		return
-	_rules_ready = true
-	_rules = []
-	for r in helper_rules():
-		var b := int(_idx.get(r["bone"], -1))
-		var s := int(_idx.get(r["src"], -1))
-		if b >= 0 and s >= 0 and str(r["kind"]) != "" and not _baked.has(r["bone"]):
-			_rules.append([b, str(r["kind"]), s, int(_idx.get(r["src2"], -1)), 1.0 if str(r["bone"]).ends_with("L") else -1.0])
+	var d := _load_static(_body)
+	if not bool(d["rules_ready"]):
+		d["rules_ready"] = true
+		var rules := []
+		for r in helper_rules(_body):
+			var b := int(_idx.get(r["bone"], -1))
+			var s := int(_idx.get(r["src"], -1))
+			if b >= 0 and s >= 0 and str(r["kind"]) != "" and not _baked.has(r["bone"]):
+				rules.append([b, str(r["kind"]), s, int(_idx.get(r["src2"], -1)), 1.0 if str(r["bone"]).ends_with("L") else -1.0])
+		d["rules"] = rules
+	_rules = d["rules"]
 
 
 func _set_mesh(l: String) -> void:
-	var m := body_mesh(l)
+	var m := body_mesh(l, _body)
 	_mi.mesh = m
 	_mi.material_override = _material_for(l)
 	_shape_slots.clear()
@@ -1136,7 +1182,7 @@ func _drive() -> void:
 	var rot := {}
 	for b in ["shoulderL", "shoulderR", "elbowL", "elbowR", "hipL", "hipR", "kneeL", "kneeR"]:
 		rot[b] = _sk.get_bone_pose_rotation(int(_idx[b]))
-	var w := shape_weights(rot)
+	var w := shape_weights(rot, _body)
 	for s: Array in _shape_slots:
 		var v := float(w.get(str(s[1]) + ("L" if int(s[2]) == 0 else "R"), 0.0))
 		if v < SHAPE_ZERO:
@@ -1195,7 +1241,7 @@ func _random_wound(trunk: Vector2, limb: Vector2) -> bool:
 	var r_bone := _wrng.randf()
 	var r_spot := _wrng.randf()
 	var r_rad := _wrng.randf()
-	if not _built or level == "min" or wound_shader() == null:
+	if not _built or level == "min" or wound_shader(_body) == null:
 		return false
 	var spots := wound_spots(_body)
 	var cand := {}
@@ -1263,7 +1309,7 @@ func _show_wounds() -> void:
 	elif _wounds.is_empty() and _own_mat != null and not _own_lit:
 		_own_mat = null
 	if _own_mat != null:
-		var sh: Shader = wound_shader() if on else _mat.shader
+		var sh: Shader = _wound_sh if on else _mat.shader
 		if sh != null and _own_mat.shader != sh:
 			_own_mat.shader = sh
 	if cut and _inner.is_empty():
