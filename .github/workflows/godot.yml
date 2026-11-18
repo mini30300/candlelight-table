@@ -339,7 +339,7 @@ jobs:
       - name: Delete the signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"
-      - name: Check the APK (signature, aapt badging, package id, size gate 120 MB)
+      - name: Check the APK (signature, aapt badging, package id, size gate 1900 MB)
         run: |
           apk=$(ls dist-godot/android/*.apk | head -n 1)
           test -s "$apk"
@@ -349,7 +349,8 @@ jobs:
           "$TOOLS/aapt" dump badging "$apk" | grep -q "^package: name='dev.mini.candlelight.table'" || { echo "::error::package id is not dev.mini.candlelight.table"; exit 1; }
           size=$(stat -c %s "$apk")
           echo "$apk: $((size / 1024 / 1024)) MB"
-          test "$size" -le $((120 * 1024 * 1024)) || { echo "::error::APK over 120 MB ($size bytes)"; exit 1; }
+          # owner's app target is 3 GB, but a GitHub release file may be at most 2 GiB: 1900 MB leaves headroom under it
+          test "$size" -le $((1900 * 1024 * 1024)) || { echo "::error::APK over 1900 MB ($size bytes)"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: godot-android

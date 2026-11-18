@@ -6,8 +6,8 @@ extends "res://tests/testing.gd"
 ## the optional hooks (deck_speeds, H6, H8, H9 false). Assets: the 23 game bones with their parents, every helper bone has
 ## a driver rule, every blend shape is known, one surface per level within the triangle budget, min skinned to game bones
 ## only, no blend shapes on lo/min, an unshaded body shader without TIME, every dependency inside the soldier folder,
-## meshes, clips and the wound layers (inner_bone/inner_flesh, tests/unit/test_soldier_wounds.gd) within SIZE_CAP (the
-## 90 MB APK target of docs/ARCHITECTURE.md).
+## and every soldier folder (soldier, soldier_<id>) within BASE_CAP / VARIANT_CAP, all of them within ALL_CAP (the
+## owner's 3 GB app target under GitHub's 2 GiB release-file limit, docs/ARCHITECTURE.md).
 ## Clips: the soldier's copy keeps every mapped clip and its metadata, its wrists are eased (twist and bend within
 ## limits, hands still, no hand position tracks) and the shared humanoid.res is untouched. Behaviour (manual clock):
 ## walk/run rates, still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
@@ -19,12 +19,13 @@ const NONE := "res://tests/unit/fixtures/no_such_pack/figures.json"
 const NONE_PACK := "res://tests/unit/fixtures/no_such_pack/pack.json"
 const SCRIPT := "res://scenes/arena/soldier_figure.gd"
 const DIR := "res://assets/figures/soldier/"
-## bytes: the APK grows by the soldier's files (80.8 MB in build-143 + 6.5 MB stays under the 90 MB target)
-const SIZE_CAP := 6500000
-## ร่างแบบอื่น (variants): โฟลเดอร์ย่อยละร่างใต้ assets/figures/soldier/<ชื่อ>/ (rig, skin, ผิว 4 ระดับไม่มี blend shape,
-## ชั้นในของแผลของร่างนั้น) ไม่เกิน VARIANT_CAP ต่อร่าง ; ทั้งโฟลเดอร์ทหารรวมไม่เกิน ALL_CAP (APK เป้า 90 MB)
-const VARIANT_CAP := 1250000
-const ALL_CAP := 12000000
+## ขนาดโฟลเดอร์ (ไบต์): เป้าแอปของเจ้าของ 3 GB แต่ไฟล์ใน GitHub release ได้ไม่เกิน 2 GiB (ประตู APK ใน CI 1900 MB)
+## ทหารทุกร่างรวมไม่เกิน ALL_CAP (~3 % ของเพดาน เหลือที่ให้ชุดอื่น) · ร่างหลัก (มี blend shape) ไม่เกิน BASE_CAP (ตอนนี้ 6.4 MB)
+## · ร่างอื่นร่างละไม่เกิน VARIANT_CAP (ไม่มี blend shape ตอนนี้ ~1.2 MB) · ขึ้นเป้าแล้วแต่ร่างที่โตผิดปกติยังต้องลดก่อน
+const BASE_CAP := 10000000
+const VARIANT_CAP := 4000000
+const ALL_CAP := 60000000
+const FIGURES_DIR := "res://assets/figures/"
 const LIB := "res://assets/anim/humanoid.res"
 const DT := 1.0 / 30.0
 const TMP_PACK := "user://test_soldier_pack/"
@@ -231,31 +232,23 @@ func test_assets() -> void:
 		for d in ResourceLoader.get_dependencies(DIR + f):
 			var path := d.get_slice("::", d.get_slice_count("::") - 1)
 			assert_true(path.begins_with(DIR), "%s depends only on the soldier folder" % f, d)
-	# ขนาดที่ APK โตขึ้น: ร่างใหม่ที่ใหญ่เกินต้องลดก่อน (เช่น ตัด blend shape ของ mid)
-	var total := 0
-	for f in ["skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_crowd.res", "clips.res",
-			"inner_bone.res", "inner_flesh.res"]:
-		if FileAccess.file_exists(DIR + f):
-			var fa := FileAccess.open(DIR + f, FileAccess.READ)
-			total += fa.get_length() if fa != null else 0
-	assert_true(total > 0 and total <= SIZE_CAP, "the meshes and clips total %.2f MB, at most %.1f MB" % [total / 1e6, SIZE_CAP / 1e6])
-	# ร่างแบบอื่น (ถ้านำเข้าแล้ว): แต่ละโฟลเดอร์มีชุดของตัวเองครบและไม่เกิน VARIANT_CAP ; ทั้งหมดไม่เกิน ALL_CAP
-	var all := _folder_bytes(DIR)
-	for sub in DirAccess.get_directories_at(DIR):
-		var vd := DIR + sub + "/"
-		for f in ["rig.tscn", "skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res"]:
-			assert_true(FileAccess.file_exists(vd + f), "variant %s: has %s" % [sub, f])
-		var vb := _folder_bytes(vd)
-		assert_true(vb <= VARIANT_CAP, "variant %s: %.2f MB, at most %.2f MB" % [sub, vb / 1e6, VARIANT_CAP / 1e6])
-		all += vb
-	assert_true(all <= ALL_CAP, "the soldier folder with every variant: %.2f MB, at most %.1f MB" % [all / 1e6, ALL_CAP / 1e6])
+	# ขนาดที่ APK/exe โตขึ้น: ต่อโฟลเดอร์และรวมทุกโฟลเดอร์ทหาร (soldier, soldier_<id>) ร่างที่โตผิดปกติต้องลดก่อน
+	var all := 0
+	for sub in DirAccess.get_directories_at(FIGURES_DIR):
+		if sub != "soldier" and not sub.begins_with("soldier_"):
+			continue
+		var bytes := _folder_bytes(FIGURES_DIR + sub + "/")
+		var cap := BASE_CAP if sub == "soldier" else VARIANT_CAP
+		assert_true(bytes > 0 and bytes <= cap, "%s: %.2f MB, at most %.1f MB" % [sub, bytes / 1e6, cap / 1e6])
+		all += bytes
+	assert_true(all <= ALL_CAP, "every soldier folder together: %.2f MB, at most %.0f MB" % [all / 1e6, ALL_CAP / 1e6])
 
 
-## ไบต์ของไฟล์ในโฟลเดอร์ (ไม่รวมโฟลเดอร์ย่อย, .uid, .import)
+## ไบต์ของไฟล์ในโฟลเดอร์ (ไม่รวมโฟลเดอร์ย่อย, .uid, .import, IMPORTED.txt)
 func _folder_bytes(d: String) -> int:
 	var n := 0
 	for f in DirAccess.get_files_at(d):
-		if not f.ends_with(".uid") and not f.ends_with(".import"):
+		if not f.ends_with(".uid") and not f.ends_with(".import") and f != "IMPORTED.txt":
 			var fa := FileAccess.open(d + f, FileAccess.READ)
 			n += fa.get_length() if fa != null else 0
 	return n

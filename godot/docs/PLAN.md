@@ -63,7 +63,8 @@ tests, Windows smoke, signed APK on main; the oracle recordings from the old pag
   (windows-latest runs `CandlelightTable.exe --headless -s res://tests/selftest.gd`); `android` on main runs
   `--export-release` with `GODOT_ANDROID_KEYSTORE_RELEASE_PATH/_USER/_PASSWORD` from the existing `KEYSTORE_BASE64`,
   `KEY_ALIAS`, `KEYSTORE_PASSWORD` secrets (decode to `$RUNNER_TEMP`, delete at job end), `version/code` from
-  `github.run_number`, `aapt dump badging` + size gate (fail > 120 MB); `release` job attaches
+  `github.run_number`, `aapt dump badging` + size gate (fail > 1900 MB: the owner's
+  3 GB target, held under GitHub's 2 GiB release-file limit; it was 120 MB); `release` job attaches
   `candlelight-table-godot-<run>.apk` and `-windows.zip` to `build-${{ github.run_number }}` via
   `softprops/action-gh-release@v2`. Set `package/unique_name = dev.mini.candlelight.table` in `export_presets.cfg`; add
   a step that greps the repo for `keystore/release=` values and `.jks` files. Done when a PR run is green and a main
@@ -193,7 +194,8 @@ divergences (ordering, rounding, key order) found by the oracle.
 models with natural motion, Thai and English complete.
 
 **Deliverables.** `table/` complete (tiers, LOD, fx, dice tray, picking, rings, event player), `ui/` screens complete,
-graphics levels with adaptive scale and idle mode, sound, perf and screenshot suites, APK < 90 MB.
+graphics levels with adaptive scale and idle mode, sound, perf and screenshot suites, APK within the size gate (target
+3 GB, under 1900 MB because a release file is limited to 2 GiB).
 
 **Tasks (parallel).**
 
@@ -224,7 +226,7 @@ graphics levels with adaptive scale and idle mode, sound, perf and screenshot su
   counters as a CI artifact, GPU-check screen final. Owner gate: a full game on a phone on `min`.
 
 **Acceptance tests.** `test_budgets` passes all four levels; `test_screens` green in both languages at four
-resolutions; `test_anim_footslide` ≤ 15 mm; a headless pve game through the real UI buttons finishes; APK < 90 MB;
+resolutions; `test_anim_footslide` ≤ 15 mm; a headless pve game through the real UI buttons finishes; APK < 1900 MB;
 owner plays a full game against bots on a phone on `min` and on Windows.
 
 **Effort.** 3–4 weeks with 5 agents (15–20 sessions); ~3 months alone.
