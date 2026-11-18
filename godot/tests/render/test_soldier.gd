@@ -14,10 +14,15 @@ extends SceneTree
 ##  - a campaign mission at hi and min: the player is the soldier, the overview within CAMPAIGN_SPEC §4;
 ##  - the campaign's "normal" hero card shows the soldier on every level within §4 with head and chest in the frame; the
 ##    card's clock moves it on hi/mid, and on lo/min (drawn once) its animation player does not advance;
-##  - English mode: the dressing room names it "Infantry (preview)" and shows no Thai; the deck and the arena HUD show
-##    no Thai with the soldier.
+##  - the other bodies (Figures "soldier_m2", "soldier_m3", "soldier_f1", "soldier_f2"): foot slide <= 15 mm at that
+##    body's own deck speeds and at the arena speeds with its own S; on the deck at hi and min the avatar is that body,
+##    takes its deck speeds and stays within the deck targets; the arena player is that body and the overview at hi
+##    stays within §11.2; the "normal" hero card at hi and min shows that body lit, head and chest in the frame;
+##  - English mode: the dressing room names it "Infantry (preview)" and the four other bodies by their English names,
+##    and shows no Thai; the deck and the arena HUD show no Thai with the soldier or with a woman's body (f1).
 ## PNGs (TEST_OUT, default tests/out): soldier_levels.png, soldier_deck_<level>.png, soldier_arena_<level>.png,
-## soldier_arena_front_<level>.png, soldier_mission_<level>.png, soldier_hero_<level>.png, soldier_dressing_en.png. Run:
+## soldier_arena_front_<level>.png, soldier_mission_<level>.png, soldier_hero_<level>.png, soldier_dressing_en.png,
+## soldier_<body>_deck_<hi|min>.png, soldier_<body>_hero_<hi|min>.png, soldier_<body>_arena_hi.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_soldier.gd
 
@@ -42,6 +47,9 @@ const MAX_SLIDE_MM := 15.0
 const RATE := 240.0
 const WALK_TICKS := 45
 const CELL := Vector2i(300, 520)
+## ร่างอื่น: id ในห้องแต่งตัว -> [body id, ชื่ออังกฤษ]
+const BODIES := {"soldier_m2": ["m2", "Infantry man 2 (preview)"], "soldier_m3": ["m3", "Infantry man 3 (preview)"],
+	"soldier_f1": ["f1", "Infantry woman 1 (preview)"], "soldier_f2": ["f2", "Infantry woman 2 (preview)"]}
 
 var _out_dir := DEFAULT_OUT_DIR
 var _main: Node
@@ -96,6 +104,7 @@ func _run() -> void:
 	await _arena()
 	await _mission()
 	await _hero()
+	await _bodies()
 	await _english()
 	_finish()
 
@@ -153,12 +162,13 @@ func _footslide() -> void:
 	_check(float(ctl["mm"]) > 3.0 * MAX_SLIDE_MM, "control: moving 10 %% too slow slides %.1f mm (the measure has teeth)" % ctl["mm"])
 
 
-## {mm, plants}: the soldier walks at `speed` (set_move) for 3 s at 240 samples/s while its root moves speed × k
-func _slide(speed: float, running: bool, k: float) -> Dictionary:
+## {mm, plants}: the soldier (body: "" = the base) walks at `speed` (set_move) for 3 s at 240 samples/s while its root
+## moves speed × k
+func _slide(speed: float, running: bool, k: float, body := "") -> Dictionary:
 	var fig: Node3D = S.new()
 	root.add_child(fig)
 	fig.call("set_manual", true)
-	fig.call("setup", {"role": &"player", "level": "mid", "seed": 0})
+	fig.call("setup", {"role": &"player", "level": "mid", "seed": 0, "body": body})
 	fig.call("set_move", speed, running)
 	var ap: AnimationPlayer = fig.call("animation_player")
 	var sk: Skeleton3D = fig.call("skeleton")
@@ -443,6 +453,125 @@ func _hero() -> void:
 		await _frames(1)
 
 
+# ---- the other bodies ----
+
+func _bodies() -> void:
+	var hall: Node = _app().call("current")
+	var world: Node3D = hall.get("world")
+	var av: Node3D = world.get("avatar")
+	var rig: Node3D = world.get("camera_rig")
+	var heroes: Script = load("res://scenes/campaign/hero_loader.gd")
+	heroes.set("test_dirs", PackedStringArray(["res://tests/fixtures/none"]))
+	for id: String in BODIES:
+		var body := str(BODIES[id][0])
+		_check(Figures.entry(id).get("kind", "") == "builtin", "%s is in the dressing room's list" % id)
+		# foot slide at its own deck speeds and the arena speeds (its own S in the playback rate)
+		var probe: Node3D = S.new()
+		root.add_child(probe)
+		probe.call("set_manual", true)
+		probe.call("setup", {"role": &"deck", "level": "mid", "seed": 0, "body": body})
+		var deck: Vector2 = probe.call("deck_speeds")
+		var sc := (probe.call("skeleton") as Skeleton3D).motion_scale
+		probe.queue_free()
+		for c in [["deck walk", deck.x, false], ["deck run", deck.y, true], ["arena walk", float(ArenaData.PLAYER["walk"]), false],
+				["arena run", float(ArenaData.PLAYER["run"]), true]]:
+			var r := _slide(float(c[1]), bool(c[2]), 1.0, body)
+			_check(float(r["mm"]) <= MAX_SLIDE_MM and int(r["plants"]) > 2,
+				"%s %s at %.2f m/s (S %.4f): foot slide %.2f mm while planted (%d plants)" % [body, c[0], c[1], sc, r["mm"], r["plants"]], str(r))
+		# the deck at hi and min
+		Figures.select(id, "original")
+		for level in ["hi", "min"]:
+			_app().call("set_gfx", level)
+			hall.call("refresh")
+			await _frames(3)
+			var fig := av.get("figure") as Node3D
+			_check(fig != null and _is_soldier(fig) and str(fig.get("body_id")) == body, "%s %s: the deck avatar is that body" % [body, level])
+			if fig == null:
+				continue
+			var sp: Vector2 = fig.call("deck_speeds")
+			_check(sp.is_equal_approx(deck) and is_equal_approx(float(av.get("walk_speed")), sp.x),
+				"%s %s: the avatar takes its deck speeds %s" % [body, level, str(sp)])
+			world.call("place_avatar", Vector3(0.0, 0.0, 3.5), PI)
+			rig.call("set_view", 0.0, -0.6, 9.0)
+			var m := await _measure()
+			var t: Array = SHIP_TARGET[level]
+			print("deck %s %-4s draw calls %3d  primitives %6d" % [body, level, m[0], m[1]])
+			_check(m[0] <= int(t[0]) and m[1] <= int(t[1]), "%s %s: the deck within %d / %d (%d draws, %d primitives)"
+				% [body, level, int(t[0]), int(t[1]), m[0], m[1]])
+			world.call("place_avatar", Vector3(2.0, 0.0, 6.0), 0.0)
+			rig.call("set_view", 0.35, -0.16, 4.8)
+			await _frames(8)
+			_save("soldier_%s_deck_%s.png" % [body, level])
+		# the hero card at hi and min
+		for lv in ["hi", "min"]:
+			await _hero_card(id, body, lv)
+		# the arena: the player is that body, the overview at hi within §11.2
+		_app().call("set_gfx", "hi")
+		var arena: Node = _app().call("push", load(ARENA_SCREEN))
+		await _frames(20)
+		var aw: Node3D = arena.get("world")
+		var player: Node3D = aw.get("player")
+		var af: Node3D = player.call("figure")
+		_check(af != null and _is_soldier(af) and str(af.get("body_id")) == body, "%s: the arena player is that body" % body)
+		await _view(aw, ArenaLayout.RESPAWN, 0.0, -0.1, true)
+		var am := await _measure()
+		var at: Array = ARENA_OVERVIEW["hi"]
+		_check(am[0] <= int(at[0]) and am[1] <= int(at[1]), "%s hi: the arena overview within %d / %d (%d draws, %d primitives)"
+			% [body, int(at[0]), int(at[1]), am[0], am[1]])
+		await _view(aw, ArenaLayout.RESPAWN + Vector3(0, 0, -3), 0.6, -0.2, false)
+		(player.call("camera_rig") as Node3D).call("set_view", 0.6, -0.15, 2.8)
+		player.rotation.y = float(player.get("face")) + 2.6
+		await _frames(6)
+		_save("soldier_%s_arena_hi.png" % body)
+		_app().call("pop")
+		await _frames(6)
+	Figures.select("soldier", "original")
+	_app().call("set_gfx", "mid")
+	hall.call("refresh")
+	await _frames(2)
+
+
+## the "normal" hero card with Figures id `id` (body `body`) at level lv: that body, lit, head and chest in the frame
+func _hero_card(id: String, body: String, lv: String) -> void:
+	var heroes: Script = load("res://scenes/campaign/hero_loader.gd")
+	var vp := SubViewport.new()
+	vp.size = Vector2i(640, 360)
+	vp.own_world_3d = true
+	vp.msaa_3d = Viewport.MSAA_DISABLED
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = float(HERO_SCALE[lv])
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(vp)
+	var h: Node3D = heroes.call("make", "normal")
+	vp.add_child(h)
+	h.call("setup", {"level": lv, "sel": {"figure": id, "scheme": "original"}, "aspect": 640.0 / 360.0})
+	if lv != "min":
+		h.call("set_active", true)
+		h.call("seek", float(h.call("poster_t")))
+	var fig: Node3D = h.get("figure")
+	_check(fig != null and _is_soldier(fig) and str(fig.get("body_id")) == body, "%s %s: the normal card shows that body" % [body, lv])
+	if fig == null:
+		vp.queue_free()
+		return
+	var m := await _measure_vp(vp)
+	var b: Array = HERO_BUDGET[lv]
+	_check(m[0] <= int(b[0]) and m[1] <= int(b[1]), "%s %s: the live card within %d draws / %d primitives" % [body, lv, b[0], b[1]], str(m))
+	var cam := vp.get_camera_3d()
+	var head: float = h.get("head")
+	for pt in [["head", Vector3(0.0, head + 0.12, 0.0)], ["chest", Vector3(0.0, head - 0.35, 0.0)]]:
+		var p: Vector3 = fig.position + pt[1]
+		var sc := cam.unproject_position(p)
+		_check(not cam.is_position_behind(p) and sc.x >= 0.0 and sc.y >= 0.0 and sc.x <= 640.0 and sc.y <= 360.0,
+			"%s %s: the card frames the %s" % [body, lv, pt[0]], str(sc))
+	await RenderingServer.frame_post_draw
+	var img := vp.get_texture().get_image()
+	_check(_lit_centre(img), "%s %s: the card shows a lit soldier over the dark backdrop" % [body, lv])
+	_save_img(img, "soldier_%s_hero_%s.png" % [body, lv])
+	h.call("set_active", false)
+	vp.queue_free()
+	await _frames(1)
+
+
 # ---- English ----
 
 func _english() -> void:
@@ -457,12 +586,26 @@ func _english() -> void:
 		if b.text == "Infantry (preview)":
 			found = true
 	_check(found, "English: the dressing room names it \"Infantry (preview)\"")
+	var texts: Array = (ds.call("char_buttons") as Array).map(func(b: Button) -> String: return b.text)
+	for id: String in BODIES:
+		_check(texts.has(str(BODIES[id][1])), "English: the dressing room names %s \"%s\"" % [id, BODIES[id][1]], str(texts))
 	var pf: Node3D = ds.call("preview_figure")
 	_check(pf != null and _is_soldier(pf), "the preview is the soldier")
 	_check(ds.call("swatch_buttons").all(func(b: Button) -> bool: return b.disabled), "it keeps its own colours (swatches off)")
 	var thai := _thai_in(ds)
 	_check(thai.is_empty(), "English mode: no Thai on the dressing screen", ", ".join(thai))
 	_save("soldier_dressing_en.png")
+	# a woman's body on the deck and in the arena, still no Thai
+	ds.call("pick_figure", "soldier_f1")
+	ds.call("refresh")
+	await _frames(4)
+	var pf1: Node3D = ds.call("preview_figure")
+	_check(pf1 != null and _is_soldier(pf1) and str(pf1.get("body_id")) == "f1", "English: the preview of soldier_f1 is that body")
+	var thai1 := _thai_in(ds)
+	_check(thai1.is_empty(), "English mode: no Thai on the dressing screen with soldier_f1", ", ".join(thai1))
+	ds.call("use_selection")
+	await _frames(2)
+	_check(str(Figures.selected()["figure"]) == "soldier_f1", "English: soldier_f1 is the selection")
 	ds.call("close")
 	await _frames(4)
 	var hall: Node = _app().call("current")
@@ -470,14 +613,18 @@ func _english() -> void:
 		hall.call("refresh")
 		await _frames(3)
 		var th := _thai_in(hall)
-		_check(th.is_empty(), "English mode: no Thai on the deck with the soldier", ", ".join(th))
+		_check(th.is_empty(), "English mode: no Thai on the deck with soldier_f1", ", ".join(th))
 	var arena: Node = _app().call("push", load(ARENA_SCREEN))
 	await _frames(20)
 	var ta := _thai_in(arena)
-	_check(ta.is_empty(), "English mode: no Thai in the arena with the soldier", ", ".join(ta))
+	_check(ta.is_empty(), "English mode: no Thai in the arena with soldier_f1", ", ".join(ta))
+	var apl: Node3D = (arena.get("world") as Node3D).get("player")
+	var af1: Node3D = apl.call("figure") if apl != null else null
+	_check(af1 != null and str(af1.get("body_id")) == "f1", "English: the arena player is soldier_f1")
 	_app().call("pop")
 	await _frames(4)
 	_app().call("set_lang", "th")
+	Figures.select("soldier", "original")
 
 
 # ---- helpers ----

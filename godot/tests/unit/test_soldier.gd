@@ -3,11 +3,17 @@ extends "res://tests/testing.gd"
 ## Registry and i18n: one "soldier" entry after the egg and before the kits, Thai and English names (the Thai one in the
 ## dictionary), no schemes, never the default, a pack entry cannot take its id, the selection keeps the old format.
 ## Contract: Figures.DECK_API for the deck and ArenaActors.FIGURE_API (twelve methods) plus clip_event for the player,
-## the optional hooks (deck_speeds, H6, H8, H9 false). Assets: the 23 game bones with their parents, every helper bone has
-## a driver rule, every blend shape is known, one surface per level within the triangle budget, min skinned to game bones
-## only, no blend shapes on lo/min, an unshaded body shader without TIME, every dependency inside the soldier folder,
-## and every soldier folder (soldier, soldier_<id>) within BASE_CAP / VARIANT_CAP, all of them within ALL_CAP (the
-## owner's 3 GB app target under GitHub's 2 GiB release-file limit, docs/ARCHITECTURE.md).
+## the optional hooks (deck_speeds, H6, H8, H9 false). Assets, for the base body (assets/figures/soldier/) and each
+## other body (assets/figures/soldier_<id>/, BODIES): the 23 game bones with their parents and every bone offset at the
+## base offset × S / S(base), motion_scale = that body's S, every helper bone has a driver rule, one named bind per bone,
+## every blend shape is known (the other bodies have none: helpers only), one surface per level within the triangle
+## budget, min skinned to game bones only, no blend shapes on lo/min, an unshaded body shader without TIME, every
+## dependency inside the body's own folder, and the folder sizes within BASE_CAP / VARIANT_CAP / ALL_CAP (the owner's
+## 3 GB app target under GitHub's 2 GiB release-file limit, docs/ARCHITECTURE.md).
+## Bodies: four more registry entries after "soldier" (Thai and English names, the English in the dictionary) whose
+## figures carry their body id to the deck, the dressing room and the arena; each body plays at its own S (walk rate,
+## deck speeds), stands its own height, drives helpers but no correctives, and two bodies side by side keep their own
+## meshes and scales.
 ## Clips: the soldier's copy keeps every mapped clip and its metadata, its wrists are eased (twist and bend within
 ## limits, hands still, no hand position tracks) and the shared humanoid.res is untouched. Behaviour (manual clock):
 ## walk/run rates, still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
@@ -26,6 +32,12 @@ const BASE_CAP := 10000000
 const VARIANT_CAP := 4000000
 const ALL_CAP := 60000000
 const FIGURES_DIR := "res://assets/figures/"
+## ร่างอื่น (Figures.BUILTINS ที่มี body): id -> [body id, ชื่อไทย, ชื่ออังกฤษ, S = ส่วนสูง / 1.6]
+const BODIES := {"soldier_m2": ["m2", "ทหารราบ ชาย 2 (ทดลอง)", "Infantry man 2 (preview)", 1.1625],
+	"soldier_m3": ["m3", "ทหารราบ ชาย 3 (ทดลอง)", "Infantry man 3 (preview)", 1.0625],
+	"soldier_f1": ["f1", "ทหารราบ หญิง 1 (ทดลอง)", "Infantry woman 1 (preview)", 1.0],
+	"soldier_f2": ["f2", "ทหารราบ หญิง 2 (ทดลอง)", "Infantry woman 2 (preview)", 1.08125]}
+const BASE_S := 1.1125
 const LIB := "res://assets/anim/humanoid.res"
 const DT := 1.0 / 30.0
 const TMP_PACK := "user://test_soldier_pack/"
@@ -57,12 +69,12 @@ func _tree() -> SceneTree:
 	return Engine.get_main_loop() as SceneTree
 
 
-func _new_fig(role: StringName, level: String, manual := true) -> Node3D:
+func _new_fig(role: StringName, level: String, manual := true, body := "") -> Node3D:
 	var f: Node3D = (load(SCRIPT) as GDScript).new()
 	_tree().root.add_child(f)
 	if manual:
 		f.call("set_manual", true)
-	f.call("setup", {"role": role, "level": level, "team_colour": Color.BLUE, "seed": 7})
+	f.call("setup", {"role": role, "level": level, "team_colour": Color.BLUE, "seed": 7, "body": body})
 	return f
 
 
@@ -103,6 +115,32 @@ func test_registry() -> void:
 		p.free()
 	assert_eq(ArenaActors.scheme_of(sel), "original", "no scheme reaches it (its own skin)")
 	assert_eq(ArenaActors.player_preload(sel), SCRIPT, "the arena door preloads its script")
+	# ร่างอื่น: ต่อจากทหารราบตามลำดับ ก่อนชุดโมเดล · ชื่อไทย/อังกฤษ · ตัวที่ได้ถือ body_id ไปทุกที่ที่ร่างหลักไป
+	var prev := ids.find("soldier")
+	for id: String in BODIES:
+		var b: Array = BODIES[id]
+		var be := Figures.entry(id)
+		assert_eq(str(be.get("kind", "")), "builtin", "%s: kind builtin" % id)
+		assert_false(bool(be.get("schemes", true)), "%s: its own colours (no schemes)" % id)
+		assert_eq(be.get("name", {}), {"th": b[1], "en": b[2]}, "%s: Thai and English names" % id)
+		assert_eq(I18n.lookup(str(b[1])), str(b[2]), "%s: the Thai name translates in the dictionary" % id)
+		assert_true(ids.find(id) == prev + 1, "%s: listed right after %s" % [id, ids[prev] if prev >= 0 else "?"], str(ids))
+		prev = ids.find(id)
+		assert_eq(Figures.builtin_figure(id), SCRIPT, "%s: the soldier script" % id)
+		var bw := Figures.make(StringName(id), &"mid")
+		assert_true(bw != null and str(bw.get("body_id")) == str(b[0]), "%s: make() builds the soldier with body %s" % [id, b[0]])
+		if bw != null:
+			bw.free()
+		var bsel := {"figure": id, "scheme": "blue"}
+		var bp := ArenaActors.player_figure(bsel)
+		assert_true(bp != null and str(bp.get("body_id")) == str(b[0]), "%s: the arena and campaign player is that body" % id)
+		if bp != null:
+			bp.free()
+		assert_eq(ArenaActors.scheme_of(bsel), "original", "%s: no scheme reaches it" % id)
+		Figures.select(id, "original")
+		assert_eq(Figures.selected(), {"figure": id, "scheme": "original"}, "%s: can be selected" % id)
+	assert_true(prev < first_kit, "the other bodies come before the kits", str(ids))
+	assert_eq(Figures.default_figure(), "egg", "still not the default: the egg stays the default")
 	_reset()
 
 
@@ -162,13 +200,52 @@ func test_contract() -> void:
 
 
 func test_assets() -> void:
-	var ps := load(DIR + "rig.tscn") as PackedScene
-	assert_true(ps != null, "rig.tscn loads")
+	var base := _rest_origins(DIR)
+	_body_assets(DIR, "", BASE_S, base)
+	for id: String in BODIES:
+		var b: Array = BODIES[id]
+		_body_assets(SoldierFigure.folder(str(b[0])), str(b[0]), float(b[3]), base)
+	# ขนาดที่ APK/exe โตขึ้น: ต่อโฟลเดอร์และรวมทุกโฟลเดอร์ทหาร (soldier, soldier_<id>)
+	var all := 0
+	var n := 0
+	for sub in DirAccess.get_directories_at(FIGURES_DIR):
+		if sub != "soldier" and not sub.begins_with("soldier_"):
+			continue
+		var bytes := _folder_bytes(FIGURES_DIR + sub + "/")
+		var cap := BASE_CAP if sub == "soldier" else VARIANT_CAP
+		assert_true(bytes > 0 and bytes <= cap, "%s: %.2f MB, at most %.1f MB" % [sub, bytes / 1e6, cap / 1e6])
+		assert_true(DirAccess.get_directories_at(FIGURES_DIR + sub + "/").is_empty(), "%s: no sub-folders (one folder per body)" % sub)
+		all += bytes
+		n += 1
+	assert_eq(n, 1 + BODIES.size(), "one folder per body (%d)" % n)
+	assert_true(all <= ALL_CAP, "every soldier folder together: %.2f MB, at most %.0f MB" % [all / 1e6, ALL_CAP / 1e6])
+
+
+## ตำแหน่งพักของทุกกระดูก (ชื่อ -> origin) ของ rig ในโฟลเดอร์ d
+func _rest_origins(d: String) -> Dictionary:
+	var out := {}
+	var ps := load(d + "rig.tscn") as PackedScene
+	if ps == null:
+		return out
+	var root := ps.instantiate()
+	var sk := root.get_node_or_null("Skeleton3D") as Skeleton3D
+	if sk != null:
+		for i in sk.get_bone_count():
+			out[sk.get_bone_name(i)] = sk.get_bone_rest(i).origin
+	root.free()
+	return out
+
+
+## ร่างในโฟลเดอร์ d (body = "" ร่างหลัก): สัญญาเดียวกันทุกร่าง ต่างกันที่ S และ blend shape (ร่างอื่นไม่มี)
+func _body_assets(d: String, body: String, want_s: float, base: Dictionary) -> void:
+	var tag := "base" if body == "" else body
+	var ps := load(d + "rig.tscn") as PackedScene
+	assert_true(ps != null, "%s: rig.tscn loads" % tag)
 	if ps == null:
 		return
 	var root := ps.instantiate()
 	var sk := root.get_node_or_null("Skeleton3D") as Skeleton3D
-	assert_true(sk != null, "rig.tscn holds a Skeleton3D named Skeleton3D")
+	assert_true(sk != null, "%s: rig.tscn holds a Skeleton3D named Skeleton3D" % tag)
 	if sk == null:
 		root.free()
 		return
@@ -176,35 +253,51 @@ func test_assets() -> void:
 		var i := sk.find_bone(b)
 		var want := str(PARENTS[b])
 		var par := sk.get_bone_name(sk.get_bone_parent(i)) if i >= 0 and sk.get_bone_parent(i) >= 0 else ""
-		assert_true(i >= 0 and par == want, "game bone %s under %s" % [b, want if want != "" else "the root"], par)
-	assert_true(sk.motion_scale > 1.0 and sk.motion_scale < 1.3, "motion_scale = S %.4f (taller than the 1.6 m rig)" % sk.motion_scale)
+		assert_true(i >= 0 and par == want, "%s: game bone %s under %s" % [tag, b, want if want != "" else "the root"], par)
+	assert_within(sk.motion_scale, want_s, 0.0001, "%s: motion_scale = S %.5f" % [tag, want_s])
+	# ระยะของกระดูกทุกชิ้น = ของร่างหลัก × S / S(ร่างหลัก) (ท่าทุกท่าเล่นได้ เท้าไม่ไถล)
+	var worst := 0.0
+	var names := 0
+	for i in sk.get_bone_count():
+		var nm := sk.get_bone_name(i)
+		if base.has(nm):
+			names += 1
+			worst = maxf(worst, sk.get_bone_rest(i).origin.distance_to((base[nm] as Vector3) * (want_s / BASE_S)))
+	assert_true(names == sk.get_bone_count() and names == base.size(), "%s: the same %d bones as the base" % [tag, base.size()], str(names))
+	assert_true(worst < 0.0005, "%s: every bone offset is the base offset × S ratio (worst %.2f mm)" % [tag, worst * 1000.0])
 	root.free()
 	var S: GDScript = load(SCRIPT)
-	var rules: Array = S.call("helper_rules")
-	assert_true(rules.size() >= 10, "%d helper bones" % rules.size())
+	var rules: Array = S.call("helper_rules", d)
+	assert_true(rules.size() >= 10, "%s: %d helper bones" % [tag, rules.size()])
 	for r: Dictionary in rules:
-		assert_true(str(r["kind"]) != "", "helper %s (under %s) has a driver rule" % [r["bone"], r["parent"]], str(r))
-	var skin := load(DIR + "skin.res") as Skin
+		assert_true(str(r["kind"]) != "", "%s: helper %s (under %s) has a driver rule" % [tag, r["bone"], r["parent"]], str(r))
+	var skin := load(d + "skin.res") as Skin
+	assert_true(skin != null and skin.get_bind_count() == base.size(), "%s: one named bind per bone" % tag)
+	if skin == null:
+		return
+	for i in skin.get_bind_count():
+		assert_true(base.has(String(skin.get_bind_name(i))), "%s: bind %d is named after a bone" % [tag, i], String(skin.get_bind_name(i)))
 	var budget: Dictionary = S.get("BUDGET")
 	var game: PackedStringArray = S.get("GAME_BONES")
 	for lv in ["hi", "mid", "lo", "min", "crowd"]:
-		var m: ArrayMesh = S.call("body_mesh", lv)
+		var m: ArrayMesh = S.call("body_mesh", lv, d)
 		if lv == "crowd" and m == null:
 			continue
-		assert_true(m != null, "body_%s.res loads" % lv)
+		assert_true(m != null, "%s: body_%s.res loads" % [tag, lv])
 		if m == null:
 			continue
 		var arr := m.surface_get_arrays(0)
 		var tris := (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
-		assert_eq(m.get_surface_count(), 1, "%s: one surface (one draw)" % lv)
-		assert_true(tris > 0 and tris <= int(budget[lv]), "%s: %d triangles within %d" % [lv, tris, int(budget[lv])])
+		assert_eq(m.get_surface_count(), 1, "%s %s: one surface (one draw)" % [tag, lv])
+		assert_true(tris > 0 and tris <= int(budget[lv]), "%s %s: %d triangles within %d" % [tag, lv, tris, int(budget[lv])])
 		for i in m.get_blend_shape_count():
 			var nm := String(m.get_blend_shape_name(i))
-			assert_true(bool(S.call("shape_known", nm)), "%s: blend shape %s has a driver" % [lv, nm])
-		if lv == "lo" or lv == "min" or lv == "crowd":
-			assert_eq(m.get_blend_shape_count(), 0, "%s: no blend shapes (no extra pass on weak levels)" % lv)
+			assert_true(bool(S.call("shape_known", nm)), "%s %s: blend shape %s has a driver" % [tag, lv, nm])
+		if lv == "lo" or lv == "min" or lv == "crowd" or body != "":
+			assert_eq(m.get_blend_shape_count(), 0, "%s %s: no blend shapes (%s)" % [tag, lv,
+				"helpers only on this body" if body != "" else "no extra pass on weak levels"])
 		var aabb := m.get_aabb()
-		assert_true(absf(aabb.position.y) < 0.012, "%s: the soles stand on the floor (%.1f mm)" % [lv, aabb.position.y * 1000.0])
+		assert_true(absf(aabb.position.y) < 0.012, "%s %s: the soles stand on the floor (%.1f mm)" % [tag, lv, aabb.position.y * 1000.0])
 		if lv == "min" or lv == "crowd":
 			# ระดับต่ำสุดผูกกับกระดูกของเกมเท่านั้น: ไม่ต้องขับกระดูกช่วย (ไม่มีงานต่อเฟรม)
 			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
@@ -215,33 +308,27 @@ func test_assets() -> void:
 					var bn := String(skin.get_bind_name(bones[k]))
 					if not game.has(bn):
 						extra[bn] = true
-			assert_true(extra.is_empty(), "%s: skinned to the 23 game bones only" % lv, str(extra.keys()))
-	var hi: ArrayMesh = S.call("body_mesh", "hi")
-	var mn: ArrayMesh = S.call("body_mesh", "min")
+			assert_true(extra.is_empty(), "%s %s: skinned to the 23 game bones only" % [tag, lv], str(extra.keys()))
+	var hi: ArrayMesh = S.call("body_mesh", "hi", d)
+	var mn: ArrayMesh = S.call("body_mesh", "min", d)
 	if hi != null and mn != null:
-		assert_true(absf(hi.get_aabb().end.y - mn.get_aabb().end.y) < 0.02, "hi and min stand the same height (%.1f mm apart)"
-			% (absf(hi.get_aabb().end.y - mn.get_aabb().end.y) * 1000.0))
-	var code := FileAccess.get_file_as_string(DIR + "body.gdshader")
+		assert_true(absf(hi.get_aabb().end.y - mn.get_aabb().end.y) < 0.02, "%s: hi and min stand the same height (%.1f mm apart)"
+			% [tag, absf(hi.get_aabb().end.y - mn.get_aabb().end.y) * 1000.0])
+		# ส่วนสูง = 1.6 ม. × S (ผม/มวยผมเพิ่มได้ไม่เกิน 3 ซม.)
+		assert_true(hi.get_aabb().end.y > 1.6 * want_s - 0.01 and hi.get_aabb().end.y < 1.6 * want_s + 0.03,
+			"%s: stands %.3f m for S %.4f (1.6 m × S, hair up to 3 cm)" % [tag, hi.get_aabb().end.y, want_s])
+	var code := FileAccess.get_file_as_string(d + "body.gdshader")
 	var bare := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/").sub(code, "", true)
-	assert_true(RegEx.create_from_string("render_mode[^;]*\\bunshaded\\b").search(bare) != null, "the body shader is unshaded (computes its own light)")
-	assert_true(RegEx.create_from_string("\\bTIME\\b").search(bare) == null, "…and uses no TIME (comments aside)")
-	var mat := load(DIR + "body_material.tres") as ShaderMaterial
-	assert_true(mat != null and mat.shader != null and mat.shader.resource_path == DIR + "body.gdshader", "the material uses that shader")
+	assert_true(RegEx.create_from_string("render_mode[^;]*\\bunshaded\\b").search(bare) != null, "%s: the body shader is unshaded (computes its own light)" % tag)
+	assert_true(RegEx.create_from_string("\\bTIME\\b").search(bare) == null, "%s: …and uses no TIME (comments aside)" % tag)
+	var mat := load(d + "body_material.tres") as ShaderMaterial
+	assert_true(mat != null and mat.shader != null and mat.shader.resource_path == d + "body.gdshader", "%s: the material uses that shader" % tag)
 	for f in ["rig.tscn", "skin.res", "body_hi.res", "body_mid.res", "body_lo.res", "body_min.res", "body_material.tres",
 			"inner_bone.res", "inner_flesh.res"]:
-		for d in ResourceLoader.get_dependencies(DIR + f):
-			var path := d.get_slice("::", d.get_slice_count("::") - 1)
-			assert_true(path.begins_with(DIR), "%s depends only on the soldier folder" % f, d)
-	# ขนาดที่ APK/exe โตขึ้น: ต่อโฟลเดอร์และรวมทุกโฟลเดอร์ทหาร (soldier, soldier_<id>) ร่างที่โตผิดปกติต้องลดก่อน
-	var all := 0
-	for sub in DirAccess.get_directories_at(FIGURES_DIR):
-		if sub != "soldier" and not sub.begins_with("soldier_"):
-			continue
-		var bytes := _folder_bytes(FIGURES_DIR + sub + "/")
-		var cap := BASE_CAP if sub == "soldier" else VARIANT_CAP
-		assert_true(bytes > 0 and bytes <= cap, "%s: %.2f MB, at most %.1f MB" % [sub, bytes / 1e6, cap / 1e6])
-		all += bytes
-	assert_true(all <= ALL_CAP, "every soldier folder together: %.2f MB, at most %.0f MB" % [all / 1e6, ALL_CAP / 1e6])
+		assert_true(FileAccess.file_exists(d + f), "%s: has %s" % [tag, f])
+		for dep in ResourceLoader.get_dependencies(d + f):
+			var path := dep.get_slice("::", dep.get_slice_count("::") - 1)
+			assert_true(path.begins_with(d), "%s: %s depends only on its own folder" % [tag, f], dep)
 
 
 ## ไบต์ของไฟล์ในโฟลเดอร์ (ไม่รวมโฟลเดอร์ย่อย, .uid, .import, IMPORTED.txt)
@@ -450,6 +537,71 @@ func test_drivers_per_level() -> void:
 	assert_within(float(w["knee_flexL"]), 1.0, 0.001, "a 120° knee gives knee_flex 1")
 	assert_within(float(w["knee_flexR"]), 0.0, 0.001, "a straight knee gives 0")
 	assert_true(float(w["shoulder_downL"]) > float(w["shoulder_upL"]), "hanging arms: shoulder_down over shoulder_up")
+
+
+## ร่างอื่น: S ของตัวเอง (อัตราเล่นท่า ความเร็วดาดฟ้า) ส่วนสูงของตัวเอง กระดูกช่วยแต่ไม่มีท่าแก้ ยืนนิ่งบน min
+## สองร่างในฉากเดียวกันใช้เมชและ S ของตัวเอง (static ต่อโฟลเดอร์)
+func test_bodies_behaviour() -> void:
+	var S: GDScript = load(SCRIPT)
+	var lib: AnimationLibrary = S.call("clip_library")
+	if lib == null:
+		assert_true(false, "the soldier's clips build")
+		return
+	var base := _new_fig(&"player", "hi")
+	for id: String in BODIES:
+		var b: Array = BODIES[id]
+		var want_s := float(b[3])
+		var f := _new_fig(&"player", "hi", true, str(b[0]))
+		var sk: Skeleton3D = f.call("skeleton")
+		assert_true(sk != null and is_equal_approx(sk.motion_scale, want_s), "%s: its own rig (S %.5f)" % [id, want_s])
+		if sk == null:
+			f.free()
+			continue
+		var m: Dictionary = f.call("metrics")
+		assert_true(float(m["height"]) > 1.6 * want_s - 0.01 and float(m["height"]) < 1.6 * want_s + 0.03,
+			"%s: metrics height %.3f m (1.6 m × S)" % [id, float(m["height"])])
+		assert_true((f.call("body") as MeshInstance3D).mesh == S.call("body_mesh", "hi", SoldierFigure.folder(str(b[0]))),
+			"%s: its own hi mesh" % id)
+		assert_true((f.call("body") as MeshInstance3D).mesh != (base.call("body") as MeshInstance3D).mesh, "%s: not the base mesh" % id)
+		assert_true((f.call("body") as MeshInstance3D).skin == load(SoldierFigure.folder(str(b[0])) + "skin.res"), "%s: its own skin binds" % id)
+		var ap: AnimationPlayer = f.call("animation_player")
+		_steps(f, 3)
+		var half := sk.find_bone("elbow_halfL")
+		assert_true(not sk.get_bone_pose_rotation(half).is_equal_approx(Quaternion.IDENTITY), "%s hi: helper bones follow the joints" % id)
+		assert_eq(int(f.call("active_shapes")), 0, "%s hi: no correctives (no blend shapes)" % id)
+		assert_eq((f.call("shape_names") as PackedStringArray).size(), 0, "%s hi: the mesh has no blend shapes" % id)
+		f.call("set_move", 3.0, false)
+		_steps(f, 2)
+		var want := 3.0 / (float(lib.get_animation(&"walk").get_meta("speed")) * want_s)
+		assert_true(String(ap.current_animation) == "humanoid/walk" and absf(ap.speed_scale - want) < 0.001,
+			"%s: 3 m/s walks at rate %.3f (speed / clip speed × its S)" % [id, ap.speed_scale])
+		f.call("set_move", 5.0, true)
+		_steps(f, 2)
+		want = 5.0 / (float(lib.get_animation(&"run").get_meta("speed")) * want_s)
+		assert_true(String(ap.current_animation) == "humanoid/run" and absf(ap.speed_scale - want) < 0.001,
+			"%s: 5 m/s runs at rate %.3f" % [id, ap.speed_scale])
+		var sp: Vector2 = f.call("deck_speeds")
+		var ws := float(lib.get_animation(&"walk").get_meta("speed")) * want_s * 1.4
+		assert_true(absf(sp.x - ws) < 0.001 and sp.y > sp.x, "%s: deck speeds %s = clip speed × its S × 1.4" % [id, str(sp)])
+		f.call("set_move", 0.0, false)
+		f.call("apply_level", "min")
+		var n := 0
+		while n < 10 and not bool(f.call("is_still")):
+			f.call("step", DT)
+			n += 1
+		assert_true(bool(f.call("is_still")) and sk.get_bone_pose_rotation(half).is_equal_approx(Quaternion.IDENTITY),
+			"%s min: still within 10 frames, helpers rest (%d)" % [id, n])
+		f.free()
+	# the base next to them still has its own scale and correctives
+	assert_true(is_equal_approx((base.call("skeleton") as Skeleton3D).motion_scale, BASE_S), "the base body keeps S %.4f" % BASE_S)
+	_steps(base, 3)
+	assert_true(int(base.call("active_shapes")) > 0, "the base body keeps its correctives on hi")
+	base.free()
+	# an unknown body falls back to the base body (a warning, not a broken figure)
+	var bad := _new_fig(&"player", "mid", true, "zz9")
+	assert_true(bad.call("skeleton") != null and is_equal_approx((bad.call("skeleton") as Skeleton3D).motion_scale, BASE_S),
+		"an unknown body id gives the base body")
+	bad.free()
 
 
 func test_hero_light_on_own_material() -> void:

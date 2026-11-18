@@ -6,6 +6,9 @@ extends SceneTree
 ##    flesh, bone) and back to 1 with the same picture once the wound is cleared; a close-up on hi shows bone through
 ##    the flesh; on lo one draw call and a red tint without bone; on min add_wound does nothing and the picture, draw
 ##    calls and primitives are unchanged;
+##  - a woman's body (f1, assets/figures/soldier_f1/): a chest wound from its own wound spots shows its own inner layers
+##    on hi and mid, red flesh in the middle of the hole, bone through it and no background, three draw calls; a
+##    close-up on hi shows bone through the flesh;
 ##  - poses (run, punch, fire, heavy flinch, the three deaths): with four wounds, not one pixel changes farther than
 ##    1.85 r from every wound (the inner layers never show through unwounded skin), and the wounds do show;
 ##  - body parts: a flank wound (8.5 cm) and a chest-side wound by the armpit (as large as its spot allows) in six phases
@@ -14,10 +17,12 @@ extends SceneTree
 ##  - the arena: on hi and mid a real hit (take_hit) leaves one wound and two draw calls more (only while wounded) and the
 ##    wounded overview stays within ARENA_SPEC §11.2; on hi death adds two or three wounds and the revive after the
 ##    down time clears them; on lo a hit adds no draw call; on min a hit leaves no wound, no draw call and nothing
-##    processing once idle.
+##    processing once idle; with f1 chosen in the dressing room a real hit on hi leaves one wound and two draw calls
+##    more, a close-up shows bone through flesh, and death adds two or three wounds.
 ## PNGs (TEST_OUT, default tests/out): soldier_wound_alone.png (the four levels, before | after),
-## soldier_wound_close_hi.png, soldier_wound_poses.png (before | after per pose), soldier_wound_run_strip.png (before,
-## arm mask, after per phase), soldier_wound_arena_<level>.png, soldier_wound_death_hi.png. Run:
+## soldier_wound_close_hi.png, soldier_wound_f1_chest.png (hi and mid, before | after, and the hi close-up), soldier_wound_poses.png (before | after per pose), soldier_wound_run_strip.png (before,
+## arm mask, after per phase), soldier_wound_arena_<level>.png, soldier_wound_death_hi.png, soldier_wound_f1_arena_hi.png,
+## soldier_wound_f1_close_hi.png, soldier_wound_f1_death_hi.png. Run:
 ##   timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" <godot> --path godot --rendering-driver opengl3 \
 ##       --resolution 1280x720 --audio-driver Dummy -s tests/render/test_soldier_wounds.gd
 
@@ -98,9 +103,11 @@ func _run() -> void:
 	await _frames(4)
 	Figures.select("soldier", "original")
 	await _alone()
+	await _f1_chest()
 	await _poses()
 	await _run_strip()
 	await _arena()
+	await _arena_f1()
 	_finish()
 
 
@@ -177,6 +184,72 @@ func _alone() -> void:
 		vp.queue_free()
 		await _frames(1)
 	_save_img(sheet, "soldier_wound_alone.png")
+
+
+# ---- a woman's body (f1): its own wound spots and inner layers ----
+
+func _f1_chest() -> void:
+	var dir: String = S.call("folder", "f1")
+	var spot: Array = S.call("wound_spot", &"chest", Vector3(0.3, 0.1, 1.0), WOUND_R * 0.8, dir)
+	_check(spot.size() == 3, "f1: a wound spot on the front of the chest with room for %.1f cm" % (WOUND_R * 80.0), str(spot))
+	if spot.size() != 3:
+		return
+	var r := minf(WOUND_R, float(spot[2]))
+	var offset: Vector3 = (spot[0] as Vector3) - (spot[1] as Vector3) * r * 0.3
+	var sheet := Image.create(CELL.x * 3, CELL.y * 2, false, Image.FORMAT_RGBA8)
+	for i in 2:
+		var lv: String = ["hi", "mid"][i]
+		var vp := _viewport()
+		var fig: Node3D = S.new()
+		vp.add_child(fig)
+		fig.call("setup", {"role": &"player", "level": lv, "seed": 0, "manual": true, "body": "f1"})
+		fig.call("step", 0.0)
+		var sk: Skeleton3D = fig.call("skeleton")
+		_check(sk != null and is_equal_approx(sk.motion_scale, 1.0), "f1 %s: the figure stands on f1's rig (S 1.0)" % lv)
+		var centre := sk.global_transform * (sk.get_bone_global_pose(sk.find_bone("chest")) * offset)
+		var cam := Camera3D.new()
+		cam.fov = 30.0
+		vp.add_child(cam)
+		cam.current = true
+		var from := centre + Vector3(0.25, 0.15, 1.6)
+		cam.transform = Transform3D(Basis.looking_at(centre - from, Vector3.UP), from)
+		var at := cam.unproject_position(centre)
+		var rad := r / (cam.global_position.distance_to(centre) * tan(deg_to_rad(cam.fov * 0.5))) * CELL.y * 0.5
+		var m0 := await _measure_vp(vp)
+		var img0 := await _grab(vp)
+		var c0 := _classify(img0, at, rad * 1.25)
+		var added := bool(fig.call("add_wound", &"chest", offset, r))
+		var m1 := await _measure_vp(vp)
+		var img1 := await _grab(vp)
+		var c1 := _classify(img1, at, rad * 1.25)
+		var k1 := _classify(img1, at, rad * CORE_R)
+		print("wound f1 %-4s draws %d -> %d  flesh %d -> %d  bone %d -> %d  core: flesh %d background %d  (r %.1f cm, %.0f px)"
+			% [lv, m0[0], m1[0], c0[0], c1[0], c0[1], c1[1], k1[0], k1[2], r * 100.0, rad])
+		sheet.blit_rect(img0, Rect2i(Vector2i.ZERO, CELL), Vector2i(0, i * CELL.y))
+		sheet.blit_rect(img1, Rect2i(Vector2i.ZERO, CELL), Vector2i(CELL.x, i * CELL.y))
+		var inner: Array = fig.call("inner_layers")
+		var own := inner.size() == 2
+		for mi: MeshInstance3D in inner:
+			own = own and (mi.mesh == S.call("inner_mesh", "flesh", dir) or mi.mesh == S.call("inner_mesh", "bone", dir)) \
+				and mi.mesh != S.call("inner_mesh", "flesh") and mi.mesh != S.call("inner_mesh", "bone")
+		_check(added and own, "f1 %s: the chest wound uses f1's own inner layers (not the base body's)" % lv)
+		_check(c0[0] == 0 and c0[1] == 0, "f1 %s: no flesh or bone pixels at the chest before the wound" % lv, str(c0))
+		_check(m0[0] == 1 and m1[0] == 3, "f1 %s: one draw call, three while wounded (skin, flesh, bone)" % lv, "%s -> %s" % [m0, m1])
+		_check(c1[0] >= MIN_FLESH and k1[0] >= MIN_FLESH_CORE, "f1 %s: red flesh in the wound (%d px) and in the middle of the hole (%d px)"
+			% [lv, c1[0], k1[0]])
+		_check(k1[2] == 0, "f1 %s: no background shows through the hole (%d px)" % [lv, k1[2]])
+		_check(c1[1] >= MIN_BONE, "f1 %s: bone shows through the flesh (%d px)" % [lv, c1[1]])
+		if lv == "hi":
+			var p: Vector3 = fig.call("wound_point", 0)
+			var close := p + Vector3(0.12, 0.06, 0.5)
+			cam.transform = Transform3D(Basis.looking_at(p - close, Vector3.UP), close)
+			var img := await _grab(vp)
+			var cc := _classify(img, cam.unproject_position(p), CELL.x * 0.45)
+			_check(cc[1] >= MIN_BONE * 8 and cc[0] >= MIN_FLESH * 8, "f1 hi close-up: bone (%d px) through flesh (%d px)" % [cc[1], cc[0]])
+			sheet.blit_rect(img, Rect2i(Vector2i.ZERO, CELL), Vector2i(CELL.x * 2, 0))
+		vp.queue_free()
+		await _frames(1)
+	_save_img(sheet, "soldier_wound_f1_chest.png")
 
 
 # ---- poses: wounds never show anywhere but in their own circle ----
@@ -431,6 +504,74 @@ func _arena() -> void:
 	_app().call("set_gfx", "mid")
 	_app().call("pop")
 	await _frames(6)
+
+
+## the arena with a woman's body (f1): a real hit, a close-up of bone through flesh, death
+func _arena_f1() -> void:
+	Figures.select("soldier_f1", "original")
+	_app().call("set_gfx", "hi")
+	var arena: Node = _app().call("push", load(ARENA_SCREEN))
+	await _frames(20)
+	var world: Node3D = arena.get("world")
+	var player: Node3D = world.get("player")
+	var fig: Node3D = player.call("figure")
+	_check(fig != null and fig.get_script() == S and str(fig.get("body_id")) == "f1", "f1: the arena player is the f1 body", str(fig))
+	if fig == null:
+		_app().call("pop")
+		return
+	var dir: String = S.call("folder", "f1")
+	await _front(world, player)
+	var m0 := await _measure_main()
+	player.call("take_hit", {"amount": 10, "from": player.global_position + Vector3(0, 1, 2)})
+	await _physics(30)
+	var m1 := await _measure_main()
+	print("wound arena f1 hi draws %d -> %d  wounds %d" % [m0, m1, int(fig.call("wound_count"))])
+	_check(int(fig.call("wound_count")) == 1 and m1 == m0 + 2, "f1 hi: a real hit leaves one wound and two draw calls more (%d -> %d)" % [m0, m1])
+	# the picture: the chest wound of _f1_chest on top of the random hit
+	var spot: Array = S.call("wound_spot", &"chest", Vector3(0.3, 0.1, 1.0), WOUND_R * 0.8, dir)
+	_check(spot.size() == 3, "f1: a chest spot for the arena picture")
+	var r := minf(WOUND_R, float(spot[2])) if spot.size() == 3 else 0.04
+	if spot.size() == 3:
+		fig.call("add_wound", &"chest", (spot[0] as Vector3) - (spot[1] as Vector3) * r * 0.3, r)
+	await _front(world, player)
+	_save("soldier_wound_f1_arena_hi.png")
+	# close-up on that wound, looking into it along its normal: bone through flesh
+	var p: Vector3 = fig.call("wound_point", int(fig.call("wound_count")) - 1)
+	var skel: Skeleton3D = fig.call("skeleton")
+	var nrm := Vector3(0, 0, 1)
+	if spot.size() == 3:
+		nrm = (skel.global_basis * skel.get_bone_global_pose(skel.find_bone("chest")).basis * (spot[1] as Vector3)).normalized()
+	var old_cam := root.get_viewport().get_camera_3d()
+	var cam := Camera3D.new()
+	cam.fov = 30.0
+	world.add_child(cam)
+	cam.look_at_from_position(p + nrm * 0.5 + Vector3(0, 0.05, 0), p)
+	cam.current = true
+	await _frames(6)
+	var img := root.get_viewport().get_texture().get_image()
+	var cc := _classify(img, cam.unproject_position(p), img.get_height() * 0.4)
+	_check(cc[1] >= MIN_BONE * 4 and cc[0] >= MIN_FLESH * 4, "f1 hi close-up in the arena: bone (%d px) through flesh (%d px)" % [cc[1], cc[0]])
+	_save("soldier_wound_f1_close_hi.png")
+	cam.current = false
+	if old_cam != null:
+		old_cam.current = true
+	player.call("take_hit", {"amount": 1000, "from": player.global_position + Vector3(0, 1, 2)})
+	await _physics(80)
+	var n := int(fig.call("wound_count"))
+	_check(n >= 4 and n <= 5, "f1 hi: death adds two or three wounds to the two (%d in all)" % n)
+	var sk: Skeleton3D = fig.call("skeleton")
+	var pel := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("spine")).origin
+	cam.look_at_from_position(pel + Vector3(0.7, 1.9, 1.0), pel + Vector3(0.0, 0.25, 0.0))
+	cam.current = true
+	await _frames(6)
+	_save("soldier_wound_f1_death_hi.png")
+	cam.queue_free()
+	if old_cam != null:
+		old_cam.current = true
+	_app().call("set_gfx", "mid")
+	_app().call("pop")
+	await _frames(6)
+	Figures.select("soldier", "original")
 
 
 ## camera in front of the player (walk mode), the soldier facing it

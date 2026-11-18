@@ -13,6 +13,8 @@ extends "res://tests/testing.gd"
 ## Assets: inner_bone.res is bound rigidly (one weight of 1 per vertex) and inner_flesh.res is skinned, both to binds of
 ## skin.res, one surface each within their budgets, drawn after the skin (render_priority 1), every vertex at least
 ## 1 mm (flesh) / 2 mm (bone) under the hi and mid skin; the wound code lives once, in wound.gdshaderinc.
+## The other bodies (assets/figures/soldier_<id>/): each has its own inner layers that pass the same asset checks
+## against its own skin, and a figure of that body takes wounds from its own spots and shows its own layers.
 
 const SCRIPT := "res://scenes/arena/soldier_figure.gd"
 const DIR := "res://assets/figures/soldier/"
@@ -21,6 +23,8 @@ const DT := 1.0 / 30.0
 const INNER_BUDGET := {"bone": 6000, "flesh": 8000}
 ## least depth under the hi and mid skin (tools/soldier/generator/src/py/inner_layers.py FLESH_MIN / BONE_MIN_D)
 const DEPTH_MM := {"flesh": 1.0, "bone": 2.0}
+## ร่างอื่น (Figures.BUILTINS ที่มี body)
+const BODIES: PackedStringArray = ["m2", "m3", "f1", "f2"]
 
 var S: GDScript
 
@@ -29,12 +33,12 @@ func _tree() -> SceneTree:
 	return Engine.get_main_loop() as SceneTree
 
 
-func _new_fig(level: String, seed_v := 7, role := &"player") -> Node3D:
+func _new_fig(level: String, seed_v := 7, role := &"player", body := "") -> Node3D:
 	S = load(SCRIPT)
 	var f: Node3D = S.new()
 	_tree().root.add_child(f)
 	f.call("set_manual", true)
-	f.call("setup", {"role": role, "level": level, "team_colour": Color.BLUE, "seed": seed_v})
+	f.call("setup", {"role": role, "level": level, "team_colour": Color.BLUE, "seed": seed_v, "body": body})
 	return f
 
 
@@ -541,26 +545,36 @@ func test_shaders() -> void:
 
 func test_inner_assets() -> void:
 	S = load(SCRIPT)
-	var skin := load(DIR + "skin.res") as Skin
+	_inner_assets(DIR, "base")
+	for body in BODIES:
+		_inner_assets(str(S.call("folder", body)), body)
+
+
+## the inner layers of the body in folder d: the same rules for every body, against that body's own skin
+func _inner_assets(d: String, tag: String) -> void:
+	var skin := load(d + "skin.res") as Skin
+	assert_true(skin != null, "%s: skin.res loads" % tag)
+	if skin == null:
+		return
 	var game: PackedStringArray = S.get("GAME_BONES")
 	var known := {}
 	for i in skin.get_bind_count():
 		known[String(skin.get_bind_name(i))] = true
 	for l in ["bone", "flesh"]:
-		var m: ArrayMesh = S.call("inner_mesh", l)
-		assert_true(m != null, "inner_%s.res loads" % l)
+		var m: ArrayMesh = S.call("inner_mesh", l, d)
+		assert_true(m != null, "%s: inner_%s.res loads" % [tag, l])
 		if m == null:
 			continue
-		assert_eq(m.get_surface_count(), 1, "%s: one surface (one draw)" % l)
+		assert_eq(m.get_surface_count(), 1, "%s %s: one surface (one draw)" % [tag, l])
 		var arr := m.surface_get_arrays(0)
 		var tris := (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
-		assert_true(tris >= 3000 and tris <= int(INNER_BUDGET[l]), "%s: %d triangles within %d" % [l, tris, int(INNER_BUDGET[l])])
+		assert_true(tris >= 3000 and tris <= int(INNER_BUDGET[l]), "%s %s: %d triangles within %d" % [tag, l, tris, int(INNER_BUDGET[l])])
 		var mat := m.surface_get_material(0) as ShaderMaterial
-		assert_true(mat != null and mat.shader != null and mat.shader.resource_path == DIR + "inner.gdshader", "%s: the inner shader" % l)
-		assert_true(mat != null and mat.render_priority == 1, "%s: render_priority 1 (drawn after the skin, which hides most of it first)" % l)
-		for d in ResourceLoader.get_dependencies(DIR + "inner_%s.res" % l):
-			var path := d.get_slice("::", d.get_slice_count("::") - 1)
-			assert_true(path.begins_with(DIR), "inner_%s.res depends only on the soldier folder" % l, d)
+		assert_true(mat != null and mat.shader != null and mat.shader.resource_path == d + "inner.gdshader", "%s %s: the inner shader" % [tag, l])
+		assert_true(mat != null and mat.render_priority == 1, "%s %s: render_priority 1 (drawn after the skin, which hides most of it first)" % [tag, l])
+		for dep in ResourceLoader.get_dependencies(d + "inner_%s.res" % l):
+			var path := dep.get_slice("::", dep.get_slice_count("::") - 1)
+			assert_true(path.begins_with(d), "%s: inner_%s.res depends only on its own folder" % [tag, l], dep)
 		var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
 		var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
 		var nv := (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
@@ -583,40 +597,90 @@ func test_inner_assets() -> void:
 						rigid = false
 			if l == "bone" and nz != 1:
 				rigid = false
-		assert_true(unknown.is_empty(), "%s: skinned to binds of skin.res only" % l, str(unknown.keys()))
+		assert_true(unknown.is_empty(), "%s %s: skinned to binds of its skin.res only" % [tag, l], str(unknown.keys()))
 		if l == "bone":
-			assert_true(rigid, "bone: every vertex bound rigidly (one weight of 1)")
+			assert_true(rigid, "%s bone: every vertex bound rigidly (one weight of 1)" % tag)
 			for b in ["pelvis", "spine", "chest", "head", "shoulderL", "elbowR", "hipL", "kneeR"]:
-				assert_true(used.has(b), "bone: a part rides " + b)
+				assert_true(used.has(b), "%s bone: a part rides %s" % [tag, b])
 		else:
 			var main := 0
 			for b in game:
 				if used.has(b):
 					main += 1
-			assert_true(main >= 20, "flesh: weighted over the body (%d game bones)" % main)
+			assert_true(main >= 20, "%s flesh: weighted over the body (%d game bones)" % [tag, main])
 		# the generator's per-vertex check (inner_layers.py) travels with the mesh
 		var dm: Dictionary = m.get_meta("depth_mm", {})
 		for lv in ["hi", "mid"]:
 			assert_true(dm.has(lv) and float(dm[lv]) >= float(DEPTH_MM[l]),
-				"%s: the generator measured every vertex at least %.0f mm under the %s skin (%s mm)" % [l, float(DEPTH_MM[l]), lv, str(dm.get(lv, "?"))])
+				"%s %s: the generator measured every vertex at least %.0f mm under the %s skin (%s mm)" % [tag, l, float(DEPTH_MM[l]), lv, str(dm.get(lv, "?"))])
 	# …and here every vertex again, against the hi and mid skin as the game draws them (bind pose)
 	for lv in ["hi", "mid"]:
-		var skin_mesh: ArrayMesh = S.call("body_mesh", lv)
+		var skin_mesh: ArrayMesh = S.call("body_mesh", lv, d)
 		var depth := _SkinDepth.new(skin_mesh)
 		for l in ["bone", "flesh"]:
-			var m: ArrayMesh = S.call("inner_mesh", l)
+			var m: ArrayMesh = S.call("inner_mesh", l, d)
 			if m == null:
 				continue
 			var pos: PackedVector3Array = m.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 			var least := INF
 			var worst := -1
 			for v in pos.size():
-				var d := depth.depth(pos[v])
-				if d < least:
-					least = d
+				var dd := depth.depth(pos[v])
+				if dd < least:
+					least = dd
 					worst = v
-			assert_true(least * 1000.0 >= float(DEPTH_MM[l]) - 0.01, "%s: every one of %d vertices at least %.0f mm under the %s skin (least %.2f mm, vertex %d)"
-				% [l, pos.size(), float(DEPTH_MM[l]), lv, least * 1000.0, worst])
+			assert_true(least * 1000.0 >= float(DEPTH_MM[l]) - 0.01, "%s %s: every one of %d vertices at least %.0f mm under the %s skin (least %.2f mm, vertex %d)"
+				% [tag, l, pos.size(), float(DEPTH_MM[l]), lv, least * 1000.0, worst])
+
+
+## a figure of another body: wounds from its own spots, its own inner layers bound to its own skin, the same seeded
+## draws, min does nothing
+func test_variant_wounds() -> void:
+	S = load(SCRIPT)
+	for body in BODIES:
+		var d: String = S.call("folder", body)
+		var spots: Dictionary = S.call("wound_spots", d)
+		var base_spots: Dictionary = S.call("wound_spots")
+		assert_true(spots.has(&"chest") and spots.has(&"spine") and spots.has(&"hipL"), "%s: wound spots on its own body" % body, str(spots.keys()))
+		assert_true(spots != base_spots and (spots[&"chest"] as Array).size() != (base_spots[&"chest"] as Array).size()
+			or (spots[&"chest"][0][0] as Vector3) != (base_spots[&"chest"][0][0] as Vector3), "%s: not the base body's spots" % body)
+		var f := _new_fig("hi", 7, &"player", body)
+		var s: Array = S.call("wound_spot", &"chest", Vector3(0, 0, 1), 0.03, d)
+		assert_true(s.size() == 3, "%s: a chest spot with room for 3 cm" % body)
+		if s.size() != 3:
+			f.free()
+			continue
+		assert_true(bool(f.call("add_wound", &"chest", (s[0] as Vector3) - (s[1] as Vector3) * 0.01, 0.03)), "%s hi: add_wound takes a chest wound" % body)
+		var inner: Array = f.call("inner_layers")
+		assert_eq(inner.size(), 2, "%s hi: the inner layers exist after the first wound" % body)
+		var skin := load(d + "skin.res") as Skin
+		for mi: MeshInstance3D in inner:
+			assert_true(mi.visible and (mi.mesh == S.call("inner_mesh", "flesh", d) or mi.mesh == S.call("inner_mesh", "bone", d)),
+				"%s: %s is its own body's layer" % [body, mi.name])
+			assert_true(mi.skin == skin, "%s: %s is bound to its own skin" % [body, mi.name])
+		var mat := (f.call("body") as MeshInstance3D).material_override as ShaderMaterial
+		assert_true(mat != null and mat.shader != null and mat.shader.resource_path == d + "body_wound.gdshader", "%s hi: the skin on its wound shader" % body)
+		# seeded hits: the same seed repeats, the spots are its own
+		f.call("clear_wounds")
+		f.call("play", &"hit", 1.0)
+		var w1: Array = f.call("wounds")
+		f.free()
+		var g := _new_fig("hi", 7, &"player", body)
+		g.call("play", &"hit", 1.0)
+		var w2: Array = g.call("wounds")
+		assert_true(w1.size() == 1 and str(w1) == str(w2), "%s: a hit leaves one seeded wound, the same with the same seed" % body, "%s / %s" % [w1, w2])
+		if w1.size() == 1:
+			var hit: Dictionary = w1[0]
+			var found := false
+			for sp: Array in spots.get(hit["bone"], []):
+				if ((sp[0] as Vector3) - (sp[1] as Vector3) * float(hit["radius"]) * 0.3).distance_to(hit["offset"]) < 0.0001:
+					found = true
+					break
+			assert_true(found, "%s: the hit wound sits on one of its own spots (%s)" % [body, hit["bone"]])
+		g.free()
+		var mn := _new_fig("min", 7, &"player", body)
+		assert_false(bool(mn.call("add_wound", &"chest", Vector3(0, 0.1, 0.1), 0.03)), "%s min: add_wound does nothing" % body)
+		mn.free()
 
 
 ## depth of a point under a closed skin mesh (bind pose): distance to the closest triangle, negative outside (the sign
