@@ -11,6 +11,7 @@ from scipy.ndimage import map_coordinates
 import rig
 import muscles as MU
 import fatmap as FM
+import variants as VR
 from sdfk import Grid, F32
 
 K_SKIN = 0.012          # ความนุ่มตรงรอยต่อชิ้นในท่อนเดียวกัน
@@ -436,6 +437,8 @@ def skin_field(G, prims, mus, g, fat=1.0, skip_xmin=False, verbose=False, stats=
     del s, T
     # ขั้น 1c: ร่องตื้นในชั้นไขมันด้านหน้า (กลางท้อง รอยคั่นกล้ามท้อง สะดือ ใต้ขอบอก)
     FM.add_grooves(g, G, FM.groove_scale(fat))
+    if VR.CUR is not None:
+        VR.add_hair(g, G)                  # ร่างหลากหลาย: ผมยกจากหนังศีรษะ (ผมสั้น ผมหยิก ผมรวบ)
     if R_FINAL > 0:
         if R_GLOBAL <= 0:
             m = FM.membership_grid(g.lo, g.n, h, G, ("head", "handL", "handR"))
@@ -575,7 +578,7 @@ def skin_fine(G, prims, mus, fat=1.0, hc=0.003, hf=0.002, ghost=0.09, verbose=Fa
     gf.F = upsample(gc, gf)
     del gc
     wfine = np.zeros(gf.n, F32)
-    for name, blo, bhi in DETAIL_BOXES:
+    for name, blo, bhi in (DETAIL_BOXES if VR.CUR is None else VR.detail_boxes(DETAIL_BOXES)):
         sl = gf.slices(blo, bhi)
         if sl is None:
             continue

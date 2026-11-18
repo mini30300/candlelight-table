@@ -15,6 +15,7 @@ from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mesh as ME
+import variants as VR
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 LEVELS = ("hi", "mid", "lo", "min")
@@ -198,7 +199,16 @@ def main():
     ap.add_argument("--compare", default="")
     ap.add_argument("--step", type=float, default=0.005)
     ap.add_argument("--skip-g2", action="store_true")
+    ap.add_argument("--variant", default="", help="ร่างหลากหลาย: โฟลเดอร์ ../../<NAME> ; G2 จัดบริเวณในกรอบฐาน ความลึกเป็นมม.จริง")
     args = ap.parse_args()
+    VR.use(args.variant)
+    if VR.CUR is not None:
+        vroot = os.path.join(os.path.dirname(ROOT), VR.NAME)
+        if args.out == os.path.join(ROOT, "out"):
+            args.out = os.path.join(vroot, "out")
+        if args.work == os.path.join(ROOT, "work"):
+            args.work = os.path.join(vroot, "work")
+    KV = VR.scale()
     data = os.path.join(args.out, "data")
     G = {}
     # G1
@@ -216,8 +226,19 @@ def main():
     print("G1", "PASS" if ok1 else "FAIL", {k: (v["faces"], v["shells"], v["euler"]) for k, v in topo.items()}, flush=True)
     # G2
     if not args.skip_g2:
-        g2 = {"sculpt": g2_sections(Vs, Fs, args.step), "hi": g2_sections(lods["hi"][0], lods["hi"][1], args.step)}
-        prof = {"sculpt": clavicle_profile(Vs, Fs), "hi": clavicle_profile(lods["hi"][0], lods["hi"][1])}
+        # ร่างหลากหลาย: เมชปั้นอยู่ในกรอบฐาน 1.78 ม. ; hi ย่อกลับกรอบฐาน (จัดบริเวณเดียวกัน) แล้วคูณความลึกกลับเป็นมม.จริง
+        Vhi = lods["hi"][0] if KV == 1.0 else lods["hi"][0] / KV
+        g2 = {"sculpt": g2_sections(Vs, Fs, args.step), "hi": g2_sections(Vhi, lods["hi"][1], args.step)}
+        prof = {"sculpt": clavicle_profile(Vs, Fs), "hi": clavicle_profile(Vhi, lods["hi"][1])}
+        if KV != 1.0:
+            for v in g2.values():
+                for a in v:
+                    for f in v[a]["features"]:
+                        f["extent_mm"] = round(f["extent_mm"] * KV, 1)
+            for q in prof.values():
+                for p in q.values():
+                    p["dip_mm"] = round(p["dip_mm"] * KV, 2)
+                    p["full_range_dip_mm"] = round(p["full_range_dip_mm"] * KV, 2)
         nloops = {k: sum(v[a]["loops"] for a in v) for k, v in g2.items()}
         deep = []
         for k, v in g2.items():
@@ -232,6 +253,8 @@ def main():
                    "clavicle_profile": prof, "sections": g2,
                    "rule": "strict = no enclosed loop at all; depth = every enclosed loop outside the head spans at most "
                            "10 mm along the scan axis (an open dimple such as the navel or the spinal furrow, not a cave)"}
+        if KV != 1.0:
+            G["G2"]["scale_k"] = KV
         print("G2 loops", nloops, "deep", len(deep), "slit", slit, flush=True)
     # G3 / G4 / G5
     g3, g4, g5 = {}, {}, {}
@@ -272,6 +295,16 @@ def main():
                 rows[lv] = {"a": sha(a)[:16], "b": sha(b)[:16], "same": sha(a) == sha(b)}
         G["G8"] = {"pass": bool(rows) and all(r["same"] for r in rows.values()), "values": rows}
         print("G8", G["G8"]["pass"], rows, flush=True)
+    if VR.CUR is not None:
+        # ร่างหลากหลาย (รอบปรับ): G9 แก้ม/กรามเรียบ G10 ตา lo สองโทน G11 ขอบผ้า G12 อกหญิง
+        import vgates
+        import rig as RG
+        import anatomy as AN
+        Gb_, _ = RG.fk(RG.bind_pose())
+        G.update(vgates.run(args.out, args.work, Gb_, KV, AN.all_skin_prims()))
+        for kk in ("G9", "G10", "G11", "G12"):
+            if kk in G:
+                print(kk, G[kk]["pass"], {k2: v2 for k2, v2 in G[kk].items() if k2 != "pass"}, flush=True)
     json.dump(G, open(os.path.join(data, "gates.json"), "w"), indent=1, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
     print("gates written")
 

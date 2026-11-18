@@ -3,6 +3,7 @@
 #   ผสมกันแบบนุ่มด้วยระยะถึงปริมาตรหยาบของแต่ละท่อน ; ประเมินบนกริดหยาบ 12 มม. แล้วขยายแบบเชิงเส้น (ค่าเปลี่ยนช้า)
 import numpy as np
 import rig
+import variants as VR
 
 MM = 0.001
 CM = 0.01
@@ -114,6 +115,9 @@ def trunk(P, G):
     R = R * (1 - 0.50 * cleft) * (1 - 0.35 * furrow)
     # ขั้น 1c: กล้ามท้องตรง + ขอบล่างอก (ไขมันบางลง เติมร่องน้อยลง)
     mra, mpe = abs_masks(np.abs(x), y, z - zc)
+    if VR.CUR is not None:
+        # ร่างหลากหลาย: หญิงไม่มีแถบขอบล่างอก (มีเต้านม) ; ท้องนุ่มขึ้น
+        mra, mpe = mra * VR.CUR.get("ra_mask", 1.0), mpe * VR.CUR.get("pec_band", 1.0)
     T = T + (RA_T * MM - T) * mra * (T > RA_T * MM)
     R = R + (RA_R * CM - R) * mra * (R > RA_R * CM)
     T = T + (PEC_T * MM - T) * mpe * (T > PEC_T * MM)
@@ -293,14 +297,18 @@ def maps(P, G):
     """คืน (T, R) ต่อจุด (ม.) ที่ FAT_LEVEL = 1"""
     P = np.asarray(P, float)
     ds, Ts, Rs = [], [], []
-    for _, fn in SEGS:
+    for nm, fn in SEGS:
         d, T, R = fn(P, G)
+        if VR.CUR is not None:
+            T, R = VR.fat_seg(nm, T, R)        # ร่างหลากหลาย: ไขมันต่อท่อน
         ds.append(d)
         Ts.append(T)
         Rs.append(R)
     D = np.stack(ds, 1)
     W = np.exp(-(D - D.min(1, keepdims=True)) / LAM)
     W /= W.sum(1, keepdims=True)
+    if VR.CUR is not None:
+        return VR.fat_blobs(P, G, (W * np.stack(Ts, 1)).sum(1), (W * np.stack(Rs, 1)).sum(1))
     return (W * np.stack(Ts, 1)).sum(1), (W * np.stack(Rs, 1)).sum(1)
 
 
@@ -335,6 +343,9 @@ def seg_R_grid(lo, n, h, G, seg, step=0.012, M=None):
     if M is not None:
         P = P @ M[:3, :3].T + M[:3, 3]
     _, _, R = SEG_FN[seg](P, G)
+    if VR.CUR is not None:
+        _, R = VR.fat_seg(seg, R, R)
+        R = VR.blob_R(P, G, R)
     return _upsample_map(R.reshape(X.shape), ax, np.asarray(lo, float), n, h, step)
 
 
@@ -414,6 +425,8 @@ GROOVE_BOX = ((-0.20, 0.98, 0.0), (0.20, 1.40, 0.20))     # กล่องท�
 
 def groove_scale(fat):
     """ไขมันมาก = ร่องตื้นลง (ระดับ 1.3 เหลือ ~0.55) ; ผอมลง = ชัดขึ้นเล็กน้อย"""
+    if VR.CUR is not None:
+        return float(np.clip(2.5 - 1.5 * fat, 0.0, 1.3)) * VR.groove_k("all")
     return float(np.clip(2.5 - 1.5 * fat, 0.0, 1.3))
 
 
@@ -433,6 +446,9 @@ def grooves(P, G, wide=1.0, navel=True):
     pe = PE_D * np.exp(-((y - ype) / (PE_W * min(wide, 1.4))) ** 2) * _ss((x - 0.035) / 0.025) * (1 - _ss((x - 0.135) / 0.030))
     nw = min(wide, 1.6)
     nv = NV_D * np.exp(-((x / (NV_RX * nw)) ** 2 + ((y - NV_Y) / (NV_RY * nw)) ** 2)) if navel else 0.0 * x
+    if VR.CUR is not None:
+        sm, pe = sm * VR.groove_k("sl"), pe * VR.groove_k("pe")
+        nv = nv * VR.groove_k("nv")
     d = np.sqrt(la * la + ti * ti + sm * sm + pe * pe)          # จุดตัดของร่องลึกขึ้นเล็กน้อย (ไม่เป็นหลุม)
     return np.maximum(d, nv) * front * MM
 

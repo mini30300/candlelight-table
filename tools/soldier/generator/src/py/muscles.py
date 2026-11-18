@@ -5,6 +5,7 @@ import numpy as np
 import anatomy as A
 import rig
 from sdfk import etube_dist, F32
+import variants as VR
 
 M_SAMPLES = 16
 _L0 = {}            # (ชื่อมัด, ข้าง, เส้นใย) -> ความยาวท่า I
@@ -151,6 +152,11 @@ def build(G, prims, ipose_ref=False):
             W0 = m["tend"][0] + (m["R"] - m["tend"][0]) * bel
             ft = 1.0 if not m.get("fthick") else m["fthick"][k]
             H0 = m["tend"][1] + (m["R"] * m["flat"] * thick * dips * ft - m["tend"][1]) * bel
+            if VR.CUR is not None:
+                # ร่างหลากหลาย: ระดับกล้าม (ท้องกล้ามหนา/บางลง ; กว้างเปลี่ยนน้อยกว่า)
+                mk = VR.muscle_k(m["name"])
+                W0 = m["tend"][0] + (m["R"] * (1 + 0.35 * (mk - 1)) - m["tend"][0]) * bel
+                H0 = m["tend"][1] + (m["R"] * m["flat"] * thick * dips * ft * mk - m["tend"][1]) * bel
             # พันรอบกระดูก: ดันจุดกลางออกเมื่อจมแกนลึก และดึงเข้าแนบเมื่อลอย (กล้ามวางบนโครงเสมอ ไม่ลอยเป็นช่อง)
             if m["wrap"]:
                 ramp = (0.5 + 0.5 * np.clip(np.minimum(t, 1 - t) / 0.12, 0, 1))[:, None]   # ปลายก็แนบ (ครึ่งแรง)

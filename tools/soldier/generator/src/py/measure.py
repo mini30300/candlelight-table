@@ -1,4 +1,5 @@
 # วัดสัดส่วนผิวที่ปั้น (ท่า A) เทียบช่วงเกต G6 (ชายสูง ~1.78 ม. ไขมันปกติ FAT_LEVEL 1.0) : ส่วนสูง เส้นรอบวง ความกว้าง
+#   --variant NAME = ร่างหลากหลาย: ผลวัดคูณ k (ส่วนสูงจริง) เทียบช่วงของร่าง ; หญิงวัดอก/เอว/สะโพกที่รอบมาก/น้อยสุด
 import json
 import os
 import numpy as np
@@ -12,7 +13,7 @@ REF = {"stature": (176, 180), "chest": (94, 104), "waist": (80, 90), "hips": (94
        "head_height": (22, 25), "head_breadth": (14.5, 16), "foot_length": (26.0, 27.8), "shoulder_breadth": (44, 50)}
 
 
-def loop_perimeter(m, origin, normal, near):
+def loop_perimeter(m, origin, normal, near, xmax=None):
     s = m.section(plane_origin=origin, plane_normal=normal)
     if s is None:
         return None
@@ -21,6 +22,8 @@ def loop_perimeter(m, origin, normal, near):
         pts = np.asarray(ent)
         if len(pts) < 5:
             continue
+        if xmax is not None and np.abs(pts[:, 0]).max() > xmax:
+            continue                    # ร่างหญิง: วงที่รวมแขน (ใกล้รักแร้) ไม่ใช่รอบอก
         c = pts.mean(0)
         d = np.linalg.norm(c - near)
         per = float(np.sum(np.linalg.norm(np.diff(np.vstack([pts, pts[:1]]), axis=0), axis=1)))
@@ -29,8 +32,28 @@ def loop_perimeter(m, origin, normal, near):
     return best[1] if best else None
 
 
+def _search(m, y0, y1, near_z, mode):
+    """รอบวงแนวนอนมาก/น้อยสุดในช่วง y (ร่างหญิง: อกที่จุดยอด เอวคอดสุด สะโพกกว้างสุด) ; คืน (ซม.กรอบฐาน, y)"""
+    best = None
+    for y in np.arange(y0, y1 + 1e-9, 0.005):
+        p = loop_perimeter(m, np.array([0, y, 0.0]), np.array([0, 1, 0.0]), np.array([0, y, near_z]), xmax=0.215)
+        if p is None:
+            continue
+        if best is None or (p > best[0] if mode == "max" else p < best[0]):
+            best = (p, float(y))
+    return best
+
+
 def main():
-    z = np.load(os.path.join(ROOT, "work", "stage_skin.npz"))
+    import argparse
+    import variants as VR
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--variant", default="")
+    ap.add_argument("--root", default="", help="โฟลเดอร์สร้าง (มี work/ out/) ถ้าไม่ใช่ที่ตั้งปกติ")
+    a = ap.parse_args()
+    VR.use(a.variant)
+    root = a.root or (ROOT if VR.CUR is None else os.path.join(os.path.dirname(ROOT), VR.NAME))
+    z = np.load(os.path.join(root, "work", "stage_skin.npz"))
     V, F = z["Vs"], z["Fs"]
     m = trimesh.Trimesh(V, F, process=False)
     G, _ = rig.fk(rig.bind_pose())
@@ -86,12 +109,59 @@ def main():
     # กว้างไหล่ระหว่างปุ่ม acromion (กระดูก) + ผิวเหนือปุ่ม ~5 มม. (ท่า A ทำให้วัดจากผิวตรง ๆ ไม่ได้)
     ac = (rig.bone_xform(G, "clavicleL") @ np.array([0.209 + 0.020, 1.4775, -0.004, 1.0]))[:3]
     out["shoulder_breadth"] = float(2 * ac[0] + 0.010) * 100
+    ref = REF
+    where = {}
+    if VR.CUR is not None:
+        if VR.CUR["sex"] == "f":
+            # อกหญิง: รอบวงแนวนอนที่ระดับจุดยอดอก (จุดหน้าสุดของเต้านม) ; เอวคอดสุด ; สะโพกกว้างสุด
+            br = V[(np.abs(V[:, 0]) > 0.05) & (np.abs(V[:, 0]) < 0.12) & (V[:, 1] > 1.24) & (V[:, 1] < 1.34)]
+            yb = float(br[np.argmax(br[:, 2]), 1])
+            p = loop_perimeter(m, np.array([0, yb, 0.0]), np.array([0, 1, 0.0]), np.array([0, yb, 0.02]), xmax=0.215)
+            if p is not None:
+                out["chest"], where["chest"] = p * 100, round(yb, 3)
+            for nm, y0, y1, nz, mode in (("waist", 1.06, 1.185, 0.0, "min"), ("hips", 0.86, 0.965, -0.01, "max")):
+                b = _search(m, y0, y1, nz, mode)
+                if b is not None:
+                    out[nm], where[nm] = b[0] * 100, round(b[1], 3)
+        if max(VR.CUR["hair"]["thick"]) > 0 and out.get("head_breadth") is not None:
+            # วัดแบบกดผม (มาตรฐานการวัด): กว้างศีรษะหักผมที่จุดกว้างสุดทั้ง 2 ข้าง ; สูงศีรษะ/ส่วนสูงหักผมที่ยอดศีรษะ
+            #   ความหนาผมคิดในพิกัดก่อนขยายศีรษะแล้วคูณอัตราขยาย
+            import mesh as ME
+
+            import anatomy as AN
+            ears = [p for p in AN.face() if p.name in ("ear_L", "ear_R")]
+
+            def _th(p):
+                Hp = ME.head_local(VR.head_unwarp(p[None], G), G)
+                return float(VR.hair_thick(Hp, VR._ear_w(Hp, ears))[0]) * VR.head_scale()
+            # ผมหนา (ผมฟู): หาความกว้างของหนังศีรษะตรง ๆ = |x| - ความหนาผม × |nx| ทุกจุดในแถบ แล้วเอาค่ามากสุด
+            bw = (V[:, 1] > 1.705) & (V[:, 1] < 1.74) & (np.abs(V[:, 2]) < 0.06) & (np.abs(V[:, 0]) < 0.13)
+            Pb = V[bw]
+            Hb = ME.head_local(VR.head_unwarp(Pb, G), G)
+            tb = VR.hair_thick(Hb, VR._ear_w(Hb, ears)) * VR.head_scale()
+            xc = np.abs(Pb[:, 0]) - tb * np.abs(Nv[bw][:, 0])
+            where["head_breadth_with_hair"] = round(float(2 * np.abs(Pb[:, 0]).max()) * 100 * VR.scale(), 1)
+            out["head_breadth"] = float(2 * xc.max()) * 100
+            tv = V[np.argmax(V[:, 1])]
+            tt = _th(np.array([0.0, tv[1], tv[2]]))
+            where["head_height_with_hair"] = round(out["head_height"] * VR.scale(), 1)
+            where["stature_with_hair"] = round(out["stature"] * VR.scale(), 1)
+            out["head_height"] -= tt * 100
+            out["stature"] -= tt * 100
+        k = VR.scale()
+        out = {kk: (None if v is None else v * k) for kk, v in out.items()}
+        ref = dict(REF)
+        ref.update({kk: tuple(v) for kk, v in VR.CUR["ranges"].items() if v})
     rep = {}
     for k, v in out.items():
-        lo, hi = REF[k]
+        lo, hi = ref[k]
         rep[k] = {"cm": None if v is None else round(v, 1), "ref_cm": [lo, hi],
                   "ok": None if v is None else bool(lo <= v <= hi)}
-    json.dump(rep, open(os.path.join(ROOT, "out", "data", "anthropometry.json"), "w"), indent=1)
+        if k in where:
+            rep[k]["at_y_base"] = where[k]
+        if k + "_with_hair" in where:
+            rep[k]["with_hair_cm"] = where[k + "_with_hair"]
+    json.dump(rep, open(os.path.join(root, "out", "data", "anthropometry.json"), "w"), indent=1)
     for k, r in rep.items():
         print("%-16s %6s cm   ref %s  %s" % (k, r["cm"], r["ref_cm"], "ok" if r["ok"] else "CHECK"))
 

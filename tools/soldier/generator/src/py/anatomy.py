@@ -9,6 +9,7 @@
 import numpy as np
 from sdfk import Prim, rotm, frame_from
 from rig import JOINT_I, S, mirror_name
+import variants as VR
 
 J = JOINT_I
 MX = np.diag([-1.0, 1.0, 1.0])
@@ -404,6 +405,8 @@ def cores():
     for p in C:
         if p.tag == "core" or p.tag == "finger":
             pass
+    if VR.CUR is not None:
+        C = VR.edit_prims(C, "cores")        # ร่างหลากหลาย: แกนลึก (เอว อก คอ ลูกกระเดือก)
     return both(C)
 
 
@@ -567,6 +570,8 @@ def face():
             name="ear_concha_L", outset=0.0, neg=True, k=0.003)]
     for p in F:
         p.tag = "face" if p.tag == "core" else p.tag
+    if VR.CUR is not None:
+        F = VR.edit_prims(F, "face")         # ร่างหลากหลาย: รูปหน้า
     return both(F)
 
 
@@ -861,4 +866,6 @@ MUSCLES_L = muscles_left()
 
 
 def all_skin_prims():
+    if VR.CUR is not None:
+        return cores() + lands() + pads() + face() + VR.extra_prims()     # ร่างหลากหลาย: เต้านม มวยผม
     return cores() + lands() + pads() + face()

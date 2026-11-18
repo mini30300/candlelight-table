@@ -4,7 +4,9 @@
 #                              น้ำหนักย้ายจากผิว (work/stage_weights.npz: Wh4 ชุดเดียวกับ hi/mid)
 #   ทั้งสองชั้นมี part = ส่วนร่างกายต่อจุดยอด (parts.py) และถูกตรวจทีละจุดยอดว่าอยู่ใต้ผิว hi และ mid จริง (ระยะถึง
 #   สามเหลี่ยมที่ใกล้สุด มีเครื่องหมาย): เนื้อลึก >= FLESH_HI_MM กระดูก >= BONE_HI_MM ไม่งั้นกดเข้า / ไม่ผ่าน = หยุด
-#   ร่างแบบอื่น (variants: out/data/variant.json มี k) ผิวปั้นอยู่ในกรอบ 1.78 ม. -> คิดในกรอบนั้นแล้วคูณ k
+#   ร่างแบบอื่น (variants: out/data/variant.json มี k และชื่อร่าง) ผิวปั้นอยู่ในกรอบ 1.78 ม. -> คิดในกรอบนั้นแล้วคูณ k
+#   ไขมันจากแผนที่ของร่างนั้นเอง (variants.use) + ความหนาของชิ้น pad (เต้านม แผ่นลาดอก ไขมันใต้ไหปลาร้า) ไม่เกิน FAT_HI_V
+#   แล้วจุดเนื้อที่โผล่พ้นผิว hi ในท่าใดของเกมถูกกดลงในท่าผูก (inner_posed.push_posed ; ตรวจซ้ำด้วย inner_posed.py)
 #   /usr/bin/python3 inner_layers.py [--out DIR] [--work DIR]      (~5 วินาที ; ต่อด้วย src/gd/assemble_inner.gd)
 import argparse
 import json
@@ -21,6 +23,7 @@ import weights as WT
 import layers as LY
 import fatmap as FM
 import parts as PT
+import variants as VR
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -28,6 +31,7 @@ BONE_TRIS = 5000          # งบชั้นกระดูก (สามเ�
 BONE_MIN = 12             # ขั้นต่ำต่อชิ้น (ชิ้นเล็กไม่หาย)
 FLESH_TRIS = 7000         # งบชั้นเนื้อ
 FAT_LO, FAT_HI = 0.003, 0.016   # ระยะหดเข้าจากผิว (ม.) = ความหนาไขมันที่จุดนั้น จำกัดช่วง
+FAT_HI_V = 0.040          # ร่างแบบอื่น: ไขมัน + ชิ้น pad หนาได้ถึงเท่านี้ (เต้านม ≤ 40 มม. สะโพกหญิง ~30 มม.)
 FLESH_SMOOTH = 4          # เกลี่ย Taubin หลังหด (กันรอยพับในซอก)
 BONE_UNDER = 0.004        # กระดูกอยู่ใต้ผิวอย่างน้อยเท่านี้ (ม.): ชั้นภาพเดิมมีขอบสะบักโผล่หลังผิว ~3 ซม. -> กดกลับเข้าใต้ผิว
 FLESH_UNDER = 0.002       # เนื้ออยู่ใต้ผิวอย่างน้อยเท่านี้ (ซอกนิ้ว ข้อเท้า)
@@ -112,7 +116,8 @@ class SkinDepth:
         self.tri_of = order // 3
         self.maxdeg = int(cnt.max())
 
-    def query(self, P):
+    def query(self, P, with_tri=False):
+        """with_tri = คืนดัชนีสามเหลี่ยมที่ใกล้สุดด้วย (inner_posed.py)"""
         P = np.asarray(P, np.float64)
         _, vi = self.tree.query(P, k=CAND_K)
         cand = -np.ones((len(P), CAND_K * self.maxdeg), np.int64)
@@ -135,6 +140,8 @@ class SkinDepth:
         Qb, bcb, tb = Q[first], bc[first], t[first]
         Nq = sum(bcb[:, k:k + 1] * self.N[self.F[tb, k]] for k in range(3))
         Nq /= np.maximum(np.linalg.norm(Nq, axis=1, keepdims=True), 1e-12)
+        if with_tri:
+            return np.einsum('ij,ij->i', P - Qb, Nq), Nq, tb
         return np.einsum('ij,ij->i', P - Qb, Nq), Nq
 
 
@@ -224,14 +231,33 @@ def bone_layer(data, Vs, Ns, skins):
     return V, F, N, B, [groups[k] for k in sorted(groups, key=lambda s: rig.BI[s])], moved + moved2
 
 
+def pad_inset(V, Gb):
+    """ร่างแบบอื่น: ชิ้น pad ดันผิวออกจากผนังตัวเท่าไร = พิกัดด้านหน้าของจุดในกรอบชิ้น (0 ที่ระนาบกลางชิ้น ถึงรัศมีหน้า
+    ที่ยอด) × น้ำหนัก 1 บนผิวชิ้น -> 0 เมื่อห่างผิวชิ้นเกิน k ของชิ้น (ม.)"""
+    out = np.zeros(len(V))
+    for p in VR.extra_prims():
+        if p.tag != "pad" or p.kind != "ellipsoid":
+            continue
+        M = rig.bone_xform(Gb, p.bone)
+        d = np.asarray(p.eval(V.astype(np.float32), M)[0], np.float64)
+        q = ((V - M[:3, 3]) @ M[:3, :3] - np.asarray(p.p["c"], float)) @ np.asarray(p.p.get("rot", np.eye(3)), float)
+        w = np.clip(1.0 - np.maximum(d, 0.0) / float(p.k or 0.02), 0.0, 1.0)
+        out = np.maximum(out, w * w * (3.0 - 2.0 * w) * np.clip(q[:, 2], 0.0, float(p.p["r"][2])))
+    return out
+
+
 def flesh_layer(work, Gb, Vs, Fs, Ns, fat, k, skins):
     """ผิวปั้นลดเหลือ FLESH_TRIS แล้วหดเข้าตามนอร์มอลเท่าความหนาไขมัน -> ผิวของกล้าม/เนื้อใต้ไขมัน ; น้ำหนักจากผิว
-    คิดในกรอบผิวปั้น (Vs, Gb) แล้วคูณ k ไปกรอบของผิวที่ส่งออก"""
+    คิดในกรอบผิวปั้น (Vs, Gb) แล้วคูณ k ไปกรอบของผิวที่ส่งออก ; ร่างแบบอื่น: แผนที่ไขมันบนพิกัดก่อนขยายศีรษะ + pad"""
     W = np.load(os.path.join(work, "stage_weights.npz"))["Wh4"]
     V, F = ME.decimate(Vs, Fs, FLESH_TRIS)
     N = ME.vnormals(V, F)
-    T, _ = FM.maps(V, Gb)
-    t = np.clip(T * fat, FAT_LO, FAT_HI)
+    if VR.CUR is None:
+        T, _ = FM.maps(V, Gb)
+        t = np.clip(T * fat, FAT_LO, FAT_HI)
+    else:
+        T, _ = FM.maps(VR.head_unwarp(V, Gb), Gb)
+        t = np.clip(T * fat + pad_inset(V, Gb), FAT_LO, FAT_HI_V)
     Vi = ME.taubin(V - N * t[:, None], F, it=FLESH_SMOOTH)
     Wl = ME.transfer(Vs, V, W, k=3)                   # จากตำแหน่งบนผิว (ก่อนหด)
     Vi, moved = _under_skin(Vi * k, Vs * k, Ns, FLESH_UNDER)
@@ -259,7 +285,9 @@ def main():
     k = 1.0
     vj = os.path.join(data, "variant.json")
     if os.path.exists(vj):
-        k = float(json.load(open(vj)).get("k", 1.0))
+        vd = json.load(open(vj))
+        k = float(vd.get("k", 1.0))
+        VR.use(vd.get("variant", ""))
     top = float(skins["hi"].V[:, 1].max())
     if abs(top - k * float(Vs[:, 1].max())) > 0.003:
         raise SystemExit("inner layers: the sculpt (x k %.4f) and body_hi differ in height: %.4f vs %.4f m"
@@ -276,20 +304,28 @@ def main():
                  {"layer": "bone", "verts": nb, "tris": int(len(Fb)), "bones": rig.BONES, "space": "bind"})
     Vf, Ff, Nf, bi, bw, t, moved_f = flesh_layer(args.work, Gb, Vs, Fs, Ns, float(z["fat"]), k, list(skins.values()))
     part_f = PT.part_ids(bi)
+    posed = None
+    if VR.CUR is not None:
+        import inner_posed as IP
+        clips = json.load(open(IP.clip_path(args.out)))["clips"]
+        Vf, npush, dmax = IP.push_posed(Vf, Ff, bi, bw, part_f.astype(np.int64), data, k, clips, list(skins.values()))
+        Nf = ME.vnormals(Vf, Ff)
+        posed = {"pushed_verts": npush, "max_push_mm": round(dmax * 1000, 2)}
+        print("inner flesh: %d verts pushed down for the game's poses (at most %.1f mm)" % (npush, dmax * 1000))
     LY.write_bin(os.path.join(data, "inner_flesh.bin"), {"pos": Vf, "nrm": Nf, "bones": bi, "weights": bw,
                                                          "part": part_f, "idx": Ff[:, ::-1]},
                  {"layer": "flesh", "verts": int(len(Vf)), "tris": int(len(Ff)), "bones": rig.BONES, "space": "bind"})
     used_b = sorted({rig.BONES[i] for i in np.unique(Bb)})
     used_f = sorted({rig.BONES[i] for i in np.unique(bi[bw > 0])})
     dep_b, dep_f = _depths(Vb, skins), _depths(Vf, skins)
-    rep = {"k": k,
+    rep = {"k": k, "variant": VR.NAME,
            "bone": {"verts": nb, "tris": int(len(Fb)), "groups": len(groups), "bones": used_b, "parts": groups,
                     "pushed_under_skin": moved_b, "depth": dep_b,
                     "body_parts": {PT.NAMES[i]: int((part_b == i).sum()) for i in range(len(PT.NAMES))}},
            "flesh": {"verts": int(len(Vf)), "tris": int(len(Ff)), "bones": used_f, "pushed_under_skin": moved_f,
                      "depth": dep_f, "body_parts": {PT.NAMES[i]: int((part_f == i).sum()) for i in range(len(PT.NAMES))},
                      "inset_mm": {"min": round(float(t.min()) * 1000, 2), "mean": round(float(t.mean()) * 1000, 2),
-                                  "max": round(float(t.max()) * 1000, 2)}},
+                                  "max": round(float(t.max()) * 1000, 2)}, **({"posed_push": posed} if posed else {})},
            "time_s": round(time.time() - t0, 1)}
     json.dump(rep, open(os.path.join(data, "inner_layers.json"), "w"), indent=1)
     print("inner bone: %d tris %d verts (%d groups, %d verts pushed under the skin, bones %s)"

@@ -237,8 +237,9 @@ def _polyline_dist(P, pts):
     return best
 
 
-def _lip_bands(pm, x, y):
-    """แถบริมฝีปากแดงบน/ล่าง จากรูปท่อริมฝีปากบนระนาบหน้า (x, y ท่า I) ; คืน (บน, ล่าง, ระยะถึงเส้นปาก, จางที่มุมปาก)"""
+def _lip_bands(pm, x, y, fade=0.0016):
+    """แถบริมฝีปากแดงบน/ล่าง จากรูปท่อริมฝีปากบนระนาบหน้า (x, y ท่า I) ; คืน (บน, ล่าง, ระยะถึงเส้นปาก, จางที่มุมปาก)
+    fade = ขอบไล่ (ร่างหลากหลาย 3 มม.: ไม่เป็นแฉกบนสามเหลี่ยม hi ~6 มม.)"""
     lu, ll, ml = pm["lip_upper"].p, pm["lip_lower"].p, pm["mouth_line"].p["pts"]
     xu, xl = lu["pts"][:, 0], ll["pts"][:, 0]
     yu = np.interp(x, xu, lu["pts"][:, 1])
@@ -248,18 +249,21 @@ def _lip_bands(pm, x, y):
     ym = np.interp(x, ml[:, 0], ml[:, 1])
     top = yu + 0.78 * ru
     bot = yl - 0.76 * rl
-    up = _ss((top - y) / 0.0016) * _ss((y - ym + 0.0006) / 0.0006)
-    lo = _ss((y - bot) / 0.0016) * _ss((ym - y + 0.0006) / 0.0006)
+    up = _ss((top - y) / fade) * _ss((y - ym + 0.0006) / 0.0006)
+    lo = _ss((y - bot) / fade) * _ss((ym - y + 0.0006) / 0.0006)
     half = float(xu.max())
     corner = 1 - _ss((np.abs(x) - (half - 0.0045)) / 0.0045)
     return up * corner, lo * corner, np.abs(y - ym), corner
 
 
-def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=False):
+def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=False, garments=True, aux=None, hair=True):
     """คืน (rgb (n,3) sRGB, flesh (n,), ao (n,)) ; flesh = ผิวเนื้อ (แสงห่อแบบผิว) ; ผม/ตาน้อยกว่า ; ao ที่คำนวณแล้วส่งเข้ามาได้
     far = สีสำหรับระดับไกล (lo/min): ไม่มีเงาเครา/AO เบ้าตา, ตาเป็นอัลมอนด์น้ำตาลนุ่ม, ใต้จมูก/ใต้คางสว่างขึ้น, ปากเป็นแถบชมพูจาง
-    fat = ระดับไขมัน (เงาร่องตื้นลงตามร่อง) ; far_abs = ระดับ lo: เงาร่องหน้าท้องแบบกว้าง (แทนเงาร่องแคบ)"""
+    fat = ระดับไขมัน (เงาร่องตื้นลงตามร่อง) ; far_abs = ระดับ lo: เงาร่องหน้าท้องแบบกว้าง (แทนเงาร่องแคบ)
+    garments = ร่างหลากหลาย: ทาเสื้อ/กางเกงที่นี่ (False = ทาทีหลังบนจุดยอดของแต่ละระดับ) ; aux = dict รับ aof (AO ที่คูณสี)"""
     import anatomy as AN
+    import variants as VR
+    PAL = VR.palette() if VR.CUR is not None else None     # ร่างหลากหลาย: สีผิว ผม ตา ปาก
     n = len(V)
     if ao is None:
         ao = sdf_ao(sampler, V, N)
@@ -275,7 +279,7 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
         d, _ = p.eval(V32[idx], rig.bone_xform(G, p.bone))
         return np.asarray(d, float)
 
-    rgb = np.tile(SKIN, (n, 1))
+    rgb = np.tile(SKIN if PAL is None else PAL["SKIN"], (n, 1))
     flesh = np.ones(n)
     H = head_local(V, G)
     Mh = rig.bone_xform(G, "head")
@@ -300,69 +304,128 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
         rgb[nb] = rgb[nb] * (1 + (0.10 if far else 0.09) * down[:, None])
         if not far:
             nos = np.exp(-(((ax[nb] - 0.0072) / 0.0042) ** 2 + ((z[nb] - 0.1050) / 0.0040) ** 2)) * down
-            rgb[nb] = _mix(rgb[nb], np.array([0.36, 0.22, 0.20]), 0.55 * nos)
+            rgb[nb] = _mix(rgb[nb], np.array([0.36, 0.22, 0.20]) if PAL is None else PAL["NOSTRIL"], 0.55 * nos)
     # ---- ริมฝีปาก (แถบตามรูปริมฝีปาก) + เส้นปากบาง ----
     lipm = np.zeros(n)
     mz = hd[(z[hd] > 0.070) & (ax[hd] < 0.032) & (y[hd] > 1.560) & (y[hd] < 1.612)]
     if len(mz):
-        up, lo, dm, corner = _lip_bands(pm, x[mz], y[mz])
+        up, lo, dm, corner = _lip_bands(pm, x[mz], y[mz]) if PAL is None else _lip_bands(pm, x[mz], y[mz], fade=0.0030)
         front = _ss((Nh[mz, 2] + 0.1) / 0.4)
         lipm[mz] = np.maximum(up, lo) * front
+        lip_c, mouth_c = (LIP, MOUTH) if PAL is None else (PAL["LIP"], PAL["MOUTH"])
         if far:
-            rgb[mz] = _mix(rgb[mz], LIP, 0.45 * lipm[mz])
-        else:
-            rgb[mz] = _mix(rgb[mz], LIP, 0.66 * lipm[mz])
+            rgb[mz] = _mix(rgb[mz], lip_c, (0.45 if PAL is None else 0.30) * lipm[mz])
+        elif PAL is None:
+            rgb[mz] = _mix(rgb[mz], lip_c, 0.66 * lipm[mz])
             mline = (1 - _ss((dm - 0.0003) / 0.0008)) * 0.55 * corner * front
-            rgb[mz] = _mix(rgb[mz], MOUTH, mline)
+            rgb[mz] = _mix(rgb[mz], mouth_c, mline)
+        else:
+            # ร่างหลากหลาย: ปากสีอ่อนลงตามผิว (ผิวขาวไม่เป็นวงชมพู) ; เส้นปากกว้างนุ่มจาง (ไม่เป็นรอยเย็บ)
+            rgb[mz] = _mix(rgb[mz], lip_c, PAL["LIP_MIX"] * lipm[mz])
+            mline = (1 - _ss((dm - 0.0010) / 0.0035)) * 0.22 * corner * front
+            rgb[mz] = _mix(rgb[mz], mouth_c, mline)
     # ---- เงาเครา (โกนแล้ว) จาง ๆ : กราม คาง ; ริมฝีปากบนจางมาก เริ่มใต้ฐานจมูก 4 มม. (ระดับไกลไม่มี) ----
-    if not far:
+    bk = 0.09 if PAL is None else PAL["BEARD"]
+    if not far and bk > 0:
         beard = _ss((1.602 - y) / 0.010) * _ss((y - 1.545) / 0.010) * _ss((z + 0.005) / 0.02) * head_w
         lipzone = (1 - _ss((ax - 0.018) / 0.010)) * _ss((y - 1.590) / 0.004)
         beard *= 1 - 0.6 * lipzone
         beard *= (1 - lipm) * (1 - ear)
         beard *= 1 - _ss((ax - 0.064) / 0.008) * _ss((y - 1.600) / 0.01)
-        rgb = rgb * (1 - 0.09 * beard[:, None]) + rgb * COOL * 0.09 * beard[:, None]
+        rgb = rgb * (1 - bk * beard[:, None]) + rgb * COOL * bk * beard[:, None]
     # ---- ตา ----
     ez = hd[(z[hd] > 0.06) & (ax[hd] > 0.010) & (ax[hd] < 0.054) & (np.abs(y[hd] - 1.663) < 0.018)]
     if len(ez):
         de = np.minimum.reduce([dist(k, ez) for k in ("eyeball_L", "eyeball_R", "cornea_L", "cornea_R")])
         dal = np.minimum(dist("eye_open_L", ez), dist("eye_open_R", ez))
+        e_far, e_scl, e_iris, e_pup, e_lash = ((EYE_FAR, SCLERA, IRIS, PUPIL, LASH) if PAL is None else
+                                               (PAL["EYE_FAR"], PAL["SCLERA"], PAL["IRIS"], PAL["PUPIL"], PAL["LASH"]))
         ce = pm["eyeball_L"].p["c"]
         c = np.where(x[ez, None] > 0, ce, ce * np.array([-1.0, 1.0, 1.0]))
         v = H[ez] - c
-        if far:
+        if far and PAL is None:
             # อัลมอนด์นุ่มสีน้ำตาลกลาง ๆ ทั้งช่องตา (ระดับไกล)
             alm = 1 - _ss((dal + 0.0008) / 0.0035)
-            rgb[ez] = _mix(rgb[ez], EYE_FAR, 0.85 * alm)
+            rgb[ez] = _mix(rgb[ez], e_far, 0.85 * alm)
+            flesh[ez] = flesh[ez] * (1 - 0.4 * alm)
+        elif far:
+            # ร่างหลากหลาย ระดับไกล: ตาเปิดสองโทน (ขาวหม่นทั้งช่อง + ม่านตาเข้มกลาง ~40 % + เส้นขนตาบน) ;
+            #   min: อัลมอนด์ เข้มกลาง อ่อนที่หัว/หางตา (ยังอ่านว่าลืมตา)
+            eo = pm["eye_open_L"].p
+            q = H[ez] - np.where(x[ez, None] > 0, eo["c"], eo["c"] * np.array([-1.0, 1.0, 1.0]))
+            alm = 1 - _ss((dal + 0.0006) / 0.0030)
+            ir = np.clip(1.3 * np.exp(-((q[:, 0] / (0.42 * eo["hw"])) ** 2 + (q[:, 1] / 0.0060) ** 2)), 0, 1)
+            light = np.tile(PAL["SCLERA"] * 0.70 + PAL["SKIN"] * 0.12, (len(ez), 1))
+            dark = PAL["IRIS"] * 0.55 + PAL["PUPIL"] * 0.45
+            if far_abs:
+                rgb[ez] = _mix(rgb[ez], _mix(light, dark, ir), 0.92 * alm)
+                lash = (dal > -0.0010) & (dal < 0.0016) & (q[:, 1] > 0.0012)
+                rgb[ez[lash]] = _mix(rgb[ez[lash]], e_lash, np.full(lash.sum(), 0.55))
+            else:
+                rgb[ez] = _mix(rgb[ez], _mix(light * 0.65 + e_far * 0.35, dark, ir), 0.85 * alm)
             flesh[ez] = flesh[ez] * (1 - 0.4 * alm)
         else:
             # ผิวลูกตาที่มองเห็น = อยู่บนลูกตา และอยู่ในช่องตาที่เจาะ
             eye = (de < 0.0009) & (dal < 0.0004)
             cosang = v[:, 2] / np.maximum(np.linalg.norm(v, axis=1), 1e-9)
-            col = np.tile(SCLERA, (len(ez), 1))
-            col = _mix(col, IRIS * 0.80, _ss((cosang - np.cos(np.radians(28.5))) / 0.012))
-            col = _mix(col, IRIS, _ss((cosang - np.cos(np.radians(25.0))) / 0.012))
-            col = _mix(col, PUPIL, _ss((cosang - np.cos(np.radians(7.5))) / 0.005))
+            col = np.tile(e_scl, (len(ez), 1))
+            if PAL is None:
+                col = _mix(col, e_iris * 0.80, _ss((cosang - np.cos(np.radians(28.5))) / 0.012))
+                col = _mix(col, e_iris, _ss((cosang - np.cos(np.radians(25.0))) / 0.012))
+                col = _mix(col, e_pup, _ss((cosang - np.cos(np.radians(7.5))) / 0.005))
+            else:
+                # ร่างหลากหลาย: ม่านตา/รูม่านตาเป็นวงกลมนุ่ม (ขอบไล่กว้าง ไม่เป็นดาวเหลี่ยม) + เงาเปลือกตาบนบนลูกตาส่วนบน
+                col = _mix(col, e_iris * 0.85, _ss((cosang - np.cos(np.radians(27.0))) / 0.040 + 0.5))
+                col = _mix(col, e_pup, _ss((cosang - np.cos(np.radians(8.0))) / 0.016 + 0.5))
+                col = col * (1 - 0.30 * _ss((v[:, 1] - 0.0012) / 0.0040))[:, None]
             rgb[ez[eye]] = col[eye]
             flesh[ez[eye]] = 0.45
             # ขนตาบน: เส้นเข้มบาง ๆ ตามขอบเปลือกตาบน
-            lash = (~eye) & (dal > -0.0006) & (dal < 0.0012) & (de < 0.0045) & (v[:, 1] > 0.0)
-            rgb[ez[lash]] = _mix(rgb[ez[lash]], LASH, np.full(lash.sum(), 0.25))
+            if PAL is None:
+                lash = (~eye) & (dal > -0.0006) & (dal < 0.0012) & (de < 0.0045) & (v[:, 1] > 0.0)
+                rgb[ez[lash]] = _mix(rgb[ez[lash]], e_lash, np.full(lash.sum(), 0.25))
+            else:
+                # ร่างหลากหลาย: เฉพาะขอบเปลือกตาบน (แถบแคบ ไม่เลอะหางตา) ; ขอบเปลือกตาล่างเข้มลง 10 %
+                lash = (~eye) & (dal > -0.0004) & (dal < 0.0008) & (de < 0.0045) & (v[:, 1] > 0.0)
+                rgb[ez[lash]] = _mix(rgb[ez[lash]], e_lash, np.full(lash.sum(), VR.CUR.get("lash", 0.32)))
+                ledge = (~eye) & (dal > -0.0004) & (dal < 0.0030) & (de < 0.0050) & (v[:, 1] < -0.0015)
+                rgb[ez[ledge]] = rgb[ez[ledge]] * 0.90
     # ---- คิ้ว (นุ่ม เรียวไปทางหางคิ้ว) ----
     eb = (((ax - 0.031) / 0.021) ** 2 + ((y - (1.6865 - 0.06 * (ax - 0.031))) / (0.0048 - 0.035 * np.clip(ax - 0.031, 0, 0.02))) ** 2)
     browm = (1 - _ss(eb)) * _ss((z - 0.072) / 0.008) * head_w
-    rgb = _mix(rgb, BROW, (0.46 if not far else 0.44) * browm)
+    if PAL is not None and VR.CUR.get("brow_shape") is not None:
+        browm = VR.brow_mask(ax, y, z) * head_w          # ร่างหญิง: คิ้วบางโค้ง สูงขึ้นเล็กน้อย
+    rgb = _mix(rgb, BROW if PAL is None else PAL["BROW"], ((0.46 if not far else 0.44) if PAL is None else PAL["BROW_A"]) * browm)
     flesh = flesh * (1 - 0.4 * browm)
     # ---- ผมสั้นเกรียน (ไรผมนุ่ม) ----
-    th = np.degrees(np.arctan2(ax, z))
-    yh = np.interp(th, [0, 25, 45, 70, 95, 120, 150, 180], [1.738, 1.733, 1.715, 1.690, 1.672, 1.640, 1.612, 1.600])
-    hair = _ss((y - yh) / 0.013) * head_w * (1 - _ss(ear * 1.5))
-    rgb = _mix(rgb, HAIR, 0.64 * hair)
-    flesh = flesh * (1 - 0.65 * hair)
+    if PAL is None:
+        th = np.degrees(np.arctan2(ax, z))
+        yh = np.interp(th, [0, 25, 45, 70, 95, 120, 150, 180], [1.738, 1.733, 1.715, 1.690, 1.672, 1.640, 1.612, 1.600])
+        hair = _ss((y - yh) / 0.013) * head_w * (1 - _ss(ear * 1.5))
+        rgb = _mix(rgb, HAIR, 0.64 * hair)
+        flesh = flesh * (1 - 0.65 * hair)
+    elif hair:
+        # ร่างหลากหลาย: ผมตามแนวไรผมของร่าง (+ ลอนหยิกเป็นแสงเงา + มวยผม) ; hair=False: ทาทีหลังที่จุดยอดของระดับ lo/min
+        hc = VR.CUR["hair"]
+        hair = VR.hair_mask(H, _ss(ear * 1.5)) * head_w
+        if "hair_bun" in pm:
+            hair = np.maximum(hair, (1 - _ss((dist("hair_bun", np.arange(n)) - 0.002) / 0.006)) * head_w)
+        hcol = np.tile(PAL["HAIR"], (n, 1))
+        if hc.get("curl", 0.0) > 0:
+            hcol = hcol + hc.get("curl_shade", 0.035) * np.clip(VR._curl(H), -1, 1)[:, None]
+        rgb = rgb * (1 - hc["cover"] * hair[:, None]) + hcol * (hc["cover"] * hair[:, None])
+        flesh = flesh * (1 - 0.80 * hair)
     # ---- ใต้คาง/ใต้คิ้ว/ใต้จมูก ที่หันลง: สว่างขึ้นเล็กน้อย (แสงสะท้อนจากตัว) ; ระดับไกลมากกว่า (แสงต่อจุดยอดหยาบ) ----
     fz = (z > 0.0) & (y > 1.53) & (y < 1.70) & (head_w > 0)
     dn = _ss((-Nh[:, 1] - 0.2) / 0.6) * fz
-    rgb = rgb * (1 + (0.08 if far else 0.05) * dn[:, None])
+    if PAL is None:
+        rgb = rgb * (1 + (0.08 if far else 0.05) * dn[:, None])
+    else:
+        # ร่างหลากหลาย: แก้ม/กรามที่หันข้าง/หันลง สว่างขึ้น (แสงสะท้อน ; ไม่เป็นคราบตรงเส้นแบ่งแสงของไฟบน) + ใต้คิ้ว/เปลือกตาบน (ผิวขาว)
+        side = _ss((np.maximum(-Nh[:, 1], 0.8 * np.abs(Nh[:, 0])) - 0.15) / 0.5)
+        eyeb = np.exp(-(((ax - 0.032) / 0.022) ** 2 + ((y - 1.676) / 0.014) ** 2)) * (z > 0.06) * head_w
+        lift = (0.08 if far else 0.05) * dn + PAL["LOWLIFT"] * VR.shade_w(H) * head_w * side + PAL["EYELIFT"] * eyeb * dn
+        rgb = rgb * (1 + lift[:, None])
     # ---- ฝ่ามือ ฝ่าเท้า สีอ่อน + เล็บ ----
     for sd, sx in (("L", 1), ("R", -1)):
         M = np.linalg.inv(rig.bone_xform(G, "wrist" + sd))
@@ -370,7 +433,7 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
         Nl = N @ M[:3, :3].T
         palm = (P[:, 1] < 0.865) & (np.abs(P[:, 0] - sx * 0.2002) < 0.05)
         pw = palm * _ss((-sx * Nl[:, 0] - 0.1) / 0.5)
-        rgb = rgb * (1 + np.array([0.07, 0.05, 0.05]) * pw[:, None])
+        rgb = rgb * (1 + (np.array([0.07, 0.05, 0.05]) if PAL is None else PAL["PALM"]) * pw[:, None])
         Mh2 = np.linalg.inv(rig.bone_xform(G, "hand" + sd))
         Ph = V @ Mh2[:3, :3].T + Mh2[:3, 3]
         for fn in ("index", "middle", "ring", "little"):
@@ -380,9 +443,9 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
             d = np.linalg.norm(Ph - tip, axis=1)
             outward = (Ph[:, 0] - tip[0]) * sx > 0.002
             m = (d < 0.010) & outward
-            rgb[m] = rgb[m] * 0.35 + NAIL * 0.65
+            rgb[m] = rgb[m] * 0.35 + (NAIL if PAL is None else PAL["NAIL"]) * 0.65
     sole = 1 - _ss(V[:, 1] / 0.008)
-    rgb = rgb * (1 + np.array([0.06, 0.04, 0.04]) * sole[:, None])
+    rgb = rgb * (1 + (np.array([0.06, 0.04, 0.04]) if PAL is None else PAL["SOLE"]) * sole[:, None])
     # ---- ขั้น 1c: เงาจาง ๆ ในร่องหน้าท้อง/ใต้อก (ร่องเดียวกับชั้นไขมัน ; แสงจากบนก็ยังเห็นเส้นกลางท้องกับสะดือ) ----
     #      เหนือ y 1.22 (ใต้อก ลิ้นปี่) เงาครึ่งเดียว: ไม่เป็นรอยบากมืดใต้กระดูกอก ; lo ใช้ร่องกว้างแทน (ลายต้องใหญ่กว่าสามเหลี่ยม)
     import fatmap as FMP
@@ -396,17 +459,31 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
         rgb = rgb * (1 - CAV_K * kg * gd * up)[:, None]
     # ---- กางเกงขาสั้นฝึก: ทับเชิงกรานถึงกลางต้นขา ; ขอบไล่ 16/22 มม. (กว้างกว่าสามเหลี่ยม hi ขอบจึงไม่หยักเหมือนผ้าขาด)
     #      |x| < 0.30 ไม่ทาแขน (ท่า A แขนห่างลำตัว ≥ 0.46 ม.) ; ผ้าไม่ใช้แสงห่อแบบผิว ----
-    sh = _ss((SHORTS_TOP + 0.008 - V[:, 1]) / 0.016) * _ss((V[:, 1] - SHORTS_HEM + 0.011) / 0.022) * (np.abs(V[:, 0]) < 0.30)
-    band = _ss((V[:, 1] - (SHORTS_TOP - SHORTS_BAND)) / 0.003)
-    rgb = _mix(rgb, OLIVE * (1 - 0.16 * band[:, None]), sh)
-    flesh = flesh * (1 - 0.85 * sh)
+    if PAL is not None:
+        if garments:
+            # ร่างหลากหลาย (เมชปั้น/ภาพตัวอย่าง): เสื้อกล้ามหลังไขว้ + กางเกง ขอบไล่ 16 มม. ตั้งฉากกับขอบ ;
+            #   ไฟล์เกมทาที่จุดยอดของแต่ละระดับหลังตัดเมชตามขอบ (variants.paint_garments)
+            mt, ms = VR.garment_masks(V, G, d=0.008)
+            if mt is not None:
+                rgb = _mix(rgb, np.array(VR.CUR.get("top_col", VR.OLIVE_TOP)), mt)
+                flesh = flesh * (1 - 0.85 * mt)
+            band = _ss((V[:, 1] - (SHORTS_TOP - SHORTS_BAND)) / 0.012)
+            rgb = _mix(rgb, OLIVE * (1 - 0.14 * band[:, None]), ms)
+            flesh = flesh * (1 - 0.85 * ms)
+    else:
+        sh = _ss((SHORTS_TOP + 0.008 - V[:, 1]) / 0.016) * _ss((V[:, 1] - SHORTS_HEM + 0.011) / 0.022) * (np.abs(V[:, 0]) < 0.30)
+        band = _ss((V[:, 1] - (SHORTS_TOP - SHORTS_BAND)) / 0.003)
+        rgb = _mix(rgb, OLIVE * (1 - 0.16 * band[:, None]), sh)
+        flesh = flesh * (1 - 0.85 * sh)
     # ---- AO จำกัด: หน้า ≤ 15 % ตัว ≤ 14 % ; รักแร้/ใต้ก้นแทบไม่มี ; ระดับไกล: หน้าไม่มี AO (ไม่เป็นหน้ากากมืด) ----
-    floor_ = 0.86 + ((1.0 if far else 0.85) - 0.86) * head_w
+    floor_ = 0.86 + ((1.0 if far else (0.85 if PAL is None else PAL["AO_HEAD"])) - 0.86) * head_w
     for sx in (1.0, -1.0):
         ax_w = np.exp(-np.sum(((V - np.array([sx * 0.165, 1.350, -0.005])) / np.array([0.05, 0.07, 0.06])) ** 2, axis=1))
         gl_w = np.exp(-np.sum(((V - np.array([sx * 0.075, 0.835, -0.070])) / np.array([0.07, 0.04, 0.05])) ** 2, axis=1))
         floor_ = np.maximum(floor_, 0.86 + 0.08 * np.maximum(ax_w, gl_w))
     aof = floor_ + (1 - floor_) * ao
+    if aux is not None:
+        aux["aof"] = aof
     rgb = rgb * aof[:, None]
     # สว่างเกินช่วง: ลดทั้งสามช่องพร้อมกัน (สีไม่เพี้ยนเป็นเขียว/เหลืองเมื่อแดงชนเพดาน)
     mx = rgb.max(1, keepdims=True)

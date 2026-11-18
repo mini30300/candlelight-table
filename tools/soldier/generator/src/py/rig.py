@@ -258,7 +258,8 @@ def mirror_name(b):
     return b
 
 
-def rig_json():
+def rig_json(k=None):
+    """k = ร่างหลากหลาย: ย่อขยายทั้งตัว (ระยะกระดูก ท่าผูก H S คูณ k ; มุมเท่าเดิม) ; None = ทหารฐาน"""
     bind = bind_pose()
     G, L = fk(bind)
     out = {"H": H, "S": S, "bones": [], "bind_pose": {}, "limits": LIMITS,
@@ -269,11 +270,18 @@ def rig_json():
     for b in BONES:
         rest_q = REST_Q.get(b, [0, 0, 0, 1])
         pos = PELVIS_REST if b == "pelvis" else OFFSET[b]
+        bm = np.linalg.inv(G[b])[:3]
+        if k is not None:
+            pos = pos * k
+            bm = bm.copy()
+            bm[:, 3] = bm[:, 3] * k
         out["bones"].append({"name": b, "parent": PARENT[b], "rest_pos": [float(v) for v in pos],
                              "rest_q": [float(v) for v in rest_q], "helper": b not in MAIN,
-                             "bind": [[float(v) for v in row] for row in np.linalg.inv(G[b])[:3]],
+                             "bind": [[float(v) for v in row] for row in bm],
                              "bind_q": [float(v) for v in L[b]]})
-    out["bind_pose"]["pelvis_pos"] = [float(v) for v in bind["pelvis_pos"]]
+    out["bind_pose"]["pelvis_pos"] = [float(v) for v in (bind["pelvis_pos"] if k is None else bind["pelvis_pos"] * k)]
+    if k is not None:
+        out["H"], out["S"] = H * k, S * k
     return out
 
 
