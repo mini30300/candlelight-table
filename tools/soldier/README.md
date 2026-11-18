@@ -88,8 +88,13 @@ dressing room, the four levels) are the quickest look at a new body in the game.
   stopping; as the deck figure also still on lo. Meshes, materials and clips are cached in static variables.
 - The hero card lights it through `set_light` on its own material copy (`HeroLight.apply`).
 
-## Sizes (stage 1 stand-in)
+## Sizes (stage 1b: fat layer, new face, olive training shorts)
 
-`body_hi.res` 3.58 MB and `body_mid.res` 2.38 MB (14 uncompressed-float blend shapes each), `body_lo.res` 0.16 MB,
+`body_hi.res` 3.56 MB and `body_mid.res` 2.38 MB (14 uncompressed-float blend shapes each), `body_lo.res` 0.16 MB,
 `body_min.res` 0.09 MB, rig, skin, shader and material 18 KB: about 6.2 MB, already zstd-compressed, so the APK and the
-Windows build each grow by about 6.2 MB. Compressed vertex attributes or fewer shapes on mid are the next saving.
+Windows build each grow by about 6.2 MB. `tests/unit/test_soldier.gd` fails above 6.5 MB (the 90 MB APK target).
+Compressed vertex attributes or fewer shapes on mid are the next saving.
+
+The shorts are vertex paint only (`mesh.colours`, `OLIVE` / `SHORTS_TOP` / `SHORTS_HEM`): a placeholder until the
+uniform exists. Their edges fade over 16–22 mm because the hi mesh's triangles are about 15 mm wide there, and a
+sharper edge breaks into a zigzag.
