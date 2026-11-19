@@ -285,6 +285,7 @@ func test_moods() -> void:
 		assert_true(absf(float(v[2])) <= 3.0 and absf(float(v[3])) <= 3.0 and absf(float(v[4])) <= 2.0, "%s: lip corners within ±3 / ±2 mm" % m)
 		assert_true(float(v[5]) >= 0.0 and float(v[5]) <= 8.0, "%s: jaw within 0-8° (G13)" % m)
 		assert_true(float(v[6]) >= 0.0 and float(v[6]) <= 1.0 and float(v[7]) >= 0.0 and float(v[7]) <= 1.0, "%s: lids 0..1" % m)
+		assert_true(v.size() == 9 and absf(float(v[8])) <= 10.0, "%s: brow tilt within ±10°" % m)
 	for c: String in FaceSpeech.CODES:
 		var v: Array = SoldierFace.VIS[c]
 		assert_true(float(v[0]) <= 5.0 and (c == "rest" or float(v[0]) >= 1.0), "viseme %s: jaw within speech range" % c)

@@ -29,10 +29,18 @@ const LIMIT_CAP := 150.0         # องศา: ช่วงข้อเกิ�
 const SPREAD := 12.0             # องศา: สุ่มทิศแรงผลัก ± (seed ของตัวละคร)
 const VARY := 0.15               # แรงผลัก × (1 ± ค่านี้)
 const SPIN := 1.5                # rad/วิ: สุ่มบิดลำตัวรอบแกนตั้ง ±
+const JITTER := 6                # ค่าสุ่ม ±1 ต่อการล้ม (seed ของตัวละคร): [ทิศ, แรง, บิด, ม้วน, ข้าง, เข่างอ]
+const ROLL := Vector2(1.5, 2.5)  # rad/วิ: ม้วนลำตัวรอบแกนแรงผลัก ทางไหนตาม seed (ศพไม่นอนสมมาตร)
+const KICK := Vector2(0.5, 0.8)  # ม./วิ: เตะออกข้าง (ตั้งฉากแรงผลัก) แขนข้างหนึ่ง + หน้าแข้งข้างตรงข้าม
+const FOLD := Vector2(40.0, 70.0)  # องศา: เข่าข้างเดียวกับแขนที่เตะทรุดงอค้างอย่างน้อยเท่านี้ตลอดการล้มครั้งนี้
+const DAMP_TRUNK := 2.0          # หน่วงการหมุน: ลำตัว คอ หัว
+const DAMP_LIMB := 0.3           # แขนขา: หน่วงน้อย ห้อยตามน้ำหนัก
+const BENT := 12.0               # องศา: ศอก/เข่าของร่างล้มงอค้างอย่างน้อยเท่านี้ (เฉพาะร่างล้ม rig.py ไม่เปลี่ยน)
 const LIFT := 0.15               # ส่วนของแรงผลักที่ยกขึ้น
 const V_MAX := 4.0               # ม./วิ: ความเร็วของท่าที่ส่งต่อสูงสุด
 const FLOOR_SIZE := 6.0          # ม.: พื้นของร่าง (ขอบ) ใต้เท้าตัวละคร
 const FLOOR_LIFT := 0.02         # ม.: Jolt ยอมให้จมเท่านี้ (penetration slop) จึงยกพื้นของร่างขึ้นเท่ากัน ศพนอนพอดีพื้นจริง
+const DIP := 0.01                # ม.: กระแทกเร็วจมพื้นของร่างได้ไม่เกินราวนี้ต่อจังหวะ (Jolt มองการชนล่วงหน้าแค่ 2 ซม.)
 ## ส่วนของแรงผลักต่อชิ้น: ลำตัวไป ขาค้าง = ล้มตามทิศ
 const SHARE := {"pelvis": 0.7, "spine": 0.85, "chest": 1.0, "neck": 1.0, "head": 1.0, "shoulder": 0.8, "elbow": 0.7,
 	"hip": 0.45, "knee": 0.25, "ankle": 0.1}
@@ -94,7 +102,7 @@ static func make(fig: Node3D, sk: Skeleton3D, skin: Skin, body: String, l: Strin
 		pb.friction = 0.8
 		pb.bounce = 0.0
 		pb.linear_damp = 0.05
-		pb.angular_damp = 2.0
+		pb.angular_damp = DAMP_LIMB if ["shoulder", "elbow", "hip", "knee", "ankle"].has(_base(str(f[0]))) else DAMP_TRUNK
 		pb.collision_layer = LAYER
 		pb.collision_mask = FLOOR_LAYER
 		pb.top_level = true
@@ -226,6 +234,10 @@ static func limits_for(bone: String, l: String) -> Dictionary:
 			var t := lo
 			lo = -hi
 			hi = -t
+		if ax == "x" and base == "elbow":
+			hi = minf(hi, -BENT)       # ศอกงอเป็นลบ: ปลายเหยียดไม่ถึงตรง
+		elif ax == "x" and base == "knee":
+			lo = maxf(lo, BENT)        # เข่างอเป็นบวก
 		out[ax] = [clampf(lo, -LIMIT_CAP, LIMIT_CAP), clampf(hi, -LIMIT_CAP, LIMIT_CAP)]
 	return out
 
@@ -244,9 +256,9 @@ static func _base(bone: String) -> String:
 	return bone.trim_suffix("L").trim_suffix("R")
 
 
-## เริ่มตก: vel = ความเร็วโลกของท่าต่อดัชนีกระดูก · push = แรงผลักโลก (ม./วิ ที่อก) · jitter = สุ่ม [ทิศ, แรง, บิด] ละ ±1
-## คืน false = ตกพร้อมกันครบ CAP แล้ว (ตัวละครเล่นท่าล้มต่อ)
-func start(vel: Dictionary, push: Vector3, jitter: Vector3) -> bool:
+## เริ่มตก: vel = ความเร็วโลกของท่าต่อดัชนีกระดูก · push = แรงผลักโลก (ม./วิ ที่อก) · jitter = สุ่ม JITTER ค่า ละ ±1
+## (ทิศ แรง บิดรอบแกนตั้ง ม้วนรอบแกนแรงผลัก เตะแขน/ขาข้างไหน เข่างอค้างเท่าไร) · คืน false = ตกพร้อมกันครบ CAP แล้ว (ตัวละครเล่นท่าล้มต่อ)
+func start(vel: Dictionary, push: Vector3, jitter: PackedFloat32Array) -> bool:
 	if _t >= 0.0 or _bodies.is_empty() or not is_inside_tree():
 		return false
 	if live_count() >= int(CAP.get(level, 0)):
@@ -256,18 +268,41 @@ func start(vel: Dictionary, push: Vector3, jitter: Vector3) -> bool:
 	active = true
 	influence = 0.0
 	physical_bones_start_simulation()
-	var p := push.rotated(Vector3.UP, deg_to_rad(SPREAD * jitter.x)) * (1.0 + VARY * jitter.y)
+	var jt := jitter.duplicate()
+	jt.resize(JITTER)
+	var p := push.rotated(Vector3.UP, deg_to_rad(SPREAD * jt[0])) * (1.0 + VARY * jt[1])
 	p.y += p.length() * LIFT
+	# ข้างเดียว (ไม่สมมาตร): ลำตัวม้วนรอบแกนแรงผลัก + แขนข้างหนึ่งกับหน้าแข้งข้างตรงข้ามเตะออกข้าง
+	var flat := Vector3(p.x, 0.0, p.z)
+	if flat.length() < 0.01:
+		flat = sk.global_transform.basis.z
+	flat = Vector3(flat.x, 0.0, flat.z).normalized()
+	var roll := flat * (1.0 if jt[3] >= 0.0 else -1.0) * lerpf(ROLL.x, ROLL.y, absf(jt[3]))
+	var side := Vector3.UP.cross(flat).normalized()
+	if side.dot(sk.global_transform.basis.x) < 0.0:
+		side = -side                 # ชี้ไปทางซ้ายของตัว
+	var arm_l := jt[4] >= 0.0
+	var kick := lerpf(KICK.x, KICK.y, absf(jt[4]))
+	var fold := lerpf(FOLD.x, FOLD.y, 0.5 + 0.5 * jt[5])
 	for pb in _bodies:
 		var bi := pb.get_bone_id()
 		pb.global_transform = sk.global_transform * sk.get_bone_global_pose(bi) * pb.body_offset
-		var share := float(SHARE.get(_base(String(pb.bone_name)), 0.5))
+		var bn := String(pb.bone_name)
+		var base := _base(bn)
+		var share := float(SHARE.get(base, 0.5))
 		var v := (vel.get(bi, Vector3.ZERO) as Vector3).limit_length(V_MAX) + p * share
+		var is_l := bn.ends_with("L")
+		if ((base == "shoulder" or base == "elbow") and is_l == arm_l) or (base == "knee" and is_l != arm_l):
+			v += side * kick * (1.0 if is_l else -1.0)
+		elif base == "knee":
+			pb.set("joint_constraints/z/angular_limit_upper", -fold)   # แกน z ของข้อ = งอเข่า (กลับเครื่องหมาย)
 		PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, v)
 		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), true)   # กระแทกพื้นเร็วไม่จม
+		var w := roll if ACROSS.has(bn) else Vector3.ZERO
 		if share >= 0.85:
-			PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY,
-				Vector3.UP * SPIN * jitter.z)
+			w += Vector3.UP * SPIN * jt[2]
+		if w != Vector3.ZERO:
+			PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, w)
 	_make_floor()
 	_drive_mod.active = true
 	_live.append(get_instance_id())
@@ -359,6 +394,7 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	influence = minf(1.0, _t / BLEND)
 	var fast := false
+	var top := _floor.global_position.y + 0.2 if _floor != null else -INF
 	for pb in _bodies:
 		var v: Vector3 = PhysicsServer3D.body_get_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
 		var w: Vector3 = PhysicsServer3D.body_get_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY)
@@ -366,6 +402,14 @@ func _physics_process(delta: float) -> void:
 			_bad = true
 			freeze()
 			return
+		# ตกเร็วใกล้พื้น: ความเร็วลงไม่เกินระยะถึงพื้นของจังหวะนี้ + DIP (ไม่จมลึกแล้วเด้ง)
+		if v.y < 0.0 and delta > 0.0:
+			var cap := (pb.get_child(0) as CollisionShape3D).shape as CapsuleShape3D
+			var low := pb.global_position.y - absf(pb.global_transform.basis.y.normalized().y) * (cap.height * 0.5 - cap.radius) - cap.radius
+			var most := (maxf(low - top, 0.0) + DIP) / delta
+			if -v.y > most:
+				v.y = -most
+				PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, v)
 		_peak = maxf(_peak, v.length())
 		if v.length() > SETTLE_V or w.length() > SETTLE_W:
 			fast = true

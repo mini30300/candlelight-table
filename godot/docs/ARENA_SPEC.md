@@ -923,9 +923,13 @@ moves), so `RULES_V`, `DATA_HASH` and the server stay as they are. Code: `Soldie
 - **Bodies**: capsules fitted once per body folder from `body_lo` (the skin points each bone carries most, in its bind
   frame; trunk across, head upright, feet along the sole, limbs toward the child joint; radius = median distance from
   the axis, length = the 3–97 % span). Masses: Winter's segment fractions of 70 kg. Layer 32, mask 64, CCD on.
+  Angular damping 2.0 on the trunk, neck and head, 0.3 on the limbs (they flop instead of keeping the clip's shape).
+  Jolt looks only 2 cm ahead for contacts, so while falling a body's downward speed is capped at its gap to the floor
+  + 1 cm per step (no deep sink and bounce on a fast impact).
 - **Joints**: 6DOF, limits copied from `tools/soldier` `rig.py` LIMITS (degrees from the I-pose, the right side mirrored;
   the shoulder's 180° capped at 150°); the joint frames are rebuilt from the I-pose before every fall, so the limits
-  read exactly as LIMITS. Jolt's 6DOF reads these angles with the opposite sign (measured: unnegated, elbows and knees bend backward), so the
+  read exactly as LIMITS. Ragdoll only (rig.py unchanged): elbows and knees stop 12° short of straight (dead limbs keep
+  a bend), and one seeded knee stays folded 40–70° for that fall. Jolt's 6DOF reads these angles with the opposite sign (measured: unnegated, elbows and knees bend backward), so the
   ranges are set negated.
 - **Prebuilt, idle**: the player's figure builds its ragdoll on hi/mid at setup (other roles at their first death):
   simulator off, bodies static, no collision, top level, so standing or walking costs nothing extra.
@@ -933,7 +937,11 @@ moves), so `RULES_V`, `DATA_HASH` and the server stay as they are. Code: `Soldie
   real ~0.6 m/s × visual 4) before `play(&"die")`; without it the push is 1.6 m/s away from `set_hit_from`. After
   `LEAD` 0.1 s of the clip the bodies start where the clip put them, with the clip's own velocities plus the push
   (share per body: chest/neck/head 1.0 … feet 0.1, 15 % lift), a seeded spread of ±12°, ±15 % and a torso twist of
-  ±1.5 rad/s (the figure's `opts.seed`, its own generator). The simulator's influence rises 0 → 1 over 0.15 s;
+  ±1.5 rad/s (the figure's `opts.seed`, its own generator). One-sided, so no two front hits fold alike: the trunk
+  rolls 1.5–2.5 rad/s about the push (either way), one arm and the opposite shin get a 0.5–0.8 m/s kick sideways,
+  and the knee on the arm's side folds (6 seeded numbers per death). The lead-in runs on physics ticks (the
+  AnimationPlayer switches to the physics callback for those 6 steps of 1/60 s, then back), so the hand-over pose and
+  velocities depend on game time, not on frame timing; the ragdoll is built (and fitted) at the death, before it. The simulator's influence rises 0 → 1 over 0.15 s;
   helper bones follow the physics pose (a modifier after the simulator), wounds follow through `skeleton_updated`
   and `wound_point()` reads that pose.
 - **Stop**: when every body is under 0.12 m/s and 1 rad/s for 0.3 s, or 3 s after the start, the pose is baked into the
@@ -954,14 +962,17 @@ Visual only (no rules, no sync, no `RULES_V` change). Code: `SoldierFace` (`scen
 
 | Level | Face |
 | --- | --- |
-| hi / mid | bones `head_jaw` (rotation), `head_lipL/R`, `head_browL/R` (translations, × the body's S ratio) + the lids in the shader |
+| hi / mid | bones `head_jaw` (rotation), `head_lipL/R`, `head_browL/R` (translations, × the body's S ratio; the brows also tilt ±10° about the forward axis) + the lids in the shader |
 | lo | the shader only: lids and a painted mouth (`face_state` z/w); the deck's lo stands still, so no blink there |
-| min | nothing: the shared min material has `face_on` off (no `CUSTOM1`), no timer, no write |
+| min | nothing: the shared min material runs the plain `body.gdshader` (no face code at all; hi/mid/lo share `body_face.gdshader`), no timer, no write |
 
 - `face_state` is an instance uniform (x upper lid, y lower lid, z painted mouth, w mouth width): no material copy, it
   survives the wound material. Every write (bone or uniform) happens only when the value changes; at most 6 a tick.
 - **Blink**: every 2–6 s (uniform), 12 % doubles, the figure's own generator from `opts.seed` (`* 2731 + 5419`).
-- **Moods** (10): neutral, happy, sad, angry, pain, fear, surprise, focus, tired, shout, within the rig's ranges (jaw ≤ 8°).
+- **Moods** (10): neutral, happy, sad, angry, pain, fear, surprise, focus, tired, shout, within the rig's ranges (jaw ≤ 8°),
+  at the ends of the ranges plus brow tilt and lids (moves of 2 mm or less did not show; the render test asks each mood
+  for 150 changed pixels). A closed jaw is set 0.4° shut (the lower lip over the upper) and the hi/mid mouth cavity is
+  as opaque as the jaw is open (`face_state.w` 0..1), so a closed mouth draws no broken dark line without MSAA.
   Hooks: a hit → pain 0.9 s, punch/swing/attack → angry 1.0 s, aiming → focus (narrowed eyes), death → the eyes close,
   or stay open for about 1 in 4 soldiers (`SoldierFace.eyes_stay_open(seed)`), written once; getting up resets it.
 - **Speech**: `say(text, lang)` → `FaceSpeech.visemes` (8 mouth shapes; Thai: leading vowels after their consonant,

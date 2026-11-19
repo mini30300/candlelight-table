@@ -675,8 +675,9 @@ func test_body_chosen_before_setup() -> void:
 	var S: GDScript = load(SCRIPT)
 	var d1 := SoldierFigure.folder("f1")
 	var sun := Vector3(0, 1, 0.15)
-	var f1_shader := (load(d1 + "body_material.tres") as ShaderMaterial).shader
-	var base_shader := (load(DIR + "body_material.tres") as ShaderMaterial).shader
+	# 0.14 review (intended): the lit copy is made from the shared hi material, which runs the body's body_face.gdshader
+	var f1_shader := load(d1 + "body_face.gdshader") as Shader
+	var base_shader := load(DIR + "body_face.gdshader") as Shader
 	# body_id ก่อน (แบบ make_builtin) แล้วไฟ + ความเร็วดาดฟ้า แล้ว setup ; ร่างหลัก แล้ว setup({"body": "f1"})
 	for how in ["body_id first", "setup body"]:
 		var f: Node3D = S.new()

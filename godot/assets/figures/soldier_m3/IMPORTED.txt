@@ -21,14 +21,15 @@ driver constants: from the stage's rig.json
 soldier clip library: assets/figures/soldier/clips.res (made by tools/soldier/bake_clips.sh, not by the stage)
 
 sha256:
-  2bc691e96f5399560b45e170ac212f3aae0f22dc7b67ba70e061eedcde83a3a4  body.gdshader  5696 bytes
+  8711e4dfbcb6e4d63ddf179c774358dfe75d04f33772a4fe82119baf4926480e  body.gdshader  5245 bytes
+  060cb1c41fdf25ea49c3af34179d86fc5e9213f4a256c77eda4e1d8d64f917f6  body_face.gdshader  5825 bytes
   8d3a2ae7fe0e743b6e7acd014f80f661406e22df218321c0084428e0cfa6e9ef  body_hi.res  583378 bytes
   a130c75036b1dd922e8d5428ed713791efbadae10b712229ce36c7831cc8ddca  body_lo.res  219999 bytes
   d9fa76596de08f88467894c45cd693835ae1dd8208be95037c1c93b465dc9b34  body_material.tres  856 bytes
   b2f99f0b1c84faf09e5c5a4506cb7e0dcda91c0cc6c0931839ea07f2c8384089  body_mid.res  389144 bytes
   f4e8207c587e0dfed02039d3d7b8e7bbbc9ca287dd23590413e19a68d780dd99  body_min.res  85792 bytes
   3413fe6d7f7910fe3ba7eb99acd431854d26ed6285be1a3555d679d8d2ec0c8f  body_wound.gdshader  5795 bytes
-  77495574b46cb3706a3776e752d582c8db8419c292d84bbbbef0903c1a5b7436  face.gdshaderinc  3834 bytes
+  c624a3ca16aa810a884c1fb723b61f7e63c39a56e873eba4fdb56c5df989f103  face.gdshaderinc  4844 bytes
   7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
   5bd4fbfdc11b93163ae3e529d18a27e4cb74cc174240ba8a8f78194a23920b79  inner_bone.res  77077 bytes
   3a4c737768f6303ba4f411d4bff4e3e63cceb8da0ee0b02c5a5c6b295942e187  inner_flesh.res  118960 bytes

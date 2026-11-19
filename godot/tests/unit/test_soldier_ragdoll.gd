@@ -15,6 +15,10 @@ extends "res://tests/testing.gd"
 ##  - wound_point follows the ragdoll: it moves with the physics pose during the fall and lies low after it;
 ##  - mid: six deaths at once, never more than two falling, exactly two fell, the other four played their clip;
 ##  - the m2 and f1 bodies fall and settle within the same bounds;
+##  - 0.14 review: every elbow and knee keeps a bend of at least 8° after the fall (the ragdoll's own 10° stop), and
+##    three front hits (seeds) end in different poses (trunk roll spread > 20° or a knee bent > 30°), none laid out
+##    straight (both arms along the trunk, both knees straight, the feet together);
+##  - the hand-over runs on physics ticks: two figures of the same seed killed the same way start the fall identically;
 ##  - getting up (play idle) during the fall stops it at once: nothing simulating, the live count back down.
 
 const SCRIPT := "res://scenes/arena/soldier_figure.gd"
@@ -68,12 +72,13 @@ func _kill(f: Node3D, dir: Vector3) -> void:
 
 ## Physics steps until every figure's ragdoll started and stopped (or limit s of game time). Per figure: started (s),
 ## lasted (s from start to stop, -1 = still falling), peak speed, travel (pelvis body from the figure, m), dip (deepest
-## capsule under the floor, m), wp_moved (largest move of wound_point(0) while falling, m); plus "live" (most at once).
+## capsule under the floor, m) and dip_by (that body), wp_moved (largest move of wound_point(0) while falling, m),
+## p_start (the pelvis body from the figure on the first physics frame of the fall); plus "live" (most at once).
 func _watch(figs: Array, limit := 4.5) -> Dictionary:
 	var st := []
 	for f: Node3D in figs:
-		st.append({"started": -1.0, "lasted": -1.0, "peak": 0.0, "travel": 0.0, "dip": 0.0, "wp0": Vector3.INF,
-			"wp_moved": 0.0, "pos": f.global_position})
+		st.append({"started": -1.0, "lasted": -1.0, "peak": 0.0, "travel": 0.0, "dip": 0.0, "dip_by": "", "wp0": Vector3.INF,
+			"wp_moved": 0.0, "pos": f.global_position, "p_start": Vector3.INF})
 	var t := 0.0
 	var live := 0
 	while t < limit:
@@ -88,6 +93,7 @@ func _watch(figs: Array, limit := 4.5) -> Dictionary:
 			var falling := rag != null and rag.is_falling()
 			if falling and float(s["started"]) < 0.0:
 				s["started"] = t
+				s["p_start"] = rag.bodies()[0].global_position - f.global_position
 			if float(s["started"]) >= 0.0 and float(s["lasted"]) < 0.0 and not falling:
 				s["lasted"] = t - float(s["started"])
 				s["peak"] = rag.peak_speed() if rag != null else 0.0
@@ -100,7 +106,9 @@ func _watch(figs: Array, limit := 4.5) -> Dictionary:
 				var cap := (pb.get_child(0) as CollisionShape3D).shape as CapsuleShape3D
 				var ax := pb.global_transform.basis.y.normalized() * (cap.height * 0.5 - cap.radius)
 				var low := minf((pb.global_position + ax).y, (pb.global_position - ax).y) - cap.radius
-				s["dip"] = maxf(float(s["dip"]), floor_y - low)
+				if floor_y - low > float(s["dip"]):
+					s["dip"] = floor_y - low
+					s["dip_by"] = String(pb.bone_name)
 			var pel := rag.bodies()[0].global_position - f.global_position
 			s["travel"] = maxf(float(s["travel"]), Vector2(pel.x, pel.z).length())
 			if int(f.call("wound_count")) > 0:
@@ -127,12 +135,14 @@ func _angles(q: Quaternion) -> Vector3:
 	return Vector3(rad_to_deg(rv.x), rad_to_deg(ty), rad_to_deg(rv.z))
 
 
-## After the fall: [worst stretch (m), worst limit overshoot (deg), knee/elbow wrong-way detail ("" = none)]
+## After the fall: [worst stretch (m), worst limit overshoot (deg), knee/elbow wrong-way detail ("" = none),
+## least elbow/knee bend (deg)]
 func _pose_report(f: Node3D, level: String) -> Array:
 	var sk: Skeleton3D = f.call("skeleton")
 	var stretch := 0.0
 	var over := 0.0
 	var wrong := ""
+	var bend := 999.0
 	for b: String in SIM:
 		var bi := sk.find_bone(b)
 		if bi < 0 or (level == "mid" and (b == "spine" or b == "neck")):
@@ -148,7 +158,32 @@ func _pose_report(f: Node3D, level: String) -> Array:
 			wrong += "%s bent backward %.0f; " % [b, a.x]
 		if b.begins_with("elbow") and a.x > 20.0:
 			wrong += "%s bent backward %.0f; " % [b, a.x]
-	return [stretch, over, wrong]
+		if b.begins_with("knee"):
+			bend = minf(bend, a.x)
+		elif b.begins_with("elbow"):
+			bend = minf(bend, -a.x)
+	return [stretch, over, wrong, bend]
+
+
+## Lying pose: [trunk roll (deg: the shoulder line against the floor), the most bent knee (deg), laid out straight
+## (both arms within 25° of the trunk, both knees under 15°, the ankles under 0.3 m apart)]
+func _lying(f: Node3D) -> Array:
+	var sk: Skeleton3D = f.call("skeleton")
+	var at := func(n: String) -> Vector3: return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(n)).origin
+	var across: Vector3 = at.call("shoulderL") - at.call("shoulderR")
+	var roll := rad_to_deg(asin(clampf(across.normalized().y, -1.0, 1.0)))
+	var down: Vector3 = (at.call("hipL") + at.call("hipR")) * 0.5 - at.call("neck")
+	var arms := true
+	var knee := 0.0
+	var straight := true
+	for sd: String in ["L", "R"]:
+		var arm: Vector3 = at.call("wrist" + sd) - at.call("shoulder" + sd)
+		arms = arms and rad_to_deg(arm.angle_to(down)) < 25.0
+		var k := rad_to_deg((at.call("knee" + sd) - at.call("hip" + sd) as Vector3).angle_to(at.call("ankle" + sd) - at.call("knee" + sd)))
+		knee = maxf(knee, k)
+		straight = straight and k < 15.0
+	var together := (at.call("ankleL") - at.call("ankleR") as Vector3).length() < 0.3
+	return [roll, knee, arms and straight and together]
 
 
 ## Deepest capsule point under the figure's ground after the fall (m; the bodies stay where they froze)
@@ -269,12 +304,13 @@ func test_eight_directions_follow_the_push() -> void:
 		assert_true(along >= 0.4, "%s: the body falls toward the push (pelvis %.2f m along it)" % [tag, along])
 		var rest := _rest_dip(f)
 		assert_true(float(s["peak"]) <= 12.0 and float(s["travel"]) <= 2.5 and float(s["dip"]) <= 0.04 and rest <= 0.015,
-			"%s: peak %.2f m/s, travel %.2f m, under the floor %.3f m falling and %.3f m at rest" % [tag, float(s["peak"]),
-			float(s["travel"]), float(s["dip"]), rest])
+			"%s: peak %.2f m/s, travel %.2f m, under the floor %.3f m falling (%s) and %.3f m at rest" % [tag, float(s["peak"]),
+			float(s["travel"]), float(s["dip"]), s["dip_by"], rest])
 		var rep := _pose_report(f, "hi")
 		assert_true(float(rep[0]) <= 0.04 and float(rep[1]) <= 25.0 and str(rep[2]) == "",
 			"%s: joints held (%.3f m), within limits + 25° (worst %.1f°), knees and elbows bend their own way" % [tag,
 			float(rep[0]), float(rep[1])], rep[2])
+		assert_true(float(rep[3]) >= 8.0, "%s: every elbow and knee keeps a bend (least %.1f°)" % [tag, float(rep[3])])
 		assert_true(f.global_position.distance_to(s["pos"]) < 1e-6 and pel.y < 0.5,
 			"%s: the figure (game position) did not move; the pelvis lies at %.2f m" % [tag, pel.y])
 	_fast(false)
@@ -339,10 +375,65 @@ func test_other_bodies() -> void:
 			and _settled_ok(figs[i]), "%s: its own ragdoll settles within 4 s (%.2f s)" % [tag, float(s["lasted"])])
 		assert_true(float(s["peak"]) <= 12.0 and float(s["travel"]) <= 2.5 and float(s["dip"]) <= 0.04
 			and _rest_dip(figs[i]) <= 0.015 and float(rep[0]) <= 0.04 and float(rep[1]) <= 25.0 and str(rep[2]) == "",
-			"%s: within the bounds (peak %.2f, travel %.2f, dip %.3f, stretch %.3f, limits + %.1f°)" % [tag,
-			float(s["peak"]), float(s["travel"]), float(s["dip"]), float(rep[0]), float(rep[1])], rep[2])
+			"%s: within the bounds (peak %.2f, travel %.2f, dip %.3f %s, stretch %.3f, limits + %.1f°)" % [tag,
+			float(s["peak"]), float(s["travel"]), float(s["dip"]), s["dip_by"], float(rep[0]), float(rep[1])], rep[2])
+		assert_true(float(rep[3]) >= 8.0, "%s: every elbow and knee keeps a bend (least %.1f°)" % [tag, float(rep[3])])
 	_fast(false)
 	_free_all(figs)
+
+
+## ใหม่ 0.14 review: the front hit (the commonest kill) folds differently per seed and is never laid out straight;
+## the same seed hands over the same way: killed at once after setup (the same start pose), a later figure of seed 61
+## on the same spot starts its fall exactly as the first did, whatever the frame timing in between (physics ticks)
+func test_front_hits_differ() -> void:
+	_fast(true)
+	var seeds := [61, 62, 63]
+	var figs := []
+	for i in seeds.size():
+		figs.append(_new_fig("hi", seeds[i], Vector3(SPACING * i, 0, 60)))
+		_kill(figs[i], Vector3(0, 0, -1))
+	var out: Dictionary = await _watch(figs)
+	await _tree().process_frame
+	var rolls := []
+	var knee := 0.0
+	var laid := ""
+	for i in 3:
+		var ly := _lying(figs[i])
+		print("info  front hit seed %d: roll %.1f°, most bent knee %.1f°, laid out %s, lasted %.2f s" % [seeds[i],
+			float(ly[0]), float(ly[1]), str(ly[2]), float(out["st"][i]["lasted"])])
+		rolls.append(float(ly[0]))
+		knee = maxf(knee, float(ly[1]))
+		if bool(ly[2]):
+			laid += "seed %d; " % seeds[i]
+		assert_true(_settled_ok(figs[i]), "front hit seed %d: settled or frozen" % seeds[i])
+	var spread := float(rolls.max()) - float(rolls.min())
+	assert_true(spread > 20.0 or knee > 30.0, "front hit, 3 seeds: the end poses differ (trunk roll spread %.1f°, most bent knee %.1f°)"
+		% [spread, knee])
+	assert_true(laid == "", "front hit: no pose laid out straight (both arms along the trunk, both legs straight together)", laid)
+	var p0 := _pelvis(figs[0])
+	var s0: Vector3 = out["st"][0]["p_start"]
+	var t0 := float(out["st"][0]["lasted"])
+	_free_all(figs)
+	for i in 3:
+		await _tree().process_frame
+	var f := _new_fig("hi", 61, Vector3(0, 0, 60))
+	_kill(f, Vector3(0, 0, -1))
+	var again: Dictionary = await _watch([f])
+	await _tree().process_frame
+	var p1 := _pelvis(f)
+	var s1: Vector3 = again["st"][0]["p_start"]
+	var t1 := float(again["st"][0]["lasted"])
+	# the hand-over itself is exact (one physics step in); the landing is not compared (the solver saw 3 ragdolls, then 1)
+	assert_true(s0.distance_to(s1) < 0.001, "the same seed and push hand over the same way (pelvis %.5f m apart a step in)"
+		% s0.distance_to(s1))
+	print("info  same seed alone: landed %.3f m from the first, lasted %.2f / %.2f s" % [p0.distance_to(p1), t0, t1])
+	_fast(false)
+	f.free()
+
+
+func _pelvis(f: Node3D) -> Vector3:
+	var sk: Skeleton3D = f.call("skeleton")
+	return sk.global_transform * sk.get_bone_global_pose(sk.find_bone("pelvis")).origin - Vector3(0, 0, 60)
 
 
 func test_revive_stops_the_fall() -> void:

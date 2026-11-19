@@ -13,6 +13,7 @@ const INNER_SHADER_SRC := "res://src/gd/soldier_inner.gdshader"
 const WOUND_SHADER_SRC := "res://src/gd/soldier_skin_wound.gdshader"
 const WOUND_INC_SRC := "res://src/gd/wound.gdshaderinc"
 const FACE_INC_SRC := "res://src/gd/face.gdshaderinc"
+const FACE_SHADER_SRC := "res://src/gd/soldier_skin_face.gdshader"   # ผิว + หน้า (hi/mid/lo) -> body_face.gdshader
 ## โฟลเดอร์ปลายทางของร่าง (import_stage.sh --as: SOLDIER_DST) ค่าเริ่ม = ร่างหลัก
 var DST := OS.get_environment("SOLDIER_DST") if OS.get_environment("SOLDIER_DST") != "" else "res://assets/figures/soldier/"
 const OLD := "res://old/"
@@ -33,9 +34,15 @@ func _run() -> bool:
 	if not FileAccess.file_exists(SHADER_SRC):
 		push_error("no shader at " + SHADER_SRC)
 		return false
-	# ส่วนหน้า (ใหม่ 0.14) ที่เชดเดอร์ผิวทั้งสอง include: ก่อนเชดเดอร์
-	if FileAccess.get_file_as_string(SHADER_SRC).contains("face.gdshaderinc"):
+	# ส่วนหน้า (ใหม่ 0.14) ที่เชดเดอร์ผิว+หน้าและผิวมีแผล include: ก่อนเชดเดอร์
+	if FileAccess.file_exists(FACE_SHADER_SRC) or FileAccess.get_file_as_string(SHADER_SRC).contains("face.gdshaderinc"):
 		if not _copy_text(FACE_INC_SRC, "face.gdshaderinc", report):
+			return false
+	if FileAccess.file_exists(FACE_SHADER_SRC):
+		if not _copy_text(FACE_SHADER_SRC, "body_face.gdshader", report):
+			return false
+		if load(DST + "body_face.gdshader") as Shader == null:
+			push_error("the face skin shader does not load")
 			return false
 	var f := FileAccess.open(DST + "body.gdshader", FileAccess.WRITE)
 	f.store_string(FileAccess.get_file_as_string(SHADER_SRC))

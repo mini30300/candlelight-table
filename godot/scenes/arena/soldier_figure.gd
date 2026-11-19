@@ -96,6 +96,7 @@ const DOWN := Vector3(0.0, -1.0, 0.0)
 const INNER := {"flesh": "inner_flesh.res", "bone": "inner_bone.res"}
 const WOUND_SHADER := DIR + "body_wound.gdshader"
 const WOUND_FILE := "body_wound.gdshader"
+const FACE_FILE := "body_face.gdshader"   # ผิว + หน้า (hi/mid/lo) · body.gdshader ไม่มีหน้า (min)
 const MAX_WOUNDS := 8
 ## ส่วนร่างกาย (CUSTOM0.w ของผิว / CUSTOM0.x ของชั้นใน จาก parts.py ของ tools/soldier): แผลมีผลเฉพาะส่วนของกระดูกแผล
 const PARTS: PackedStringArray = ["torso", "head", "armL", "armR", "legL", "legR"]
@@ -1123,13 +1124,21 @@ static func _load_static(body := DIR) -> Dictionary:
 	var mat := load(mp) as ShaderMaterial if ResourceLoader.exists(mp) else null
 	if mat != null:
 		mat = mat.duplicate() as ShaderMaterial   # สำเนา: เปิดหน้า (face_on) โดยไม่แตะไฟล์ที่แคชไว้
+		var plain := mat.shader
+		var fp := body + FACE_FILE
+		if ResourceLoader.exists(fp):
+			var lid: Variant = mat.get_shader_parameter("face_lid_colour")
+			mat.shader = load(fp) as Shader        # hi/mid/lo: ผิว + หน้า
+			if lid != null:
+				mat.set_shader_parameter("face_lid_colour", lid)
 		mat.set_shader_parameter("face_on", true)
 		d["mat"] = mat
 		var pv := mat.duplicate() as ShaderMaterial
 		pv.set_shader_parameter("per_vertex", true)
 		d["mat_pv"] = pv
 		var mn := pv.duplicate() as ShaderMaterial
-		mn.set_shader_parameter("face_on", false)   # min: ไม่มี CUSTOM1 ไม่วาดหน้า
+		mn.shader = plain                          # min: body.gdshader ไม่มีโค้ดหน้าเลย (ไม่มี CUSTOM1)
+		mn.set_shader_parameter("face_on", false)
 		d["mat_min"] = mn
 	# ค่าคงที่ของตัวขับ: meta ของราก rig.tscn (rig.json ของขั้นปั้น) ทับค่าของขั้น 1
 	var drv := DRIVERS.duplicate()
@@ -1179,7 +1188,8 @@ func _use_body() -> void:
 	_drv = d["drv"]
 	_scale = float(d["scale"])
 	_wound_sh = wound_shader(_body)
-	if _own_mat != null and _mat != null and _own_mat.shader != _mat.shader:
+	if _own_mat != null and _mat != null and _own_mat.shader != _mat.shader \
+			and not (_mat_min != null and _own_mat.shader == _mat_min.shader):   # min ใช้เชดเดอร์ไม่มีหน้าของร่างเดียวกัน
 		var old := _own_mat
 		_own_mat = _mat.duplicate() as ShaderMaterial
 		for p in ["sun_dir", "sun_colour", "ambient_colour"]:
@@ -1285,6 +1295,8 @@ func _material_for(l: String) -> ShaderMaterial:
 	if _own_mat != null and (_own_lit or l != "min"):
 		_own_mat.set_shader_parameter("per_vertex", pv and not _own_pp)
 		_own_mat.set_shader_parameter("face_on", l != "min")
+		if _own_mat.shader != _wound_sh and _mat_min != null and _mat != null:
+			_own_mat.shader = _mat_min.shader if l == "min" else _mat.shader   # min: ไม่มีโค้ดหน้า
 		return _own_mat
 	if l == "min":
 		return _mat_min
@@ -1341,7 +1353,7 @@ func _go_still() -> void:
 
 
 func _on_applied() -> void:
-	var dt := _dt if _manual else get_process_delta_time()
+	var dt := _dt if _manual else (get_physics_process_delta_time() if _rag_t >= 0.0 else get_process_delta_time())
 	_dt = 0.0
 	if _aim_on():
 		_aim_pose(dt)
@@ -1784,28 +1796,42 @@ func _rag_arm() -> void:
 		return
 	if push == Vector3.ZERO and _hit_from != Vector3.ZERO:
 		push = -_hit_from * RAG_PUSH
+	if _rag == null or _rag.level != level:
+		_rag_build()             # สร้าง/วัดร่างก่อนช่วงนำ ไม่ใช่กลางท่าล้ม
+	if _rag == null:
+		return
 	_rag_push = push
 	_rag_t = 0.0
+	_rag_tick(true)
 
 
-## ท่าล้มช่วงแรก (mixer_applied): จำจุดกลางชิ้นร่าง ครบ LEAD = ส่งให้ฟิสิกส์พร้อมความเร็วของท่า · เต็ม CAP = เล่นท่าต่อ
+## ช่วงนำ: ท่าเดินตามจังหวะฟิสิกส์ (ก้าวละ 1/60 วิของเกม) ท่าและความเร็วตอนส่งต่อจึงไม่ขึ้นกับจังหวะเฟรม · จบแล้วเดินทุกเฟรมตามเดิม
+func _rag_tick(on: bool) -> void:
+	if _ap != null and not _manual:
+		_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS if on \
+			else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+
+
+## ท่าล้มช่วงแรก (mixer_applied ทุกจังหวะฟิสิกส์): จำจุดกลางชิ้นร่าง ครบ LEAD = ส่งให้ฟิสิกส์พร้อมความเร็วของท่า
+## · เต็ม CAP = เล่นท่าต่อ
 func _rag_lead(dt: float) -> void:
 	if _rag == null or _rag.level != level:
-		_rag_build()
-		if _rag == null:
-			_rag_t = -1.0
-			return
+		_rag_stop()
+		return
 	var now := _rag.centres()
 	_rag_t += dt
-	if _rag_t < SoldierRagdoll.LEAD or _rag_prev.is_empty() or dt <= 0.0:
+	if _rag_t < SoldierRagdoll.LEAD - 0.001 or _rag_prev.is_empty() or dt <= 0.0:
 		_rag_prev = now
 		return
 	_rag_t = -1.0
+	_rag_tick(false)
 	var vel := {}
 	for b: int in now:
 		vel[b] = ((now[b] as Vector3) - (_rag_prev.get(b, now[b]) as Vector3)) / dt
 	_rag_prev.clear()
-	var j := Vector3(_prng.randf_range(-1.0, 1.0), _prng.randf_range(-1.0, 1.0), _prng.randf_range(-1.0, 1.0))
+	var j := PackedFloat32Array()
+	for i in SoldierRagdoll.JITTER:
+		j.append(_prng.randf_range(-1.0, 1.0))
 	if _rag.start(vel, _rag_push, j):
 		_rag_pose.clear()
 		if not _sk.skeleton_updated.is_connected(_rag_seen):
@@ -1835,6 +1861,8 @@ func _rag_frozen(g: Dictionary) -> void:
 
 
 func _rag_stop() -> void:
+	if _rag_t >= 0.0:
+		_rag_tick(false)
 	_rag_t = -1.0
 	_rag_prev.clear()
 	if _rag != null:
@@ -1860,6 +1888,8 @@ func _rag_build() -> void:
 func _rag_level() -> void:
 	if _rag != null and _rag.is_falling():
 		_rag.freeze()
+	if _rag_t >= 0.0:
+		_rag_tick(false)
 	_rag_t = -1.0
 	if _rag != null and (_rag.level != level or not _rag_ok()):
 		_rag.discard()

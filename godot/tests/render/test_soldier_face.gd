@@ -8,6 +8,8 @@ extends SceneTree
 ##  - an open mouth darkens: the dark pixels of the mouth band grow when the jaw opens (hi: viseme A and the shout mood
 ##    against the closed mouth) and when lo paints its mouth open;
 ##  - the dead face keeps its eyes closed or open by the figure's seed (both kinds are drawn);
+##  - 0.14 review: every mood shows on hi: against neutral at least 150 pixels change by more than 12 levels (of 255)
+##    in the brow/eye band (from above the brows to below the eyes) or in the mouth band;
 ## The bubbles: the dressing room greets with the soldier in a speech bubble (the Thai line; switching to English
 ## while it shows turns it English; the next figure greets in English; gone after the mouth stops) and not on min; the "normal" hero card says its first line on hi (the
 ## mouth moving) and has no bubble on lo.
@@ -120,6 +122,30 @@ func _eye_rect(st: Array) -> Rect2i:
 	return Rect2i(Vector2i(a), Vector2i(z - a)).abs()
 
 
+## แถบคิ้วกับตา: จากเหนือคิ้วถึงใต้ตา
+func _brow_rect(st: Array) -> Rect2i:
+	var cam: Camera3D = st[2]
+	var b: Vector3 = st[3]
+	var lip: Vector3 = st[4]
+	var h := b.y - lip.y
+	var a := cam.unproject_position(b + Vector3(-0.055, 0.15 * h, 0.0))
+	var z := cam.unproject_position(b + Vector3(0.055, -0.5 * h, 0.0))
+	return Rect2i(Vector2i(a), Vector2i(z - a)).abs()
+
+
+## พิกเซลที่ช่องสีใดช่องหนึ่งต่างกันเกิน 12 ระดับ (จาก 255)
+func _moved(a: Image, b: Image, r: Rect2i) -> int:
+	var n := 0
+	var rr := r.intersection(Rect2i(Vector2i.ZERO, a.get_size()))
+	for y in range(rr.position.y, rr.end.y):
+		for x in range(rr.position.x, rr.end.x):
+			var p := a.get_pixel(x, y)
+			var q := b.get_pixel(x, y)
+			if maxf(absf(p.r - q.r), maxf(absf(p.g - q.g), absf(p.b - q.b))) > 12.0 / 255.0:
+				n += 1
+	return n
+
+
 func _mouth_rect(st: Array) -> Rect2i:
 	var cam: Camera3D = st[2]
 	var lip: Vector3 = st[4]
@@ -169,6 +195,8 @@ func _body(body: String) -> void:
 	await _eyes(body, "lo")
 	col = 2
 	var shout := Image.new()
+	var br := _brow_rect(st)
+	var mr0 := _mouth_rect(st)
 	for m: String in SoldierFace.MOODS:
 		if m == "neutral":
 			continue
@@ -176,6 +204,10 @@ func _body(body: String) -> void:
 		var img := await _shot(st)
 		if m == "shout":
 			shout = img
+		var nb := _moved(open, img, br)
+		var nm := _moved(open, img, mr0)
+		_check(maxi(nb, nm) >= 150, "%s hi: %s shows against neutral (brow/eye band %d, mouth band %d changed pixels)"
+			% [tag, m, nb, nm])
 		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, CELL), Vector2i(col * CELL.x, 0))
 		col += 1
 	# แถว 2: รูปปาก 8 แบบ
