@@ -20,6 +20,7 @@ node godot/tools/bake_sfx.js --check        # validate an existing bake
 | `Sfx.play_ui(kind)` | a screen sound on the UI bus |
 | `Sfx.loop(kind, owner: Node, at = null) -> int` / `Sfx.stop_loop(id)` | a sound that repeats until stopped or until `owner` leaves the tree (e.g. `&"saw"` while a saw sword is held) |
 | `Sfx.has(kind) -> bool` | the kind is baked |
+| `Sfx.add_kinds(path) -> bool` | merge another manifest's kinds (same format as `sfx.json`); their takes load from that manifest's folder (`"dir"` per kind). `load_manifest()` still replaces every kind, so merge again after it. Used for the body sounds below. |
 | `Sfx.weapon_kind(fx_kind: String) -> StringName` | the old page's weapon → sound map: an FXS kind (`bolter`, `chain`, …) → `FXS[kind].snd`; a gun key from `FX_GUN` (`stormgun`, `lascan`, …) → its FXS kind's sound; an `LZ_SND` gun → `laser`; an `FX_SND` effect (`boom`, `vshield`, `wind`, `glow` → `heal`); unknown → `&""` |
 | `Sfx.apply_settings()` | re-read `App.sfx_vol`, `App.mus_vol`, `App.snd` into the buses (the settings screen calls it) |
 
@@ -35,6 +36,15 @@ effects: shots → `Sfx.weapon_kind(fx)` or `laser`/`heavy`/`shot`; bows `bow`, 
 `bolt`; a melee blow that hits → the weapon's sound or `hit`, a miss → `swing`; saves `clang` (saved) and `hit`
 (failed); deaths `die` (k = 0.8 + 0.2 per model, at most 1.6); charge arrives `charge`; dice thrown `dice`; turn start
 `turn`; game end `end`; machine wrecks `debris`; titan steps `stomp` / `quake`; flames `flame`, warp fire `warp`.
+
+**Body sounds (0.14, item 1b)** are our own, not the page's, and they are committed: `godot/assets/body_sfx/` holds
+footsteps `step_boot` / `step_metal` (CC0 recordings from OpenGameArt, 32 kHz mono, gap 90 ms) and panting
+`pant_{in,out}_{soft,hard}_{low,high}` (synthesized, 22.05 kHz mono, 3 takes each, gap 150 ms), every kind with `h: null`
+(no music heat), plus `body_sfx.json` and `CREDITS.md`. `tools/sound/make_body_sfx.py` makes them (`--check` verifies
+them). The arena merges them with `ArenaSound.ensure_body(node)` and plays them with
+`ArenaSound.body(node, kind, at, gain, pitch)`; they stay out of `ArenaData.SOUNDS` (page kinds only). Both export
+presets list `assets/body_sfx/body_sfx.json` in `include_filter`. `ArenaPlayer` plays the steps on the feet's strikes and the panting from its
+`Breath` timer by the hidden stamina (`docs/ARENA_SPEC.md` §9.7).
 
 ## Music (autoload `/root/Music`, `audio/music.gd`)
 

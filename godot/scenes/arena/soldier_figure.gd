@@ -451,6 +451,19 @@ func uses_strafe() -> bool:
 	return false
 
 
+## H12: คนปกติ (ความเหนื่อยของ ArenaStamina) เสียงหอบตามร่าง (หญิง f1/f2 = high) เท้ารองเท้าบูต
+func move_profile() -> Dictionary:
+	return {"class": "human", "voice": "high" if _body != DIR and body_id in ["f1", "f2"] else "low", "feet": "boot"}
+
+
+## H13: จังหวะเท้าของท่าเดินของตัวเองที่เล่นอยู่ 0..1 (เท้าขวาลงที่ 0 ซ้ายที่ 0.5) · ไม่ได้เล่นท่าเดิน = −1
+func step_phase() -> float:
+	if not _own or _dead or _oneshot != &"" or _ap == null or not (_loop in GAITS) or not _ap.is_playing() \
+			or _ap.current_animation_length <= 0.0:
+		return -1.0
+	return _ap.current_animation_position / _ap.current_animation_length
+
+
 ## H6: ขาเดินหน้า (y ≥ −0.5) หรือถอยหลัง (walk เล่นกลับ ไม่วิ่งถอยหลัง)
 func set_move_dir(local_dir: Vector2, speed: float, running: bool) -> void:
 	_back = local_dir.y < -0.5 and speed >= 0.05

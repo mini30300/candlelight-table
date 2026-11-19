@@ -10,6 +10,9 @@ extends SceneTree
 ##     the app going to the background pauses the fight, resume and one click re-captures;
 ## 3b. (ARENA_SPEC §9.4, H6) at (0, -14): holding D, S and A in shoot mode tells the egg it moves right, back and left
 ##     (move_dir() x > 0.9, y < -0.9, x < -0.9; a figure with H9 uses_strafe() false: D and A y > 0.9, S y < -0.9; the body faces the camera throughout); standing again gives (0, 0) and nothing processes on min;
+## 3c. (0.14 1b) 25 s of Shift + W up the left aisle (moved back by position only): the speed is between 3.15 and 3.6
+##     (the sprint fades toward CS), panting was asked of Sfx, the egg made no footsteps, and standing tired the tick
+##     sleeps while the Breath timer pants on;
 ##  4. aim at the beast's chest and hold the left button: shots land, the beast dies after 25 hits and 300 damage (5
 ##     rounds left: no shot missed), the board says ล้มแล้ว · กดรีเซ็ต, the HUD showed the rifle's merged damage number;
 ##     the empty magazine reloads by itself with the button still held, R reloads a part-used one;
@@ -168,6 +171,38 @@ func _run() -> void:
 	_check(fig3 != null and md3 == Vector2.ZERO and not player.is_physics_processing() and not fig3.is_processing(),
 		"3b. standing again: direction (0, 0), and on min neither the player nor the egg processes",
 		"%s, player %s, egg %s" % [str(md3), str(player.is_physics_processing()), str(fig3 != null and fig3.is_processing())])
+	# 3c (0.14 1b): 25 s of Shift + W in the real loop: the sprint fades toward CS (hidden stamina, no bar), the Breath
+	# timer pants through Sfx and keeps panting after the tick sleeps; the egg has no feet. Back up the left aisle every
+	# 13 m by position only, so the speed and the reserve carry on
+	world.call("place_player", Vector3(-8.0, 0.0, -15.0), PI, 0.0)
+	await _physics(6)
+	var sfx3 := root.get_node_or_null(^"Sfx")
+	var asks3 := func(prefix: String) -> int:
+		var n := 0
+		if sfx3 != null:
+			var ask: Dictionary = (sfx3.get("stats") as Dictionary).get("ask", {})
+			for k: String in ask:
+				n += int(ask[k]) if k.begins_with(prefix) else 0
+		return n
+	var pant3: int = asks3.call("pant_")
+	var step3: int = asks3.call("step_")
+	_key(KEY_W, true)
+	_key(KEY_SHIFT, true)
+	for i in 25 * Engine.physics_ticks_per_second:
+		await physics_frame
+		if player.global_position.z < -28.0:
+			player.global_position = Vector3(-8.0, 0.0, -15.0)
+	var v25 := float(player.call("speed"))
+	_key(KEY_SHIFT, false)
+	_key(KEY_W, false)
+	_check(v25 > 3.15 and v25 < 3.6, "3c. after 25 s of Shift the tired sprint is down near CS (%.2f m/s)" % v25)
+	await _physics(int(0.8 * Engine.physics_ticks_per_second))
+	var breath3 := player.get_node_or_null(^"Breath") as Timer
+	_check(not player.is_physics_processing() and breath3 != null and not breath3.is_stopped(),
+		"3c. standing tired: the player's tick sleeps while the Breath timer pants on")
+	if sfx3 != null:
+		_check(int(asks3.call("pant_")) - pant3 >= 10 and int(asks3.call("step_")) == step3,
+			"3c. panting was asked of Sfx, and no footsteps for the egg", "%d breaths, %d steps" % [int(asks3.call("pant_")) - pant3, int(asks3.call("step_")) - step3])
 	world.call("place_player", p3, PI, 0.0)
 	await _physics(6)
 	# 4

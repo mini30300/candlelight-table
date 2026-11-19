@@ -7,7 +7,7 @@ extends SceneTree
 ##  - foot slide <= 15 mm while planted, walking and running at the deck speeds and the arena speeds (the figure's own
 ##    playback-rate rule: with the own clips the arena W is the jog), standing (idle) and turning on the spot at the
 ##    A/D rate both ways (turn_l / turn_r, the node rotated about the figure's origin), and the measure has teeth
-##    (the arena walk speed, the walk and the run moved 10 % too slow slide well past the gate);
+##    (the arena W jog, the walk and the sprint moved 10 % too slow slide well past the gate);
 ##  - the deck: the avatar becomes the soldier (egg hidden, deck speeds), W walks and Shift+W runs at the matching clip
 ##    rate, releasing stops processing; every level within the deck targets with no more draw calls than the egg; standing
 ##    on lo and on min the soldier holds a still pose, and on min nothing under the deck processes;
@@ -166,8 +166,9 @@ func _footslide() -> void:
 			"%s at %.2f m/s: %s, foot slide %.2f mm while planted (%d plants) <= %.0f mm" % [c[0], c[1], r["clip"], r["mm"], r["plants"], MAX_SLIDE_MM], str(r))
 	# 0.14: with the own clips 3 m/s (the old control) is the jog; its short contacts read less 10 % slow (about 49 mm on
 	# the base body, 51 on m2, 44 on f1) but still past the gate here; the walk (deck speed) and the run (arena Shift)
-	# are added as controls
-	for c in [["arena walk (jog)", float(ArenaData.PLAYER["walk"]), false], ["walk", deck.x, false], ["run", float(ArenaData.PLAYER["run"]), true]]:
+	# are added as controls. 0.14 item 1b: arena W is the 2.7 jog (PLAYER.jog) and Shift the 5.6 sprint; within a gait the
+	# slide does not depend on the speed (speed / rate is the clip's own), so the controls keep their teeth
+	for c in [["arena W (jog)", float(ArenaData.PLAYER["jog"]), false], ["walk", deck.x, false], ["sprint", float(ArenaData.PLAYER["run"]), true]]:
 		var ctl := _slide(float(c[1]), bool(c[2]), 0.9)
 		_check(float(ctl["mm"]) > 3.0 * MAX_SLIDE_MM, "control: the %s moved 10 %% too slow slides %.1f mm (the measure has teeth)" % [c[0], ctl["mm"]])
 
@@ -176,8 +177,10 @@ func _footslide() -> void:
 ## (turn clips exist only in the soldier's own clips.res, which tests/unit/test_soldier_clips.gd requires; the humanoid
 ## fallback has none, its feet slide when it turns on the spot, as before)
 func _slide_cases(deck: Vector2) -> Array:
-	var out := [["deck walk", deck.x, false, 0.0], ["deck run", deck.y, true, 0.0], ["arena walk", float(ArenaData.PLAYER["walk"]), false, 0.0],
-		["arena run", float(ArenaData.PLAYER["run"]), true, 0.0], ["idle", 0.0, false, 0.0]]
+	# 0.14 item 1b: the arena speeds are the Ctrl walk 1.5, the W jog 2.7, the tired speed CS 3.2 and the Shift sprint 5.6
+	var out := [["deck walk", deck.x, false, 0.0], ["deck run", deck.y, true, 0.0], ["arena W (jog)", float(ArenaData.PLAYER["jog"]), false, 0.0],
+		["arena sprint", float(ArenaData.PLAYER["run"]), true, 0.0], ["arena Ctrl walk", float(ArenaData.PLAYER["walk"]), false, 0.0],
+		["arena tired", float(ArenaData.PLAYER["cs"]), true, 0.0], ["idle", 0.0, false, 0.0]]
 	if bool(S.call("own_clips")):
 		out.append_array([["turn left", 0.0, false, ArenaPlayer.TURN_RATE], ["turn right", 0.0, false, -ArenaPlayer.TURN_RATE]])
 	return out
@@ -630,7 +633,8 @@ func _english() -> void:
 	ds.call("use_selection")
 	await _frames(2)
 	_check(str(Figures.selected()["figure"]) == "soldier_f1", "English: soldier_f1 is the selection")
-	ds.call("close")
+	if is_instance_valid(ds):      # use_selection() has usually closed and freed the dressing screen already
+		ds.call("close")
 	await _frames(4)
 	var hall: Node = _app().call("current")
 	if hall != null and hall.has_method("refresh"):

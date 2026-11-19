@@ -1,0 +1,216 @@
+{
+ "format": 1,
+ "generated_by": "tools/sound/make_body_sfx.py",
+ "kinds": {
+  "pant_in_hard_high": {
+   "files": [
+    "pant_in_hard_high_0.wav",
+    "pant_in_hard_high_1.wav",
+    "pant_in_hard_high_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.3,
+    0.34,
+    0.38
+   ],
+   "v": 1.0
+  },
+  "pant_in_hard_low": {
+   "files": [
+    "pant_in_hard_low_0.wav",
+    "pant_in_hard_low_1.wav",
+    "pant_in_hard_low_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.3,
+    0.34,
+    0.38
+   ],
+   "v": 1.0
+  },
+  "pant_in_soft_high": {
+   "files": [
+    "pant_in_soft_high_0.wav",
+    "pant_in_soft_high_1.wav",
+    "pant_in_soft_high_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.5,
+    0.55,
+    0.6
+   ],
+   "v": 1.0
+  },
+  "pant_in_soft_low": {
+   "files": [
+    "pant_in_soft_low_0.wav",
+    "pant_in_soft_low_1.wav",
+    "pant_in_soft_low_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.5,
+    0.55,
+    0.6
+   ],
+   "v": 1.0
+  },
+  "pant_out_hard_high": {
+   "files": [
+    "pant_out_hard_high_0.wav",
+    "pant_out_hard_high_1.wav",
+    "pant_out_hard_high_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.36,
+    0.4,
+    0.44
+   ],
+   "v": 1.0
+  },
+  "pant_out_hard_low": {
+   "files": [
+    "pant_out_hard_low_0.wav",
+    "pant_out_hard_low_1.wav",
+    "pant_out_hard_low_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.36,
+    0.4,
+    0.44
+   ],
+   "v": 1.0
+  },
+  "pant_out_soft_high": {
+   "files": [
+    "pant_out_soft_high_0.wav",
+    "pant_out_soft_high_1.wav",
+    "pant_out_soft_high_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.55,
+    0.62,
+    0.68
+   ],
+   "v": 1.0
+  },
+  "pant_out_soft_low": {
+   "files": [
+    "pant_out_soft_low_0.wav",
+    "pant_out_soft_low_1.wav",
+    "pant_out_soft_low_2.wav"
+   ],
+   "gap": 150,
+   "h": null,
+   "len": [
+    0.55,
+    0.62,
+    0.68
+   ],
+   "v": 1.0
+  },
+  "step_boot": {
+   "files": [
+    "step_boot_0.wav",
+    "step_boot_1.wav",
+    "step_boot_2.wav",
+    "step_boot_3.wav"
+   ],
+   "gap": 90,
+   "h": null,
+   "len": [
+    0.25,
+    0.188,
+    0.25,
+    0.25
+   ],
+   "v": 1.0
+  },
+  "step_metal": {
+   "files": [
+    "step_metal_0.wav",
+    "step_metal_1.wav",
+    "step_metal_2.wav",
+    "step_metal_3.wav"
+   ],
+   "gap": 90,
+   "h": null,
+   "len": [
+    0.247,
+    0.247,
+    0.263,
+    0.247
+   ],
+   "v": 1.0
+  }
+ },
+ "sample_rate": {
+  "pant": 22050,
+  "step": 32000
+ },
+ "sources": {
+  "breaths": "synth",
+  "files": {
+   "step_boot_0.wav": {
+    "from": "footsteps/step_lth1.ogg",
+    "sha256": "d3d7397ca1b46b6ab899343eb7d736a6b3516e18fe2d4c68b9676cbd5358682b"
+   },
+   "step_boot_1.wav": {
+    "from": "footsteps/step_lth2.ogg",
+    "sha256": "808aa2d241787120697a89d2b848fd993bb9e148d3cb1cfd191fd1fc81bf7891"
+   },
+   "step_boot_2.wav": {
+    "from": "footsteps/step_lth33.ogg",
+    "sha256": "d3e157e43b873024595617865d59fd724138410fb33559783ced7d4ce30b911f"
+   },
+   "step_boot_3.wav": {
+    "from": "footsteps/step_lth4.ogg",
+    "sha256": "665970e215698e15ee82ea7549400c8cdc448c4844585af096c65805f43720ca"
+   },
+   "step_metal_0.wav": {
+    "from": "footsteps/step_metal.ogg",
+    "sha256": "4d7214ea74b8ba1b1d9ab4506a76e3f9116572d7aac7584aaf3aebac8f0bae78"
+   },
+   "step_metal_1.wav": {
+    "from": "footsteps/step_metal (2).ogg",
+    "sha256": "fc043ee7cd764976958cc035fb38b58579f2a1222bf06ef194c66d1951432fe3"
+   },
+   "step_metal_2.wav": {
+    "from": "footsteps/step_metal (3).ogg",
+    "sha256": "be0d98e402193286b8470117795cbb29f1bb2221d456199559adb9d6b60e2505"
+   },
+   "step_metal_3.wav": {
+    "from": "footsteps/step_metal (4).ogg",
+    "sha256": "eaa109cca81194602ce598b70ebe9d70275de7851bce83ba896df4a841a0bf56"
+   }
+  },
+  "pack": {
+   "author": "HaelDB",
+   "checked": "2026-11-19",
+   "licence": "CC0 1.0",
+   "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "page": "https://opengameart.org/content/footsteps-leather-cloth-armor",
+   "page_licences": [
+    "OGA-BY 3.0",
+    "CC0"
+   ],
+   "sha256": "94b5155d119d9378315c2b4457c00098d78a36f2a2c436d5145687d1d3bad257",
+   "title": "Footsteps Leather, Cloth, Armor",
+   "url": "https://opengameart.org/sites/default/files/footsteps.zip"
+  },
+  "steps": "pack"
+ }
+}

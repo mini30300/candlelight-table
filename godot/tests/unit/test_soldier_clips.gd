@@ -33,7 +33,10 @@ const LOOPS := ["idle", "walk", "jog", "run", "turn_l", "turn_r"]
 const TOL_T := 0.02
 ## the bodies (body id -> S) and the step-rate guard (steps per minute)
 const BODIES := {"": 1.1125, "m2": 1.1625, "m3": 1.0625, "f1": 1.0, "f2": 1.08125}
-const ARENA_SPM := Vector2(150.0, 210.0)
+## arena steps/min per gait on every body: [PLAYER key, clip, band]. 0.14 item 1b replaced the single 150-210 band (W 3.0,
+## Shift 5.0): W is now the 2.7 jog (141 on m2), Ctrl the 1.5 walk, and Shift a 5.6 sprint (224 on f1) that fades to CS
+const ARENA_SPM := [["Ctrl walk", "walk", "walk", Vector2(95.0, 130.0)], ["W jog", "jog", "jog", Vector2(135.0, 200.0)],
+	["tired", "cs", "jog", Vector2(150.0, 210.0)], ["Shift sprint", "run", "run", Vector2(175.0, 230.0)]]
 const DECK_SPM_MAX := 130.0
 ## tools/soldier/generator/src/py/rig.py LIMITS (degrees, the decomposition of limits_check.py angles())
 const LIMITS := {"spine": [[-25, 50], [-15, 15], [-25, 25]], "chest": [[-20, 30], [-35, 35], [-20, 20]],
@@ -381,12 +384,14 @@ func test_step_rates() -> void:
 		var ap: AnimationPlayer = f.call("animation_player")
 		var sc := (f.call("skeleton") as Skeleton3D).motion_scale
 		assert_within(sc, float(BODIES[body]), 0.0001, "body '%s': S %.5f" % [body, sc])
-		for c in [["W", float(ArenaData.PLAYER["walk"]), false], ["Shift", float(ArenaData.PLAYER["run"]), true]]:
-			f.call("set_move", float(c[1]), bool(c[2]))
+		for c in ARENA_SPM:
+			var v := float(ArenaData.PLAYER[c[1]])
+			var band: Vector2 = c[3]
+			f.call("set_move", v, c[1] == "run")
 			_steps(f, 2)
 			var spm := 120.0 * absf(ap.speed_scale) / ap.current_animation_length
-			assert_true(spm >= ARENA_SPM.x and spm <= ARENA_SPM.y, "body '%s' arena %s %.1f m/s: %s at %.1f steps/min (%d-%d)"
-				% [body, c[0], float(c[1]), _cur(f), spm, int(ARENA_SPM.x), int(ARENA_SPM.y)])
+			assert_true(_cur(f) == c[2] and spm >= band.x and spm <= band.y, "body '%s' arena %s %.1f m/s: %s (%s) at %.1f steps/min (%d-%d)"
+				% [body, c[0], v, _cur(f), c[2], spm, int(band.x), int(band.y)])
 		f.free()
 		var d := _fig(&"deck", "mid", body)
 		var dap: AnimationPlayer = d.call("animation_player")

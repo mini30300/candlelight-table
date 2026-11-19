@@ -27,6 +27,8 @@ const MUZZLE_RIFLE := 0.35
 const MUZZLE_PISTOL := 0.18
 const DODGE_LEAN := 0.35
 const DODGE_DIP := 0.18
+## ชุดเอเลี่ยนฝูง: ไม่หอบ
+const NO_BREATH: PackedStringArray = ["warrior"]
 
 var _weapon: StringName = &"none"
 var _pitch := 0.0
@@ -67,6 +69,14 @@ func setup(opts: Dictionary) -> void:
 
 func metrics() -> Dictionary:
 	return {"height": _height, "radius": float(ArenaData.PLAYER["radius"]), "eye": _height * 0.88, "shoulder": _height * 0.78}
+
+
+## H12: ชั้นการเคลื่อนที่ตามชุด (ArenaData.MOVE_KITS: เกราะเสริมกำลัง / หุ่นยนต์ ที่เหลือคนปกติ) · หุ่นยนต์กับเอเลี่ยนฝูงไม่หอบ
+## เกราะและหุ่นยนต์เท้าโลหะ
+func move_profile() -> Dictionary:
+	var cls := str(ArenaData.MOVE_KITS.get(walk_kit, "human"))
+	return {"class": cls, "voice": "none" if cls == "machine" or walk_kit in NO_BREATH else "low",
+		"feet": "boot" if cls == "human" else "metal"}
 
 
 ## H9: ไม่เดินเยื้อง (A/D หมุนตัว)

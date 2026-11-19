@@ -46,6 +46,9 @@ func test_hints_buttons_and_lines_have_english() -> void:
 	var hp := I18n.t(str(hud["HP_TEXT"])).format({"hp": 72, "max": 100})
 	assert_eq(hp, "HP 72/100", "the English HP line fills both placeholders")
 	assert_true(I18n.t(str(hud["HINT_KEYS"])).contains("Esc"), "the keyboard hint names Esc to pause")
+	assert_true(I18n.t(str(hud["HINT_KEYS"])).contains("Shift to sprint") and I18n.t(str(hud["HINT_KEYS"])).contains("Ctrl to walk"),
+		"the keyboard hint names Shift to sprint and Ctrl to walk (0.14, 1b)")
+	assert_true(I18n.t(str(hud["HINT_TOUCH"])).contains("edge to sprint"), "the touch hint says the stick's edge sprints")
 	I18n.english = false
 	assert_eq(I18n.t(str(hud["HP_TEXT"])).format({"hp": 72, "max": 100}), "พลังชีวิต 72/100", "the Thai HP line")
 	I18n.english = was

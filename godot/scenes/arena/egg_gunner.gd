@@ -192,6 +192,11 @@ func move_dir() -> Vector2:
 	return _dir
 
 
+## H12: คนปกติ เสียงหอบต่ำแต่แหลมขึ้นนิด ไม่มีเท้า (ไม่มีเสียงฝีเท้า)
+func move_profile() -> Dictionary:
+	return {"class": "human", "voice": "low", "pitch": 1.2, "feet": "none"}
+
+
 ## H8 (ARENA_SPEC §9.4): เริ่มท่าพุ่งหลบไปทาง local_dir (กรอบตัว x ขวา y หน้า) ยาว duration วิ
 func begin_dodge(local_dir: Vector2, duration: float) -> void:
 	if _dead:

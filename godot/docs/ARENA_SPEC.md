@@ -40,7 +40,7 @@ public, so the creature gets our own neutral name, §1.)
 | Lights | As on the deck: **no dynamic lights, no shadows** on any level; light baked into vertex colours (`HallBuilder.bake`); unshaded materials. The kit uses its own shader light (`figure.gdshader` uniforms, no `TIME`). |
 | Per-frame work | The deck gains **nothing** per frame. In the arena, per-frame work runs only while something moves (§11.3); on min an idle arena (bot off, player still, no effect alive) processes nothing. Motion-only touches (flame flicker, beacon spin, additive effects, camera shake, tweens) on hi/mid only. |
 | Randomness | Local single-player mode, so AGENTS rule 5 does not bind it, but every random choice (attack and death variants, spark directions) uses a `RandomNumberGenerator` with a fixed seed from `ArenaData.RANGE.seed`, re-seeded on reset, so tests repeat. No global `randf()` / `randi()`; game logic uses accumulated `delta`, never `Time` (only measurements read `Time`). |
-| Sound | Out of scope this round (the `snd` setting exists; hooks are the `clip_event` / `shot` events, §9). |
+| Sound | Out of scope this round (the `snd` setting exists; hooks are the `clip_event` / `shot` events, §9). Since ใหม่ 0.14 (1b) the player has footsteps and panting of its own (§9.7). |
 | Release | `APP_VER` "ใหม่ 0.3" → **"ใหม่ 0.4"**, a Thai note in `web/`; godot-only change, **no candlelight-server PR** (§15). |
 
 ## 1. Names and every new string
@@ -72,8 +72,8 @@ step R0 (§12.1): `ui/i18n/arena.json` (ROOM), `ui/i18n/arena_hud.json` (PLAYER)
 | รีเซ็ตแล้ว | Reset done | `arena.json` | toast |
 | หยุดชั่วคราว | Paused | `arena.json` | pause panel title |
 | เดินเข้าอารีน่าแล้วจะถือปืน | Walk into the arena to draw your gun | `arena_hud.json` (PLAYER) | corridor hint |
-| คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Esc หยุด | Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Esc to pause | `arena_hud.json` | shooter hint, keyboard |
-| ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง | Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right | `arena_hud.json` | shooter hint, touch |
+| คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Shift วิ่ง · Ctrl เดินช้า · Esc หยุด | Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Shift to sprint · Ctrl to walk · Esc to pause | `arena_hud.json` | shooter hint, keyboard |
+| ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง · ดันจอยสุดขอบเพื่อวิ่ง | Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right · push the stick to the edge to sprint | `arena_hud.json` | shooter hint, touch |
 | กำลังบรรจุกระสุน… | Reloading… | `arena_hud.json` | ammo line while reloading |
 | บรรจุ | Reload | `arena_hud.json` | touch button |
 | คุณล้ม! กำลังลุกขึ้น… | You're down! Getting up… | `arena_hud.json` | downed overlay |
@@ -286,11 +286,12 @@ restored behind the avatar.
 
 | Input | Action | Input map |
 | --- | --- | --- |
-| W A S D / arrows | move, camera-relative (strafe; the body keeps facing the camera yaw) | existing `move_*` |
+| W A S D / arrows | move, camera-relative (strafe; the body keeps facing the camera yaw); W jogs, S backs off slower (§9.7) | existing `move_*` |
 | mouse motion | look / aim: yaw and pitch at `LOOK_SPEED` 0.0025 rad per pixel; pitch in [−0.9, 0.6] | — (captured motion) |
 | left button (hold) | fire the current weapon: rifle full-auto, saw sword swings (repeats while held at its cooldown) | **new** `fire` (mouse button 1) |
 | right button or F | punch | **new** `melee` (mouse button 2, physical F 70) |
-| Shift | run | existing `run` |
+| Shift | sprint, forward only; it fades as the hidden stamina runs out (§9.7) | existing `run` |
+| Ctrl | walk (caps every direction at the walk) | **new** `walk` (physical Ctrl, added in code like `dodge`) |
 | 1 / 2, wheel | rifle / saw sword; the wheel cycles | **new** `weapon_1` (physical 49), `weapon_2` (physical 50); wheel read in code (press-only events) |
 | R | reload | **new** `reload` (physical 82) |
 | E | use the switch or the reset button in reach | existing `interact` |
@@ -313,7 +314,7 @@ half the size), `focus_mode` none, at least 44 × 44.
 
 | Node (under `Hud/Touch`) | Shape | Centre, from the bottom-right safe corner (dx, dy) | Behaviour |
 | --- | --- | --- | --- |
-| `Stick` | the existing `TouchStick` (instanced, not edited) | bottom-left, as on the deck (180 × 180) | move; past 0.85 runs |
+| `Stick` | the existing `TouchStick` (instanced, not edited) | bottom-left, as on the deck (180 × 180) | move; inside the ring the push scales the jog (a light push walks), past 0.85 sprints (§9.7) |
 | `FireButton` | circle r 62, text "ยิง" | (−106, −116) | hold = fire; a drag that starts on it also aims (one thumb shoots and steers) |
 | `MeleeButton` | circle r 46, text "หมัด" | (−234, −60) | punch |
 | `ReloadButton` | circle r 38, text "บรรจุ" | (−218, −198) | reload |
@@ -798,7 +799,7 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
 - **The soldier's own clips** (ใหม่ 0.14, visual only except the fixed shot origin below; `assets/figures/soldier/clips.res` from
   `tools/soldier/bake_clips.sh`, one library at S = 1 for all five bodies): requests map from each clip's
   `kind` / `from` metadata (`SoldierFigure.clip_map`). Gaits by rig speed (speed / S: walk < 2.0 <= jog < 3.6 <= run,
-  5 % hysteresis, step phase kept), so W (3 m/s) jogs and Shift (5 m/s) runs at about rate 1; standing turns (A/D,
+  5 % hysteresis, step phase kept), so W (3 m/s then; 2.7 since 1b, §9.7) jogs and Shift (5 m/s then; a 5.6 sprint fading to 3.2 since 1b) runs at about rate 1; standing turns (A/D,
   mouse) step `turn_l` / `turn_r` at yaw rate / 2.618 rad/s, clamped to 0.6–1.6× (a yaw jump over 0.35 rad or faster
   than 6 rad/s is a placement, not a turn); punch / swing at rate 1.0 with the shot at the weapons' `active`
   (0.12 / 0.18 s; the fist or blade lands straight ahead); `play(&"reload")` returns 1.6 and plays the clip on the
@@ -852,6 +853,56 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   instead of `material_overlay`, so nothing washes over a fresh hole. Tests: `tests/unit/test_soldier_wounds.gd`,
   `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`: the four levels, a close-up, seven poses, the run strip,
   and the f1 body alone and in the arena). Every body has its own wound layers and wound spots (keyed by its folder).
+
+### 9.7 Speeds, hidden stamina and body sounds (ใหม่ 0.14, 1b, 19 Nov; the owner asked for slower humans, hidden fatigue, footsteps and panting)
+
+Offline single player (no lockstep, no replay), so `RULES_V`, `DATA_HASH` and the server stay as they are. Every number is
+in `ArenaData` (`PLAYER`, `MOVE_CLASS`, `MOVE_KITS`, `BREATH`, `STEPS`); the model is `ArenaStamina`
+(`ui/arena/arena_stamina.gd`, pure, fixed step, no random, no clock). `ArenaPlayer` drives it (the arena and the campaign
+missions); the deck avatar and the bots are unchanged.
+
+| Class (from H12) | walk (Ctrl) | jog (W) | back (S) | sprint (Shift, fresh) | CS | D′ |
+| --- | --- | --- | --- | --- | --- | --- |
+| human (default; the egg, the soldier, kits not listed) | 1.5 | 2.7 | 1.8 | 5.6 | 3.2 | 30 m |
+| armoured (`MOVE_KITS`: knight, kblade, kcapt, cxw) | 1.6 | 3.2 | 2.0 | 6.5 | 4.2 | 40 m |
+| machine (rwar) | 1.4 | 2.5 | 1.6 | 4.5 (always) | — (never tires) | — |
+
+- **Stamina** (critical speed CS + reserve D′, as in real runners): above CS the reserve drains at (v − CS)·dt on the real
+  ground speed after walls (a dodge pays its burst too, about 2.8 m); below CS it refills with time constant D′ / (CS − v)
+  (9.4 s standing, 17.6 s walking, 60 s jogging). Under the knee (half the reserve) the top speed falls smoothly
+  (smoothstep) from the sprint to CS: 5.6 for about 6 s, half-way at about 11 s, 3.4 at 20 s, never below CS. Speeding
+  up into a sprint grows the speed at `sprint_accel` 4 /s; the direction (turns while sprinting) and everything else
+  follow at `accel` 12 /s. `place()`, getting up and `heal_full()` fill the reserve. The figure's run flag is the sprint
+  itself (Shift forward), not the raw Shift key.
+- **Sync**: the stamina tick rides the player's physics tick (only while moving). Frames the tick slept through count as
+  standing rest, credited once in closed form by `_stamina_sync()` (physics-frame counter, not the clock); pause banks
+  the rest before it and does not count the paused frames.
+- **No bar.** The cues are the speed fade, the soldier's run → jog clip when tired, panting and footsteps. Fatigue is
+  never written on screen; aim and hit logic are untouched.
+- **Panting**: a one-shot `Timer` child `Breath` (physics callback; about 2 events/s, never per frame). On at effort
+  e = 1 − reserve ≥ 0.20, off below 0.15; 16 + 40·e breaths a minute, the inhale 45 % of the period; loudness
+  0.15 → 0.8 (smoothstep from e 0.2 to 0.9); the hard set from e 0.55 (back to soft below 0.5). Voice from H12:
+  `low`, `high` (soldier bodies f1/f2) or `none` (machines, the swarm alien); armoured × 0.6 loudness and pitch 0.94
+  (a closed helmet), the egg pitch 1.2. Played 3D at the head (+1.6 m) through `ArenaSound.body`. Breaths lock to strides:
+  an inhale due within 0.25 s moves onto the next foot strike. Each breath peeks at the slept frames for its loudness
+  and puts the reserve back (sound never changes the rules). It stops when rested, downed, paused (`paused`), hidden or
+  out of the tree, and keeps panting while the player's tick sleeps.
+- **Footsteps** (all levels; checked in the moving tick): the soldier reads its own clip's foot strikes through H13
+  `step_phase()` (right at 0, left at 0.5, crossed either way, so the reversed backwards walk steps too); other figures
+  use a stride wheel at `ArenaStamina.cadence(v)` steps a minute (90 at a standstill, 103 at 1.45, 164 at 3.0, 180 at
+  5.0, 195 at 6.5 m/s); the egg (feet `none`) has none. `step_boot` (human) or `step_metal` (armoured, machine; pitch × 0.9),
+  loudness 0.35 walk → 0.55 jog → 0.8 sprint, × (1 + 0.2·e); left foot pitch 0.98, right 1.02, 0.1 m to the side.
+- **Sounds**: `assets/body_sfx/` (`body_sfx.json`, merged into `Sfx` by `Sfx.add_kinds`): CC0 boot and metal footstep
+  recordings and our own synthesized panting (`tools/sound/make_body_sfx.py`, credits in `CREDITS.md`); not in
+  `ArenaData.SOUNDS`, which maps only old-page kinds.
+- **Inputs**: Ctrl = `walk` (added in code); touch: the stick's ring edge sprints, inside the ring the push scales the jog.
+  Hints: "… · Space หลบ · Shift วิ่ง · Ctrl เดินช้า · Esc หยุด" and "… · ดันจอยสุดขอบเพื่อวิ่ง" (§1).
+- **Hooks** (both optional, PACK_SPEC §4): H12 `move_profile() -> Dictionary` `{"class", "voice", "pitch", "feet"}`
+  (missing = human, voice low, pitch 1, boots), read once at setup; H13 `step_phase() -> float` (0..1 of the gait loop
+  playing, −1 when none), read in the moving tick.
+- Tests: `tests/unit/test_arena_stamina.gd` (the model against the design simulation; speeds, sync, levels, profiles,
+  `test_footsteps`, `test_sleeps_while_panting`), `tests/unit/test_body_sfx.gd`, `test_audio.gd`, `test_arena_hud_text.gd`,
+  and `tests/flow/test_arena_flow.gd` step 3c (25 s of Shift in the real loop: 3.15–3.6 m/s, panting asked of Sfx).
 
 ## 10. Screens, flow and transitions (ROOM)
 

@@ -9,6 +9,10 @@ extends CharacterBody3D
 ## ArenaData.DODGE คณิตจาก ArenaCombat · ชนเสา/ผนังด้วย move_and_slide · ช่วงต้นอมตะ · ตัวละครเสริม H8 begin_dodge
 ## H9 uses_strafe() false = ไม่เดินเยื้อง (เจ้าของ 14 พ.ย.): A/D และจอยแกน x หมุนตัวพร้อมกล้อง TURN_RATE ไม่เลื่อนข้าง
 ## W/S เดินหน้า/ถอยหลังตามทิศที่หัน (ขาเดินหน้า/ท่าถอย ArenaCombat.leg_dir) · พุ่งหลบหน้า/หลังเท่านั้น · เมาส์ยังหมุนได้
+## ความเร็ว (0.14 ข้อ 1b): W วิ่งเหยาะ · Ctrl เดินช้า · Shift/จอยสุดขอบ วิ่งเร็วเฉพาะเดินหน้า เหนื่อยแล้วช้าลง (ArenaStamina
+## ไม่มีหลอดบนจอ) · ถอยหลังช้า · ชั้นการเคลื่อนที่จาก H12 move_profile() ของตัวละคร
+## เสียงร่างกาย (1b): ฝีเท้าตามจังหวะเท้า (H13 step_phase หรือวงล้อก้าว) เช็กในติ๊กที่เดินอยู่ · หอบจาก Timer "Breath"
+## ครั้งเดียวต่อลม (ไม่ใช่ทุกเฟรม) ลมเข้าที่ใกล้ถึงเลื่อนมาตรงเท้าลง
 ## งานต่อเฟรม: _physics_process เฉพาะตอนเดิน อาวุธยังนับเวลา (ArenaWeapons.busy) ล้ม/อมตะชั่วครู่ แสงวาบ พุ่ง/คูลดาวน์
 ## แล้วปิดตัวเอง
 
@@ -31,12 +35,14 @@ const RADIUS := 0.35
 const HEIGHT := 1.75
 const RUN_STICK := 0.85
 const STOP := 0.01
-const MOVE_ACTIONS: Array[StringName] = [&"move_forward", &"move_back", &"move_left", &"move_right", &"run"]
+const MOVE_ACTIONS: Array[StringName] = [&"move_forward", &"move_back", &"move_left", &"move_right", &"run", &"walk"]
 const PLAYER_LAYER := 2
 const BODY_MASK := 1 | 4 | 8
 const SHOT_MASK := 1 | 4 | 8 | 16
 const AIM_RANGE := 80.0
 const CHEST := Vector3(0.0, 1.1, 0.0)
+const HEAD := Vector3(0.0, 1.6, 0.0)
+const STEP_MIN := 0.2            # ช้ากว่านี้วงล้อก้าวไม่หมุน (ม./วิ)
 const FLASH_TIME := 0.12
 const FADE_NEAR := 0.6
 const FADE_FAR := 1.2
@@ -45,6 +51,7 @@ const EGG_GUNNER := "res://scenes/arena/egg_gunner.gd"
 const ARENA_LAYOUT := "res://scenes/arena/arena_layout.gd"
 const RESPAWN_FALLBACK := Vector3(0.0, 0.0, -12.5)
 const DODGE_ACTION := &"dodge"
+const WALK_ACTION := &"walk"
 ## ความเร็วหมุนตัวของตัวที่ไม่เดินเยื้อง (เรเดียน/วิ ≈ 150 องศา/วิ)
 const TURN_RATE := deg_to_rad(150.0)
 
@@ -84,6 +91,22 @@ var _dodge_dir := Vector3.ZERO
 var _since_dodge := INF      # เวลานับจากพุ่งครั้งก่อนจบ
 var _fire_held := false      # ปุ่มยิงยังกดอยู่ (คืนไกปืนหลังพุ่งจบ)
 var _saw_loop := 0
+var _st := ArenaStamina.new()     # ความเหนื่อยแบบซ่อน (ชั้นจาก move_profile ตอน setup)
+var _st_frame := 0               # เฟรมฟิสิกส์ล่าสุดที่นับความเหนื่อยแล้ว (ติ๊กหลับ = ยืนพัก เครดิตทีหลัง)
+var _sprinting := false          # ติ๊กนี้วิ่งเร็วจริง (Shift เดินหน้า ไม่ใช่ถอย/เยื้อง/Ctrl) ส่งให้ท่าวิ่งของตัวละคร
+var _profile: Dictionary = {}    # H12 move_profile() ของตัวละคร: class / voice / feet (ไม่มี = คนปกติ)
+var _fig_phase := false          # ตัวละครมี step_phase (H13 จังหวะเท้าของท่าเดิน)
+var _breath: Timer               # เสียงหอบ: Timer ครั้งเดียว ตั้งใหม่ทุกลม
+var _breath_on := false          # กำลังหอบ (กันติด ๆ ดับ ๆ)
+var _breath_in := true           # ลมถัดไปเป็นลมเข้า
+var _breath_hard := false        # ชุดหอบแรง
+var _voice := "low"              # เสียงหอบจาก move_profile: low / high / none
+var _pitch := 1.0                # ระดับเสียงหอบของตัวละคร (ไข่ 1.2)
+var _feet := "boot"              # ฝีเท้า: boot / metal / none
+var _step_prev := -1.0           # จังหวะเท้าครั้งก่อน 0..1 (−1 = ไม่ได้เดิน)
+var _wheel := 0.0                # วงล้อก้าว (รอบ) ของตัวที่ไม่มี step_phase
+var _steps := 0                  # ก้าวที่มีเสียงแล้ว (เทส)
+var _foot := 1                   # เท้าล่าสุด 0 = ขวา 1 = ซ้าย
 
 
 func _ready() -> void:
@@ -95,6 +118,13 @@ func _ready() -> void:
 	_hp_max = int(ArenaData.PLAYER["hp"])
 	_hp = _hp_max
 	ensure_dodge_action()
+	ensure_walk_action()
+	_breath = Timer.new()
+	_breath.name = "Breath"
+	_breath.one_shot = true
+	_breath.process_callback = Timer.TIMER_PROCESS_PHYSICS
+	_breath.timeout.connect(_on_breath)
+	add_child(_breath)
 	rig.arm_settled.connect(_on_arm)
 	rig.turned.connect(_on_turned)
 	fx.view = rig.camera
@@ -116,6 +146,16 @@ static func ensure_dodge_action() -> void:
 	var k := InputEventKey.new()
 	k.physical_keycode = KEY_SPACE
 	InputMap.action_add_event(DODGE_ACTION, k)
+
+
+## ปุ่มเดินช้า: Ctrl ตามตำแหน่งปุ่มจริง (physical) · โปรเจกต์มีแอคชัน walk อยู่แล้วก็ใช้ของเดิม
+static func ensure_walk_action() -> void:
+	if InputMap.has_action(WALK_ACTION):
+		return
+	InputMap.add_action(WALK_ACTION)
+	var k := InputEventKey.new()
+	k.physical_keycode = KEY_CTRL
+	InputMap.action_add_event(WALK_ACTION, k)
 
 
 ## ตั้งค่าตอนโลกสร้างผู้เล่น: {"level", "team_colour", "touch": bool, "figure": Node3D, "scheme": id ชุดสีของ Figures,
@@ -143,6 +183,16 @@ func setup(w: Node3D, opts: Dictionary) -> void:
 	_fig_switch = fig.has_method("begin_switch")
 	_fig_dodge = fig.has_method("begin_dodge")
 	_strafe = not fig.has_method("uses_strafe") or bool(fig.call("uses_strafe"))
+	var mp: Variant = fig.call("move_profile") if fig.has_method("move_profile") else {}
+	_profile = mp if mp is Dictionary else {}
+	_fig_phase = fig.has_method("step_phase")
+	_st = ArenaStamina.new(str(_profile.get("class", "human")))
+	_st_frame = _frames_done()
+	_voice = str(_profile.get("voice", "low"))
+	_pitch = float(_profile.get("pitch", 1.0))
+	_feet = str(_profile.get("feet", "boot"))
+	_step_prev = -1.0
+	_breath_stop()
 	apply_level(str(opts.get("level", level)))
 	_call_fig("set_weapon", [&"none"])
 	_call_fig("play", [&"idle", 1.0])
@@ -321,7 +371,10 @@ func set_paused(on: bool) -> void:
 	fx.process_mode = pm
 	if _figure != null:
 		_figure.process_mode = pm
+	if _breath != null:
+		_breath.paused = on
 	if on:
+		_stamina_sync()            # เก็บเวลาที่ยืนพักไว้ก่อนหยุดเกม
 		stick = Vector2.ZERO
 		rig.reset_input()
 		_release_mouse()
@@ -331,6 +384,7 @@ func set_paused(on: bool) -> void:
 	else:
 		_recapture = _mode == &"shoot" and not touch
 		_saw_sound(weapons.current == &"sword")
+		_st_frame = _frames_done()   # ช่วงหยุดเกมไม่นับเป็นเวลาพัก
 		set_physics_process(true)
 
 
@@ -342,6 +396,9 @@ func paused() -> bool:
 func place(p: Vector3, _face_yaw: float, cam_yaw: float) -> void:
 	global_position = Vector3(p.x, 0.0, p.z)
 	_vel = Vector3.ZERO
+	_st.refill()                   # วางตัวใหม่/ลุกจากล้ม = แรงเต็ม
+	_st_frame = _frames_done()
+	_step_prev = -1.0
 	_fire_held = false
 	if dodging():
 		_end_dodge()
@@ -382,10 +439,12 @@ func take_hit(hit: Dictionary) -> Dictionary:
 	return {"applied": applied, "hp": _hp, "killed": bool(r["killed"])}
 
 
-## รีเซ็ต: HP เต็ม แมกเต็ม (ล้มอยู่ก็ลุกทันทีที่เดิม)
+## รีเซ็ต: HP เต็ม แมกเต็ม แรงเต็ม (ล้มอยู่ก็ลุกทันทีที่เดิม)
 func heal_full() -> void:
 	_hp = _hp_max
 	_handle(weapons.refill())
+	_st.refill()
+	_st_frame = _frames_done()
 	if _down > 0.0:
 		_down = 0.0
 		_call_fig("play", [&"idle", 1.0])
@@ -473,6 +532,104 @@ func running() -> bool:
 
 func speed() -> float:
 	return Vector2(_vel.x, _vel.z).length()
+
+
+## ความเร็วที่ต้องการ (ม./วิ) จากทิศที่สั่ง iv: W วิ่งเหยาะ · ถอยหลังไม่เกิน back · Shift/จอยสุดขอบ วิ่งเร็วเฉพาะเดินหน้า
+## ตามแรงที่เหลือ · Ctrl เดินช้า · จอยในวงคูณตามที่ดัน (ดันเบา = เดิน)
+func _want_speed(iv: Vector2) -> float:
+	var mag := minf(iv.length() / RUN_STICK, 1.0) if stick != Vector2.ZERO else minf(iv.length(), 1.0)
+	var top := _st.jog
+	_sprinting = false
+	if iv.y < -0.25:
+		top = _st.back
+	elif running() and iv.y > 0.5:
+		top = _st.top()
+		mag = 1.0
+		_sprinting = true
+	if InputMap.has_action(WALK_ACTION) and Input.is_action_pressed(WALK_ACTION):
+		top = minf(top, _st.walk)
+		_sprinting = false
+	return top * mag
+
+
+## ความเหนื่อย: เครดิตเวลาที่ติ๊กหลับไป (ยืนพัก) ครั้งเดียวด้วยสูตรปิด · นับเฟรมฟิสิกส์ ไม่อ่านนาฬิกา
+func _stamina_sync() -> void:
+	var done := _frames_done()
+	if done > _st_frame:
+		_st.rest(float(done - _st_frame) / float(Engine.physics_ticks_per_second))
+		_st_frame = done
+
+
+## เฟรมฟิสิกส์ที่จบแล้ว (ระหว่างติ๊กฟิสิกส์ เฟรมนี้ยังไม่จบ)
+static func _frames_done() -> int:
+	return Engine.get_physics_frames() - (1 if Engine.is_in_physics_frame() else 0)
+
+
+## ฝีเท้า: เท้าขวาลงที่จังหวะ 0 ซ้ายที่ 0.5 · ทหารใช้ท่าเดินของตัวเอง (H13) ตัวอื่นใช้วงล้อก้าวตามความเร็ว
+## ข้ามจุดได้ทั้งสองทาง (ท่าถอยเล่นกลับ) · เรียกเฉพาะในติ๊กที่เดินอยู่
+func _feet_tick(delta: float) -> void:
+	var ph := -1.0
+	if _fig_phase:
+		ph = float(_figure.call("step_phase"))
+	elif speed() >= STEP_MIN:
+		_wheel = fposmod(_wheel + delta * ArenaStamina.cadence(speed()) / 120.0, 1.0)
+		ph = _wheel
+	var was := _step_prev
+	_step_prev = ph
+	if ph < 0.0 or was < 0.0:
+		return
+	var d := ph - was
+	if d > 0.5:
+		d -= 1.0
+	elif d < -0.5:
+		d += 1.0
+	var a := floorf(was * 2.0)
+	var b := floorf((was + d) * 2.0)
+	if a != b:
+		_step(posmod(int(maxf(a, b)), 2))
+
+
+## เสียงก้าวหนึ่งครั้งที่เท้า (0 = ขวา 1 = ซ้าย) · เหนื่อยแล้วเท้าลงหนัก · ลมเข้าที่ใกล้ถึงเลื่อนมาตรงเท้าลง
+func _step(foot: int) -> void:
+	_steps += 1
+	_foot = foot
+	var s := ArenaData.STEPS
+	var side := float(s["side"]) * (-1.0 if foot == 0 else 1.0)     # ขวามือของตัว = −X ของตัว
+	var at := global_position + global_transform.basis.x * side + Vector3(0.0, float(s["y"]), 0.0)
+	var metal := _feet == "metal"
+	var pitch := float(s["pitch_r"] if foot == 0 else s["pitch_l"]) * (float(s["metal_pitch"]) if metal else 1.0)
+	ArenaSound.body(self, &"step_metal" if metal else &"step_boot", at, _st.step_gain(speed()), pitch)
+	if _breath_on and _breath_in and not _breath.is_stopped() and _breath.time_left <= float(ArenaData.BREATH["snap"]):
+		_breath.stop()
+		_on_breath()
+
+
+## ลมหายใจหนึ่งครั้ง (Timer "Breath" หรือเท้าลง): เล่นลมเข้า/ออกตามแรงเหนื่อยตอนนี้ แล้วตั้งเวลาลมถัดไป
+## หยุดเมื่อหายเหนื่อย ล้ม หยุดเกม ซ่อน · ช่วงที่ติ๊กหลับนับเป็นยืนพักเฉพาะในเสียง แล้วคืนค่าเดิม (เสียงไม่แตะกติกา)
+func _on_breath() -> void:
+	var keep := _st.bal
+	_st.rest(float(_frames_done() - _st_frame) / float(Engine.physics_ticks_per_second))
+	var e := _st.effort()
+	var vol := _st.breath_volume()
+	_st.bal = keep
+	_breath_on = _voice != "none" and _st.tires() and ArenaStamina.breath_on(e, _breath_on)
+	if not _breath_on or _down > 0.0 or _paused or not is_visible_in_tree():
+		_breath_stop()
+		return
+	_breath_hard = ArenaStamina.breath_hard(e, _breath_hard)
+	var kind := StringName("pant_%s_%s_%s" % ["in" if _breath_in else "out", "hard" if _breath_hard else "soft", _voice])
+	ArenaSound.body(self, kind, global_position + HEAD, vol, _st.breath_pitch() * _pitch)
+	var share := float(ArenaData.BREATH["in_share"])
+	_breath.start(60.0 / ArenaStamina.breath_rate(e) * (share if _breath_in else 1.0 - share))
+	_breath_in = not _breath_in
+
+
+func _breath_stop() -> void:
+	_breath_on = false
+	_breath_in = true
+	_breath_hard = false
+	if _breath != null:
+		_breath.stop()
 
 
 ## H6 (ARENA_SPEC §9.4): ทิศความเร็วจริงในกรอบตัวละครที่หัน face_yaw (x = ขวามือของตัว = −X ของตัว, y = หน้า +Z)
@@ -568,6 +725,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_EXIT_TREE:
 		_release_mouse()
 		_fire_held = false     # ปล่อยเมาส์หายระหว่างสลับหน้าต่าง ไม่ยิงต่อเองหลังพุ่ง
+	if what == NOTIFICATION_EXIT_TREE:
+		_breath_stop()
 
 
 # ---- ต่อเฟรม ----
@@ -576,6 +735,7 @@ func _physics_process(delta: float) -> void:
 	if _paused:
 		set_physics_process(false)
 		return
+	_stamina_sync()
 	if _down > 0.0:
 		_down -= delta
 		if _down <= 0.0:
@@ -591,10 +751,12 @@ func _physics_process(delta: float) -> void:
 		_turn(-turn * TURN_RATE * delta)
 	var iv := move_vector()
 	var want := Vector3.ZERO
+	var top := 0.0                  # ความเร็วเป้าหมาย (สเกลาร์ ไม่ใช่ความยาวเวกเตอร์ float32 ที่เกิน jog นิด ๆ)
+	_sprinting = false
 	if iv.length_squared() > 0.0001:
 		var m := rig.right_flat() * iv.x + rig.forward_flat() * iv.y
-		var top := float(ArenaData.PLAYER["run"] if running() else ArenaData.PLAYER["walk"])
-		want = m.limit_length(1.0) * top
+		top = _want_speed(iv)
+		want = m.normalized() * top
 	var cool := float(ArenaData.DODGE["cooldown"])
 	if dodging():
 		# พุ่ง: ระยะต่อเฟรมจากเส้นโค้งความเร็ว (ArenaCombat) ทิศคงที่ ชนแล้วไถลตามผนัง
@@ -609,19 +771,31 @@ func _physics_process(delta: float) -> void:
 			_since_dodge += delta
 			if _since_dodge >= cool:
 				dodge_changed.emit(&"ready")
-		_vel = _vel.lerp(want, 1.0 - exp(-float(ArenaData.PLAYER["accel"]) * delta))
+		# ทิศตาม accel เสมอ (หันตอนวิ่งเร็วไม่หนืด) · เร่งเป็นวิ่งเร็ว: ขนาดความเร็วโตได้แค่ตาม sprint_accel
+		var nv := _vel.lerp(want, 1.0 - exp(-_st.accel * delta))
+		var k := _st.accel_to(top, speed())
+		if k != _st.accel:
+			nv = nv.limit_length(lerpf(speed(), top, 1.0 - exp(-k * delta)))
+		_vel = nv
 	var moving := true
 	if want == Vector3.ZERO and _vel.length() < STOP:
 		_vel = Vector3.ZERO
 		velocity = Vector3.ZERO
 		moving = false
+		_step_prev = -1.0          # หยุดแล้วลืมจังหวะเท้า กันเสียงก้าวผีตอนออกเดินใหม่
 	else:
 		velocity = _vel
 		move_and_slide()
 		_vel = Vector3(velocity.x, 0.0, velocity.z)
 		global_position.y = 0.0
-	move_figure(_figure, _fig_dir, ArenaCombat.leg_dir(local_dir(_vel, face), _strafe), speed(), running())
+	_st.tick(speed(), delta)       # ความเร็วจริงหลังชนผนัง (พุ่งหลบก็กินแรงเอง)
+	_st_frame = Engine.get_physics_frames()
+	if not _breath_on and _down <= 0.0 and _voice != "none" and _st.breathing(false):
+		_on_breath()               # เริ่มหอบ ลมแรกเดี๋ยวนี้ ต่อจากนี้ Timer ดูแลเอง
+	move_figure(_figure, _fig_dir, ArenaCombat.leg_dir(local_dir(_vel, face), _strafe), speed(), _sprinting)
 	if moving:
+		if _feet != "none":
+			_feet_tick(delta)
 		rig.follow(global_position)
 		moved.emit(global_position)
 		_aim_dirty = _aim_dirty or _mode == &"shoot"
