@@ -6,12 +6,15 @@
 # The generator source is imported once: with the base body (only when it changed). Another body's import leaves
 # tools/soldier/generator alone and only says when the stage's source differs from it; --source copies it anyway.
 # <stage_dir> is a generator folder (tools/soldier/README.md): project.godot, src/ (py, gd, run_all.sh) and its build in
-# out/godot/ (rig.tscn, skin.res, body_hi/mid/lo/min.res, optional body_crowd.res and clips.res, soldier_skin.tres,
+# out/godot/ (rig.tscn, skin.res, body_hi/mid/lo/min.res, optional body_crowd.res, soldier_skin.tres,
 # optional wound shaders src/gd/soldier_skin_wound.gdshader + src/gd/wound.gdshaderinc, optional inner_bone.res +
-# inner_flesh.res with src/gd/soldier_inner.gdshader, which need the wound shaders) and out/data/rig.json. Steps, and
-# nothing in the repository changes unless the first two succeed:
+# inner_flesh.res with src/gd/soldier_inner.gdshader, which need the wound shaders) and out/data/rig.json.
+# The clip library never comes from a stage: a stage's clips.res (or soldier_clips.res, humanoid_soldier.res) is ignored
+# and the base folder's clips.res (tools/soldier/bake_clips.sh, one library for all five bodies) is kept; when the stage
+# changed the clip generator (src/py/gait.py, actions.py, clips_soldier.py, rig.py) the import says to re-run
+# bake_clips.sh. Steps, and nothing in the repository changes unless the first two succeed:
 #  1. Godot re-saves the stage's files in a scratch project, so every path inside them points at the game's copy:
-#     godot/assets/figures/<target>/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres, clips.res,
+#     godot/assets/figures/<target>/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres,
 #     body_wound.gdshader, wound.gdshaderinc, inner_bone.res, inner_flesh.res, inner.gdshader};
 #     rig.json's driver constants travel inside rig.tscn (metadata "soldier_rig"); existing UIDs are kept.
 #  2. The stage's generator source is checked for the banned names of AGENTS.md rule 1.
@@ -75,6 +78,12 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/out/godot" "$WORK/out/data" "$WORK/src/gd" "$WORK/old"
 for f in rig.tscn skin.res soldier_skin.tres body_hi.res body_mid.res body_lo.res body_min.res body_crowd.res \
     clips.res soldier_clips.res humanoid_soldier.res inner_bone.res inner_flesh.res; do
+  # the clip library is never taken from a stage: it lives only in the base folder, made by tools/soldier/bake_clips.sh
+  # (one library at S = 1, every body plays it with its motion_scale)
+  case "$f" in clips.res|soldier_clips.res|humanoid_soldier.res)
+    if [ -f "$OUTG/$f" ]; then echo "ignore the stage's $f (the clip library comes from tools/soldier/bake_clips.sh)"; fi
+    continue ;;
+  esac
   if [ -f "$OUTG/$f" ]; then cp "$OUTG/$f" "$WORK/out/godot/"; fi
 done
 if [ -f "$STAGE/out/data/rig.json" ]; then cp "$STAGE/out/data/rig.json" "$WORK/out/data/"; fi
@@ -127,6 +136,8 @@ for f in "$DEST"/*; do
   base="$(basename "$f")"
   case "$base" in
     *.uid|IMPORTED.txt) continue ;;
+    # the base body keeps its clip library (it comes from tools/soldier/bake_clips.sh, never from a stage)
+    clips.res) if [ "$TARGET" = soldier ]; then echo "keep clips.res (bake_clips.sh)"; continue; fi ;;
   esac
   if [ ! -f "$NEW/$base" ]; then echo "remove $base"; rm -f "$f" "$f.uid"; fi
 done
@@ -135,6 +146,12 @@ cp "$NEW"/* "$DEST/"
 for f in src/gd/soldier_figure.gd src/py/correctives.py src/py/rig.py; do
   if [ -f "$GEN/$f" ] && ! cmp -s "$GEN/$f" "$NEWGEN/$f"; then
     echo "note: the stage changed $f: compare it with godot/scenes/arena/soldier_figure.gd (helper_rule, shape_weights, still rules)"
+  fi
+done
+# the clip library is kept as it is: say when the stage changed the code it is made from
+for f in src/py/gait.py src/py/actions.py src/py/clips_soldier.py src/py/rig.py; do
+  if [ -f "$GEN/$f" ] && ! cmp -s "$GEN/$f" "$NEWGEN/$f"; then
+    echo "note: the stage changed $f: re-run tools/soldier/bake_clips.sh (clips.res was kept as it is)"
   fi
 done
 echo "assets -> $DEST"
@@ -204,10 +221,11 @@ if rep.get("inner"):
                          max(b["regions"]["hips"]["max_mm"], 0.0), max(b["max_mm"], 0.0), b["worst"].split(" vertex")[0]))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
-if "clips" in rep:
-    lines.append("soldier clip copy: %d clips (from %s)" % (rep["clips"]["count"], rep["clips"]["from"]))
+# the clip library is never imported: one clips.res in the base folder (bake_clips.sh) for all five bodies
+if os.path.exists(os.path.join(os.path.dirname(os.path.normpath(dest)), "soldier", "clips.res")):
+    lines.append("soldier clip library: assets/figures/soldier/clips.res (made by tools/soldier/bake_clips.sh, not by the stage)")
 else:
-    lines.append("soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrists eased)")
+    lines.append("soldier clip library: none (the figure uses assets/anim/humanoid.res with its wrists eased)")
 lines += ["", "sha256:"]
 for name in sorted(os.listdir(dest)):
     p = os.path.join(dest, name)

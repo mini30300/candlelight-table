@@ -10,7 +10,8 @@
 #   ในท่าผูก แก้ด้วยการเลื่อนไม่ได้ เจอที่รักแร้ตอนต่อย/แทง) ซึ่งรายงานแยก ; อกหน้าและสะโพกต้องไม่โผล่เลยทุกกรณี
 #   กระดูกของร่างแบบอื่น: อกหน้า/สะโพกโผล่ได้ไม่เกินร่างหลัก + BONE_OVER_MM (inner_layers.py กดลงด้วย push_bone)
 #   ร่างหลัก: รายงานอย่างเดียว (ชั้นในต้องเหมือนขั้น 1c ทุกไบต์ ; ที่โผล่อยู่ที่บ่าตอนยกแขนสุด)
-#   /usr/bin/python3 inner_posed.py [--out DIR] [--step 2]      (~2-3 นาที)
+#   ท่า: ref/soldier_clips.json (ชุดท่าของทหารเอง clips_soldier.py: ทุกคลิป) ถ้ามี ไม่งั้น ref/clips.json (สำเนา humanoid: CLIPS)
+#   /usr/bin/python3 inner_posed.py [--out DIR] [--step 2] [--clips FILE]      (~2-3 นาที)
 import argparse
 import json
 import os
@@ -21,7 +22,7 @@ from inner_layers import read_bin, SkinDepth
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-# ท่าที่ทหารใช้ (SoldierFigure.PLAYER_CLIPS + ENEMY_CLIPS)
+# ท่าที่ทหารใช้เมื่อยังไม่มีชุดท่าของตัวเอง (สำเนาจาก humanoid.res: SoldierFigure.PLAYER_CLIPS + ENEMY_CLIPS เดิม)
 CLIPS = ["idle", "walk", "run", "fire", "bash_0", "bash_1", "bash_2", "thrust_0", "thrust_1", "thrust_2", "flinch",
          "flinch_heavy", "die_back", "die_fwd", "die_spin"]
 WRIST_MAX = 45.0
@@ -96,8 +97,20 @@ def skin_data(data, k):
 
 
 def clip_path(out):
-    cp = os.path.join(os.path.dirname(os.path.abspath(out)), "ref", "clips.json")   # ref/ ของโฟลเดอร์สร้าง
-    return cp if os.path.exists(cp) else os.path.join(ROOT, "ref", "clips.json")
+    """ชุดท่าของทหารเอง (soldier_clips.json) ก่อน ไม่มีจึงใช้สำเนา humanoid (clips.json) ; ref/ ของโฟลเดอร์สร้างก่อนของตัวสร้าง"""
+    dirs = [os.path.join(os.path.dirname(os.path.abspath(out)), "ref"), os.path.join(ROOT, "ref")]
+    for name in ("soldier_clips.json", "clips.json"):
+        for d in dirs:
+            if os.path.exists(os.path.join(d, name)):
+                return os.path.join(d, name)
+    return os.path.join(ROOT, "ref", "clips.json")
+
+
+def clip_list(clips):
+    """ท่าที่ตรวจ: ชุดของทหารเอง (มี jog และ punch_0) = ทุกคลิปตามลำดับในไฟล์ ; สำเนา humanoid = CLIPS"""
+    if "jog" in clips and "punch_0" in clips:
+        return list(clips)
+    return [c for c in CLIPS if c in clips]
 
 
 def pose_frames(clips, step):
@@ -105,7 +118,7 @@ def pose_frames(clips, step):
     Gb, _ = rig.fk(rig.bind_pose())
     IB = np.stack([np.linalg.inv(Gb[b]) for b in rig.BONES])
     out = []
-    for cn in [c for c in CLIPS if c in clips]:
+    for cn in clip_list(clips):
         c = clips[cn]
         for fr in range(0, int(c["frames"]), step):
             G, _ = rig.fk(clip_pose(c, fr))
@@ -216,6 +229,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "out"))
     ap.add_argument("--step", type=int, default=2)
+    ap.add_argument("--clips", default="", help="clip JSON (default: clip_path)")
     args = ap.parse_args()
     data = os.path.join(args.out, "data")
     t0 = time.time()
@@ -232,9 +246,12 @@ def main():
         layers[name] = {"V": P, "B": d["bones"].astype(np.int64), "W": d["weights"].astype(np.float64),
                         "part": np.round(d["part"]).astype(np.int64).ravel(),
                         "reg": {r: f(P) for r, f in REGIONS.items()}}
-    clips = json.load(open(clip_path(args.out)))["clips"]
+    cpath = args.clips or clip_path(args.out)
+    clips = json.load(open(cpath))["clips"]
     frames = pose_frames(clips, args.step)
-    rep = {"k": k, "step": args.step, "frames": len(frames), "clips": sorted({f[0] for f in frames}, key=CLIPS.index),
+    seen = {f[0] for f in frames}
+    rep = {"k": k, "step": args.step, "frames": len(frames), "clips": [c for c in clip_list(clips) if c in seen],
+           "clip_file": os.path.basename(cpath),
            "gate": ("flesh <= %.1f mm (LBS-inverted points reported apart), chest front and hips <= %.1f mm; bone chest front "
                     "<= %.2f mm, hips <= %.2f mm (base + %.1f)" % (POKE_MM, POKE_MM, BONE_BASE_MM["chest_front"] + BONE_OVER_MM,
                                                               BONE_BASE_MM["hips"] + BONE_OVER_MM, BONE_OVER_MM))

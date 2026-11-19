@@ -117,17 +117,7 @@ func _run() -> bool:
 	if ResourceLoader.exists(SRC + "inner_bone.res") or ResourceLoader.exists(SRC + "inner_flesh.res"):
 		if not _inner(report):
 			return false
-	# ชุดท่าของทหารเอง (ถ้าขั้นปั้นทำมา)
-	for name in ["clips.res", "soldier_clips.res", "humanoid_soldier.res"]:
-		if ResourceLoader.exists(SRC + name):
-			var lib := load(SRC + name) as AnimationLibrary
-			if lib == null:
-				push_error(SRC + name + " is not an AnimationLibrary")
-				return false
-			if not _save(lib, "clips.res", ResourceSaver.FLAG_COMPRESS, report):
-				return false
-			report["clips"] = {"from": name, "count": lib.get_animation_list().size()}
-			break
+	# ชุดท่าไม่มาจากขั้นปั้น (import_stage.sh ไม่คัดลอกมา): clips.res ของร่างหลักมาจาก tools/soldier/bake_clips.sh
 	var out := FileAccess.open(REPORT, FileAccess.WRITE)
 	out.store_string(JSON.stringify(report, " ", true))
 	out.close()

@@ -15,9 +15,12 @@ extends "res://tests/testing.gd"
 ## deck speeds), stands its own height, drives helpers but no correctives, and two bodies side by side keep their own
 ## meshes and scales; a body chosen before setup (body_id, or setup's "body" after set_light / deck_speeds) gives that
 ## body's rig, S, skin, material and mesh, never a mix with the base body.
-## Clips: the soldier's copy keeps every mapped clip and its metadata, its wrists are eased (twist and bend within
-## limits, hands still, no hand position tracks) and the shared humanoid.res is untouched. Behaviour (manual clock):
-## walk/run rates, still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
+## Clips: every clip the request map names (SoldierFigure.clip_map: the soldier's own clips.res, else PLAYER_CLIPS /
+## ENEMY_CLIPS) is in its library, every fallback name is in humanoid.res; the fallback copy keeps its metadata, its
+## wrists are eased (twist and bend within limits, hands still, no hand position tracks) and the shared humanoid.res is
+## untouched (the own library: tests/unit/test_soldier_clips.gd). Behaviour (manual clock): 3 m/s plays jog with the own
+## clips (walk without them), 5 m/s run, deck speeds unchanged (humanoid walk/run speed × S × 1.4),
+## still on min within 10 frames, the deck figure still on lo and min, the arena player looping on lo,
 ## clip events, the aim pose and muzzle, backwards walk, helpers and correctives per level, flash, the hero light on the
 ## figure's own material only.
 
@@ -372,13 +375,20 @@ func test_clips() -> void:
 	assert_true(lib != null, "the soldier's clips build")
 	if lib == null or src == null:
 		return
+	# 0.14 (intended): the names come from the request map in use (clip_map: the own clips.res has no bash_* /
+	# thrust_* / flinch*); the fallback map's names are checked against humanoid.res, its source
 	var names := {}
-	for m in [S.get("PLAYER_CLIPS"), S.get("ENEMY_CLIPS")]:
-		for k in m:
-			for n in m[k]:
+	for enemy in [false, true]:
+		var cm: Dictionary = S.call("clip_map", enemy)
+		for k in cm:
+			for n in cm[k]:
 				names[n] = true
 	for n in names:
 		assert_true(lib.has_animation(n), "the soldier has clip " + n)
+	for m in [S.get("PLAYER_CLIPS"), S.get("ENEMY_CLIPS")]:
+		for k in m:
+			for n in m[k]:
+				assert_true(src.has_animation(n), "the fallback clip %s is in humanoid.res" % n)
 	if str(S.call("clip_source")) == LIB:
 		for n in names:
 			var a := lib.get_animation(n)
@@ -431,9 +441,11 @@ func test_moves_and_still_rules() -> void:
 	var sc := sk.motion_scale
 	f.call("set_move", 3.0, false)
 	_steps(f, 2)
-	var want := 3.0 / (float(lib.get_animation(&"walk").get_meta("speed")) * sc)
-	assert_true(String(ap.current_animation) == "humanoid/walk" and absf(ap.speed_scale - want) < 0.001,
-		"3 m/s: walk at rate %.3f (speed / clip speed × S)" % ap.speed_scale)
+	# 0.14 (intended): with the own clips 3 m/s (the arena W) is the jog (before: walk at about 2×); fallback: walk
+	var w3 := "jog" if bool(S.call("own_clips")) else "walk"
+	var want := 3.0 / (float(lib.get_animation(w3).get_meta("speed")) * sc)
+	assert_true(String(ap.current_animation) == "humanoid/" + w3 and absf(ap.speed_scale - want) < 0.001,
+		"3 m/s: %s at rate %.3f (speed / clip speed × S)" % [w3, ap.speed_scale])
 	f.call("set_move", 5.0, true)
 	_steps(f, 2)
 	want = 5.0 / (float(lib.get_animation(&"run").get_meta("speed")) * sc)
@@ -485,8 +497,12 @@ func test_moves_and_still_rules() -> void:
 	_steps(dm, 12)
 	assert_true((dm.call("animation_player") as AnimationPlayer).is_playing(), "deck on mid: the idle loop plays")
 	var sp: Vector2 = dm.call("deck_speeds")
-	var ws := float(lib.get_animation(&"walk").get_meta("speed")) * sc * 1.4
-	assert_true(absf(sp.x - ws) < 0.001 and sp.x >= 0.5 and sp.y <= 6.0 and sp.y > sp.x, "deck speeds %s = clip speed × S × 1.4" % str(sp))
+	# 0.14 (intended): move speeds stay, so the deck keeps humanoid.res's walk speed × S × 1.4 (the own walk clip is
+	# slower and plays faster instead); without clips.res that is the soldier's walk clip, as before
+	var ws := float((load(LIB) as AnimationLibrary).get_animation(&"walk").get_meta("speed")) * sc * 1.4
+	assert_true(absf(sp.x - ws) < 0.001 and sp.x >= 0.5 and sp.y <= 6.0 and sp.y > sp.x, "deck speeds %s = humanoid walk speed × S × 1.4" % str(sp))
+	var rs := float((load(LIB) as AnimationLibrary).get_animation(&"run").get_meta("speed")) * sc * 1.4
+	assert_within(sp.y, rs, 0.001, "deck run speed %.4f = humanoid run speed × S × 1.4 (a gameplay value)" % sp.y)
 	dm.free()
 
 
@@ -496,13 +512,16 @@ func test_actions_and_aim() -> void:
 	_shots = 0
 	_thuds = 0
 	var d := float(f.call("play", &"punch", 1.0))
-	assert_true(d > 0.3 and d < 0.6, "punch: a %.2f s blow (bash at 1.8×, under the 0.55 s repeat)" % d)
+	assert_true(d > 0.3 and d < 0.6, "punch: a %.2f s blow (under the 0.55 s repeat)" % d)
 	_steps(f, int(ceil(d / DT)) + 2)
 	assert_true(_shots >= 1, "the punch emits clip_event shot (%d)" % _shots)
 	var s := float(f.call("play", &"swing", 1.0))
 	assert_true(s > 0.3 and s < 0.8, "swing: a %.2f s thrust" % s)
 	assert_within(float(f.call("play", &"fire", 1.0)), 0.16, 0.001, "fire: a 0.16 s kick (procedural recoil)")
-	assert_eq(float(f.call("play", &"reload", 1.0)), 0.0, "no reload clip: the actor uses its timer")
+	# 0.14 (intended): the own reload clip lasts the game's reload time (visual only: ArenaWeapons times the lockout and
+	# nothing reads this value); without clips.res there is no reload clip (0)
+	var want_rl := float(ArenaCombat.weapon("gun")["reload"]) if bool((load(SCRIPT) as GDScript).call("own_clips")) else 0.0
+	assert_within(float(f.call("play", &"reload", 1.0)), want_rl, 0.001, "reload: %.2f s (the game's reload time; 0 = no clip)" % want_rl)
 	_steps(f, int(ceil(s / DT)) + 4)
 	f.call("set_weapon", &"gun")
 	f.call("set_aim", -0.2)
@@ -595,17 +614,22 @@ func test_bodies_behaviour() -> void:
 		assert_eq((f.call("shape_names") as PackedStringArray).size(), 0, "%s hi: the mesh has no blend shapes" % id)
 		f.call("set_move", 3.0, false)
 		_steps(f, 2)
-		var want := 3.0 / (float(lib.get_animation(&"walk").get_meta("speed")) * want_s)
-		assert_true(String(ap.current_animation) == "humanoid/walk" and absf(ap.speed_scale - want) < 0.001,
-			"%s: 3 m/s walks at rate %.3f (speed / clip speed × its S)" % [id, ap.speed_scale])
+		# 0.14 (intended): 3 m/s plays the own jog (fallback: walk)
+		var w3 := "jog" if bool(S.call("own_clips")) else "walk"
+		var want := 3.0 / (float(lib.get_animation(w3).get_meta("speed")) * want_s)
+		assert_true(String(ap.current_animation) == "humanoid/" + w3 and absf(ap.speed_scale - want) < 0.001,
+			"%s: 3 m/s plays %s at rate %.3f (speed / clip speed × its S)" % [id, w3, ap.speed_scale])
 		f.call("set_move", 5.0, true)
 		_steps(f, 2)
 		want = 5.0 / (float(lib.get_animation(&"run").get_meta("speed")) * want_s)
 		assert_true(String(ap.current_animation) == "humanoid/run" and absf(ap.speed_scale - want) < 0.001,
 			"%s: 5 m/s runs at rate %.3f" % [id, ap.speed_scale])
 		var sp: Vector2 = f.call("deck_speeds")
-		var ws := float(lib.get_animation(&"walk").get_meta("speed")) * want_s * 1.4
-		assert_true(absf(sp.x - ws) < 0.001 and sp.y > sp.x, "%s: deck speeds %s = clip speed × its S × 1.4" % [id, str(sp)])
+		# 0.14 (intended): deck speeds unchanged = humanoid walk speed × its S × 1.4
+		var ws := float((load(LIB) as AnimationLibrary).get_animation(&"walk").get_meta("speed")) * want_s * 1.4
+		assert_true(absf(sp.x - ws) < 0.001 and sp.y > sp.x, "%s: deck speeds %s = humanoid walk speed × its S × 1.4" % [id, str(sp)])
+		var rs := float((load(LIB) as AnimationLibrary).get_animation(&"run").get_meta("speed")) * want_s * 1.4
+		assert_within(sp.y, rs, 0.001, "%s: deck run speed %.4f = humanoid run speed × its S × 1.4" % [id, sp.y])
 		f.call("set_move", 0.0, false)
 		f.call("apply_level", "min")
 		var n := 0
@@ -655,9 +679,11 @@ func test_body_chosen_before_setup() -> void:
 		assert_true(m != null and m.get_shader_parameter("sun_dir") is Vector3 and (m.get_shader_parameter("sun_dir") as Vector3).is_equal_approx(sun),
 			"%s: the copy keeps the scene light" % how)
 		var sp: Vector2 = f.call("deck_speeds")
-		var lib: AnimationLibrary = S.call("clip_library")
-		var ws := float(lib.get_animation(&"walk").get_meta("speed")) * 1.0 * 1.4
+		# 0.14 (intended): deck speeds unchanged = humanoid walk speed × S × 1.4 (not the own walk clip's speed)
+		var ws := float((load(LIB) as AnimationLibrary).get_animation(&"walk").get_meta("speed")) * 1.0 * 1.4
 		assert_true(absf(sp.x - ws) < 0.001, "%s: deck speeds from f1's S %s" % [how, str(sp)])
+		var rs := float((load(LIB) as AnimationLibrary).get_animation(&"run").get_meta("speed")) * 1.0 * 1.4
+		assert_within(sp.y, rs, 0.001, "%s: deck run speed from f1's S (%.4f)" % [how, sp.y])
 		if how == "body_id first":
 			assert_true(early.is_equal_approx(sp), "body_id first: deck speeds before setup are already f1's")
 		else:

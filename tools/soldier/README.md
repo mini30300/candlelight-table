@@ -19,6 +19,7 @@ Build folders (fields, renders, logs: hundreds of MB) always live outside the re
 | `new_stage.sh <empty_dir>` | Makes a build folder from `generator/` and fills its `ref/` with the game's generated inputs |
 | `gd/import_stage.gd` | The Godot half of the import (run by `import_stage.sh` in a scratch project) |
 | `gd/export_clips.gd` | Writes `clips.json` from `godot/assets/anim/humanoid.res` (the generator's pose input) |
+| `bake_clips.sh` | The soldier's own clips (~15 s): `generator/src/py/clips_soldier.py` (`gait.py` + `actions.py`) makes 26 clips at S = 1 and runs their gates (foot slide on all 5 bodies, loops, joint limits, wrists, arms vs torso; falls: no pop before the thud, no bounce after it, limbs on the floor from 0.25 s after it; punches and cuts land ahead and end facing front; the aim at the shoulder; game timings, step rates), then `godot/tools/bake_anim.gd` bakes them unchanged into `godot/assets/figures/soldier/clips.res` (<= 1 MB). A failed gate bakes nothing; a failed bake or a file over 1 MB puts the old `clips.res` back. It lives here, not in `generator/`, because an import replaces `generator/` with the stage's copy. `STAGE=<build folder>` also copies the JSON to `<stage>/ref/soldier_clips.json` for `inner_posed.py` |
 | `check_names.py` | The banned-name scan of AGENTS.md rule 1 over the generator source (the data lint only covers `godot/`) |
 
 ## Requirements
@@ -55,8 +56,8 @@ depths into `out/data/inner_layers.json`, `assemble_inner.gd` stores them on the
 prints them in `IMPORTED.txt`. A build made before the body parts existed gets them without re-sculpting:
 `(cd <stage>/src/py && /usr/bin/python3 bake_parts.py)` (byte for byte what the current `build.py` writes), then
 `assemble.gd` and the two wound-layer steps. `inner_posed.py [--out DIR]` (about 3 minutes, `run_all.sh` runs it) poses
-the hi skin and both layers through every 2nd frame of the 15 clips the soldier uses (wrists eased as in the game,
-helpers driven) and measures each inner vertex against the posed skin of its own body part, skipping points a fold of
+the hi skin and both layers through every 2nd frame of the soldier's clips (all 26 of `ref/soldier_clips.json` when the
+stage has it: `new_stage.sh` writes it, `STAGE=<stage> bake_clips.sh` refreshes it; else the 15 humanoid clips with wrists eased as in the game; helpers driven) and measures each inner vertex against the posed skin of its own body part, skipping points a fold of
 skin still covers (winding number): `out/data/inner_posed.json`, printed in `IMPORTED.txt`.
 
 To swap in a newer stage (for example a stage-1b folder another agent built): run `import_stage.sh <that folder>` and
@@ -69,7 +70,7 @@ still rules).
 ## Tests after an import
 
 ```bash
-bash godot/tests/run.sh soldier                               # tests/unit/test_soldier.gd + test_soldier_wounds.gd
+bash godot/tests/run.sh soldier                               # tests/unit/test_soldier.gd + test_soldier_clips.gd + test_soldier_wounds.gd
 bash godot/tests/run.sh figures                               # the registry
 xvfb-run -a -s "-screen 0 1280x720x24" ~/godot-bin/godot --path godot --rendering-driver opengl3 --resolution 1280x720 \
   --audio-driver Dummy -s tests/render/test_soldier.gd        # in the game: budgets, foot slide, deck, arena, mission, card, English
@@ -103,7 +104,7 @@ unit tests also read each other body's `IMPORTED.txt` for the posed bone check.
 | optional `src/gd/soldier_skin_wound.gdshader` + `src/gd/wound.gdshaderinc` (a pair) | the skin while wounded (the figure's own material on hi/mid/lo): the same uniforms and `skin_light()` as `soldier_skin.gdshader` plus the wound section, which lives once in `wound.gdshaderinc` (`#include "wound.gdshaderinc"`, a relative path, so the file keeps its name in the game); the game copies them to `body_wound.gdshader` / `wound.gdshaderinc`. Without the pair the figure takes no wounds |
 | `out/data/rig.json` | `drivers`, `keys`, `bind_angles`, `arm_keys`: the driver constants; the import stores them in `rig.tscn` (metadata `soldier_rig`) |
 | optional `inner_bone.res` + `inner_flesh.res` + `src/gd/soldier_inner.gdshader` (a set; needs the wound pair) | the wound layers (`inner_layers.py`, `assemble_inner.gd`): one surface each, bound to the binds of `skin.res`, `CUSTOM0.x` = the body part. Bone: the anatomical bone parts of `skeleton.bin` decimated per part to about 5k triangles, each part rigid on its own bone (one weight of 1; the clavicle and scapula ride `clavicle<L/R>`, the kneecap `knee_half<L/R>`), every vertex at least 2 mm under the hi and mid skin. Flesh: the sculpt decimated to 7k and inset by the fat map (3–16 mm), at least 1 mm under the hi and mid skin, weights from the hi/mid weights. Material on the inner shader (unshaded, own light, no `TIME`, includes `wound.gdshaderinc`) with the layer's values and `render_priority` 1 (drawn after the skin); meta `depth_mm` = the least depths; the game copies the shader to `inner.gdshader` |
-| optional `clips.res` | a soldier copy of the clips (an AnimationLibrary with `humanoid.res`'s clip names and metadata). Used as it is: tracks it has for helper bones or blend shapes are not driven again. Without it the figure copies the clips it uses from `humanoid.res` and eases their wrists (wrist and hand turn together, twist and bend each at most 45°, no hand position tracks) because the shared clips turn the hand up to 180° for the rigid kits' weapons, which tears a continuous skin. |
+| `clips.res` (from `bake_clips.sh`, never from a stage: `import_stage.sh` ignores a stage's clip files and keeps the base folder's `clips.res`; base folder only) | the soldier's own clips at S = 1, shared by every body (played with `motion_scale` = S): idle, walk, jog, run, turn_l/r, aim, fire, reload, punch_0..2, swing_0..2, hit_front/back/left/right, hit_heavy, die_back/fwd/spin/knees, die_min_back/fwd, tracks on the 23 game bones only (face bones stay free); metadata `kind`, `from`, `speed`, `turn`, `contact_l/r`, `events`. The figure maps requests from `kind`/`from`. Without it the figure copies the clips it uses from `humanoid.res` and eases their wrists (wrist and hand turn together, twist and bend each at most 45°, no hand position tracks) because the shared clips turn the hand up to 180° for the rigid kits' weapons, which tears a continuous skin. |
 
 ## What the game does with it
 
@@ -112,10 +113,17 @@ unit tests also read each other body's `IMPORTED.txt` for the posed bone check.
   body is its own `Figures.BUILTINS` entry (`soldier`, `soldier_m2`, `soldier_m3`, `soldier_f1`, `soldier_f2`);
   `Figures.make_builtin` sets the figure's `body_id` before `setup` (or `setup({"body": id})`), and the figure loads
   everything from `SoldierFigure.folder(id)`; an unknown id falls back to the base body.
-- Clips: idle / walk / run at playback rate = speed / (clip speed × S); fire = the upper body held from the `fire` clip
-  at its first shot plus a 0.16 s kick; punch = `bash_*`, swing = `thrust_*` at 1.8×; hit = `flinch`; die =
-  `die_back` / `die_fwd` / `die_spin`; no reload clip. A/D turn it (H9 false), backwards = walk reversed, dodge = a short
-  lean (H8). Deck speeds = clip speed × S × 1.4.
+- Clips (own `clips.res`, ใหม่ 0.14): walk / jog / run by rig speed (speed / S: walk < 2.0 <= jog < 3.6 <= run, 5 %
+  hysteresis, the step phase kept) at rate = speed / (clip speed × S), so the arena's W (3 m/s) is a jog and Shift
+  (5 m/s) a run; turning on the spot (A/D, mouse; player and enemy, not the deck, not min) steps `turn_l` / `turn_r` at
+  yaw rate / 2.618 rad/s (clamped to 0.6–1.6×); fire = the upper body from `fire` key 0 (= `aim`) plus a 0.16 s kick; reload = the 1.6 s
+  `reload` clip on the upper body over the current loop (returns 1.6; the arena's own timer is the lockout; not on min);
+  punch_0..2 / swing_0..2 at rate 1.0 (shot at 0.12 / 0.18 s = the weapons' `active`); hit by the side `set_hit_from`
+  gave (min: hit_front); die_back from the front, die_fwd from behind, die_spin from a side or a seeded die_knees; min
+  falls with die_min_back / die_min_fwd (still from key 6). Deck speeds stay 1.61 / 4.0147 × S m/s (the old walk / run
+  speed × S × 1.4: move speeds are gameplay); the own walk plays at 1.24× there, 127 steps/min. Without `clips.res`:
+  idle / walk / run, `bash_*` / `thrust_*` at 1.8×, `flinch`, die_back/fwd/spin, no reload clip, deck speeds = clip
+  speed × S × 1.4, as before. A/D turn it (H9 false), backwards = walk reversed, dodge = a short lean (H8).
 - Levels: hi/mid helpers + correctives (the other bodies: helpers only), lo helpers only, min nothing per frame and a
   still pose within 10 frames of stopping; as the deck figure also still on lo. Rig, skin, materials, driver constants,
   S, helper rules, meshes, wound layers and wound spots are cached in static variables per body folder; the clips are

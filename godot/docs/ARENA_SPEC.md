@@ -336,7 +336,8 @@ stick and the deck-style orbit drag show; the four shooter buttons hide.
 - **Aim**: the crosshair sits at the exact viewport centre. `aim_ray()`: from the camera through the centre, 80 m,
   mask 1 | 4 | 8 | 16, excluding the player → the aim point (or the far end). The shot then runs from the muzzle to the aim
   point with the same mask; its first hit is the real target (a pillar beside the muzzle can block a shot the crosshair
-  showed clear — honest cover).
+  showed clear — honest cover). The muzzle is the figure's `muzzle()`; the soldier's is a fixed point, not the animated
+  hand (§9).
 - `_process` / `_physics_process` only while blending, following a moving player, or the arm is not settled (the deck's
   settle rule); otherwise off.
 - Camera shake on melee hits (0.1 s, 0.04 m) on hi/mid only.
@@ -794,6 +795,30 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   reverse walk, dodge, paint, the min still pose), `tests/render/test_arena_figures.gd` (the arena with a kit selected
   and with the dressed fixture `tests/fixtures/figure_pack_paint`: figure and scheme, the §11.2 overview budget on
   hi/mid/lo/min, a tracer from the muzzle, D turning without sliding, min idle; `arena_fig_<kit|pack>_<mid|min>.png`).
+- **The soldier's own clips** (ใหม่ 0.14, visual only except the fixed shot origin below; `assets/figures/soldier/clips.res` from
+  `tools/soldier/bake_clips.sh`, one library at S = 1 for all five bodies): requests map from each clip's
+  `kind` / `from` metadata (`SoldierFigure.clip_map`). Gaits by rig speed (speed / S: walk < 2.0 <= jog < 3.6 <= run,
+  5 % hysteresis, step phase kept), so W (3 m/s) jogs and Shift (5 m/s) runs at about rate 1; standing turns (A/D,
+  mouse) step `turn_l` / `turn_r` at yaw rate / 2.618 rad/s, clamped to 0.6–1.6× (a yaw jump over 0.35 rad or faster
+  than 6 rad/s is a placement, not a turn); punch / swing at rate 1.0 with the shot at the weapons' `active`
+  (0.12 / 0.18 s; the fist or blade lands straight ahead); `play(&"reload")` returns 1.6 and plays the clip on the
+  upper body over the loop (ArenaWeapons keeps its own timer); hits and falls by the side from `set_hit_from` in the
+  figure's frame (z > |x| front, z < −|x| back, x > 0 left), falls die_back / die_fwd / die_spin (on its side) or a
+  seeded die_knees, each lying still with its limbs on the floor by 1.4 s (the revive comes at 2 s); new `clip_event`
+  kinds `knees`, `mag_out`, `mag_in`, `ready`. min: loops while moving, still within 10 frames standing and after
+  `die_min_*`, no turns, no reload layer, hit_front only, nothing per frame. Speeds (ArenaData, deck 1.61 / 4.0147 × S),
+  timings and `RULES_V` unchanged. Without `clips.res` the humanoid copy as before. The shot origin does not follow the
+  clips: `muzzle()`, where the §5.4 shot ray starts, is a fixed point in the figure's frame, 0.13's standing-aim muzzle
+  (the humanoid copy's front hand, mean over its 8.4 s idle loop) × S, turned about the chest by `set_aim` (× 0.8),
+  + 0.35 m forward (base body at pitch 0: (−0.062, 1.498, 0.873)); so it is the same on every level, in every state and
+  without `clips.res`. What is left over from 0.13, whose point followed the playing clip's front hand (and the levels
+  play different things: min stands still, has no turn steps, no reload layer and only hit_front): standing, the old
+  point swayed with the idle up to 2 cm around this mean; walking (W) it sat on average 6 cm lower and 2 cm further
+  forward and bobbed ±2.4 cm; running (Shift) 19 cm lower and 9 cm further forward (±2.7 cm); in hits and turns it
+  followed those clips. The tracer starts at this point, about 14 cm from the muzzle of the shouldered rifle the own
+  clips show (visual only). The arena shot is in no network or replay data (offline only, §16). Tests:
+  `tests/unit/test_soldier_clips.gd` (with the muzzle on five bodies at pitch 0 / ±0.3), foot slide (idle, walk, jog,
+  run, turns on all five bodies) in `tests/render/test_soldier.gd`.
 - **Wounds on the soldier** (visual only; owner: "เวลาตายหรือโดนอะไรจะได้เห็นเป็นกระดูก กับเนื้อ"):
   `SoldierFigure.add_wound(bone, local_offset, radius)` puts a wound sphere on a bone (centre in the bone's frame). It
   affects only that bone's body part (`body_part()`: torso, head, left/right arm, left/right leg; every skin and inner

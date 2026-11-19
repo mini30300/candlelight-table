@@ -3,7 +3,8 @@
 #   bash tools/soldier/new_stage.sh <empty_dir>
 # Copies tools/soldier/generator/ (project.godot, src/) into <empty_dir> and fills <empty_dir>/ref/ with the game's
 # generated inputs: clips.json (exported from godot/assets/anim/humanoid.res by gd/export_clips.gd), humanoid.res and the
-# 23-bone rig template infantry.glb (both made by godot/tools/kits.sh; never committed). Then:
+# 23-bone rig template infantry.glb (both made by godot/tools/kits.sh; never committed), and soldier_clips.json (the
+# soldier's own clips from src/py/clips_soldier.py, the list the posed checks use). Then:
 #   bash <empty_dir>/src/run_all.sh                     # build (about 25 min on 4 cores; SKIP_BUILD=1 reuses the build)
 #   bash tools/soldier/import_stage.sh <empty_dir>      # into the game
 # Build folders hold fields, renders and logs (hundreds of MB): keep them outside the repository.
@@ -34,5 +35,11 @@ fi
 if [ ! -s "$DIR/ref/clips.json" ]; then
   [ -f "$ANIM/clips.json" ] || { echo "no Godot and no $ANIM/clips.json" >&2; exit 1; }
   cp "$ANIM/clips.json" "$DIR/ref/"
+fi
+# the soldier's own clips (the posed checks of the wound layers use them when present: inner_posed.clip_path)
+PY=/usr/bin/python3
+[ -x "$PY" ] || PY=python3
+if [ -f "$DIR/src/py/clips_soldier.py" ]; then
+  (cd "$DIR/src/py" && "$PY" clips_soldier.py --no-gates --out "$DIR/ref/soldier_clips.json" | tail -1)
 fi
 echo "ready: $DIR (next: bash $DIR/src/run_all.sh)"

@@ -409,7 +409,8 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   W1 (preview)", `soldier_f2` "ทหารราบ หญิง 2 (ทดลอง)" / "Infantry W2 (preview)" (short enough for one line on a
   dressing-room button at 1280 × 720 in both languages); an entry's `body` goes to
   the figure's `body_id` (`Figures.make_builtin`, used by `make` and `ArenaActors.player_figure`) and selects the asset
-  folder `res://assets/figures/soldier_<body>/`.
+  folder `res://assets/figures/soldier_<body>/`. Its `deck_speeds()` stay 1.61 / 4.0147 × S m/s (the humanoid walk / run
+  speed × S × 1.4, unchanged by its own clips in ใหม่ 0.14); its own walk plays at 1.24× there (127 steps/min).
 - **Default**: the first pack figure, else the egg; scheme original (a figure looks as before until the owner picks).
 - **Storage**: section `[figure]` (`figure`, `scheme`, `slot0..2`) of the app's settings file (`App.settings_file`; tests
   point it, or `Figures.store_path`, elsewhere); `App.save_settings` keeps other sections. Never `godot/data/*.json`
