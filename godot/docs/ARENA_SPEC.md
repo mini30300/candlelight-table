@@ -243,8 +243,11 @@ pillars (`shell`: the shooter camera's arm collides with them), stands, the swit
 | 4 `PROP` | stands, switch post, reset pedestal (walk-blocking; the camera arm ignores them) | — |
 | 8 `BEAST` | the beast's capsule (its hurt box too); 0 while dead | 1, 4, 2 |
 | 16 `TARGET` | the switch plate (sphere r 0.45), shots only | — |
+| 32 `RAGDOLL` | a dead soldier's ragdoll bodies on hi/mid (§9.8), visual only, while it falls | 64 |
+| 64 `RAGDOLL_FLOOR` | each falling ragdoll's own floor (a 6 × 6 m box at its feet, 2 cm up for Jolt's slop) | — |
 
-Shot rays use mask 1 | 4 | 8 | 16 and exclude the player. The shooter camera's spring arm uses mask 1.
+Shot rays use mask 1 | 4 | 8 | 16 and exclude the player, so they pass through a corpse (32); nothing else has 32 or 64
+in its mask. The shooter camera's spring arm uses mask 1. The 3D engine is Jolt Physics (`project.godot`, ใหม่ 0.14).
 
 ### 4.4 Look and build (`ArenaBuilder`, `scenes/arena/arena_builder.gd`)
 
@@ -904,6 +907,45 @@ missions); the deck avatar and the bots are unchanged.
   `test_footsteps`, `test_sleeps_while_panting`), `tests/unit/test_body_sfx.gd`, `test_audio.gd`, `test_arena_hud_text.gd`,
   and `tests/flow/test_arena_flow.gd` step 3c (25 s of Shift in the real loop: 3.15–3.6 m/s, panting asked of Sfx).
 
+### 9.8 Ragdoll deaths (ใหม่ 0.14 item 3, 19 Nov; the owner asked for bodies that fall with the hit)
+
+Visual only, offline single player: the game position, HP, revive and respawn are untouched (the figure node never
+moves), so `RULES_V`, `DATA_HASH` and the server stay as they are. Code: `SoldierRagdoll`
+(`scenes/arena/soldier_ragdoll.gd`, a `PhysicalBoneSimulator3D`) driven by `SoldierFigure`.
+
+| Level | Death |
+| --- | --- |
+| hi | the side-hit clip for 0.1 s, then a ragdoll of 15 bodies (pelvis, spine, chest, neck, head, upper arms, forearms with the hands, thighs, shins, feet) |
+| mid | the same with 13 bodies (spine merged into the chest, neck into the head, their joint limits added) |
+| lo | the clip of the side hit (front: `die_back`, back: `die_fwd`, sides: `die_spin`, or the seeded fall to the knees), as before |
+| min | unchanged: `die_min_back` / `die_min_fwd` by side, nothing per frame |
+
+- **Bodies**: capsules fitted once per body folder from `body_lo` (the skin points each bone carries most, in its bind
+  frame; trunk across, head upright, feet along the sole, limbs toward the child joint; radius = median distance from
+  the axis, length = the 3–97 % span). Masses: Winter's segment fractions of 70 kg. Layer 32, mask 64, CCD on.
+- **Joints**: 6DOF, limits copied from `tools/soldier` `rig.py` LIMITS (degrees from the I-pose, the right side mirrored;
+  the shoulder's 180° capped at 150°); the joint frames are rebuilt from the I-pose before every fall, so the limits
+  read exactly as LIMITS. Jolt's 6DOF reads these angles with the opposite sign (measured: unnegated, elbows and knees bend backward), so the
+  ranges are set negated.
+- **Prebuilt, idle**: the player's figure builds its ragdoll on hi/mid at setup (other roles at their first death):
+  simulator off, bodies static, no collision, top level, so standing or walking costs nothing extra.
+- **A death**: `ArenaPlayer.take_hit` sends `set_hit_push(-toward_attacker × ArenaData.PUSH.speed)` (2.4 m/s = a claw's
+  real ~0.6 m/s × visual 4) before `play(&"die")`; without it the push is 1.6 m/s away from `set_hit_from`. After
+  `LEAD` 0.1 s of the clip the bodies start where the clip put them, with the clip's own velocities plus the push
+  (share per body: chest/neck/head 1.0 … feet 0.1, 15 % lift), a seeded spread of ±12°, ±15 % and a torso twist of
+  ±1.5 rad/s (the figure's `opts.seed`, its own generator). The simulator's influence rises 0 → 1 over 0.15 s;
+  helper bones follow the physics pose (a modifier after the simulator), wounds follow through `skeleton_updated`
+  and `wound_point()` reads that pose.
+- **Stop**: when every body is under 0.12 m/s and 1 rad/s for 0.3 s, or 3 s after the start, the pose is baked into the
+  skeleton (the clip paused) and everything stops: no simulation, no floor, nothing per frame. Getting up (`play` of
+  a loop), a level change (bakes where it is) or freeing the figure stops it at once.
+- **Caps**: at most 4 ragdolls falling at once on hi, 2 on mid; a death over the cap plays its clip as on lo.
+- Tests: `tests/unit/test_soldier_ragdoll.gd` (real physics, 4× clock: build, limits against rig.py, 8 push directions
+  with settle/speed/travel/stretch/angle/floor bounds, `wound_point`, the mid cap with 6 deaths, the m2 and f1 bodies,
+  revive), `test_arena_figure_hooks.gd` (none on lo/min, clips by side), `tests/flow/test_arena_flow.gd` step 10e (a
+  shot ray through a corpse hits nothing of it), `tests/selftest.gd` (Jolt active, a ragdoll runs 60 frames without
+  NaN, also in the exported game). `tests/run_tests.gd` and `selftest.gd` await test methods that await frames.
+
 ## 10. Screens, flow and transitions (ROOM)
 
 ### 10.1 Flow
@@ -1328,8 +1370,8 @@ readable; nothing clips through the egg); the data lint; the deck's measured num
 
 ## 16. Out of scope now
 
-Sound and music; more enemies, waves, scores or a timer; aim assist, gamepads, hit zones (head shots); ragdolls and
-runtime IK (the hold's leg IK); online play in the arena; saving anything; the reward system (the deck's treasure
+Sound and music; more enemies, waves, scores or a timer; aim assist, gamepads, hit zones (head shots); runtime IK
+(the hold's leg IK; the soldier's death ragdoll is in §9.8); online play in the arena; saving anything; the reward system (the deck's treasure
 chest); the owner's private figures themselves (only the swap point is built); a camera that tilts up to the deck's vault.
 
 ## 17. As built (filled at integration)

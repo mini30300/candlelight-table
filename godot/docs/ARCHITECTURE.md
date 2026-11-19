@@ -447,6 +447,10 @@ stored in `user://paint/<kit>.json` and sent with the army list as plain ints, s
 
 **Dice**: a d6 mesh + 24 baked tumble clips (6 faces x 4 variants) generated once from `web/dice-core.js` replays;
 chosen by `seedOf(attacker, target, round, turn, stage)` so every screen shows the same tumble; no runtime physics.
+**Physics**: the 3D engine is Jolt Physics (`project.godot` `[physics]`, ใหม่ 0.14). Rules and game positions never read
+a physics body; the one rigid-body simulation is the soldier's death ragdoll on hi/mid (`SoldierRagdoll`, a
+`PhysicalBoneSimulator3D` of 15 / 13 capsules on layer 32 with its own floor on 64, ≤ 4 / 2 at once, baked and stopped
+when it settles; ARENA_SPEC §9.8). lo and min keep the death clips and add nothing per frame.
 **Props**: flat-coloured composites ≤ 300 tris in `assets/props/`. **Fonts**: Sarabun (exists). **Audio**: a handful of
 small OGG effects and three music loops rendered offline from the page's `SND` definitions (`SND.probe`), no runtime
 synthesis. **Size**: kits ~100 KB imported each, loaded lazily.

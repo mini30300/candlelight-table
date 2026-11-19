@@ -12,6 +12,8 @@ extends Node3D
 ## บาดแผล (add_wound, โดน/ตายลงแผลสุ่มแบบมี seed ≤ 8 แผล ติดกระดูก ด้านที่ถูกตีถ้ารู้ set_hit_from): hi/mid = ผิวขาด
 ## เห็นเนื้อและกระดูก (inner_*.res ซ่อนจนแผลแรก) · lo = สีแผลบนผิว · min = ไม่มีเลย (วัสดุร่วมไม่มีโค้ดแผล) ·
 ## แผลตัดเฉพาะส่วนร่างกายเดียวกับกระดูกแผล · อัปเดตตามท่าเฉพาะตอนมีแผล ล้างตอน setup / ลุกขึ้นใหม่
+## ล้มตามฟิสิกส์ (ใหม่ 0.14 ข้อ 3, SoldierRagdoll): hi/mid เล่นท่าล้ม 0.1 วิแล้วร่างตกตามแรงผลัก (set_hit_push) นิ่งแล้วอบท่าลงโครง
+## (ภาพล้วน ตำแหน่งของเกมไม่ขยับ) · lo/min ท่าล้มตามด้านที่ถูกตีเหมือนเดิม
 
 signal clip_event(kind: StringName)
 
@@ -118,6 +120,7 @@ const WOUND_SEAM_K := 1.35
 const WOUND_SEAM_PAD := 0.01
 const WOUND_ROOM := 0.6          # จุดที่รัศมีลงได้ < ค่านี้ × รัศมีต่ำสุดของช่วง ไม่ใช้
 const WOUND_FACING := 0.25       # set_hit_from: ลงแผลเฉพาะจุดที่นอร์มอลตามท่า · ทิศหาผู้ตี > ค่านี้ (ไม่มีจุดเลย = ทุกจุด)
+const RAG_PUSH := 1.6         # ม./วิ: แรงผลักร่างเมื่อรู้แค่ด้านที่ถูกตี (ไม่ได้เรียก set_hit_push)
 
 static var _bodies: Dictionary = {}       # โฟลเดอร์ร่าง -> {rig, skin, mat, mat_pv, drv, scale, rules, rules_ready}
 static var _mesh_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ระดับ -> ผิว
@@ -207,6 +210,13 @@ var _reload_anim: Animation
 var _reload_tracks: Dictionary = {}
 var _reload_t := -1.0            # เวลาในท่า reload (−1 = ไม่รีโหลด)
 var _reload_w := 0.0
+var _rag: SoldierRagdoll         # ร่างล้มตามฟิสิกส์ (hi/mid · ผู้เล่นสร้างค้างไว้ ตัวอื่นสร้างตอนตาย) · null = ไม่มี
+var _rag_t := -1.0               # วิในท่าล้มก่อนส่งให้ฟิสิกส์ (−1 = ไม่รอ)
+var _rag_prev: Dictionary = {}   # จุดกลางชิ้นร่างเฟรมก่อน (ความเร็วของท่า)
+var _rag_pose: Dictionary = {}   # ท่าโลก (กรอบโครง) ของกระดูกแผลระหว่างร่างตก (wound_point)
+var _rag_push := Vector3.ZERO
+var _push := Vector3.ZERO        # แรงผลัก (โลก ม./วิ) ของการตายครั้งถัดไป (set_hit_push)
+var _prng := RandomNumberGenerator.new()   # สุ่มแรงผลักของร่าง แยกจากตัวอื่น: ลำดับเดิมไม่เลื่อน
 
 
 # ================= สัญญาตัวละคร =================
@@ -230,6 +240,8 @@ func setup(opts: Dictionary) -> void:
 	_rng.seed = int(opts.get("seed", 1))
 	_wrng.seed = int(opts.get("seed", 1)) * 7919 + 104729
 	_vrng.seed = int(opts.get("seed", 1)) * 6007 + 7727
+	_prng.seed = int(opts.get("seed", 1)) * 4241 + 3907
+	_push = Vector3.ZERO
 	_reload_t = -1.0
 	_yaw_ok = false
 	level = str(opts.get("level", level))
@@ -284,6 +296,7 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 	speed = maxf(speed, 0.01)
 	var looping := logical in LOOPS or (own and anim.loop_mode != Animation.LOOP_NONE)
 	if looping and (_dead or _oneshot == &"die"):
+		_rag_stop()              # ลุกขึ้นใหม่: ร่างฟิสิกส์หยุด ท่าวนทับท่าที่อบไว้
 		clear_wounds()           # ลุกขึ้นใหม่ด้วยตัวเดิม (เกิดใหม่): แผลหาย
 		_yaw_ok = false          # วางตัวใหม่ ไม่นับเป็นหมุน
 		_yaw_rate = 0.0
@@ -312,6 +325,7 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 		&"die":
 			for i in 2 + (1 if _wrng.randf() < 0.5 else 0):      # สุ่มทุกระดับ (min ด้วย): ลำดับสุ่มไม่ขึ้นกับระดับ
 				_random_wound(WOUND_DIE, WOUND_DIE_LIMB)
+			_rag_arm()
 			_hit_from = Vector3.ZERO
 	return anim.length / speed
 
@@ -417,6 +431,7 @@ func apply_level(l: String) -> void:
 	_update_overlay()
 	if level == "min":
 		_reset_helpers()
+	_rag_level()
 	if _ap == null:
 		return
 	_yaw_ok = false              # เปลี่ยนระดับ: เริ่มวัดการหมุนใหม่ (ไม่หมุนค้าง)
@@ -433,6 +448,17 @@ func apply_level(l: String) -> void:
 
 
 # ================= ตะขอเสริม (ไม่อยู่ใน FIGURE_API) =================
+
+## แรงผลัก (โลก ม./วิ ที่อก) ของ play(&"die") ครั้งถัดไป: hi/mid ร่างล้มตามฟิสิกส์ไปทางนี้ (ใช้ครั้งเดียว · ไม่เรียก = จาก
+## ด้านที่ถูกตี set_hit_from × RAG_PUSH) · นอกสัญญาตัวละคร (ผู้เรียกเช็ก has_method)
+func set_hit_push(world_push: Vector3) -> void:
+	_push = world_push if world_push.is_finite() else Vector3.ZERO
+
+
+## ร่างล้มตามฟิสิกส์ (SoldierRagdoll) · null = lo/min หรือยังไม่สร้าง (เทส)
+func ragdoll() -> SoldierRagdoll:
+	return _rag
+
 
 ## (เดิน, วิ่ง) ม./วิ บนดาดฟ้าที่ท่าไม่ไถล (HallAvatar ใช้แทน 3 / 6)
 func deck_speeds() -> Vector2:
@@ -628,7 +654,8 @@ func wound_point(i: int) -> Vector3:
 	if i < 0 or i >= _wounds.size() or _sk == null:
 		return Vector3.ZERO
 	var w: Array = _wounds[i]
-	return _sk.global_transform * (_sk.get_bone_global_pose(int(w[1])) * (w[2] as Vector3))
+	var g: Transform3D = _rag_pose.get(int(w[1]), _sk.get_bone_global_pose(int(w[1])))    # ร่างตก: ท่าฟิสิกส์
+	return _sk.global_transform * (g * (w[2] as Vector3))
 
 
 ## ชั้นในที่สร้างแล้ว [เนื้อ, กระดูก] (ว่าง = ยังไม่เคยมีแผลบน hi/mid)
@@ -1280,7 +1307,9 @@ func _on_applied() -> void:
 			if t > _ev_prev and t <= pos:
 				clip_event.emit(StringName(str(e.get("kind", ""))))
 		_ev_prev = pos
-	if level != "min":
+	if _rag_t >= 0.0:
+		_rag_lead(dt)
+	if level != "min" and not (_rag != null and _rag.is_falling()):     # ร่างตก: กระดูกช่วย/แผลตามท่าฟิสิกส์แทน
 		_drive()
 		if not _wounds.is_empty():
 			_update_wounds()
@@ -1685,3 +1714,103 @@ func _sync_inner_light() -> void:
 		if v != null:
 			for m: ShaderMaterial in _inner_mats:
 				m.set_shader_parameter(k, v)
+
+
+# ================= ร่างล้มตามฟิสิกส์ (hi/mid) =================
+
+func _rag_ok() -> bool:
+	return _built and _ap != null and not _manual and role != &"deck" and (level == "hi" or level == "mid") \
+		and is_inside_tree()
+
+
+## ตาย: hi/mid รอท่าล้ม LEAD วิแล้วส่งให้ฟิสิกส์ · แรงผลักจาก set_hit_push ไม่งั้นจากด้านที่ถูกตี
+func _rag_arm() -> void:
+	_rag_stop()
+	var push := _push
+	_push = Vector3.ZERO
+	if not _rag_ok():
+		return
+	if push == Vector3.ZERO and _hit_from != Vector3.ZERO:
+		push = -_hit_from * RAG_PUSH
+	_rag_push = push
+	_rag_t = 0.0
+
+
+## ท่าล้มช่วงแรก (mixer_applied): จำจุดกลางชิ้นร่าง ครบ LEAD = ส่งให้ฟิสิกส์พร้อมความเร็วของท่า · เต็ม CAP = เล่นท่าต่อ
+func _rag_lead(dt: float) -> void:
+	if _rag == null or _rag.level != level:
+		_rag_build()
+		if _rag == null:
+			_rag_t = -1.0
+			return
+	var now := _rag.centres()
+	_rag_t += dt
+	if _rag_t < SoldierRagdoll.LEAD or _rag_prev.is_empty() or dt <= 0.0:
+		_rag_prev = now
+		return
+	_rag_t = -1.0
+	var vel := {}
+	for b: int in now:
+		vel[b] = ((now[b] as Vector3) - (_rag_prev.get(b, now[b]) as Vector3)) / dt
+	_rag_prev.clear()
+	var j := Vector3(_prng.randf_range(-1.0, 1.0), _prng.randf_range(-1.0, 1.0), _prng.randf_range(-1.0, 1.0))
+	if _rag.start(vel, _rag_push, j):
+		_rag_pose.clear()
+		if not _sk.skeleton_updated.is_connected(_rag_seen):
+			_sk.skeleton_updated.connect(_rag_seen)
+
+
+## ระหว่างร่างตก (หลังตัวจำลองวางท่าในชั้นปรับโครง): แผลตามท่าฟิสิกส์
+func _rag_seen() -> void:
+	for w: Array in _wounds:
+		_rag_pose[int(w[1])] = _sk.get_bone_global_pose(int(w[1]))
+	if not _wounds.is_empty():
+		_update_wounds()
+
+
+## ร่างนิ่ง/ครบเวลา (SoldierRagdoll.freeze): ท่าหลักหยุด อบท่าฟิสิกส์ลงโครง แล้วไม่มีงานต่อเฟรม
+func _rag_frozen(g: Dictionary) -> void:
+	_rag_unhook()
+	if _ap != null and _ap.is_playing():
+		_ap.pause()
+	_dead = true
+	var ks := g.keys()
+	ks.sort()
+	for b: int in ks:
+		_sk.set_bone_global_pose(b, g[b])
+	_drive()
+	_update_wounds()
+
+
+func _rag_stop() -> void:
+	_rag_t = -1.0
+	_rag_prev.clear()
+	if _rag != null:
+		_rag.stop()
+	_rag_unhook()
+
+
+func _rag_unhook() -> void:
+	_rag_pose.clear()
+	if _sk != null and _sk.skeleton_updated.is_connected(_rag_seen):
+		_sk.skeleton_updated.disconnect(_rag_seen)
+
+
+func _rag_build() -> void:
+	if _rag != null:
+		_rag.discard()
+		_rag = null
+	if _rag_ok():
+		_rag = SoldierRagdoll.make(self, _sk, _skin, _body, level)
+
+
+## เปลี่ยนระดับ: กำลังตก = หยุดตรงนั้น (อบท่า) · ผู้เล่น hi/mid สร้างค้างไว้ (ตายไม่สะดุด) · lo/min ไม่มี
+func _rag_level() -> void:
+	if _rag != null and _rag.is_falling():
+		_rag.freeze()
+	_rag_t = -1.0
+	if _rag != null and (_rag.level != level or not _rag_ok()):
+		_rag.discard()
+		_rag = null
+	if _rag == null and role == &"player" and _rag_ok():
+		_rag_build()

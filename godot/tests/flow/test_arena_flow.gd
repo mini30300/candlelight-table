@@ -26,6 +26,8 @@ extends SceneTree
 ## 10a. walk mode at the room's edge (z -10.75, gun holstered): the beast stops chasing and never claws;
 ## 10b. downed (HP 0): the Downed overlay, no movement, fire ignored, the beast idle through the grace; after 2 s the
 ##      player gets up at RESPAWN with 100 HP, shoot mode, a full magazine, the overlay hidden, the beast still idle;
+## 10e. (ใหม่ 0.14 item 3) a soldier corpse on hi beside the player: its ragdoll falls on layer 32 and the player's
+##      shot ray through its chest hits nothing of it (a layer-32 ray does); the player does not move;
 ## 10c. downed at the reset pedestal, E: the reset revives the player in place and input works again;
 ## 10d. (dodge, 13 Nov) Space at (0, -20) with no key held: a real 3.5–4 m dash backwards in about 0.3 s, a second
 ##      Space at once does nothing (cooldown); W + Space toward a pillar stops at its side, never inside it; with the bot
@@ -388,6 +390,35 @@ func _run() -> void:
 		"10b. after %.2f s the player gets up at RESPAWN: 100 HP, shoot mode, 30 / 30, the overlay hidden" % (float(t_down) / Engine.physics_ticks_per_second))
 	await _physics(int(0.3 * Engine.physics_ticks_per_second))
 	_check(str(enemy.call("state")) == "idle", "10b. the beast is still idle in the rest of its grace (%s)" % str(enemy.call("state")))
+	# 10e (ใหม่ 0.14 item 3): a soldier corpse on hi beside the player: its ragdoll falls on layer 32, the player's own
+	# shot ray through its chest hits nothing of it (a layer-32 ray does), and the player has not moved
+	var corpse: Node3D = (load("res://scenes/arena/soldier_figure.gd") as GDScript).new()
+	world.add_child(corpse)
+	corpse.global_position = player.global_position + Vector3(1.5, 0.0, 0.0)
+	corpse.call("setup", {"role": &"enemy", "level": "hi", "seed": 3})
+	corpse.call("set_hit_push", Vector3(1.6, 0.0, 0.0))
+	var p_corpse := player.global_position
+	corpse.call("play", &"die", 1.0)
+	var fell := false
+	for i in int(0.6 * Engine.physics_ticks_per_second):
+		await physics_frame
+		var rg: Variant = corpse.call("ragdoll")
+		fell = fell or (rg != null and bool(rg.call("is_falling")))
+	var rag: Variant = corpse.call("ragdoll")
+	var chest_body: Node3D = (rag as Node).get_node_or_null("chest") if rag != null else null
+	var shot := {}
+	var hit32 := {}
+	if chest_body != null:
+		var ray_a := chest_body.global_position + Vector3(0.0, 0.0, 1.5)
+		var ray_b := chest_body.global_position - Vector3(0.0, 0.0, 1.5)
+		shot = player.call("_ray", ray_a, ray_b)
+		hit32 = player.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(ray_a, ray_b, 32))
+	_check(fell and chest_body != null and not (shot.get("collider") is PhysicalBone3D) and hit32.get("collider") is PhysicalBone3D
+		and player.global_position.distance_to(p_corpse) < 0.01,
+		"10e. a soldier corpse (hi): its ragdoll falls on layer 32, the shot ray through its chest hits nothing of it",
+		str([fell, chest_body != null, shot.get("collider"), hit32.get("collider")]))
+	corpse.queue_free()
+	await _physics(2)
 	# 10c: downed at the reset pedestal, E revives in place
 	var rf2: Vector2 = ArenaLayout.STATIONS["reset"]["front"]
 	world.call("place_player", Vector3(rf2.x, 0.0, rf2.y), -PI * 0.5, PI * 0.5)

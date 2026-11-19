@@ -35,6 +35,9 @@ const BREATH := {"on": 0.2, "off": 0.15, "rate0": 16.0, "rate1": 40.0, "in_share
 const STEPS := {"walk": 0.35, "jog": 0.55, "run": 0.8, "tired": 0.2, "side": 0.1, "y": 0.05, "pitch_l": 0.98,
 	"pitch_r": 1.02, "metal_pitch": 0.9,
 	"cadence": [Vector2(0.0, 90.0), Vector2(1.45, 103.0), Vector2(3.0, 164.0), Vector2(5.0, 180.0), Vector2(6.5, 195.0)]}
+## แรงผลักร่างตอนตาย (ภาพล้วน: ร่างล้มตามฟิสิกส์ของทหาร hi/mid, ARENA_SPEC §9.8) · speed ม./วิ ที่อก ตามทิศจากผู้ตีไปหาผู้ตาย
+## ของจริง: กรงเล็บ (แขนสัตว์ ~8 กก. × ~6 ม./วิ) ส่งให้ร่าง 75 กก. ได้ ~0.6 ม./วิ ดูจืด · visual × 4 ให้เห็นทิศชัด = 2.4
+const PUSH := {"speed": 2.4, "real": 0.6, "visual": 4.0}
 const BEAST := {"th": "สัตว์รัง", "kit": "warrior", "hp": 300, "radius": 0.6, "height": 2.1, "walk": 1.5, "run": 3.7,
 	"turn": 6.0, "attack_range": 2.2, "windup": 0.6, "attack_clip_speed": 0.6, "strike_damage": 18, "strike_reach": 2.6,
 	"strike_half_angle_deg": 70.0, "recover": 0.7, "flinch": 0.35, "flinch_heavy": 0.8, "heavy_at": 40,

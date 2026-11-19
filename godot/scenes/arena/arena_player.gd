@@ -431,6 +431,8 @@ func take_hit(hit: Dictionary) -> Dictionary:
 		var d: Vector3 = (from as Vector3) - global_position
 		d.y = 0.0
 		_call_fig("set_hit_from", [d])        # ทหาร: แผลขึ้นด้านที่หันหาผู้ตี
+		if bool(r["killed"]) and d.length() > 0.0001:
+			_call_fig("set_hit_push", [-d.normalized() * float(ArenaData.PUSH["speed"])])   # ทหาร hi/mid: ร่างล้มไปทางนี้
 	if bool(r["killed"]):
 		_go_down()
 	else:
