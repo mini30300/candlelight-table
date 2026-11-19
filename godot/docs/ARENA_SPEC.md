@@ -946,6 +946,34 @@ moves), so `RULES_V`, `DATA_HASH` and the server stay as they are. Code: `Soldie
   shot ray through a corpse hits nothing of it), `tests/selftest.gd` (Jolt active, a ragdoll runs 60 frames without
   NaN, also in the exported game). `tests/run_tests.gd` and `selftest.gd` await test methods that await frames.
 
+### 9.9 Faces (ใหม่ 0.14 item 2, 19 Nov; the owner asked for blinking, feelings and a mouth that moves with speech)
+
+Visual only (no rules, no sync, no `RULES_V` change). Code: `SoldierFace` (`scenes/arena/soldier_face.gd`) owned by
+`SoldierFigure` and ticked from its mixer callback (so it never runs where the figure stands still), `FaceSpeech`
+(`scenes/arena/face_speech.gd`), the generator's 5 face bones, `CUSTOM1` and `face.gdshaderinc` (tools/soldier STAGES).
+
+| Level | Face |
+| --- | --- |
+| hi / mid | bones `head_jaw` (rotation), `head_lipL/R`, `head_browL/R` (translations, × the body's S ratio) + the lids in the shader |
+| lo | the shader only: lids and a painted mouth (`face_state` z/w); the deck's lo stands still, so no blink there |
+| min | nothing: the shared min material has `face_on` off (no `CUSTOM1`), no timer, no write |
+
+- `face_state` is an instance uniform (x upper lid, y lower lid, z painted mouth, w mouth width): no material copy, it
+  survives the wound material. Every write (bone or uniform) happens only when the value changes; at most 6 a tick.
+- **Blink**: every 2–6 s (uniform), 12 % doubles, the figure's own generator from `opts.seed` (`* 2731 + 5419`).
+- **Moods** (10): neutral, happy, sad, angry, pain, fear, surprise, focus, tired, shout, within the rig's ranges (jaw ≤ 8°).
+  Hooks: a hit → pain 0.9 s, punch/swing/attack → angry 1.0 s, aiming → focus (narrowed eyes), death → the eyes close,
+  or stay open for about 1 in 4 soldiers (`SoldierFace.eyes_stay_open(seed)`), written once; getting up resets it.
+- **Speech**: `say(text, lang)` → `FaceSpeech.visemes` (8 mouth shapes; Thai: leading vowels after their consonant,
+  silent tone marks, ็ and ์, closing ม บ ป พ ภ ฟ shut the lips, TextServer word breaks, ๆ; English: letters and
+  digraphs). Silent: the text shows in a `SpeechBubble` (`ui/widgets/speech_bubble.gd`) while the mouth moves — the
+  dressing room greets (not on min), the "normal" hero card speaks every 9 s on hi/mid. Lines: `SpeechBubble.LINES`,
+  English in `ui/i18n/face.json`.
+- Extras outside `FIGURE_API` (still 12): `set_mood(mood, hold)`, `say(text, lang)`, `face()`.
+- Tests: `tests/unit/test_soldier_face.gd`, `test_soldier.gd` (`test_drivers_per_level`), `test_soldier_wounds.gd`
+  (`test_skin_light_copies`), `test_i18n.gd`; `tests/render/test_soldier_face.gd` (lids hide the whites, an open mouth
+  darkens, min draws nothing, the bubbles; face sheets `soldier_face_<body>.png`).
+
 ## 10. Screens, flow and transitions (ROOM)
 
 ### 10.1 Flow

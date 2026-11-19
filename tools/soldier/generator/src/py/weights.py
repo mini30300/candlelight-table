@@ -157,8 +157,8 @@ FOLD = {"elbow_half": ("shoulder", "elbow"), "knee_half": ("hip", "knee"), "hip_
 
 
 def fold_helpers(W):
-    """ระดับ min: ไม่มีกระดูกช่วย -> คืนน้ำหนักให้กระดูกหลัก"""
-    W = W.copy()
+    """ระดับ min: ไม่มีกระดูกช่วย (และกระดูกหน้า) -> คืนน้ำหนักให้กระดูกหลัก"""
+    W = fold_face(W)
     for sd in ("L", "R"):
         for h, (a, b) in FOLD.items():
             ih = BI[h + sd]
@@ -177,6 +177,35 @@ def fold_helpers(W):
                 W[:, BI["shoulder" + sd]] += w
             elif h == "clavicle":
                 W[:, BI["chest"]] += w
+    return W
+
+
+def add_face(W, H, side, f):
+    """กระดูกหน้า (hi/mid และชั้นเนื้อของแผล): แบ่งจากน้ำหนักของ head เท่านั้น (คอ/ลำตัวไม่ถูกแตะ)
+    H = พิกัดศีรษะท่า I ; side = +1 เหนือแนวปาก / -1 ใต้ (แถวล่างของรอยต่อ) / 0 มุมปาก ; f = face.features"""
+    import face as FC
+    W = W.copy()
+    ih = BI["head"]
+    wh = W[:, ih].copy()
+    fr = FC.weights(H, side, f)
+    lips = fr["head_lipL"] + fr["head_lipR"]
+    rest = 1.0 - lips
+    parts = {"head_lipL": fr["head_lipL"], "head_lipR": fr["head_lipR"], "head_jaw": rest * fr["head_jaw"]}
+    rest = rest - parts["head_jaw"]
+    parts["head_browL"] = rest * fr["head_browL"]
+    parts["head_browR"] = rest * fr["head_browR"]
+    for b, fv in parts.items():
+        W[:, BI[b]] += wh * fv
+        W[:, ih] -= wh * fv
+    return np.maximum(W, 0)
+
+
+def fold_face(W):
+    """ระดับ lo/min: ไม่มีกระดูกหน้า -> คืนน้ำหนักให้ head"""
+    W = W.copy()
+    for b in rig.FACE:
+        W[:, BI["head"]] += W[:, BI[b]]
+        W[:, BI[b]] = 0
     return W
 
 

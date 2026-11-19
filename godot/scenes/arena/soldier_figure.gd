@@ -217,6 +217,8 @@ var _rag_pose: Dictionary = {}   # ท่าโลก (กรอบโครง)
 var _rag_push := Vector3.ZERO
 var _push := Vector3.ZERO        # แรงผลัก (โลก ม./วิ) ของการตายครั้งถัดไป (set_hit_push)
 var _prng := RandomNumberGenerator.new()   # สุ่มแรงผลักของร่าง แยกจากตัวอื่น: ลำดับเดิมไม่เลื่อน
+var _face: SoldierFace           # หน้า (0.14): กะพริบ อารมณ์ ปากพูด · เดินด้วย _on_applied (min/ยืนนิ่ง = ไม่เดิน)
+var _mat_min: ShaderMaterial     # วัสดุของ min (ใช้ร่วม): face_on ปิด (เมช min ไม่มี CUSTOM1)
 
 
 # ================= สัญญาตัวละคร =================
@@ -248,6 +250,11 @@ func setup(opts: Dictionary) -> void:
 	if not LEVELS.has(level):
 		level = "mid"
 	_build()
+	if _face == null and _sk != null:
+		_face = SoldierFace.new()
+		_face.attach(_sk, _mi, _scale / maxf(float(_load_static(DIR)["scale"]), 0.001))
+	if _face != null:
+		_face.reseed(int(opts.get("seed", 1)))
 	_wounds.clear()
 	_wound_next = 0
 	apply_level(level)
@@ -297,6 +304,8 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 	var looping := logical in LOOPS or (own and anim.loop_mode != Animation.LOOP_NONE)
 	if looping and (_dead or _oneshot == &"die"):
 		_rag_stop()              # ลุกขึ้นใหม่: ร่างฟิสิกส์หยุด ท่าวนทับท่าที่อบไว้
+		if _face != null:
+			_face.revive()
 		clear_wounds()           # ลุกขึ้นใหม่ด้วยตัวเดิม (เกิดใหม่): แผลหาย
 		_yaw_ok = false          # วางตัวใหม่ ไม่นับเป็นหมุน
 		_yaw_rate = 0.0
@@ -322,11 +331,18 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 		&"hit", &"hit_heavy":
 			_random_wound(WOUND_HIT * (1.25 if logical == &"hit_heavy" else 1.0), WOUND_HIT)
 			_hit_from = Vector3.ZERO
+			if _face != null:
+				_face.event(&"pain")
+		&"punch", &"swing", &"attack":
+			if _face != null:
+				_face.event(&"angry")
 		&"die":
 			for i in 2 + (1 if _wrng.randf() < 0.5 else 0):      # สุ่มทุกระดับ (min ด้วย): ลำดับสุ่มไม่ขึ้นกับระดับ
 				_random_wound(WOUND_DIE, WOUND_DIE_LIMB)
 			_rag_arm()
 			_hit_from = Vector3.ZERO
+			if _face != null:
+				_face.die()              # ตาปิด (ราว 3 ใน 4 ตัว ตาม seed) หรือเปิดค้าง
 	return anim.length / speed
 
 
@@ -427,6 +443,8 @@ func apply_level(l: String) -> void:
 	if not _built:
 		return
 	_set_mesh(level)
+	if _face != null:
+		_face.set_level(level)
 	_show_wounds()
 	_update_overlay()
 	if level == "min":
@@ -458,6 +476,26 @@ func set_hit_push(world_push: Vector3) -> void:
 ## ร่างล้มตามฟิสิกส์ (SoldierRagdoll) · null = lo/min หรือยังไม่สร้าง (เทส)
 func ragdoll() -> SoldierRagdoll:
 	return _rag
+
+
+## อารมณ์ของหน้า (SoldierFace.MOODS) · hold > 0 = ชั่วคราว (วิ) แล้วกลับอารมณ์หลัก · นอกสัญญาตัวละคร (has_method)
+func set_mood(mood: StringName, hold := 0.0) -> bool:
+	return _face != null and _face.set_mood(mood, hold)
+
+
+## พูดข้อความ (ปากขยับ ไม่มีเสียง: กรอบคำพูดเป็นของฉาก) · lang "th"/"en" ("" = ดูจากตัวอักษร) · คืนความยาว (วิ)
+## 0 = ไม่พูด: min, ยืนนิ่ง (ดาดฟ้า lo), ตายแล้ว หรือไม่มีท่า · ข้อความว่าง = หยุดพูด · นอกสัญญาตัวละคร
+func say(text: String, lang := "") -> float:
+	if _face == null:
+		return 0.0
+	if _ap == null or _still_level() or _dead or _oneshot == &"die":
+		return _face.say("")
+	return _face.say(text, lang)
+
+
+## หน้าของตัวนี้ (เทส/ภาพเทียบ) · null = ยังไม่สร้าง
+func face() -> SoldierFace:
+	return _face
 
 
 ## (เดิน, วิ่ง) ม./วิ บนดาดฟ้าที่ท่าไม่ไถล (HallAvatar ใช้แทน 3 / 6)
@@ -985,6 +1023,8 @@ static func twist_deg(q: Quaternion) -> float:
 ## half = ครึ่งมุมของข้อ · upper_twist = หมุนกลับครึ่งหนึ่งของการบิดต้นแขน · fore_twist = รับการบิดข้อมือ+มือส่วนหนึ่ง
 ## clavicle = ไหล่ยก/ยื่นตามทิศต้นแขน
 static func helper_rule(name: String, parent: String) -> Array:
+	if name.begins_with("head_"):
+		return ["face", "", ""]       # กระดูกหน้า (0.14): SoldierFace ขยับเอง ไม่มีตัวขับจากกระดูกอื่น
 	var side := name.right(1)
 	if side != "L" and side != "R":
 		return ["", "", ""]
@@ -1072,7 +1112,8 @@ static func _clamp_turn(q: Quaternion, max_deg: float) -> Quaternion:
 static func _load_static(body := DIR) -> Dictionary:
 	if _bodies.has(body):
 		return _bodies[body]
-	var d := {"rig": null, "skin": null, "mat": null, "mat_pv": null, "drv": {}, "scale": 1.0, "rules": [], "rules_ready": false}
+	var d := {"rig": null, "skin": null, "mat": null, "mat_pv": null, "mat_min": null, "drv": {}, "scale": 1.0, "rules": [],
+		"rules_ready": false}
 	_bodies[body] = d
 	if ResourceLoader.exists(body + "rig.tscn"):
 		d["rig"] = load(body + "rig.tscn") as PackedScene
@@ -1081,10 +1122,15 @@ static func _load_static(body := DIR) -> Dictionary:
 	var mp := body + "body_material.tres" if ResourceLoader.exists(body + "body_material.tres") else MATERIAL
 	var mat := load(mp) as ShaderMaterial if ResourceLoader.exists(mp) else null
 	if mat != null:
+		mat = mat.duplicate() as ShaderMaterial   # สำเนา: เปิดหน้า (face_on) โดยไม่แตะไฟล์ที่แคชไว้
+		mat.set_shader_parameter("face_on", true)
 		d["mat"] = mat
 		var pv := mat.duplicate() as ShaderMaterial
 		pv.set_shader_parameter("per_vertex", true)
 		d["mat_pv"] = pv
+		var mn := pv.duplicate() as ShaderMaterial
+		mn.set_shader_parameter("face_on", false)   # min: ไม่มี CUSTOM1 ไม่วาดหน้า
+		d["mat_min"] = mn
 	# ค่าคงที่ของตัวขับ: meta ของราก rig.tscn (rig.json ของขั้นปั้น) ทับค่าของขั้น 1
 	var drv := DRIVERS.duplicate()
 	drv["arm_keys"] = {}
@@ -1129,6 +1175,7 @@ func _use_body() -> void:
 	_skin = d["skin"]
 	_mat = d["mat"]
 	_mat_pv = d["mat_pv"]
+	_mat_min = d["mat_min"]
 	_drv = d["drv"]
 	_scale = float(d["scale"])
 	_wound_sh = wound_shader(_body)
@@ -1237,7 +1284,10 @@ func _material_for(l: String) -> ShaderMaterial:
 	var pv := l == "lo" or l == "min"
 	if _own_mat != null and (_own_lit or l != "min"):
 		_own_mat.set_shader_parameter("per_vertex", pv and not _own_pp)
+		_own_mat.set_shader_parameter("face_on", l != "min")
 		return _own_mat
+	if l == "min":
+		return _mat_min
 	return _mat_pv if pv else _mat
 
 
@@ -1313,6 +1363,8 @@ func _on_applied() -> void:
 		_drive()
 		if not _wounds.is_empty():
 			_update_wounds()
+	if _face != null and level != "min" and not _still_level():
+		_face.tick(dt, _aim_on())
 	if _still_wait >= 0.0:
 		_still_wait -= dt
 		if _still_wait < 0.0 and _still_level() and _oneshot == &"" and _loop == &"idle" and not _dead:

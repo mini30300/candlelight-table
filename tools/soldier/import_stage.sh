@@ -15,7 +15,7 @@
 # bake_clips.sh. Steps, and nothing in the repository changes unless the first two succeed:
 #  1. Godot re-saves the stage's files in a scratch project, so every path inside them points at the game's copy:
 #     godot/assets/figures/<target>/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres,
-#     body_wound.gdshader, wound.gdshaderinc, inner_bone.res, inner_flesh.res, inner.gdshader};
+#     body_wound.gdshader, wound.gdshaderinc, face.gdshaderinc, inner_bone.res, inner_flesh.res, inner.gdshader};
 #     rig.json's driver constants travel inside rig.tscn (metadata "soldier_rig"); existing UIDs are kept.
 #  2. The stage's generator source is checked for the banned names of AGENTS.md rule 1.
 #  3. Assets go to godot/assets/figures/<target>/ (files the stage no longer makes are removed) and, for the base body or
@@ -59,6 +59,10 @@ done
 for f in src/gd/soldier_skin.gdshader src/run_all.sh; do
   [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f" >&2; exit 1; }
 done
+# the face section (ใหม่ 0.14) is included by both skin shaders
+if grep -q 'face.gdshaderinc' "$STAGE/src/gd/soldier_skin.gdshader" && [ ! -f "$STAGE/src/gd/face.gdshaderinc" ]; then
+  echo "missing $STAGE/src/gd/face.gdshaderinc (the skin shader includes it)" >&2; exit 1
+fi
 # the wound shaders are optional, but come as a pair (the skin shader includes the wound code)
 if [ -f "$STAGE/src/gd/soldier_skin_wound.gdshader" ] || [ -f "$STAGE/src/gd/wound.gdshaderinc" ]; then
   for f in src/gd/soldier_skin_wound.gdshader src/gd/wound.gdshaderinc; do
@@ -88,7 +92,7 @@ for f in rig.tscn skin.res soldier_skin.tres body_hi.res body_mid.res body_lo.re
 done
 if [ -f "$STAGE/out/data/rig.json" ]; then cp "$STAGE/out/data/rig.json" "$WORK/out/data/"; fi
 cp "$STAGE/src/gd/soldier_skin.gdshader" "$WORK/src/gd/"
-for f in soldier_skin_wound.gdshader wound.gdshaderinc; do
+for f in soldier_skin_wound.gdshader wound.gdshaderinc face.gdshaderinc; do
   if [ -f "$STAGE/src/gd/$f" ]; then cp "$STAGE/src/gd/$f" "$WORK/src/gd/"; fi
 done
 if [ -f "$WORK/out/godot/inner_bone.res" ]; then cp "$STAGE/src/gd/soldier_inner.gdshader" "$WORK/src/gd/"; fi
@@ -219,6 +223,10 @@ if rep.get("inner"):
             lines.append("posed bone above the hi skin (drawn only in the ring just outside a wound): chest front %.2f mm, "
                          "hips %.2f mm, worst %.2f mm (%s)" % (max(b["regions"]["chest_front"]["max_mm"], 0.0),
                          max(b["regions"]["hips"]["max_mm"], 0.0), max(b["max_mm"], 0.0), b["worst"].split(" vertex")[0]))
+        g = p.get("G13")
+        if g:
+            # ใหม่ 0.14: หน้า (กระดูกหน้า CUSTOM1 รอยต่อปาก เปลือกตาปิด ท่าหน้า)
+            lines.append("face (G13, inner_posed.py): %s" % ("PASS" if g.get("pass") else "FAIL: " + "; ".join(g.get("fails", []))))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
 # the clip library is never imported: one clips.res in the base folder (bake_clips.sh) for all five bodies

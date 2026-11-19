@@ -1,32 +1,37 @@
-Soldier assets imported by tools/soldier/import_stage.sh from stage 'stage1c'.
+Soldier assets imported by tools/soldier/import_stage.sh from stage 'base'.
 Do not edit these files by hand: change the generator (tools/soldier/generator) and import again.
 
 level  surfaces  verts   tris  blend_shapes    bytes
-hi            1  11802  23600            14  3565492
-mid           1   7850  15696            14  2377591
-lo            1   4427   8850             0   159352
+hi            1  11796  23588            14  3737326
+mid           1   7846  15688            14  2491979
+lo            1   4427   8850             0   223103
 min           1   2462   4920             0    87132
 
 wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)
-bone          1   2819   5113             -    75895  depth 3.26 mm / 2.71 mm
-flesh         1   3502   7000             -   117067  depth 1.49 mm / 1.49 mm
+bone          1   2824   5111             -    75971  depth 2.50 mm / 2.50 mm
+flesh         1   3502   7000             -   118699  depth 1.49 mm / 1.49 mm
+posed (374 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm; bone chest front <= 1.32 mm, hips <= 6.83 mm (base + 0.5)): flesh above the hi skin at most 0.43 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 2 verts, at most 0.86 mm
+posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.82 mm, hips 6.33 mm, worst 22.79 mm (swing_1 frame 8)
+face (G13, inner_posed.py): PASS
 
-bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
+bones (38): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR head_jaw head_lipL head_lipR head_browL head_browR
 motion_scale: 1.1125
 driver constants: from the stage's rig.json
-soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrists eased)
+soldier clip library: assets/figures/soldier/clips.res (made by tools/soldier/bake_clips.sh, not by the stage)
 
 sha256:
-  73946fdf628a387a5f336c36c68153dfdd86129b698eca0785816262c2829177  body.gdshader  2612 bytes
-  674828d72179e5ed7de7ad74e5e5b98c135e474738820841c2baa65bfd198b3d  body_hi.res  3565492 bytes
-  df19cd577c4cf510b1fb123afe2793fd7c9a419e7a38b832b66af68b4b1b71ae  body_lo.res  159352 bytes
-  f9e37d6325cbcbb441653259f3d1122128e8d6740d865cc77d5b4f87194a4b34  body_material.tres  537 bytes
-  7da36d221f4b32b6382413373121913664cda8c3a22bcaef68aa7b65c22d1a53  body_mid.res  2377591 bytes
+  2bc691e96f5399560b45e170ac212f3aae0f22dc7b67ba70e061eedcde83a3a4  body.gdshader  5696 bytes
+  47789a9129b5f14058f7a7ed77072d08dfbc94710992bf70e07cc3272cbdfdff  body_hi.res  3737326 bytes
+  9166fc773109d2288b6767c997769dbe8a019f54881716a456beb5f42ae28aa5  body_lo.res  223103 bytes
+  035b9bb4e427a5941575e23668c8a61711e7c8fafbe682c5fc3e47f6e03fef1d  body_material.tres  853 bytes
+  5de2518448990c760d4bd67b967096a6c53d6b3b3bb0537b5a35c6bbc9880559  body_mid.res  2491979 bytes
   cb434d32780c21a7c825e28e52460b3c62677d8e8620a775eb970580e7c04cf4  body_min.res  87132 bytes
-  b28dbda8c9fd39644499b7ba8901ab4fc2a6b715aa7f68605266d64e053e03f6  body_wound.gdshader  3345 bytes
+  3413fe6d7f7910fe3ba7eb99acd431854d26ed6285be1a3555d679d8d2ec0c8f  body_wound.gdshader  5795 bytes
+  89904da9420034cad165244af06c84658fdd04598ffdff410fa346e785d94e52  clips.res  189234 bytes
+  77495574b46cb3706a3776e752d582c8db8419c292d84bbbbef0903c1a5b7436  face.gdshaderinc  3834 bytes
   7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
-  55a6206d6f60192d6a0b90673a4072c39e6125d58dfc0d4257682e1123789fba  inner_bone.res  75895 bytes
-  b3697a8742735e53715df60df63fc561c4253425ee4b543d878cab624f6c19e1  inner_flesh.res  117067 bytes
-  4d31741c9cd1acefab4020d5da3afc0205bf7e136350814c04c16732ddc03fff  rig.tscn  10968 bytes
-  2ec7fb8658170cc2e446d406f801f5c0d56e5edc0d579bb2e9edae1764ce8721  skin.res  4807 bytes
+  cd4ab010eb8e4f3cdd364897ad432183fc87d7ab0a53ca3419c57bbca3774644  inner_bone.res  75971 bytes
+  05c6d5bcc8b05754545c40a54f87bfff2d48d2d66d404c08a11404d1c323a401  inner_flesh.res  118699 bytes
+  b5bb178f309e3050ff3c028c30b16425029a0268440c9d9c962c868492ec89da  rig.tscn  12383 bytes
+  8274a77fa19e3ae85d159458c49e11efd4b507fd4362b4b46b568bfa31812b43  skin.res  5513 bytes
   41ed3ca5a9bab06a3dfd2716639d12ffd171a8665825d6e1f1efb51501e9d405  wound.gdshaderinc  3211 bytes

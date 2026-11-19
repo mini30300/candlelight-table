@@ -454,7 +454,17 @@ func _assert_plain_shader(sh: Shader, label: String) -> void:
 		return
 	var bare := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/").sub(sh.code, "", true)
 	assert_false(bare.contains("discard"), label + ": no discard (early depth and hidden-surface removal stay on)")
-	assert_false(bare.contains("wound") or bare.contains("#include"), label + ": no wound uniforms or code")
+	# 0.14 (face): body.gdshader includes face.gdshaderinc (shared with the wound shader by design); that one include is
+	# allowed, any other is not, and the face include itself must carry no wound code and no discard
+	var inc := "#include \"face.gdshaderinc\""
+	assert_false(bare.replace(inc, "").contains("wound") or bare.replace(inc, "").contains("#include"),
+		label + ": no wound uniforms or code")
+	if bare.contains(inc):
+		var fi := load(sh.resource_path.get_base_dir().path_join("face.gdshaderinc")) as ShaderInclude
+		var face := fi.code if fi != null else ""
+		var fbare := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/").sub(face, "", true)
+		assert_true(fbare.contains("face_paint") and not fbare.contains("wound") and not fbare.contains("discard")
+			and not fbare.contains("#include"), label + ": face.gdshaderinc has no wound code, discard or include")
 	var names := (sh.get_shader_uniform_list() as Array).map(func(u: Dictionary) -> String: return u["name"])
 	assert_false(names.any(func(n: String) -> bool: return n.begins_with("wound")), label + ": no wound_ uniforms", str(names))
 
@@ -572,6 +582,24 @@ func test_skin_light_copies() -> void:
 		assert_true(pv_v.contains("skin_light("), name + ": per_vertex lights in the vertex with skin_light()")
 		assert_eq(pv_f.strip_edges(), "lit = v_col * v_light;", name + ": the per_vertex fragment only multiplies the vertex light")
 		assert_eq(code.count("skin_gloss("), 2, name + ": skin_gloss is defined once and called once (per pixel)")
+	# ใหม่ 0.14 item 2: both skin shaders include face.gdshaderinc; every body carries the same copy as the base and the
+	# generator, with no TIME and no discard, the face off by default and face_state per instance
+	var face := FileAccess.get_file_as_string(DIR + "face.gdshaderinc")
+	assert_true(face != "", "the base body has face.gdshaderinc")
+	for body in BODIES:
+		var d := str(S.call("folder", body))
+		assert_true(FileAccess.get_file_as_string(d + "face.gdshaderinc") == face, "%s: face.gdshaderinc is the same as the base body's" % body)
+	var fsrc := gen.path_join("face.gdshaderinc")
+	if FileAccess.file_exists(fsrc):
+		assert_true(FileAccess.get_file_as_string(fsrc) == face, "the generator's face.gdshaderinc is the same as the base body's")
+	else:
+		print("skip  the generator's copy of face.gdshaderinc is not here (exported self-test)")
+	var fcode := strip.sub(face, "", true)
+	assert_false(fcode.contains("TIME") or fcode.contains("discard"), "face.gdshaderinc: no TIME, no discard")
+	assert_true(fcode.contains("uniform bool face_on = false;") and fcode.contains("instance uniform vec4 face_state"),
+		"face.gdshaderinc: face_on off by default, face_state per instance")
+	for name in ["body.gdshader", "body_wound.gdshader"]:
+		assert_true(FileAccess.get_file_as_string(DIR + name).contains("#include \"face.gdshaderinc\""), name + " includes the face")
 
 
 ## ตัวฟังก์ชันที่ขึ้นต้นด้วย head จนถึง } ปิดที่ต้นบรรทัด ("" = ไม่มี)
@@ -750,7 +778,10 @@ func test_variant_wounds() -> void:
 
 ## depth of a point under a closed skin mesh (bind pose): distance to the closest triangle, negative outside (the sign
 ## from the vertex normals interpolated at the closest point, as inner_layers.py does). Exact: the closest vertex bounds
-## the distance to the surface, and every triangle whose box meets that ball is tested (a grid of triangle boxes)
+## the distance to the surface, and every triangle whose box meets that ball is tested (a grid of triangle boxes).
+## 0.14 (face): an "outside" sign is confirmed by ray parity (3 rays, majority), because in a concave spot (the inner eye
+## corner of the re-decimated mid skin) the interpolated normal can be tangent and flip the sign of a point ~20 mm deep.
+## The 2 mm / 1 mm limits are unchanged and a point really outside still reads negative (even parity on every ray).
 class _SkinDepth:
 	const CELL := 0.03
 	var pos: PackedVector3Array
@@ -820,7 +851,21 @@ class _SkinDepth:
 							var w := Geometry3D.get_triangle_barycentric_coords(q, a, b, c)
 							var n := nrm[tri[3 * t]] * w.x + nrm[tri[3 * t + 1]] * w.y + nrm[tri[3 * t + 2]] * w.z
 							sgn = -1.0 if (p - q).dot(n) > 0.0 else 1.0
+		if sgn < 0.0 and _inside(p):
+			sgn = 1.0
 		return best * sgn
+
+	## ray parity against every triangle: odd hits on at least 2 of 3 fixed directions = inside the closed skin
+	func _inside(p: Vector3) -> bool:
+		var odd := 0
+		for dir: Vector3 in [Vector3(0.31, 0.83, 0.47).normalized(), Vector3(-0.6, -0.2, 0.77).normalized(),
+				Vector3(0.1, -0.95, -0.3).normalized()]:
+			var n := 0
+			for t in tri.size() / 3:
+				if Geometry3D.ray_intersects_triangle(p, dir, pos[tri[3 * t]], pos[tri[3 * t + 1]], pos[tri[3 * t + 2]]) != null:
+					n += 1
+			odd += n % 2
+		return odd >= 2
 
 	static func _closest(p: Vector3, a: Vector3, b: Vector3, c: Vector3) -> Vector3:
 		var ab := b - a

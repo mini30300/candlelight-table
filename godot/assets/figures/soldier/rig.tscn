@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[node name="Soldier" type="Node3D" unique_id=1705424452]
+[node name="Soldier" type="Node3D" unique_id=672562063]
 metadata/soldier_rig = {
 "H": 1.78,
 "S": 1.1125,
@@ -30,7 +30,7 @@ metadata/soldier_rig = {
 "shapes": ["shoulder_downL", "shoulder_frontL", "shoulder_upL", "elbow_flexL", "knee_flexL", "hip_flexL", "hip_extL", "shoulder_downR", "shoulder_frontR", "shoulder_upR", "elbow_flexR", "knee_flexR", "hip_flexR", "hip_extR"]
 }
 
-[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=1124395362]
+[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=850620994]
 motion_scale = 1.1125
 bones/0/name = "pelvis"
 bones/0/parent = -1
@@ -263,3 +263,38 @@ bones/32/enabled = true
 bones/32/position = Vector3(0, -0.433875, 0)
 bones/32/rotation = Quaternion(0, 0, 0, 1)
 bones/32/scale = Vector3(1, 1, 1)
+bones/33/name = "head_jaw"
+bones/33/parent = 4
+bones/33/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.0551875, 0.004)
+bones/33/enabled = true
+bones/33/position = Vector3(0, -0.0551875, 0.004)
+bones/33/rotation = Quaternion(0, 0, 0, 1)
+bones/33/scale = Vector3(1, 1, 1)
+bones/34/name = "head_lipL"
+bones/34/parent = 4
+bones/34/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0255, -0.0745875, 0.1006)
+bones/34/enabled = true
+bones/34/position = Vector3(0.0255, -0.0745875, 0.1006)
+bones/34/rotation = Quaternion(0, 0, 0, 1)
+bones/34/scale = Vector3(1, 1, 1)
+bones/35/name = "head_lipR"
+bones/35/parent = 4
+bones/35/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0255, -0.0745875, 0.1006)
+bones/35/enabled = true
+bones/35/position = Vector3(-0.0255, -0.0745875, 0.1006)
+bones/35/rotation = Quaternion(0, 0, 0, 1)
+bones/35/scale = Vector3(1, 1, 1)
+bones/36/name = "head_browL"
+bones/36/parent = 4
+bones/36/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.032, 0.0233125, 0.09)
+bones/36/enabled = true
+bones/36/position = Vector3(0.032, 0.0233125, 0.09)
+bones/36/rotation = Quaternion(0, 0, 0, 1)
+bones/36/scale = Vector3(1, 1, 1)
+bones/37/name = "head_browR"
+bones/37/parent = 4
+bones/37/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.032, 0.0233125, 0.09)
+bones/37/enabled = true
+bones/37/position = Vector3(-0.032, 0.0233125, 0.09)
+bones/37/rotation = Quaternion(0, 0, 0, 1)
+bones/37/scale = Vector3(1, 1, 1)

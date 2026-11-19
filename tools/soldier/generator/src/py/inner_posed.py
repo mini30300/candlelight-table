@@ -8,8 +8,9 @@
 #   ร่างแบบอื่น: inner_layers.py เลื่อนเนื้อที่โผล่ลงในท่าผูกแล้ว (push_posed) -> เนื้อโผล่เกิน POKE_MM = หยุด ยกเว้นจุดที่
 #   โครงผสม (LBS) หมุนระยะลึกของเนื้อสวนนอร์มอลของผิว (A^T n · นอร์มอลท่าผูก < 0: เลื่อนเข้าลึกยิ่งโผล่ เลื่อนออกก็พ้นผิว
 #   ในท่าผูก แก้ด้วยการเลื่อนไม่ได้ เจอที่รักแร้ตอนต่อย/แทง) ซึ่งรายงานแยก ; อกหน้าและสะโพกต้องไม่โผล่เลยทุกกรณี
-#   กระดูกของร่างแบบอื่น: อกหน้า/สะโพกโผล่ได้ไม่เกินร่างหลัก + BONE_OVER_MM (inner_layers.py กดลงด้วย push_bone)
-#   ร่างหลัก: รายงานอย่างเดียว (ชั้นในต้องเหมือนขั้น 1c ทุกไบต์ ; ที่โผล่อยู่ที่บ่าตอนยกแขนสุด)
+#   กระดูก: อกหน้า/สะโพกโผล่ได้ไม่เกินร่างหลัก + BONE_OVER_MM (inner_layers.py กดลงด้วย push_bone ถึง BONE_PUSH_MM)
+#   ใหม่ 0.14: เกตเดียวกันทุกร่าง รวมร่างหลัก (ชั้นในของร่างหลักถูกกดแบบเดียวกัน) + ท่าหน้า FACE_POSES + เกต G13 หน้า
+#   (G12 ใช้แล้วใน vgates.py = อกหญิง)
 #   ท่า: ref/soldier_clips.json (ชุดท่าของทหารเอง clips_soldier.py: ทุกคลิป) ถ้ามี ไม่งั้น ref/clips.json (สำเนา humanoid: CLIPS)
 #   /usr/bin/python3 inner_posed.py [--out DIR] [--step 2] [--clips FILE]      (~2-3 นาที)
 import argparse
@@ -18,6 +19,7 @@ import os
 import time
 import numpy as np
 import rig
+import variants as VR
 from inner_layers import read_bin, SkinDepth
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,9 +32,26 @@ POKE_MM = 0.5             # เนื้อโผล่พ้นผิวได�
 # บริเวณที่ต้องดูเป็นพิเศษ (กรอบ 1.78 ม. ท่าผูก): อก/เต้านม และสะโพก/ก้น
 REGIONS = {"chest_front": lambda P: (P[:, 1] > 1.15) & (P[:, 1] < 1.42) & (P[:, 2] > 0.03),
            "hips": lambda P: (P[:, 1] > 0.78) & (P[:, 1] < 1.05) & ((np.abs(P[:, 0]) > 0.10) | (P[:, 2] < -0.03))}
-# กระดูกโผล่พ้นผิวในท่า (มม.) ของร่างหลัก (inner_posed.json ของขั้น 1c: ชั้นในร่างหลักเหมือนขั้น 1c ทุกไบต์)
-BONE_BASE_MM = {"chest_front": 0.917, "hips": 6.432}
-BONE_OVER_MM = 0.5        # ร่างแบบอื่น: กระดูกอกหน้า/สะโพกโผล่เกินร่างหลักได้ไม่เกินเท่านี้
+# กระดูกโผล่พ้นผิวในท่า (มม.) ของร่างหลัก (inner_posed.json ของร่างหลัก ใหม่ 0.14: ชุดท่าของทหารเอง หลังกดลง)
+BONE_BASE_MM = {"chest_front": 0.817, "hips": 6.332}
+BONE_OVER_MM = 0.5        # กระดูกอกหน้า/สะโพกโผล่เกินร่างหลักได้ไม่เกินเท่านี้
+BONE_PUSH_MM = {"chest_front": 0.817, "hips": 6.332}   # push_bone กดถึงเท่านี้ทุกร่าง (= ขั้น 1c ร่างหลัก - 0.1 มม. คงที่)
+# ท่าหน้า (กรอบ 1.78 ม., กรอบศีรษะ): กรามหมุนรอบ X (องศา) ; มุมปาก/คิ้วเลื่อน (ม.: x ออกนอก y ขึ้น z หน้า) = ช่วงสุดที่เกมใช้ได้
+FACE_POSES = {
+    "jaw_talk": {"rot": {"head_jaw": 5.0}},
+    "jaw_shout": {"rot": {"head_jaw": 8.0}},
+    "smile": {"trans": {"head_lipL": (0.002, 0.003, -0.002), "head_lipR": (-0.002, 0.003, -0.002)}},
+    "frown": {"trans": {"head_lipL": (0.001, -0.003, 0.0), "head_lipR": (-0.001, -0.003, 0.0)}},
+    "pucker": {"trans": {"head_lipL": (-0.003, 0.0, 0.002), "head_lipR": (0.003, 0.0, 0.002)}},
+    "brows_up": {"trans": {"head_browL": (0.0, 0.004, 0.0), "head_browR": (0.0, 0.004, 0.0)}},
+    "brows_down": {"trans": {"head_browL": (-0.0015, -0.0025, 0.0), "head_browR": (0.0015, -0.0025, 0.0)}},
+    "pain": {"rot": {"head_jaw": 7.0}, "trans": {"head_browL": (-0.0015, -0.0025, 0.0), "head_browR": (0.0015, -0.0025, 0.0),
+                                                  "head_lipL": (0.002, -0.002, -0.001), "head_lipR": (-0.002, -0.002, -0.001)}},
+    "shout_smile": {"rot": {"head_jaw": 8.0}, "trans": {"head_lipL": (0.002, 0.003, -0.002), "head_lipR": (-0.002, 0.003, -0.002),
+                                                         "head_browL": (0.0, 0.004, 0.0), "head_browR": (0.0, 0.004, 0.0)}}}
+FACE_OPEN_MM = {"jaw_talk": 4.0, "jaw_shout": 11.0}     # G13: ช่องปากกลางเปิดอย่างน้อยเท่านี้ (มม. จริง)
+FACE_EYE_MOVE_MM = 0.2    # G13: จุดในอัลมอนด์ตาขยับได้ไม่เกินเท่านี้ในท่าหน้า (เปลือกตาทาสีต้องตรงที่)
+BUDGET = {"hi": 24000, "mid": 16000, "lo": 9000, "min": 5000}
 
 
 def _clamp_turn(q, deg):
@@ -126,6 +145,21 @@ def pose_frames(clips, step):
     return out
 
 
+def face_frames():
+    """[(ท่าหน้า, 0, เมทริกซ์ผูก)] ท่าผูกของตัว + กระดูกหน้าตาม FACE_POSES"""
+    Gb, _ = rig.fk(rig.bind_pose())
+    IB = np.stack([np.linalg.inv(Gb[b]) for b in rig.BONES])
+    out = []
+    for nm, fp in FACE_POSES.items():
+        p = rig.bind_pose()
+        for b, deg in fp.get("rot", {}).items():
+            p["local"][b] = rig.qaxis([1, 0, 0], deg)
+        p["trans"] = {b: np.asarray(t, float) for b, t in fp.get("trans", {}).items()}
+        G, _ = rig.fk(p)
+        out.append((nm, 0, np.stack([G[b] for b in rig.BONES]) @ IB))
+    return out
+
+
 def poke(sk, M, P, B, W, part, full=False):
     """ระยะที่จุดของชั้นใน (กรอบ 1.78 ม.) โผล่พ้นผิว hi ในท่า M (ม., บวก = โผล่) ; -inf = ใกล้ผิวส่วนอื่น หรือผิวที่พับทับยังคลุม
     คืน (ระยะ, จำนวนที่ใกล้ส่วนอื่น, จำนวนที่ผิวพับคลุม) ; full = คืนนอร์มอลของผิวตามท่าที่จุดใกล้สุดด้วย"""
@@ -147,20 +181,23 @@ def poke(sk, M, P, B, W, part, full=False):
 
 
 def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bind_margin=0.0015, rounds=4, cap=0.03,
-               allow=None):
+               allow=None, iters=20, passes=1):
     """ร่างแบบอื่น: เลื่อนจุดเนื้อ (กรอบที่ส่งออก) ที่โผล่พ้นผิว (หรือลึกไม่ถึง margin) ในท่าใดของเกม ในท่าผูก
     allow (ม. ต่อจุด กรอบที่ส่งออก) = โผล่ได้ถึงเท่านี้แทน margin (inf = ไม่เลื่อน: กระดูกนอกบริเวณที่ดู)
     ทุกท่าที่จุดนั้นโผล่เป็นเงื่อนไขเชิงเส้น g·d >= ระยะที่ขาด (g = A^T n: การหมุนผสมของจุดย้อนนอร์มอลของผิวในท่านั้น ;
     รักแร้ตอนแกว่งแขนนอร์มอลท่าผูกแทบขนานผิว) -> d สั้นสุดโดยฉายทีละเงื่อนไขซ้ำ (Kaczmarz) แล้วคิดใหม่ทุกรอบ ; ไม่เกิน cap
     จุดที่เลื่อนแล้วทะลุอีกด้าน (ใบหู ข้อมือ: ในท่าผูกลึกใต้ผิว skins ไม่ถึง bind_margin) เลื่อนครึ่งเดียว ยังไม่ได้ก็ไม่เลื่อน
+    passes > 1: จุดที่ยังโผล่หลังครบ rounds ได้เลื่อนต่ออีกชุด (cap ใหม่ต่อชุด ; รักแร้ที่ท่าต่าง ๆ ดึงคนละทาง)
     คืน (V, จำนวนจุดที่เลื่อน, ระยะเลื่อนมากสุด ม.)"""
     sk = skin_data(data, k)
-    frames = pose_frames(clips, step)
+    frames = pose_frames(clips, step) + face_frames()
     n = len(V)
     V = np.array(V, np.float64)
     total = np.zeros(n)
     moved = np.zeros(n, bool)
-    for _ in range(rounds):
+    for it_ in range(rounds * passes):
+        if it_ and it_ % rounds == 0:
+            total[:] = 0.0
         cons = {}                                     # จุด -> [(ระยะที่ขาด, g)] ในกรอบ 1.78 ม.
         for _cn, _fr, M in frames:
             s, _, _, Nq = poke(sk, M, V / k, B, W, part, full=True)
@@ -178,7 +215,7 @@ def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bi
         D = np.zeros((len(ids), 3))
         for row, i in enumerate(ids):
             d = np.zeros(3)
-            for _it in range(20):
+            for _it in range(iters):
                 worst = 0.0
                 for r, gi in cons[i]:
                     gg = float(gi @ gi)
@@ -208,14 +245,14 @@ def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bi
 
 
 def push_bone(V, B, W, part, data, k, clips, skins, step=2):
-    """ร่างแบบอื่น: กดจุดกระดูก (ชิ้นแข็ง) ในอกหน้าและสะโพกที่โผล่ในท่าใดของเกมเกินร่างหลัก (BONE_BASE_MM − 0.1 มม.) ลงในท่าผูก
+    """ทุกร่าง: กดจุดกระดูก (ชิ้นแข็ง) ในอกหน้าและสะโพกที่โผล่ในท่าใดของเกมเกิน BONE_PUSH_MM ลงในท่าผูก
     เฉพาะจุดในสองบริเวณนั้น ; ท่าผูกยังลึก >= 2.5 มม. ใต้ผิว hi/mid ; คืน (V, จำนวนจุดที่เลื่อน, ระยะเลื่อนมากสุด ม.)"""
     V = np.array(V, np.float64)
     P = V / k
     allow = np.full(len(V), np.inf)
     for r, f in REGIONS.items():
         m = f(P)
-        allow[m] = np.minimum(allow[m], (BONE_BASE_MM[r] - 0.1) / 1000.0)
+        allow[m] = np.minimum(allow[m], BONE_PUSH_MM[r] / 1000.0)
     sel = np.flatnonzero(np.isfinite(allow))
     if len(sel) == 0:
         return V, 0, 0.0
@@ -237,7 +274,9 @@ def main():
     vj = os.path.join(data, "variant.json")
     variant = os.path.exists(vj)
     if variant:
-        k = float(json.load(open(vj)).get("k", 1.0))
+        vd = json.load(open(vj))
+        k = float(vd.get("k", 1.0))
+        VR.use(vd.get("variant", ""))
     sk = skin_data(data, k)
     layers = {}
     for name in ("flesh", "bone"):
@@ -254,8 +293,7 @@ def main():
            "clip_file": os.path.basename(cpath),
            "gate": ("flesh <= %.1f mm (LBS-inverted points reported apart), chest front and hips <= %.1f mm; bone chest front "
                     "<= %.2f mm, hips <= %.2f mm (base + %.1f)" % (POKE_MM, POKE_MM, BONE_BASE_MM["chest_front"] + BONE_OVER_MM,
-                                                              BONE_BASE_MM["hips"] + BONE_OVER_MM, BONE_OVER_MM))
-           if variant else "report only (base layers = stage 1c)"}
+                                                              BONE_BASE_MM["hips"] + BONE_OVER_MM, BONE_OVER_MM))}
     acc = {n: {"max_mm": -1e9, "worst": "", "out_vert_frames": 0, "near_other_part": 0, "covered_by_fold": 0,
                "regions": {r: {"max_mm": -1e9, "worst": ""} for r in REGIONS},
                "lbs_inverted": {"max_mm": -1e9, "worst": "", "out_vert_frames": 0, "verts": set()}} for n in layers}
@@ -320,14 +358,116 @@ def main():
           % ("none" if li["verts"] == 0 else "%d verts, %d vertex-frames, highest %.2f mm (%s)"
              % (li["verts"], li["out_vert_frames"], li["max_mm"], li["worst"])))
     print("%d frames of %d clips in %.1fs (%s)" % (rep["frames"], len(rep["clips"]), rep["time_s"], rep["gate"]))
+    # ---- G13 หน้า (ใหม่ 0.14) ----
+    g13 = face_gate(data, k, sk, layers)
+    rep["G13"] = g13
+    json.dump(rep, open(os.path.join(data, "inner_posed.json"), "w"), indent=1)
+    print("G13 face %s: %s" % ("PASS" if g13["pass"] else "FAIL", "; ".join(g13["fails"]) if g13["fails"] else g13["summary"]))
     bad = [r for r, v in acc["flesh"]["regions"].items() if v["max_mm"] > POKE_MM]
-    if variant and (acc["flesh"]["max_mm"] > POKE_MM or bad):
+    if acc["flesh"]["max_mm"] > POKE_MM or bad:
         raise SystemExit("inner flesh above the skin in a posed frame: %.2f mm (%s), regions %s" % (
             acc["flesh"]["max_mm"], acc["flesh"]["worst"], bad))
     bad_b = {r: v["max_mm"] for r, v in acc["bone"]["regions"].items() if v["max_mm"] > BONE_BASE_MM[r] + BONE_OVER_MM}
-    if variant and bad_b:
+    if bad_b:
         raise SystemExit("inner bone above the skin in a posed frame more than the base body + %.1f mm: %s (base %s)" % (
             BONE_OVER_MM, bad_b, BONE_BASE_MM))
+    if not g13["pass"]:
+        raise SystemExit("G13 face: " + "; ".join(g13["fails"]))
+
+
+def face_gate(data, k, sk, layers):
+    """G13 หน้า: (a) CUSTOM1 บน hi/mid/lo ไม่มีบน min, แถวรอยต่อปากบน hi/mid (b) กระดูกหน้าเฉพาะจุดส่วนหัวบน hi/mid ไม่มีบน
+    lo/min (c) จุดที่ห่างช่องตาไม่เกิน face.PAINT_REACH อยู่ใต้เปลือกตาปิด (|u|,|v| <= 1) (d) ท่าหน้าบน hi/mid: ช่องปากกลางเปิด
+    >= FACE_OPEN_MM, สามเหลี่ยมส่วนหัวไม่พลิก, จุดในอัลมอนด์ตาขยับ <= FACE_EYE_MOVE_MM (e) ชั้นในส่วนหัวในท่าหน้าโผล่
+    <= POKE_MM (f) สามเหลี่ยมไม่เกินงบเกม"""
+    import anatomy as AN
+    import face as FC
+    import weights as WT
+    f = FC.features(AN.all_skin_prims())
+    Gb, _ = rig.fk(rig.bind_pose())
+    nfb = rig.BI[rig.FACE[0]]
+    fails, out = [], {"levels": {}, "poses": {}}
+    frames = face_frames()
+    for lv in ("hi", "mid", "lo", "min"):
+        d = read_bin(os.path.join(data, "body_%s.bin" % lv))
+        n = len(d["pos"])
+        V = d["pos"].astype(np.float64) / k
+        F = d["idx"][:, ::-1].astype(np.int64)
+        part = np.round(d["cus"][:, 3]).astype(np.int64)
+        B, W = d["bones"].astype(np.int64), d["weights"].astype(np.float64)
+        fb = (B >= nfb) & (W > 0)
+        r = {"tris": int(len(F)), "face_bone_verts": int(fb.any(1).sum()), "custom1": "face" in d}
+        if len(F) > BUDGET[lv]:
+            fails.append("%s: %d triangles over the budget %d" % (lv, len(F), BUDGET[lv]))
+        if lv in FC.CUSTOM_LV and "face" not in d:
+            fails.append("%s: no CUSTOM1 face coordinates" % lv)
+        if lv == "min" and "face" in d:
+            fails.append("min carries CUSTOM1 (nothing per frame there)")
+        if lv in FC.SEAM_LV:
+            if fb.any(1).sum() == 0:
+                fails.append("%s: no face-bone weights" % lv)
+            if (fb.any(1) & (part != 1)).any():
+                fails.append("%s: face-bone weights outside the head part (%d verts)" % (lv, int((fb.any(1) & (part != 1)).sum())))
+        elif fb.any():
+            fails.append("%s: face-bone weights on a level without face bones" % lv)
+        if "face" not in d:
+            out["levels"][lv] = r
+            continue
+        cu = d["face"].astype(np.float64).reshape(n, 4)
+        strip = np.abs(cu[:, 0] + cu[:, 1] - 24.0) < 1e-4
+        r["seam_row_verts"] = int(strip.sum())
+        if lv in FC.SEAM_LV and strip.sum() < 12:
+            fails.append("%s: the mouth seam has %d row vertices" % (lv, int(strip.sum())))
+        if lv not in FC.SEAM_LV and strip.any():
+            fails.append("%s: seam codes on a level without a seam" % lv)
+        H = FC.head_coords(V, Gb)
+        dal = FC.eye_dist(H, f)
+        near = dal < FC.PAINT_REACH[lv]
+        outside = near & ~((np.abs(cu[:, 0]) <= 1.0) & (np.abs(cu[:, 1]) <= 1.0))
+        r["eye_paint_verts"] = int(near.sum())
+        r["eye_paint_outside_lid"] = int(outside.sum())
+        if near.sum() < 8 or outside.any():
+            fails.append("%s: %d of %d painted-eye vertices outside the closed lid" % (lv, int(outside.sum()), int(near.sum())))
+        if lv in FC.SEAM_LV:
+            rows = d["meta"].get("seam_rows")
+            up, lo = np.asarray(rows[0], np.int64), np.asarray(rows[1], np.int64)
+            ci = int(np.argmin(np.abs(H[up, 0])))
+            eyez = (np.abs(cu[:, 0]) <= 1.2) & (np.abs(cu[:, 1]) <= 1.4)
+            N0 = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+            a0 = np.linalg.norm(N0, axis=1)
+            headf = (part[F] == 1).all(1) & (a0 > 1e-12)
+            pr = {}
+            for nm, _fr, M in frames:
+                P = skin_pts(V, B, W, M)
+                N1 = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]])
+                flips = int((headf & (np.einsum('ij,ij->i', N0, N1) <= 0)).sum())
+                op = float(np.linalg.norm(P[lo[ci]] - P[up[ci]]) * k * 1000.0)
+                mv = float(np.linalg.norm(P[eyez] - V[eyez], axis=1).max() * k * 1000.0)
+                pr[nm] = {"open_mm": round(op, 2), "flips": flips, "eye_move_mm": round(mv, 3)}
+                if flips:
+                    fails.append("%s %s: %d head triangles flip" % (lv, nm, flips))
+                if mv > FACE_EYE_MOVE_MM:
+                    fails.append("%s %s: the eye moves %.2f mm" % (lv, nm, mv))
+                if nm in FACE_OPEN_MM and op < FACE_OPEN_MM[nm]:
+                    fails.append("%s %s: the mouth opens only %.1f mm" % (lv, nm, op))
+            r["poses"] = pr
+        out["levels"][lv] = r
+    # (e) ชั้นในส่วนหัวในท่าหน้า
+    for nm, _fr, M in frames:
+        row = {}
+        for ln, L in layers.items():
+            sv = poke(sk, M, L["V"], L["B"], L["W"], L["part"])[0] * k * 1000.0
+            sv = np.where(L["part"] == 1, sv, -np.inf)
+            row[ln] = round(float(sv.max()), 3)
+            if sv.max() > POKE_MM:
+                fails.append("%s: inner %s %.2f mm above the head skin" % (nm, ln, sv.max()))
+        out["poses"][nm] = row
+    out["pass"] = not fails
+    out["fails"] = fails
+    out["summary"] = "levels %s; inner layers in face poses (mm) %s" % (
+        {lv: {kk: vv for kk, vv in r.items() if kk != "poses"} for lv, r in out["levels"].items()},
+        {nm: row for nm, row in out["poses"].items()})
+    return out
 
 
 if __name__ == "__main__":

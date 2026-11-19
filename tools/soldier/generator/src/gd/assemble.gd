@@ -1,5 +1,5 @@
 extends SceneTree
-## ประกอบทหารเป็นทรัพยากร Godot (รันแบบ headless): rig.tscn (โครง 33 กระดูก) + body_<ระดับ>.res (ผิว 1 พื้นผิว/ระดับ)
+## ประกอบทหารเป็นทรัพยากร Godot (รันแบบ headless): rig.tscn (โครง 38 กระดูก) + body_<ระดับ>.res (ผิว 1 พื้นผิว/ระดับ)
 ## + skin.res + เมชชั้นโครงกระดูก/กล้ามเนื้อสำหรับทำภาพ ; อ่านไฟล์ไบนารีจาก out/data (สร้างโดย build.py)
 
 const DATA := "res://out/data/"
@@ -78,6 +78,12 @@ func _initialize() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
 	mat.resource_name = "soldier_skin"
+	# สีเปลือกตาปิดของร่างนี้ (face.json จาก build.py) ; หน้าเปิดเมื่อเกมตั้ง face_on
+	if FileAccess.file_exists(DATA + "face.json"):
+		var fj: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DATA + "face.json"))
+		if fj.has("lid_colour"):
+			var lc: Array = fj["lid_colour"]
+			mat.set_shader_parameter("face_lid_colour", Vector3(lc[0], lc[1], lc[2]))
 	ResourceSaver.save(mat, OUT + "soldier_skin.tres")
 	var lmat := ShaderMaterial.new()
 	lmat.shader = load("res://src/gd/layer.gdshader") as Shader
@@ -96,6 +102,8 @@ func _initialize() -> void:
 		arr[Mesh.ARRAY_NORMAL] = v3(d["nrm"])
 		arr[Mesh.ARRAY_COLOR] = cols(d["col"])
 		arr[Mesh.ARRAY_CUSTOM0] = d["cus"]
+		if d.has("face"):
+			arr[Mesh.ARRAY_CUSTOM1] = d["face"]          # พิกัดหน้า (hi/mid/lo): ตา u, ตา v, ปาก x, ปาก y
 		arr[Mesh.ARRAY_BONES] = d["bones"]
 		arr[Mesh.ARRAY_WEIGHTS] = d["weights"]
 		arr[Mesh.ARRAY_INDEX] = d["idx"]
@@ -113,6 +121,8 @@ func _initialize() -> void:
 				b[Mesh.ARRAY_NORMAL] = v3(d["bs_nrm_" + s])
 				bsa.append(b)
 		var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+		if d.has("face"):
+			flags |= Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT
 		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, bsa, {}, flags)
 		am.surface_set_material(0, mat)
 		var outp := OUT + "body_%s.res" % lv

@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[node name="Soldier" type="Node3D" unique_id=1857723936]
+[node name="Soldier" type="Node3D" unique_id=205914611]
 metadata/soldier_rig = {
 "H": 1.8600000000000003,
 "S": 1.1625,
@@ -30,7 +30,7 @@ metadata/soldier_rig = {
 "shapes": []
 }
 
-[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=562851052]
+[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=941755448]
 motion_scale = 1.1625
 bones/0/name = "pelvis"
 bones/0/parent = -1
@@ -263,3 +263,38 @@ bones/32/enabled = true
 bones/32/position = Vector3(0, -0.453375, 0)
 bones/32/rotation = Quaternion(0, 0, 0, 1)
 bones/32/scale = Vector3(1, 1, 1)
+bones/33/name = "head_jaw"
+bones/33/parent = 4
+bones/33/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.057667837, 0.0041797752)
+bones/33/enabled = true
+bones/33/position = Vector3(0, -0.057667837, 0.0041797752)
+bones/33/rotation = Quaternion(0, 0, 0, 1)
+bones/33/scale = Vector3(1, 1, 1)
+bones/34/name = "head_lipL"
+bones/34/parent = 4
+bones/34/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.026646068, -0.07793975, 0.10512135)
+bones/34/enabled = true
+bones/34/position = Vector3(0.026646068, -0.07793975, 0.10512135)
+bones/34/rotation = Quaternion(0, 0, 0, 1)
+bones/34/scale = Vector3(1, 1, 1)
+bones/35/name = "head_lipR"
+bones/35/parent = 4
+bones/35/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.026646068, -0.07793975, 0.10512135)
+bones/35/enabled = true
+bones/35/position = Vector3(-0.026646068, -0.07793975, 0.10512135)
+bones/35/rotation = Quaternion(0, 0, 0, 1)
+bones/35/scale = Vector3(1, 1, 1)
+bones/36/name = "head_browL"
+bones/36/parent = 4
+bones/36/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.033438202, 0.024360253, 0.094044946)
+bones/36/enabled = true
+bones/36/position = Vector3(0.033438202, 0.024360253, 0.094044946)
+bones/36/rotation = Quaternion(0, 0, 0, 1)
+bones/36/scale = Vector3(1, 1, 1)
+bones/37/name = "head_browR"
+bones/37/parent = 4
+bones/37/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.033438202, 0.024360253, 0.094044946)
+bones/37/enabled = true
+bones/37/position = Vector3(-0.033438202, 0.024360253, 0.094044946)
+bones/37/rotation = Quaternion(0, 0, 0, 1)
+bones/37/scale = Vector3(1, 1, 1)

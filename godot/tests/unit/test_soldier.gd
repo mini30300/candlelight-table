@@ -560,14 +560,32 @@ func test_drivers_per_level() -> void:
 	var half := sk.find_bone("elbow_halfL")
 	assert_true(not sk.get_bone_pose_rotation(half).is_equal_approx(Quaternion.IDENTITY), "hi: helper bones follow the joints")
 	assert_true(int(f.call("active_shapes")) > 0, "hi: correctives are active in idle (%d)" % int(f.call("active_shapes")))
+	# ใหม่ 0.14 item 2 (face): hi moves the face bones while talking, lo paints the face only, min drives nothing
+	var jaw := sk.find_bone("head_jaw")
+	var face: SoldierFace = f.call("face")
+	f.call("say", "สวัสดี")
+	_steps(f, 6)
+	assert_false(sk.get_bone_pose(jaw).is_equal_approx(sk.get_bone_rest(jaw)), "hi: the jaw moves while talking")
 	f.call("apply_level", "lo")
 	_steps(f, 3)
 	assert_eq(int(f.call("active_shapes")), 0, "lo: no correctives")
 	assert_true(not sk.get_bone_pose_rotation(half).is_equal_approx(Quaternion.IDENTITY), "lo: helpers still driven")
+	var painted := 0.0
+	f.call("say", "สวัสดี")
+	for i in 8:
+		f.call("step", DT)
+		painted = maxf(painted, face.state().z)
+	assert_true(sk.get_bone_pose(jaw).is_equal_approx(sk.get_bone_rest(jaw)) and painted > 0.0,
+		"lo: the face bones rest, the shader paints the talking mouth (%.2f)" % painted)
 	f.call("apply_level", "min")
 	_steps(f, 3)
 	assert_true(sk.get_bone_pose_rotation(half).is_equal_approx(Quaternion.IDENTITY)
 		and sk.get_bone_pose_rotation(clav).is_equal_approx(Quaternion.IDENTITY), "min: helpers rest (nothing driven)")
+	var fw := face.writes()
+	f.call("say", "สวัสดี")
+	_steps(f, 6)
+	assert_true(sk.get_bone_pose(jaw).is_equal_approx(sk.get_bone_rest(jaw)) and face.writes() == fw,
+		"min: the face bones rest, no face writes")
 	f.free()
 	# shape_weights: identity arms hang down → shoulder_down is the strongest shoulder key, a bent knee flexes
 	var S: GDScript = load(SCRIPT)

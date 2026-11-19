@@ -3,33 +3,35 @@ Do not edit these files by hand: change the generator (tools/soldier/generator) 
 body: f1 (female 1.60 m, tan skin, Southeast Asian face, straight black hair in a high bun, pear shape), stature 1.60 m, k 0.8989, S 1.00000, head 1.0661
 
 level  surfaces  verts   tris  blend_shapes    bytes
-hi            1  11529  23054             0   402162
-mid           1   7698  15392             0   271097
-lo            1   4422   8840             0   159319
+hi            1  11537  23070             0   571950
+mid           1   7694  15384             0   383750
+lo            1   4422   8840             0   223129
 min           1   2468   4932             0    87906
 
 wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)
-bone          1   2839   5164             -    76511  depth 3.16 mm / 2.75 mm
-flesh         1   3502   7000             -   117326  depth 1.50 mm / 1.50 mm
-posed (355 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm; bone chest front <= 1.42 mm, hips <= 6.93 mm (base + 0.5)): flesh above the hi skin at most 0.32 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: 2 verts, at most 5.95 mm
-posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.19 mm, hips 0.00 mm, worst 13.40 mm (bash_1 frame 14)
+bone          1   2853   5174             -    76921  depth 3.16 mm / 2.50 mm
+flesh         1   3502   7000             -   118959  depth 1.50 mm / 1.50 mm
+posed (374 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm; bone chest front <= 1.32 mm, hips <= 6.83 mm (base + 0.5)): flesh above the hi skin at most 0.00 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: none
+posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.82 mm, hips 1.02 mm, worst 18.06 mm (die_spin frame 6)
+face (G13, inner_posed.py): PASS
 
-bones (33): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR
+bones (38): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR head_jaw head_lipL head_lipR head_browL head_browR
 motion_scale: 1.0000
 driver constants: from the stage's rig.json
-soldier clip copy: none (the figure uses assets/anim/humanoid.res with its wrists eased)
+soldier clip library: assets/figures/soldier/clips.res (made by tools/soldier/bake_clips.sh, not by the stage)
 
 sha256:
-  73946fdf628a387a5f336c36c68153dfdd86129b698eca0785816262c2829177  body.gdshader  2612 bytes
-  b8b8c8db4d8dcf42a943f74089a63f5934fe60011e1f697b62504deb2f1a9f5a  body_hi.res  402162 bytes
-  bd03d7cbaa187851f238c8ba49679f4f462372475e1d11f1e1b1ee930029c3ba  body_lo.res  159319 bytes
-  957920eb031cb848d445c4ef3b73bbc767a6e1ad09c3528100d1e46c8b887d27  body_material.tres  540 bytes
-  8cf48f1d90888f2fd674423271a0d7cca9305c7d01ea1ba379dda64aa60a0be3  body_mid.res  271097 bytes
+  2bc691e96f5399560b45e170ac212f3aae0f22dc7b67ba70e061eedcde83a3a4  body.gdshader  5696 bytes
+  e745fb8a23d6c2c490c435488d9965da91896a1bbdc8f711de48e05290bf4d7e  body_hi.res  571950 bytes
+  e5998e812beac7708649497fd0960d7bf86494adf6f58bb9699e801843c1ed0a  body_lo.res  223129 bytes
+  26caaa85d7e843d91f965df29c87649970b04a2e71684987550a008bae287287  body_material.tres  856 bytes
+  dd2cb23642d8edfb5fdca3571bea8eddaac0df79e915ef747c756a2e2b7074c1  body_mid.res  383750 bytes
   6c9130ea6e04f9c8b9ff580ca9542dc7299b2d98e0f14f8be2054a30bf2f893c  body_min.res  87906 bytes
-  b28dbda8c9fd39644499b7ba8901ab4fc2a6b715aa7f68605266d64e053e03f6  body_wound.gdshader  3345 bytes
+  3413fe6d7f7910fe3ba7eb99acd431854d26ed6285be1a3555d679d8d2ec0c8f  body_wound.gdshader  5795 bytes
+  77495574b46cb3706a3776e752d582c8db8419c292d84bbbbef0903c1a5b7436  face.gdshaderinc  3834 bytes
   7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
-  afa685b3fdb14dd64b229b04b69d21eb7d7139e0a8091727f303f929a7c83b1b  inner_bone.res  76511 bytes
-  70ac0edd401ea0d36740396af7fbbb0a65664361011279916455acdffe565e8d  inner_flesh.res  117326 bytes
-  460e3617f40cf2c24927ecdbc73e7fa7a0db1d332e535fbc1d5d215b1b655e71  rig.tscn  10496 bytes
-  d27074257c3264fbc47b15a272253c46deeeea4caab1ad4a620bb813e7d4c39c  skin.res  4807 bytes
+  565877fd898fefbf15483404b69eb188103d9d076ec973a7a9a978c97e6750fc  inner_bone.res  76921 bytes
+  f15dc94e254c27d681f851a9c4ac8ec8b9d06c70fe6fbf256690da1bd977a4e4  inner_flesh.res  118959 bytes
+  8781d0d4c9b61a0eefe15798de1c93d99a94dda7a46619108b551d85181ad3ad  rig.tscn  12024 bytes
+  10ebd789612bc74e0ad1ec00286c461991a55c4d54af27b52cb79aa9c064eba8  skin.res  5513 bytes
   41ed3ca5a9bab06a3dfd2716639d12ffd171a8665825d6e1f1efb51501e9d405  wound.gdshaderinc  3211 bytes

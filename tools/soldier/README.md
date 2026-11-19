@@ -94,12 +94,13 @@ unit tests also read each other body's `IMPORTED.txt` for the posed bone check.
 
 | File (`out/godot/` of a stage → `godot/assets/figures/soldier/`) | Rule |
 | --- | --- |
-| `rig.tscn` | root Node3D > `Skeleton3D` (that name). The 23 game bones of `godot/assets/kits/CONTRACT.md` §1 with their exact names, parents and SKRIG offsets × S, in SKRIG frames, so every clip of `humanoid.res` plays unchanged; `motion_scale` = S = stature / 1.6 (1.1125 for the 1.78 m base; every body has the base's 33 bones at the base offsets × its S ratio). Helper bones may follow (never between game bones). |
+| `rig.tscn` | root Node3D > `Skeleton3D` (that name). The 23 game bones of `godot/assets/kits/CONTRACT.md` §1 with their exact names, parents and SKRIG offsets × S, in SKRIG frames, so every clip of `humanoid.res` plays unchanged; `motion_scale` = S = stature / 1.6 (1.1125 for the 1.78 m base; every body has the base's 38 bones at the base offsets × its S ratio). Helper and face bones may follow (never between game bones). |
 | helper bones | Driven by name in `mixer_applied` on hi/mid/lo: `clavicle<L/R>` (raised and pushed forward with the upper arm), `<joint>_half<L/R>` (half the turn of `<joint><L/R>`: elbow, knee, hip), a name containing `twist` under `shoulder<L/R>` (takes back half the upper-arm twist) or under `elbow<L/R>` (takes half the wrist-and-hand twist: a forearm twist helper). A helper with no rule stays at rest and `test_soldier.gd` fails with its name: add a rule to `SoldierFigure.helper_rule`. |
+| face bones (ใหม่ 0.14) | `head_jaw`, `head_lipL/R`, `head_browL/R`: leaves under `head` (the `head_` prefix makes them body part 1), no clip tracks and no driver: the game moves them. `head_jaw` turns about its own +X (opens; ~1.7 mm at the lips per degree, 0-8°); the lip corners and brows move by translation in the head frame (lips ±3 / ±3 / ±2 mm, brows ±1.5 / -2.5..+4 mm, × the body's S ratio). Weighted on hi/mid only (from the `head` weight; lo/min/crowd keep it on `head`); the mandible of the wound bone layer rides `head_jaw`. `inner_posed.py` checks these ranges (`FACE_POSES`, gate G13). |
 | `skin.res` | one named bind per bone (binds are matched by name) |
-| `body_hi/mid/lo/min.res`, optional `body_crowd.res` | one surface each (one draw call); triangles within `SoldierFigure.BUDGET` (24k / 16k / 9k / 5k, crowd 1.5k); soles at y = 0; `min` and `crowd` skinned to the 23 game bones only (no per-frame work there); blend shapes only on hi/mid, and none at all on the other bodies (hi/mid run the helpers only) |
+| `body_hi/mid/lo/min.res`, optional `body_crowd.res` | one surface each (one draw call); triangles within `SoldierFigure.BUDGET` (24k / 16k / 9k / 5k, crowd 1.5k); soles at y = 0; `min` and `crowd` skinned to the 23 game bones only (no per-frame work there); blend shapes only on hi/mid, and none at all on the other bodies (hi/mid run the helpers only); `CUSTOM1` (RGBA float) on hi/mid/lo only = face coordinates (`src/py/face.py`): eye u, eye v (the closed lid covers \|u\|, \|v\| <= 1), mouth x, mouth y (mouth corners at (±1, 0)); hi/mid carry the mouth seam (a second row of vertices 0.3 mm under the upper-lip row and a strip of triangles between them, which opens with the jaw), coded in eye u/v: upper row (16, 8), lower row (8, 16), corners (12, 12) |
 | blend shapes | named `shoulder_down`, `shoulder_front`, `shoulder_up`, `elbow_flex`, `knee_flex`, `hip_flex`, `hip_ext` + `L`/`R`, driven on hi/mid from the joint angles by the formulas of `src/py/correctives.py` (`SoldierFigure.shape_weights`); a weight under 0.05 is 0. Another name fails the unit test: port its formula into `shape_weights`. |
-| `soldier_skin.tres` + `src/gd/soldier_skin.gdshader` | an unshaded material that computes its own light (uniforms `sun_dir`, `sun_colour`, `ambient_colour`, `per_vertex`), no `TIME`, and no wound code or `discard` (the shared material of every soldier, min included); the game copies it to `body.gdshader` / `body_material.tres` |
+| `soldier_skin.tres` + `src/gd/soldier_skin.gdshader` | an unshaded material that computes its own light (uniforms `sun_dir`, `sun_colour`, `ambient_colour`, `per_vertex`), no `TIME`, and no wound code or `discard` (the shared material of every soldier, min included); the game copies it to `body.gdshader` / `body_material.tres`. Both skin shaders include `src/gd/face.gdshaderinc` (copied as `face.gdshaderinc`): `face_on` (default off = the static face), the body's `face_lid_colour` (set in the material by `assemble.gd`), `face_mouth_colour`, `face_teeth_colour` and the per-figure `instance uniform vec4 face_state` (lids closing 0..1, extra lower-lid raise 0..1, painted mouth open 0..1, width -1..1); it paints after the light, never discards |
 | body parts | `CUSTOM0.w` of every `body_<level>.res` vertex = its body part from its dominant bone (`src/py/parts.py`: 0 torso with the clavicles, 1 head and neck, 2/3 left/right arm, 4/5 left/right leg with `hip_half`/`knee_half`); `SoldierFigure.body_part` uses the same name rules (`test_soldier_wounds.gd` checks every vertex) |
 | optional `src/gd/soldier_skin_wound.gdshader` + `src/gd/wound.gdshaderinc` (a pair) | the skin while wounded (the figure's own material on hi/mid/lo): the same uniforms and `skin_light()` as `soldier_skin.gdshader` plus the wound section, which lives once in `wound.gdshaderinc` (`#include "wound.gdshaderinc"`, a relative path, so the file keeps its name in the game); the game copies them to `body_wound.gdshader` / `wound.gdshaderinc`. Without the pair the figure takes no wounds |
 | `out/data/rig.json` | `drivers`, `keys`, `bind_angles`, `arm_keys`: the driver constants; the import stores them in `rig.tscn` (metadata `soldier_rig`) |
@@ -138,13 +139,14 @@ unit tests also read each other body's `IMPORTED.txt` for the posed bone check.
   lo: a red tint only; min: nothing, on the plain `body.gdshader`. The wound layers exist only after the first wound
   and are hidden without one (godot/docs/ARENA_SPEC.md §9.6).
 
-## Sizes (stage 1c base body plus four bodies)
+## Sizes (ใหม่ 0.14: base body plus four bodies, with face coordinates)
 
-The base (`soldier/`): `body_hi.res` 3.57 MB and `body_mid.res` 2.38 MB (14 uncompressed-float blend shapes each),
-`body_lo.res` 0.16 MB, `body_min.res` 0.09 MB, the wound layers `inner_bone.res` 76 KB and `inner_flesh.res` 117 KB,
-rig, skin, shaders and material 31 KB: 6.41 MB. The other bodies have no blend shapes: 1.14-1.16 MB each with their own
-wound layers and shader copies (hi about 0.40 MB, mid 0.27 MB, lo 0.16 MB, min 0.09 MB). All five: 11.0 MB, already
-zstd-compressed, so the APK and the Windows build each grow by about that.
+The base (`soldier/`): `body_hi.res` 3.74 MB and `body_mid.res` 2.49 MB (14 uncompressed-float blend shapes each),
+`body_lo.res` 0.22 MB, `body_min.res` 0.09 MB, the wound layers and rig, skin, shaders and material: 6.75 MB. The other
+bodies have no blend shapes: 1.48-1.50 MB each with their own wound layers and shader copies (hi about 0.58 MB, mid
+0.39 MB, lo 0.22 MB, min 0.09 MB). All five: 12.7 MB, already zstd-compressed, so the APK and the Windows build each grow
+by about that. `CUSTOM1` (16 bytes per vertex on hi/mid/lo) is most of the growth over 0.13 (11.0 MB); half floats would
+halve it.
 
 The owner's app target is now 3 GB, but a GitHub release file may be at most 2 GiB, so CI fails an APK above 1900 MB
 (`.github/workflows/godot.yml`, `godot/docs/ARCHITECTURE.md`). `tests/unit/test_soldier.gd` holds the soldier to a
@@ -172,23 +174,27 @@ Wound layers of a body: `inner_layers.py` reads `variant.json`, insets the flesh
 before the head warp) plus the thickness of its pad pieces (breasts, slope pads, infraclavicular fat: up to 40 mm;
 `FAT_HI_V`), scales it by k, checks it under the hi and mid skin like the base, then moves every flesh vertex that pokes
 out of the posed hi skin in any clip frame (`inner_posed.push_posed`: each such frame is a linear constraint on the
-move, solved by repeated projection, never through the other side of a thin part such as an ear). The posed check must
-then show no flesh above the skin at the chest front and the hips, and at most 0.5 mm elsewhere; the few armpit points
-where linear skinning turns the depth against the skin during the punch and thrust swings cannot be fixed by moving
-the flesh and are reported apart (m3: 4 vertices up to 2.34 mm, f1: 2 vertices up to 5.95 mm; m2 and f2: none). The
-inner layers are drawn only inside a wound of the same body part, and the armpit has no wound spot. The base keeps its
-stage-1c layers (byte for byte): its posed report shows flesh up to 5.16 mm above the skin at the top of the shoulder in
-the widest swings. Rigid bone pieces (shoulder blade, collarbone) can come up through the skin by 12-17 mm in the
+move, solved by repeated projection, never through the other side of a thin part such as an ear). Since ใหม่ 0.14 every
+body, the base included, is pushed and checked this way against the soldier's own 26 clips (`ref/soldier_clips.json`,
+every 2nd frame) and the face poses (`FACE_POSES`); the flesh push runs up to three passes, each with a fresh 30 mm cap,
+for the few armpit points that different clips pull in different directions. The posed check must then show no flesh
+above the skin at the chest front and the hips, and at most 0.5 mm elsewhere; the armpit points where linear skinning
+turns the depth against the skin cannot be fixed by moving the flesh and are reported apart (base: 2 vertices up to
+0.86 mm; the other bodies: none). The inner layers are drawn only inside a wound of the same body part, and the armpit
+has no wound spot. Rigid bone pieces (shoulder blade, collarbone) can come up through the skin by 12-17 mm in the
 widest arm swings on every body; they too are drawn only inside a wound, but the inner shader also draws bone in a
 ring just outside the hole (out to about 1.2-1.5 times the wound radius), so bone above the skin there shows over
 unbroken skin while a wounded figure runs or punches. Posed bone at the chest front and the hips is therefore gated
-for the other bodies at no more than the base body + 0.5 mm (`inner_posed.py`: `BONE_BASE_MM` 0.917 / 6.432 mm, from
-the stage-1c report; `BONE_OVER_MM`), and `inner_layers.py` first pushes the rigid bone vertices of those two regions
-that come up further than the base in any clip frame down in the bind pose (`inner_posed.push_bone`, the same solver
-as the flesh, at most 10 mm, still at least 2.5 mm under the hi and mid skin; m3 2 vertices up to 1.3 mm, f2 3 up to
-1.5 mm, m2 and f1 none). Posed bone, chest front / hips / worst (mm): base 0.92 / 6.43 / 14.77, m2 0 / 0 / 16.68,
-m3 0.82 / 6.33 / 11.94, f1 0.19 / 0 / 13.40, f2 0.82 / 6.33 / 12.66 (printed in `IMPORTED.txt`; the 6.3-6.4 mm at the
-hips is one run frame, as on the base).
+on every body at no more than the base body + 0.5 mm (`inner_posed.py`: `BONE_BASE_MM` 0.817 / 6.332 mm, from the base
+report of ใหม่ 0.14; `BONE_OVER_MM`), and `inner_layers.py` first pushes the rigid bone vertices of those two regions
+that come up further than `BONE_PUSH_MM` (0.817 / 6.332 mm = the stage-1c base - 0.1 mm, fixed) in any clip frame down
+in the bind pose (`inner_posed.push_bone`, the same solver as the flesh, at most 10 mm, still at least 2.5 mm under
+the hi and mid skin; base 5 vertices up to 5.4 mm, m2 1 up to 0.1 mm, m3 6 up to 6.0 mm, f1 3 up to 4.0 mm, f2 7 up to
+7.3 mm). Posed bone, chest front / hips / worst (mm): base 0.82 / 6.33 / 22.79, m2 0.82 / 0.54 / 25.29, m3 0.82 / 6.33 /
+20.54, f1 0.82 / 1.02 / 18.06, f2 0.82 / 6.33 / 23.59 (printed in `IMPORTED.txt`; the worst values are the shoulder
+blade in the widest swings and punches). The same check also runs the face poses: the head part's flesh and bone stay
+under the skin with the jaw open 8° (the mandible pieces ride `head_jaw`), and gate G13 (`inner_posed.face_gate`)
+checks the face itself (README contract rows above).
 
 Stage 1c's abdominal grooves and navel also get a little vertex shade (`mesh.colours`: `CAV_K`, on lo `FAR_K`), because
 the game's top light gives a vertical groove almost no shading.

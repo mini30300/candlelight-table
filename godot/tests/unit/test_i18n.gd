@@ -64,6 +64,20 @@ func test_every_string_used_by_the_hud_has_an_entry() -> void:
 	assert_eq(Array(I18n.missing(used)), [], "every string the HUD uses has an English entry")
 
 
+## ใหม่ 0.14 item 2: every speech-bubble line (SpeechBubble.LINES, shown through I18n.t by the dressing room and the
+## "normal" hero card) has an English entry without Thai, so English mode never shows a Thai bubble.
+func test_face_lines_have_english() -> void:
+	var lines := PackedStringArray()
+	for k: String in SpeechBubble.LINES:
+		lines.append_array(PackedStringArray(SpeechBubble.LINES[k]))
+	assert_true(lines.size() >= 20, "%d speech lines" % lines.size())
+	assert_eq(Array(I18n.missing(lines)), [], "every speech line has an English entry")
+	var thai := Array(lines).filter(func(l: String) -> bool: return thai_re.search(I18n.lookup(l)) != null)
+	assert_eq(thai, [], "no English speech line contains Thai")
+	for path in ["res://ui/screens/dressing_screen.gd", "res://scenes/campaign/hero_normal.gd"]:
+		assert_true(FileAccess.get_file_as_string(path).contains("I18n.t(SpeechBubble.line("), path + " translates its bubble lines")
+
+
 func test_t_switches_language() -> void:
 	I18n.english = false
 	assert_eq(I18n.t("เฟรม/วิ"), "เฟรม/วิ", "Thai is the default")

@@ -1,5 +1,5 @@
 extends "res://tests/testing.gd"
-## The i18n fragment files ui/i18n/{menu,hall,battle,arena,arena_hud,arena_data,online,online_battle,dressing,campaign,campaign_hero,campaign_mission}.json (LOBBY_SPEC §0.7, ARENA_SPEC §1, NET_SPEC §7.3, CAMPAIGN_SPEC §5.1): each is a flat Thai → English
+## The i18n fragment files ui/i18n/{menu,hall,battle,arena,arena_hud,arena_data,online,online_battle,dressing,campaign,campaign_hero,campaign_mission,face}.json (LOBBY_SPEC §0.7, ARENA_SPEC §1, NET_SPEC §7.3, CAMPAIGN_SPEC §5.1): each is a flat Thai → English
 ## object with English-only values, no key is in two fragments or already in another source (reuse a key that
 ## exists instead), and the I18n autoload finds every fragment key without overwriting i18n_extra.json.
 
@@ -19,8 +19,9 @@ func test_fragment_list() -> void:
 	# the three arena fragments were added on purpose (ARENA_SPEC §12.1 R0), in the spec's order
 	# NET_SPEC §11.1 D0: the two online fragments (deck + airlock, online battle) were added on purpose, after arena_data
 	# PACK_SPEC §9.6 (round C): the dressing room's fragment was added on purpose, after online_battle
-	# CAMPAIGN_SPEC §5.1 (round E): one fragment per campaign track (A core, B difficulty screen, C missions) added on purpose, last
-	assert_eq(Array(I18nScript.FRAGMENTS), ["res://ui/i18n/menu.json", "res://ui/i18n/hall.json", "res://ui/i18n/battle.json", "res://ui/i18n/arena.json", "res://ui/i18n/arena_hud.json", "res://ui/i18n/arena_data.json", "res://ui/i18n/online.json", "res://ui/i18n/online_battle.json", "res://ui/i18n/dressing.json", "res://ui/i18n/campaign.json", "res://ui/i18n/campaign_hero.json", "res://ui/i18n/campaign_mission.json"], "I18n loads the twelve fragments in this order")
+	# CAMPAIGN_SPEC §5.1 (round E): one fragment per campaign track (A core, B difficulty screen, C missions) added on purpose
+	# ใหม่ 0.14 item 2: the soldier's speech-bubble lines (ui/i18n/face.json) added on purpose, last
+	assert_eq(Array(I18nScript.FRAGMENTS), ["res://ui/i18n/menu.json", "res://ui/i18n/hall.json", "res://ui/i18n/battle.json", "res://ui/i18n/arena.json", "res://ui/i18n/arena_hud.json", "res://ui/i18n/arena_data.json", "res://ui/i18n/online.json", "res://ui/i18n/online_battle.json", "res://ui/i18n/dressing.json", "res://ui/i18n/campaign.json", "res://ui/i18n/campaign_hero.json", "res://ui/i18n/campaign_mission.json", "res://ui/i18n/face.json"], "I18n loads the thirteen fragments in this order")
 	for path in I18nScript.FRAGMENTS:
 		assert_true(FileAccess.file_exists(path), "fragment exists: " + path)
 	# a file in the folder that FRAGMENTS does not list would never load (the data lint fails on it as well)

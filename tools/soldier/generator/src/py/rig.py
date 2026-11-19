@@ -1,4 +1,4 @@
-# โครงกระดูกของทหาร: 23 กระดูกของโครงเกม (ชื่อ/ลำดับ/พ่อแม่/ระยะเดิม × S) + กระดูกช่วย 10 ชิ้น (เป็นใบไม้ ไม่แทรกกลางสาย)
+# โครงกระดูกของทหาร: 23 กระดูกของโครงเกม (ชื่อ/ลำดับ/พ่อแม่/ระยะเดิม × S) + กระดูกช่วย 10 ชิ้น + กระดูกหน้า 5 ชิ้น (ใบไม้)
 # หน่วยเมตร แกนแบบ Godot: +Y บน หุ่นหันหน้า +Z ซ้ายของหุ่น = +X ; การหมุนแบบ quaternion [x, y, z, w] เหมือน Godot
 import json
 import numpy as np
@@ -54,12 +54,21 @@ def _ipose_main():
 
 
 HELPERS = _helpers()
-BONES = MAIN + [h[0] for h in HELPERS]
+# กระดูกหน้า (ใหม่ 0.14): ใบไม้ใต้ head ชื่อขึ้นต้น head_ (แผลนับเป็นหัว) ; ไม่มีคลิป ไม่มีตัวขับ (เกมขยับเอง) ; ท่าพัก = หมุน 0
+#   head_jaw = กราม (หมุนรอบแกน X ของตัวเอง บวก = อ้าปาก ~1.7 มม. ต่อองศาที่ริมฝีปาก) ; head_lip<L/R> = มุมปาก ; head_brow<L/R> = คิ้ว (สองอย่างหลังเลื่อน)
+#   จุดหมุนกรามต่ำกว่าข้อขากรรไกร ~3 ซม. (ราวรูขากรรไกร): ปากล่างลงมากกว่าถอยหลัง เหมือนการอ้าปากจริง (หมุน + เลื่อน)
+FACE_PTS = {"head_jaw": (0.0, 1.608, 0.004), "head_lipL": (0.0255, 1.5886, 0.1006), "head_lipR": (-0.0255, 1.5886, 0.1006),
+            "head_browL": (0.032, 1.6865, 0.090), "head_browR": (-0.032, 1.6865, 0.090)}
+FACE = list(FACE_PTS)
+BONES = MAIN + [h[0] for h in HELPERS] + FACE
 PARENT = {b: _PAR[i] for i, b in enumerate(MAIN)}
 OFFSET = {b: np.array(_OFF[i], float) * S for i, b in enumerate(MAIN)}
 for _n, _p, _o in HELPERS:
     PARENT[_n] = _p
     OFFSET[_n] = np.asarray(_o, float)
+for _n in FACE:
+    PARENT[_n] = "head"
+    OFFSET[_n] = np.asarray(FACE_PTS[_n], float) - _ipose_main()["head"]
 OFFSET["pelvis"] = PELVIS_IPOSE.copy()
 BI = {b: i for i, b in enumerate(BONES)}
 DEFORM = [b for b in BONES if not b.startswith("heel")]       # ส้นเท้าเป็นจุดแตะพื้น ไม่ใช้ผิว
@@ -81,6 +90,11 @@ LIMITS = {
     "knee": {"x": [-5, 140], "y": [-10, 10], "z": [-3, 3], "note": "x+ = flexion"},
     "ankle": {"x": [-25, 50], "y": [-10, 10], "z": [-20, 25], "note": "x- = dorsiflexion, x+ = plantarflexion"},
     "toe": {"x": [-60, 35], "y": [-5, 5], "z": [-5, 5], "note": "metatarsophalangeal"},
+    "head_jaw": {"x": [0, 8], "y": [0, 0], "z": [0, 0], "note": "face: x+ = mouth opening (~1.7 mm at the lips per degree; speech 1.5-5, shout <= 8)"},
+    "head_lip": {"x": [0, 0], "y": [0, 0], "z": [0, 0], "t_mm": [[-3, 3], [-3, 3], [-2, 2]],
+                 "note": "face: translation only (head frame, mm x S ratio): x out, y up, z forward"},
+    "head_brow": {"x": [0, 0], "y": [0, 0], "z": [0, 0], "t_mm": [[-1.5, 1.5], [-2.5, 4], [0, 0]],
+                  "note": "face: translation only (head frame, mm x S ratio): x out, y up"},
 }
 
 # ---------------- คณิตการหมุน (quaternion [x,y,z,w] และเมทริกซ์ 3x3) ----------------
@@ -233,7 +247,7 @@ def fk(pose, helpers=True):
             M[:3, 3] = pose["pelvis_pos"]
             G[b] = M
         else:
-            M[:3, 3] = OFFSET[b]
+            M[:3, 3] = OFFSET[b] + np.asarray(pose.get("trans", {}).get(b, (0.0, 0.0, 0.0)), float)
             G[b] = G[p] @ M
     return G, L
 
@@ -276,7 +290,8 @@ def rig_json(k=None):
             bm = bm.copy()
             bm[:, 3] = bm[:, 3] * k
         out["bones"].append({"name": b, "parent": PARENT[b], "rest_pos": [float(v) for v in pos],
-                             "rest_q": [float(v) for v in rest_q], "helper": b not in MAIN,
+                             "rest_q": [float(v) for v in rest_q], "helper": b not in MAIN and b not in FACE,
+                             "face": b in FACE,
                              "bind": [[float(v) for v in row] for row in bm],
                              "bind_q": [float(v) for v in L[b]]})
     out["bind_pose"]["pelvis_pos"] = [float(v) for v in (bind["pelvis_pos"] if k is None else bind["pelvis_pos"] * k)]
@@ -288,7 +303,7 @@ def rig_json(k=None):
 if __name__ == "__main__":
     for b in MAIN:
         print("%-10s %s" % (b, np.round(JOINT_I[b], 4)))
-    print(len(BONES), "bones;", len(HELPERS), "helpers")
+    print(len(BONES), "bones;", len(HELPERS), "helpers;", len(FACE), "face")
     G, _ = fk(bind_pose())
     for b in ["shoulderL", "elbowL", "wristL", "handL", "hipL", "ankleL", "toeL", "clavicleL", "elbow_halfL"]:
         print("bind", b, np.round(G[b][:3, 3], 4))
