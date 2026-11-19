@@ -462,6 +462,8 @@ func _fill_chars() -> void:
 		b.button_group = group
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.clip_text = true
+		# ชื่อยาวเกินปุ่ม (เช่นชื่อตัวจากชุดเสริม) ตัดท้ายเป็น … ไม่ขาดกลางคำ
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.focus_mode = Control.FOCUS_NONE
 		b.set_meta(&"i", i)
 		b.set_meta(&"id", str(_list[i]["id"]))

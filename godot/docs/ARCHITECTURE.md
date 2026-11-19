@@ -392,7 +392,9 @@ Per-level budgets, asserted by `tests/render/test_budgets.gd` on a 400-figure / 
   resolution = 21 fps. It is a `lo` device: render scale 0.75, no shadow map. The GPU-check screen measures this and picks
   the level; hi stays opt-in on phones.
 - Memory: flat colours, one ≤ 2048 impostor atlas (≤ 16 MB VRAM), fonts; kits loaded lazily per battle (~100 KB each);
-  targets < 350 MB RSS on Android, < 500 MB on a 2 GB PC; APK < 90 MB (CI fails above 120 MB).
+  targets < 350 MB RSS on Android, < 500 MB on a 2 GB PC. App size: the owner's target is 3 GB (18 Nov 2026, it was
+  90 MB), but a GitHub release file is limited to 2 GiB, so the APK and the Windows zip must stay under that: CI fails
+  an APK or a Windows zip above 1900 MB. Big assets still earn their bytes (each soldier body has a size cap in `test_soldier.gd`).
 - Battery: fps caps, idle = no redraw, polls only in a room, screen on only during play.
 - Measurement: `tools/perf_scene.gd` prints counters per level in CI (artifact); the in-app GPU-check screen shows
   adapter, GL version, draw calls, fps, memory, so the owner screenshots numbers from the old PC and the phones.

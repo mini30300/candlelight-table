@@ -48,7 +48,7 @@ static func make_figure(role: String, manifest: String = PACK_MANIFEST) -> Node3
 
 ## ตัวผู้เล่นจากตัวที่เลือกในห้องแต่งตัว sel = Figures.selected() {figure, scheme} (ARENA_SPEC §9.6)
 ## ชุดเสริม → ตัวของรายการนั้น (ขาด FIGURE_API = ตัวผู้เล่นของ pack.json) · ไข่ → ไข่ถือปืน · ชุดโมเดล → KitFighter
-## ชุดสีทาหลัง ArenaPlayer.setup (scheme_of)
+## ตัวในแอป (builtin) → สคริปต์ของตัวนั้น (ขาด FIGURE_API = ตัวเริ่มต้น) · ชุดสีทาหลัง ArenaPlayer.setup (scheme_of)
 static func player_figure(sel: Dictionary, manifest: String = PACK_MANIFEST) -> Node3D:
 	var e := Figures.entry(str(sel.get("figure", "")))
 	match str(e.get("kind", "")):
@@ -68,6 +68,13 @@ static func player_figure(sel: Dictionary, manifest: String = PACK_MANIFEST) -> 
 			push_warning("arena pack: the selected figure %s is not an arena figure" % path)
 			if fig != null:
 				fig.free()
+		"builtin":
+			var b := Figures.make_builtin(str(e["id"]))
+			if b != null and missing_api(b).is_empty():
+				return b
+			push_warning("arena: the built-in figure %s is not an arena figure" % str(e["id"]))
+			if b != null:
+				b.free()
 	return make_figure("player", manifest)
 
 
@@ -87,6 +94,8 @@ static func player_preload(sel: Dictionary) -> String:
 			return KitLibrary.kit_path(str(e["kit"]))
 		"pack":
 			return Figures.pack_figure(str(e["id"]))
+		"builtin":
+			return Figures.builtin_figure(str(e["id"]))
 	return ""
 
 

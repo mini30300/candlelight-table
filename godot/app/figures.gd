@@ -2,6 +2,7 @@ class_name Figures
 extends RefCounted
 ## ห้องแต่งตัว (PACK_SPEC §10): รายชื่อตัวที่ออกมาเดินบนดาดฟ้า ชุดสีสำเร็จรูป ตัวที่เลือก และช่องบันทึก 3 ช่อง
 ## ตัวละคร: ไข่ (ของ HallAvatar เอง: make คืน null) · ชุดโมเดลเดิมของโต๊ะรบ (KitWalker) · ตัวละครชุดเสริม (res://packs/figures.json)
+## · ตัวในแอปที่มีไฟล์ของตัวเอง (BUILTINS, kind builtin: ทหารราบรุ่นทดลอง)
 ## เก็บในไฟล์ตั้งค่าของแอป (App.settings_file หมวด "figure") ไม่ใช่ data/*.json (ไม่แตะ DATA_HASH) · ไม่แตะกติกาหรือเครือข่าย
 
 const SECTION := "figure"
@@ -29,6 +30,20 @@ const KITS: Array[Dictionary] = [
 	{"kit": "dabsong", "th": "ทหารดาบสองมือ", "en": "Twin-sword fighter"},
 	{"kit": "cxw", "th": "ทหารทรยศ", "en": "Traitor trooper"},
 ]
+## ตัวในแอปที่มีไฟล์ของตัวเอง (assets/figures/<id>/): สคริปต์ตัวละครสัญญาเต็ม (FIGURE_API) ใช้ทั้งดาดฟ้าและห้องทดลอง
+## ไม่รับชุดสี · ไม่เป็นตัวเริ่มต้น · ขึ้นในรายชื่อเมื่อมีทั้งสคริปต์และไฟล์ที่ needs ชี้ · body = ร่าง (body_id ของสคริปต์)
+const BUILTINS: Array[Dictionary] = [
+	{"id": "soldier", "th": "ทหารราบ (ทดลอง)", "en": "Infantry (preview)", "figure": "res://scenes/arena/soldier_figure.gd",
+		"needs": "res://assets/figures/soldier/rig.tscn"},
+	{"id": "soldier_m2", "th": "ทหารราบ ชาย 2 (ทดลอง)", "en": "Infantry M2 (preview)", "body": "m2",
+		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_m2/rig.tscn"},
+	{"id": "soldier_m3", "th": "ทหารราบ ชาย 3 (ทดลอง)", "en": "Infantry M3 (preview)", "body": "m3",
+		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_m3/rig.tscn"},
+	{"id": "soldier_f1", "th": "ทหารราบ หญิง 1 (ทดลอง)", "en": "Infantry W1 (preview)", "body": "f1",
+		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_f1/rig.tscn"},
+	{"id": "soldier_f2", "th": "ทหารราบ หญิง 2 (ทดลอง)", "en": "Infantry W2 (preview)", "body": "f2",
+		"figure": "res://scenes/arena/soldier_figure.gd", "needs": "res://assets/figures/soldier_f2/rig.tscn"},
+]
 ## ชุดสีสำเร็จรูป: primary = เกราะ/ตัว, secondary = ผ้า/ชุดใน (สี sRGB) · original = สีเดิมของตัว (ไม่ทา H10; สีในปุ่มใช้วาดเท่านั้น)
 const SCHEMES: Array[Dictionary] = [
 	{"id": "original", "th": "สีเดิม", "en": "Original", "p": "4a4540", "s": "c9a23a", "original": true},
@@ -53,12 +68,16 @@ static var pack_list := PACK_LIST
 static var pack_manifest := ArenaActors.PACK_MANIFEST
 
 
-## ทุกตัวที่เลือกได้: [{id, name {th, en}, kind egg|kit|pack, kit (kind kit), schemes}] ชุดเสริมก่อน แล้วไข่ แล้วชุดโมเดล
+## ทุกตัวที่เลือกได้: [{id, name {th, en}, kind egg|builtin|kit|pack, kit (kind kit), schemes}]
+## ชุดเสริมก่อน แล้วไข่ แล้วตัวในแอป แล้วชุดโมเดล
 static func list() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for p in _packs():
 		out.append({"id": p["id"], "name": p["name"], "kind": "pack", "schemes": p["schemes"]})
 	out.append({"id": EGG, "name": {"th": "ตัวไข่", "en": "Egg"}, "kind": "egg", "schemes": false})
+	for b in BUILTINS:
+		if ResourceLoader.exists(str(b["figure"])) and ResourceLoader.exists(str(b["needs"])):
+			out.append({"id": b["id"], "name": {"th": b["th"], "en": b["en"]}, "kind": "builtin", "schemes": false})
 	for k in KITS:
 		if KitLibrary.has_kit(str(k["kit"])):
 			out.append({"id": "kit_" + str(k["kit"]), "name": {"th": k["th"], "en": k["en"]}, "kind": "kit", "kit": k["kit"],
@@ -87,6 +106,8 @@ static func make(id: StringName, level: StringName = &"mid") -> Node3D:
 			for p in _packs():
 				if p["id"] == e["id"]:
 					return _instance(str(p["figure"]))
+		"builtin":
+			return make_builtin(str(e["id"]))
 	return null
 
 
@@ -96,6 +117,25 @@ static func pack_figure(id: String) -> String:
 		if p["id"] == id:
 			return str(p["figure"])
 	return ""
+
+
+## ทางไฟล์สคริปต์ของตัวในแอป id ("" ไม่มี) · ดาดฟ้าและอารีน่าใช้สคริปต์เดียวกัน
+static func builtin_figure(id: String) -> String:
+	for b in BUILTINS:
+		if b["id"] == id:
+			return str(b["figure"])
+	return ""
+
+
+## ตัวในแอป id ยังไม่ setup: สคริปต์ของรายการ + ร่าง ("body" ของรายการลง body_id) · ดาดฟ้า ห้องแต่งตัว อารีน่าใช้ร่วม · null = ไม่มี
+static func make_builtin(id: String) -> Node3D:
+	for b in BUILTINS:
+		if b["id"] == id:
+			var f := _instance(str(b["figure"]))
+			if f != null and b.has("body"):
+				f.set("body_id", str(b["body"]))
+			return f
+	return null
 
 
 ## ทาชุดสีบนตัวที่ติดตั้งแล้ว: ชุดสำเร็จรูปหรือชุดของตัวนั้น (figure_id; ว่าง = หาในทุกตัว) ผ่าน apply_entry
@@ -324,7 +364,7 @@ static func _packs() -> Array[Dictionary]:
 		if not path.begins_with("res://"):
 			path = dir + path
 		var why := ""
-		if re.search(id) == null or seen.has(id) or id == EGG or id.begins_with("kit_"):
+		if re.search(id) == null or seen.has(id) or id == EGG or id.begins_with("kit_") or builtin_figure(id) != "":
 			why = "bad or repeated id"
 		elif not (nm is Dictionary and str(nm.get("th", "")) != "" and str(nm.get("en", "")) != "") or thai.search(str(nm.get("en", ""))) != null:
 			why = "name needs th and en (en without Thai)"

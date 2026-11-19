@@ -46,7 +46,9 @@ func test_list_without_a_pack() -> void:
 	var l := Figures.list()
 	assert_eq(str(l[0]["id"]), "egg", "no pack: the egg comes first")
 	assert_eq(str(l[0]["kind"]), "egg", "the egg's kind is egg")
-	assert_eq(l.size(), 1 + Figures.KITS.size(), "the egg plus every curated kit (%d)" % Figures.KITS.size())
+	# ใหม่ 0.13: ตัวในแอป (ทหารราบรุ่นทดลอง, kind builtin) อยู่ระหว่างไข่กับชุดโมเดล จึงนับเพิ่ม (ตั้งใจ ไม่ได้ผ่อนเทส)
+	assert_eq(l.size(), 1 + Figures.BUILTINS.size() + Figures.KITS.size(),
+		"the egg, the built-in figures (%d) and every curated kit (%d)" % [Figures.BUILTINS.size(), Figures.KITS.size()])
 	assert_true(Figures.KITS.size() >= 12, "at least 12 walkable kits")
 	var thai := RegEx.create_from_string("[฀-๿]")
 	for e in l:

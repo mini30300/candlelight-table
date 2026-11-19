@@ -771,7 +771,10 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   `figures.json` entry's script (`Figures.pack_figure(id)`), and when it lacks part of `FIGURE_API` (a deck-only figure)
   the pack's `player` role or the default, as before. The deck door preloads `ArenaActors.player_preload(sel)` (the
   kit model or the pack script) beside the old paths. The arena screen is built on each entry, so a new selection
-  shows the next time the door is used.
+  shows the next time the door is used. ใหม่ 0.13: kind `builtin` → that figure's own script (`Figures.builtin_figure`;
+  the infantry soldier preview `SoldierFigure`, `scenes/arena/soldier_figure.gd`, with its body from the entry: the base
+  or `m2`, `m3`, `f1`, `f2`, each with its own S, meshes and wound layers), the default when it lacks part of
+  `FIGURE_API`; the door preloads its script.
 - **`KitFighter`** (`scenes/arena/kit_fighter.gd`, extends `KitWalker`): the battle-table kits as arena players. The
   weapon is part of the kit mesh. Clips from `humanoid.res`: idle / walk / run (rate matched to the speed like the
   beast), backward = walk played in reverse (H6 local y < −0.5, never run), `fire` = the kit's own weapon clip (`hold`
@@ -791,6 +794,39 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   reverse walk, dodge, paint, the min still pose), `tests/render/test_arena_figures.gd` (the arena with a kit selected
   and with the dressed fixture `tests/fixtures/figure_pack_paint`: figure and scheme, the §11.2 overview budget on
   hi/mid/lo/min, a tracer from the muzzle, D turning without sliding, min idle; `arena_fig_<kit|pack>_<mid|min>.png`).
+- **Wounds on the soldier** (visual only; owner: "เวลาตายหรือโดนอะไรจะได้เห็นเป็นกระดูก กับเนื้อ"):
+  `SoldierFigure.add_wound(bone, local_offset, radius)` puts a wound sphere on a bone (centre in the bone's frame). It
+  affects only that bone's body part (`body_part()`: torso, head, left/right arm, left/right leg; every skin and inner
+  vertex carries its part in `CUSTOM0`), so a flank wound never cuts the arm swinging past it, nor a thigh wound the
+  other thigh. `play(&"hit")` (and `hit_heavy`) adds one small wound (3.2–4.5 cm), `play(&"die")` two or three larger
+  ones (6–8.5 cm on the torso, 4.5–6 cm on a limb) at seeded-random skin spots (`wound_spots()`: body_lo vertices whose
+  bone holds ≥ 0.8 of the weight, on the torso (clavicle helpers included) and the limbs; the centre 0.3 r under the
+  skin). Each spot carries the largest radius it takes: the ragged cut stays clear of the part seams ((seam distance −
+  1 cm) / 1.35) and, on a limb, within 0.55 × the distance to the bone axis (forearm wounds about 2 cm: no window through
+  the limb); spots with less than 0.6 of the range's smallest radius are not used, and a bone's chance scales with its
+  usable spots. `set_hit_from(world_dir)` (optional, not one of the 12 methods; the arena player calls it in `take_hit`
+  with the horizontal direction to `hit["from"]`) keeps the next hit's or death's wounds on spots whose posed normal
+  faces the attacker (dot > 0.25; every spot if none does), then forgets it. The figure's own RNG (from the setup seed)
+  draws three numbers per wound and the death count on every level, min included, so the same seed repeats the wounds
+  and the level never shifts later ones. At most 8 (the oldest is replaced). Each frame while wounds exist the centres
+  follow their bones (`mixer_applied`; never on min). Cleared on `setup` and when a dead figure plays a loop again (the
+  arena's revive). hi/mid: the figure's own copy of the skin material switches to `body_wound.gdshader` (`wound_mode`
+  2), which discards the skin inside each wound with a ragged, deterministic edge (value noise in the bone's frame, no
+  TIME) and a dark-red rim; under it the inner layers show, drawn after the skin (`render_priority` 1):
+  `inner_flesh.res` (the skin inset by the fat thickness, skinned like the skin, every vertex ≥ 1 mm under the hi and
+  mid skin) as wet red flesh with value-noise texture and a thin pale fat band under the skin edge, cut away in the core
+  (0.4 r) so `inner_bone.res` (the anatomical bones, bound rigidly, ≥ 2 mm under the skin; ivory with a blood tint toward
+  the edge) shows, and a lit deep-red cavity behind (the flesh's inner side, darker toward the middle, only along view
+  rays through a wound of its own part). The wound code lives once, in `wound.gdshaderinc`, which `body_wound.gdshader`
+  and `inner.gdshader` include. The inner layers are made at the first wound and hidden (`visible = false`) when there
+  is none: two draw calls more only while wounded; without them (a stage imported without the set) hi/mid tint instead
+  of cutting. lo: the own material on the wound shader tints the skin per vertex (`wound_mode` 1), no inner layers, no
+  extra draw call. min: nothing (no wound kept, no material copy, nothing per frame), and the shared material keeps
+  `body.gdshader`, which has no wound code and no `discard`, so early depth tests and hidden-surface removal stay on.
+  While the own material is in use the hit flash and the telegraph tint go through its `flash` / `telegraph` uniforms
+  instead of `material_overlay`, so nothing washes over a fresh hole. Tests: `tests/unit/test_soldier_wounds.gd`,
+  `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`: the four levels, a close-up, seven poses, the run strip,
+  and the f1 body alone and in the arena). Every body has its own wound layers and wound spots (keyed by its folder).
 
 ## 10. Screens, flow and transitions (ROOM)
 

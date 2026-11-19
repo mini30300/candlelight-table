@@ -37,6 +37,8 @@ func _build() -> void:
 	if fig.has_method("setup"):
 		fig.call("setup", {"role": &"player", "level": HeroKit.FIG_LEVEL if _manual else level,
 			"team_colour": Color(0.28, 0.52, 0.84), "seed": 0, "manual": true})
+	# ทหารราบ: ใช้ระดับของการ์ด แต่เดินท่าด้วย step() ของฉาก (lo/min ไม่มีงานต่อเฟรม)
+	_manual = _manual or fig is SoldierFigure
 	Figures.dress(fig, ArenaActors.scheme_of(sel), str(sel.get("figure", "")))
 	if fig.has_method("set_weapon"):
 		fig.call("set_weapon", &"none")

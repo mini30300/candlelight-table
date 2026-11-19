@@ -8,10 +8,13 @@ extends RefCounted
 const SHADER := "res://assets/shaders/figure.gdshader"
 
 
-## คืนจำนวนวัสดุที่ตั้งค่า (นับไม่ซ้ำ)
+## คืนจำนวนวัสดุที่ตั้งค่า (นับไม่ซ้ำ) · ตัวที่คิดแสงเองด้วยวัสดุของตัวเอง (ทหาร) รับไฟผ่าน set_light ของมัน
 static func apply(root: Node, sun_dir: Vector3, sun: Color, ambient: Color, per_pixel := true) -> int:
 	if root == null:
 		return 0
+	if root.has_method("set_light"):
+		root.call("set_light", sun_dir, sun, ambient, per_pixel)
+		return 1
 	var done := {}
 	var copies := {}
 	var stack: Array[Node] = [root]

@@ -103,6 +103,12 @@ def read_text(path):
         return f.read()
 
 
+def compressed_res(path):
+    """A Godot binary resource saved compressed (header RSCC): its body is zstd blocks, not text."""
+    with open(path, "rb") as f:
+        return f.read(4) == b"RSCC"
+
+
 def rel(path, root):
     return os.path.relpath(path, root).replace(os.sep, "/")
 
@@ -548,6 +554,9 @@ def check_names(root, legacy):
         is_md = relpath.endswith(".md")
         for a, e, pat, tok in banned_hits(os.path.basename(relpath).lower()):
             errs.append("%s: file name contains a banned name (%s)" % (relpath, tok))
+        if relpath.endswith(".res") and compressed_res(p):
+            continue                                   # zstd bytes: a text scan finds only noise; the names inside
+                                                       # are checked in Godot by tests/unit/test_resource_names.gd
         text = read_text(p)
         for a, e, pat, tok in banned_hits(text):
             if is_md and pat in BRAND:
@@ -1115,6 +1124,17 @@ def run_fixtures(validator, cap):
         materialise_rot13(os.path.join(FIXTURES, "fail_banned_name"), tmp)
         errs, _ = check_names(tmp, load_legacy())
         expect("fail_banned_name", errs, True)
+    # a compressed Godot resource: zstd noise that happens to spell a banned word passes (it is not text),
+    # a banned word in the file name still fails (the word is decoded here, never stored in the repo)
+    with tempfile.TemporaryDirectory() as tmp:
+        with open(os.path.join(tmp, "noise.res"), "wb") as f:
+            f.write(b"RSCC\x02\x00\x00\x00\x00\x10\x00\x00\x91" + WORD[0].encode() + b"\x07\xfe")
+        errs, _ = check_names(tmp, set())
+        expect("ok compressed res noise", errs, False)
+        with open(os.path.join(tmp, "%s-x.res" % WORD[0]), "wb") as f:
+            f.write(b"RSCC\x02")
+        errs, _ = check_names(tmp, set())
+        expect("fail compressed res name", [e.replace(WORD[0], "…") for e in errs], True)
     # a float dice value in a datasheet
     p = os.path.join(FIXTURES, "fail_float_dice", "data", "types.json")
     types = read_json(p)
