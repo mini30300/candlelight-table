@@ -1,6 +1,6 @@
 class_name SoldierFigure
 extends Node3D
-## ทหารราบ (ทดลอง): ร่างคนตามกายวิภาค (โครง → กล้าม → ผิว) จากเครื่องมือ tools/soldier · ยังไม่มีชุดและปืน
+## ทหารราบ (ทดลอง): ร่างคนตามกายวิภาค (โครง → กล้าม → ผิว) จากเครื่องมือ tools/soldier · ชุดสนามเลือกได้ (outfit) · ยังไม่มีปืน
 ## ตัวในห้องแต่งตัว (Figures kind builtin): เดินบนดาดฟ้า เป็นตัวผู้เล่นในห้องทดลองและภารกิจ และในการ์ด "ธรรมดา"
 ## สัญญาตัวละคร (ARENA_SPEC §9.1): 12 เมธอด + clip_event · ดาดฟ้า (PACK_SPEC §3) + deck_speeds · H6 H8 H9 แบบ KitFighter
 ## ไฟล์ทั้งหมดใน assets/figures/soldier/ (tools/soldier/import_stage.sh นำเข้า) · ร่างอื่น (body_id) ใน assets/figures/soldier_<id>/
@@ -14,6 +14,9 @@ extends Node3D
 ## แผลตัดเฉพาะส่วนร่างกายเดียวกับกระดูกแผล · อัปเดตตามท่าเฉพาะตอนมีแผล ล้างตอน setup / ลุกขึ้นใหม่
 ## ล้มตามฟิสิกส์ (ใหม่ 0.14 ข้อ 3, SoldierRagdoll): hi/mid เล่นท่าล้ม 0.1 วิแล้วร่างตกตามแรงผลัก (set_hit_push) นิ่งแล้วอบท่าลงโครง
 ## (ภาพล้วน ตำแหน่งของเกมไม่ขยับ) · lo/min ท่าล้มตามด้านที่ถูกตีเหมือนเดิม
+## ชุด (ใหม่ 0.15, opts "outfit"): "" = กางเกงฝึก (ร่างเปล่า ค่าเริ่มต้น) · "uniform" = ชุดสนาม: outfit_<ชุด>_<ระดับ>.res แทน
+## body_<ระดับ>.res ทั้งตัว (ยังวาดครั้งเดียว โครง Skin วัสดุ หน้า แผลเดิม) · ชื่อไม่รู้จักหรือร่างไม่มีไฟล์ครบ = "" (outfit_shown)
+## แผลบนชุดตัดผ้าเหมือนตัดผิว (จุดลงแผลจาก outfit_<ชุด>_lo.res) เห็นเนื้อและกระดูกข้างใน
 
 signal clip_event(kind: StringName)
 
@@ -98,6 +101,8 @@ const WOUND_SHADER := DIR + "body_wound.gdshader"
 const WOUND_FILE := "body_wound.gdshader"
 const FACE_FILE := "body_face.gdshader"   # ผิว + หน้า (hi/mid/lo) · body.gdshader ไม่มีหน้า (min)
 const MAX_WOUNDS := 8
+## ชุดที่รู้จัก ("" = กางเกงฝึก) · ไฟล์: outfit_<ชุด>_{hi,mid,lo,min}.res ในโฟลเดอร์ร่าง (ต้องครบทุกระดับ)
+const OUTFITS: PackedStringArray = ["", "uniform"]
 ## ส่วนร่างกาย (CUSTOM0.w ของผิว / CUSTOM0.x ของชั้นใน จาก parts.py ของ tools/soldier): แผลมีผลเฉพาะส่วนของกระดูกแผล
 const PARTS: PackedStringArray = ["torso", "head", "armL", "armR", "legL", "legR"]
 ## ที่ลงแผลสุ่ม: กระดูก → น้ำหนักการสุ่ม (ลำตัวมากกว่าแขนขา ไม่ลงหัว มือ เท้า) · clavicle = อกบน/ไหล่ (กระดูกช่วย)
@@ -134,9 +139,12 @@ static var _baked: Dictionary = {}
 static var _inner_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ชั้น -> เมช
 static var _spots: Dictionary = {}         # โฟลเดอร์ร่าง -> จุดลงแผล
 static var _wound_shs: Dictionary = {}     # โฟลเดอร์ร่าง -> เชดเดอร์ผิวมีแผล (null = ไม่มี)
+static var _outfit_ok: Dictionary = {}     # โฟลเดอร์ร่าง + ชุด -> มีไฟล์ครบทุกระดับ
 
 ## ร่าง: "" = ร่างหลัก (assets/figures/soldier/) · อื่น = assets/figures/soldier_<id>/ · Figures ตั้งก่อน setup (หรือ opts "body")
 var body_id := ""
+## ชุดที่ขอ ("" = กางเกงฝึก): Figures ตั้งก่อน setup (หรือ opts "outfit") · ชุดที่ใส่จริง = outfit_shown()
+var outfit := ""
 var role: StringName = &"player"
 var level := "mid"
 var weapon: StringName = &"none"
@@ -220,22 +228,27 @@ var _push := Vector3.ZERO        # แรงผลัก (โลก ม./วิ)
 var _prng := RandomNumberGenerator.new()   # สุ่มแรงผลักของร่าง แยกจากตัวอื่น: ลำดับเดิมไม่เลื่อน
 var _face: SoldierFace           # หน้า (0.14): กะพริบ อารมณ์ ปากพูด · เดินด้วย _on_applied (min/ยืนนิ่ง = ไม่เดิน)
 var _mat_min: ShaderMaterial     # วัสดุของ min (ใช้ร่วม): face_on ปิด (เมช min ไม่มี CUSTOM1)
+var _outfit := ""                # ชุดที่ใส่จริง ("" = ร่างเปล่า)
 
 
 # ================= สัญญาตัวละคร =================
 
 ## opts: {"role" &"player"|&"enemy"|&"deck"|อื่น ๆ = ผู้เล่น, "level", "team_colour" (ไม่ใช้: สีผิวของตัวเอง), "seed"}
 ## + "manual" (เดินท่าด้วย step() ของฉาก เช่นการ์ดฮีโร่) + "body" (แทน body_id; ร่างเลือกได้ก่อนสร้างครั้งแรกเท่านั้น)
+## + "outfit" (แทน outfit: "" กางเกงฝึก / "uniform" ชุดสนาม · setup ซ้ำเปลี่ยนได้)
 func setup(opts: Dictionary) -> void:
 	if bool(opts.get("manual", false)):
 		_manual = true
 	if opts.has("body"):
 		body_id = str(opts["body"])
+	if opts.has("outfit"):
+		outfit = str(opts["outfit"])
 	if not _built:
 		_body = folder(body_id)
 		if _body != DIR and not ResourceLoader.exists(_body + "rig.tscn"):
 			push_warning("soldier: no body %s, using the base body" % body_id)
 			_body = DIR
+	_outfit = outfit if has_outfit(outfit, _body) else ""
 	role = StringName(str(opts.get("role", "player")))
 	_clips = clip_map(role == &"enemy")
 	_own = own_clips()
@@ -706,10 +719,15 @@ func wound_updates() -> int:
 	return _wound_updates
 
 
+## ชุดที่ใส่อยู่จริง: "" = กางเกงฝึก (ขอชุดที่ไม่รู้จักหรือร่างนี้ไม่มีไฟล์ครบ ก็ได้ "") · "uniform" = ชุดสนาม
+func outfit_shown() -> String:
+	return _outfit
+
+
 ## จุดผิวที่ลงแผลได้ของกระดูก bone ที่หันไปทาง dir (กรอบโครงตอนผูก) มากสุด เฉพาะจุดที่รัศมีลงได้ ≥ min_room (เทส/ภาพ)
-## [ศูนย์กลางในกรอบกระดูก, นอร์มอลในกรอบกระดูก, รัศมีที่ลงได้สูงสุด] · body = โฟลเดอร์ร่าง
-static func wound_spot(bone: StringName, dir: Vector3, min_room := 0.0, body := DIR) -> Array:
-	var list: Array = wound_spots(body).get(bone, [])
+## [ศูนย์กลางในกรอบกระดูก, นอร์มอลในกรอบกระดูก, รัศมีที่ลงได้สูงสุด] · body = โฟลเดอร์ร่าง · outfit_name = จุดบนผ้าของชุดนั้น
+static func wound_spot(bone: StringName, dir: Vector3, min_room := 0.0, body := DIR, outfit_name := "") -> Array:
+	var list: Array = wound_spots(body, outfit_name).get(bone, [])
 	var skin := _skin_of(body)
 	var best := []
 	var score := -INF
@@ -762,6 +780,30 @@ static func body_mesh(l: String, body := DIR) -> ArrayMesh:
 	return _mesh_cache[key]
 
 
+## เมชชุด name ระดับ l ของร่างในโฟลเดอร์ body (แทน body_<l>.res ทั้งตัว) · แคชร่วมกับผิว · null = ไม่มีไฟล์
+static func outfit_mesh(name: String, l: String, body := DIR) -> ArrayMesh:
+	var key := body + "outfit_%s_%s" % [name, l]
+	if not _mesh_cache.has(key):
+		var p := body + "outfit_%s_%s.res" % [name, l]
+		_mesh_cache[key] = load(p) as ArrayMesh if name != "" and ResourceLoader.exists(p) else null
+	return _mesh_cache[key]
+
+
+## ร่างในโฟลเดอร์ body ใส่ชุด name ได้: ชื่ออยู่ใน OUTFITS และมีไฟล์ครบ 4 ระดับ ("" = ได้เสมอ) · คิดครั้งเดียวต่อร่าง
+static func has_outfit(name: String, body := DIR) -> bool:
+	if name == "":
+		return true
+	if not OUTFITS.has(name):
+		return false
+	var key := body + name
+	if not _outfit_ok.has(key):
+		var ok := true
+		for l in LEVELS:
+			ok = ok and ResourceLoader.exists(body + "outfit_%s_%s.res" % [name, l])
+		_outfit_ok[key] = ok
+	return _outfit_ok[key]
+
+
 ## ชั้นในของแผล "flesh" / "bone" ของร่างในโฟลเดอร์ body (โหลดตอนแผลแรกบน hi/mid) · null = ไม่มีไฟล์
 static func inner_mesh(l: String, body := DIR) -> ArrayMesh:
 	var key := body + l
@@ -774,13 +816,16 @@ static func inner_mesh(l: String, body := DIR) -> ArrayMesh:
 ## จุดลงแผลต่อกระดูกใน WOUND_BONES ของร่างในโฟลเดอร์ body (คิดครั้งเดียวต่อร่าง ตามลำดับจุดยอด กำหนดแน่นอน):
 ## จุดยอดของ SPOT_MESH ที่กระดูกนั้นถือน้ำหนัก ≥ WOUND_SPOT_W · {กระดูก: [[จุดในกรอบกระดูก, นอร์มอลในกรอบกระดูก,
 ## รัศมีสูงสุด], ...]} · รัศมีสูงสุด = ระยะถึงรอยต่อส่วนร่างกาย (ท่าผูก) และแขนขา: ระยะถึงแกนกระดูก (WOUND_AXIS_K)
-static func wound_spots(body := DIR) -> Dictionary:
-	if _spots.has(body):
-		return _spots[body]
+## outfit_name = จุดบนผ้า (outfit_<ชุด>_lo.res: CUSTOM0.w ส่วนร่างกายเหมือนผิว) ศูนย์กลางแผลจึงอยู่ใต้ผ้า ตัดผ้าเหมือนตัดผิว
+static func wound_spots(body := DIR, outfit_name := "") -> Dictionary:
+	var key0 := body + outfit_name
+	if _spots.has(key0):
+		return _spots[key0]
 	var out := {}
-	_spots[body] = out
+	_spots[key0] = out
 	var skin := _skin_of(body)
-	var m := load(body + SPOT_MESH) as ArrayMesh if ResourceLoader.exists(body + SPOT_MESH) else null
+	var sp := body + (SPOT_MESH if outfit_name == "" else "outfit_%s_lo.res" % outfit_name)
+	var m := load(sp) as ArrayMesh if ResourceLoader.exists(sp) else null
 	if m == null or skin == null:
 		return out
 	var arr := m.surface_get_arrays(0)
@@ -1278,7 +1323,7 @@ func _ready_rules() -> void:
 
 
 func _set_mesh(l: String) -> void:
-	var m := body_mesh(l, _body)
+	var m := body_mesh(l, _body) if _outfit == "" else outfit_mesh(_outfit, l, _body)   # ชุด: เมชเดียวแทนผิวทั้งตัว
 	_mi.mesh = m
 	_mi.material_override = _material_for(l)
 	_shape_slots.clear()
@@ -1637,7 +1682,7 @@ func _random_wound(trunk: Vector2, limb: Vector2) -> bool:
 	var r_rad := _wrng.randf()
 	if not _built or level == "min" or wound_shader(_body) == null:
 		return false
-	var spots := wound_spots(_body)
+	var spots := wound_spots(_body, _outfit)
 	var cand := {}
 	for facing in [_hit_from != Vector3.ZERO, false]:
 		cand = _wound_candidates(spots, trunk, limb, facing)

@@ -413,7 +413,13 @@ station (`"action": "dressing"`), so the public app shows nothing new. Friends o
   folder `res://assets/figures/soldier_<body>/`. Its `deck_speeds()` stay 1.61 / 4.0147 × S m/s (the humanoid walk / run
   speed × S × 1.4, unchanged by its own clips in ใหม่ 0.14); its own walk plays at 1.24× there (127 steps/min).
 - **Default**: the first pack figure, else the egg; scheme original (a figure looks as before until the owner picks).
-- **Storage**: section `[figure]` (`figure`, `scheme`, `slot0..2`) of the app's settings file (`App.settings_file`; tests
+- **Outfit row** (ใหม่ 0.15): for the infantry (kind `builtin`) the dressing screen shows "ชุด" / "Outfit" with
+  "กางเกงฝึก" / "Training shorts" and "ชุดสนาม" / "Field uniform"; the preview wears the pick at once, a body without the
+  uniform files wears training shorts and the row says "ร่างนี้ยังไม่มีชุดสนาม" / "This body has no field uniform yet".
+  ใช้ตัวนี้ saves it (`Figures.select_outfit`, before `select`, whose `App.figure_changed` rebuilds the figures) and a
+  slot keeps it (`"outfit"` only when it is not training shorts). `Figures.outfit()` reads it and `make_builtin` puts it
+  on the player's figure (deck, arena, hero card); other figures hide the row and ignore it.
+- **Storage**: section `[figure]` (`figure`, `scheme`, `outfit`, `slot0..2`) of the app's settings file (`App.settings_file`; tests
   point it, or `Figures.store_path`, elsewhere); `App.save_settings` keeps other sections. Never `godot/data/*.json`
   (that would change `DATA_HASH`, the online gate).
 - **Pack figures** `res://packs/figures.json` (absent = none; tests set `Figures.pack_list`):

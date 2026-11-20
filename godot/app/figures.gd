@@ -134,6 +134,8 @@ static func make_builtin(id: String) -> Node3D:
 			var f := _instance(str(b["figure"]))
 			if f != null and b.has("body"):
 				f.set("body_id", str(b["body"]))
+			if f != null and "outfit" in f:
+				f.set("outfit", outfit())    # ชุดจากห้องแต่งตัว (ตัวผู้เล่นเท่านั้น: ทหารตัวอื่นและบอทไม่ได้สร้างที่นี่)
 			return f
 	return null
 
@@ -222,7 +224,21 @@ static func select(figure_id: String, scheme_id: String) -> void:
 		app.emit_signal("figure_changed")
 
 
-## ช่องบันทึก 3 ช่อง: {} ว่าง หรือ {figure, scheme} (ตัวที่หายไปแล้วกลายเป็นช่องว่าง)
+## ชุดของทหารที่เลือกในห้องแต่งตัว (แถว "ชุด"; SoldierFigure.OUTFITS): "" = กางเกงฝึก · "uniform" = ชุดสนาม · ไม่รู้จัก = ""
+## ร่างที่ไม่มีไฟล์ชุดใส่กางเกงฝึกเอง (SoldierFigure.outfit_shown)
+static func outfit() -> String:
+	var v := str(_cfg().get_value(SECTION, "outfit", ""))
+	return v if SoldierFigure.OUTFITS.has(v) else ""
+
+
+## เก็บชุดที่เลือก (ห้องแต่งตัวเรียกก่อน select ของปุ่ม "ใช้ตัวนี้" ซึ่งแจ้ง App.figure_changed ให้สร้างตัวใหม่)
+static func select_outfit(name: String) -> void:
+	var cfg := _cfg()
+	cfg.set_value(SECTION, "outfit", name if SoldierFigure.OUTFITS.has(name) else "")
+	_save(cfg)
+
+
+## ช่องบันทึก 3 ช่อง: {} ว่าง หรือ {figure, scheme} (+ outfit เมื่อไม่ใช่กางเกงฝึก) (ตัวที่หายไปแล้วกลายเป็นช่องว่าง)
 static func slots() -> Array:
 	var cfg := _cfg()
 	var out := []
@@ -232,16 +248,16 @@ static func slots() -> Array:
 		if d.is_empty() or entry(str(d.get("figure", ""))).is_empty():
 			out.append({})
 		else:
-			out.append(_valid(str(d["figure"]), str(d.get("scheme", ""))))
+			out.append(_with_outfit(_valid(str(d["figure"]), str(d.get("scheme", ""))), str(d.get("outfit", ""))))
 	return out
 
 
-## บันทึกตัวลงช่อง i (0..2); id ที่ไม่มีไม่บันทึก
-static func save_slot(i: int, figure_id: String, scheme_id: String) -> void:
+## บันทึกตัวลงช่อง i (0..2) พร้อมชุด (outfit_name; "" = กางเกงฝึก); id ที่ไม่มีไม่บันทึก
+static func save_slot(i: int, figure_id: String, scheme_id: String, outfit_name := "") -> void:
 	if i < 0 or i >= SLOTS or entry(figure_id).is_empty():
 		return
 	var cfg := _cfg()
-	cfg.set_value(SECTION, "slot%d" % i, _valid(figure_id, scheme_id))
+	cfg.set_value(SECTION, "slot%d" % i, _with_outfit(_valid(figure_id, scheme_id), outfit_name))
 	_save(cfg)
 
 
@@ -257,6 +273,13 @@ static func _valid(figure_id: String, scheme_id: String) -> Dictionary:
 	var f := figure_id if not entry(figure_id).is_empty() else default_figure()
 	var s := scheme_id if palettes(f).any(func(x: Dictionary) -> bool: return x["id"] == scheme_id) else DEFAULT_SCHEME
 	return {"figure": f, "scheme": s}
+
+
+## ช่องบันทึก: ใส่ชุดเฉพาะชุดที่รู้จักและไม่ใช่กางเกงฝึก (ช่องแบบเดิมคง {figure, scheme})
+static func _with_outfit(v: Dictionary, name: String) -> Dictionary:
+	if name != "" and SoldierFigure.OUTFITS.has(name):
+		v["outfit"] = name
+	return v
 
 
 static func _preset_entry(s: Dictionary) -> Dictionary:

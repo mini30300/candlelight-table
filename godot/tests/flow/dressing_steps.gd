@@ -9,6 +9,9 @@ extends SceneTree
 ## and says so; saving slot 2 stores {figure, scheme} and names it; loading it brings the pair back; English leaves no Thai;
 ## "ใช้ตัวนี้" selects, closes and the room's avatar is the new figure with the scheme; a reload keeps the selection and the
 ## slot; ‹ กลับ closes without a change; on min nothing under the dressing screen processes after 10 frames.
+## Outfit row (ใหม่ 0.15, real Figures only): the infantry shows ชุด with กางเกงฝึก / ชุดสนาม, ชุดสนาม dresses the preview,
+## a body without the uniform (f1) wears training shorts and says so, English leaves no Thai, other figures hide the row,
+## slot 3 keeps the outfit, and ใช้ตัวนี้ saves it (it persists after a reload).
 
 const SCENE := "res://scenes/main.tscn"
 const SETTINGS_FILE := "user://test_dressing.cfg"
@@ -118,6 +121,8 @@ func _run() -> void:
 	var sel: Dictionary = _api.call("selected")
 	_check(str(sel.get("figure")) == target and str(sel.get("scheme")) == scheme, "Figures.select got the pair",
 		"%s / %s vs %s / %s" % [sel.get("figure"), sel.get("scheme"), target, scheme])
+	if not _stub:
+		_check(str(_api.call("outfit")) == "uniform", "ใช้ตัวนี้ saves the outfit row's choice (ชุดสนาม)", str(_api.call("outfit")))
 	var now: Variant = avatar.get("figure")
 	var now_id := (now as Node3D).get_instance_id() if now != null else 0
 	_check(now != null and now_id != before_id and (now as Node3D).get_parent() == avatar, "the room's avatar is the new figure",
@@ -139,6 +144,9 @@ func _run() -> void:
 		str(sel2))
 	_check(slots.size() == 3 and slots[1] is Dictionary and str((slots[1] as Dictionary).get("figure", "")) == target,
 		"slot 2 persists after a reload", str(slots))
+	if not _stub:
+		_check(str(again.call("outfit")) == "uniform" and str((slots[2] as Dictionary).get("outfit", "")) == "uniform",
+			"the outfit and slot 3's outfit persist after a reload", "%s / %s" % [again.call("outfit"), slots[2]])
 	await _check_back_and_min(room, avatar)
 	await _check_not_ready(room)
 	_finish()
@@ -153,6 +161,7 @@ func _check_screen(ds: Node) -> void:
 		"%d / %d" % [ds.swatch_buttons().size(), schemes.size()])
 	_check(ds.slot_buttons().size() == 3 and ds.save_buttons().size() == 3, "three slots with save buttons")
 	_check(ds.get_node("Safe").get_child(0).get_child(0).get_child(1).get("text") == "ห้องแต่งตัว", "the Thai title")
+	await _check_outfit(ds)
 	# ตัวที่ทาสีได้ (ไม่ใช่ตัวที่เลือกอยู่) และตัวที่ใช้สีของตัวเอง
 	var cur := str(ds.get("figure_id"))
 	var paint := ""
@@ -246,6 +255,68 @@ func _check_screen(ds: Node) -> void:
 		await _frames(2)
 	_app().call("set_lang", "th")
 	ds.refresh()
+
+
+## แถว "ชุด" (ใหม่ 0.15): ทหารราบเท่านั้น · ชุดสนามแต่งตัวอย่าง · ร่างที่ไม่มีชุดบอกไว้ · อังกฤษไม่มีไทย · ช่อง 3 เก็บชุด
+func _check_outfit(ds: Node) -> void:
+	if _stub or not ds.has_method("outfit_buttons"):
+		print("      outfit row: skipped (stub Figures)")
+		return
+	var list: Array = _api.call("list")
+	var ids: Array = list.map(func(e: Dictionary) -> String: return str(e["id"]))
+	_check(ids.has("soldier_m2"), "the infantry M2 is listed (it has the field uniform)")
+	if not ids.has("soldier_m2"):
+		return
+	var start := str(ds.get("figure_id"))
+	ds.pick_figure("soldier_m2")
+	await _frames(2)
+	var bs: Array[Button] = ds.outfit_buttons()
+	_check(bs.size() == 2 and bs[0].is_visible_in_tree() and bs[0].text == "กางเกงฝึก" and bs[1].text == "ชุดสนาม"
+		and bs[0].button_pressed, "the infantry has the outfit row: กางเกงฝึก (chosen) / ชุดสนาม",
+		str(bs.map(func(b: Button) -> String: return b.text)))
+	if bs.size() != 2:
+		return
+	_press_button(bs[1])
+	await _frames(2)
+	var pf: Node3D = ds.preview_figure()
+	_check(str(ds.get("outfit_id")) == "uniform" and bs[1].button_pressed and pf != null and str(pf.call("outfit_shown")) == "uniform",
+		"ชุดสนาม dresses the preview in the field uniform")
+	_check(not (ds.outfit_note() as Label).is_visible_in_tree(), "m2 has the uniform: no note")
+	_press_button(ds.save_buttons()[2])
+	await _frames(2)
+	var sl: Array = _api.call("slots")
+	_check(str((sl[2] as Dictionary).get("outfit", "")) == "uniform" and ds.slot_buttons()[2].text.ends_with(" · ชุดสนาม"),
+		"slot 3 keeps the outfit and names it", "%s / %s" % [sl[2], ds.slot_buttons()[2].text])
+	var f1 := ids.has("soldier_f1") and not bool(load("res://scenes/arena/soldier_figure.gd").call("has_outfit", "uniform",
+		"res://assets/figures/soldier_f1/"))
+	if f1:
+		ds.pick_figure("soldier_f1")
+		await _frames(2)
+		var note := ds.outfit_note() as Label
+		_check(str(ds.preview_figure().call("outfit_shown")) == "" and note.is_visible_in_tree() and note.text == "ร่างนี้ยังไม่มีชุดสนาม",
+			"f1 has no uniform yet: it wears training shorts and the row says so", note.text)
+	_app().call("set_lang", "en")
+	ds.refresh()
+	await _frames(2)
+	var thai := _thai_in(ds)
+	_check(thai.is_empty() and bs[0].text == "Training shorts" and bs[1].text == "Field uniform"
+		and (not f1 or (ds.outfit_note() as Label).text == "This body has no field uniform yet"),
+		"English mode: the outfit row has no Thai", ", ".join(thai))
+	_app().call("set_lang", "th")
+	ds.refresh()
+	ds.load_slot(2)
+	await _frames(2)
+	_check(str(ds.get("figure_id")) == "soldier_m2" and str(ds.get("outfit_id")) == "uniform"
+		and str(ds.preview_figure().call("outfit_shown")) == "uniform", "loading slot 3 brings m2 back in the uniform")
+	for e: Dictionary in list:
+		if str(e.get("kind", "")) != "builtin":
+			ds.pick_figure(str(e["id"]))
+			await _frames(2)
+			_check(not bs[0].is_visible_in_tree() and str(ds.get("outfit_id")) == "uniform",
+				"a figure that is not infantry hides the row (the choice stays)", str(e["id"]))
+			break
+	ds.pick_figure(start)
+	await _frames(2)
 
 
 func _check_back_and_min(room: Node, avatar: Node3D) -> void:

@@ -26,5 +26,9 @@
   "ม่วง": "Purple",
   "ทอง": "Gold",
   "สีเดิม": "Original",
-  "เดิม": "Orig."
+  "เดิม": "Orig.",
+  "ชุด": "Outfit",
+  "กางเกงฝึก": "Training shorts",
+  "ชุดสนาม": "Field uniform",
+  "ร่างนี้ยังไม่มีชุดสนาม": "This body has no field uniform yet"
 }
