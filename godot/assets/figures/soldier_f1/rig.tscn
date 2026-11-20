@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[node name="Soldier" type="Node3D" unique_id=325746533]
+[node name="Soldier" type="Node3D" unique_id=1413229278]
 metadata/soldier_rig = {
 "H": 1.6,
 "S": 1.0000000000000002,
@@ -30,7 +30,7 @@ metadata/soldier_rig = {
 "shapes": []
 }
 
-[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=521924399]
+[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=1331414676]
 bones/0/name = "pelvis"
 bones/0/parent = -1
 bones/0/rest = Transform3D(1, 0, 0, 0, 0.99984765, -0.017453335, 0, 0.017453335, 0.99984765, 0, 0.888, 0.005)

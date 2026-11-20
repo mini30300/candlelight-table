@@ -69,6 +69,12 @@ func _run() -> bool:
 			var v: Variant = src_mat.get_shader_parameter(u["name"])
 			if v != null:
 				mat.set_shader_parameter(u["name"], v)
+	# สีเปลือกตาปิดของร่างนี้ (face.json): body.gdshader ไม่มี uniform หน้า จึงเก็บเป็น meta ; SoldierFigure ใส่ในวัสดุผิว+หน้า
+	if FileAccess.file_exists("res://out/data/face.json"):
+		var fj: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://out/data/face.json"))
+		if fj is Dictionary and (fj as Dictionary).has("lid_colour"):
+			var lc: Array = (fj as Dictionary)["lid_colour"]
+			mat.set_meta("face_lid_colour", Vector3(lc[0], lc[1], lc[2]))
 	if not _save(mat, "body_material.tres", 0, report):
 		return false
 	mat = load(DST + "body_material.tres") as ShaderMaterial

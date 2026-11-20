@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[node name="Soldier" type="Node3D" unique_id=380415054]
+[node name="Soldier" type="Node3D" unique_id=283861976]
 metadata/soldier_rig = {
 "H": 1.7,
 "S": 1.0625,
@@ -30,7 +30,7 @@ metadata/soldier_rig = {
 "shapes": []
 }
 
-[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=1325427565]
+[node name="Skeleton3D" type="Skeleton3D" parent="." unique_id=1667890056]
 motion_scale = 1.0625
 bones/0/name = "pelvis"
 bones/0/parent = -1

@@ -4,17 +4,30 @@
 #   พิกัดทุกค่าในนี้ = กรอบท่า I ของทหารฐาน 1.78 ม. ; ส่วนสูงของร่างคือการย่อ/ขยายทั้งตัวตอนส่งออก (k = สูง / 1.78)
 #   โครงเกม 23 กระดูกคงสัดส่วนเดิม × S = สูง / 1.6 (motion_scale = S) ; ศีรษะขยายต่างหาก (k^-0.6) ไม่ย่อตามตัวเต็มที่
 #   รอบปรับ (refine): แก้ม/กรามเรียบ ตาไกลเปิดสองโทน ขอบผ้าตัดตามเส้นจริง หน้าแต่ละคนต่างกันชัด ร่างหญิงสองแบบ
+import os
 import numpy as np
 
 BASE_H = 1.78
 CUR = None
 NAME = ""
 
+# รูปร่างพื้นฐาน (0.14): natural = ไหล่ลาดลง บ่าแคบลง แขน/น่องเต็มขึ้น (ค่าเริ่ม) ;
+#   original = ร่างเดิมก่อน 0.14 (ไบต์ต่อไบต์) : BODY_SHAPE=original bash src/run_all.sh
+SHAPE = os.environ.get("BODY_SHAPE", "natural")
+if SHAPE not in ("natural", "original"):
+    raise SystemExit("BODY_SHAPE must be natural or original (got %r)" % SHAPE)
+
+
+def shp(orig, new):
+    """ค่าของรูปร่างเดิม (original) หรือรูปร่างใหม่ (natural)"""
+    return orig if SHAPE == "original" else new
+
 # กลุ่มกล้าม (ระดับกล้ามต่อบริเวณ)
 MGROUP = {
     "neck": ("sternocleidomastoid", "neck_extensors", "neck_side", "scalenes", "levator_scapulae"),
     "trap": ("trapezius_upper", "trapezius_middle", "trapezius_lower"),
-    "back": ("latissimus_dorsi", "erector_spinae", "infraspinatus_teres", "teres_major", "subscapularis", "supraspinatus"),
+    "back": ("latissimus_dorsi", "erector_spinae", "infraspinatus_teres", "teres_major", "subscapularis", "supraspinatus",
+             "rhomboids"),
     "chest": ("pectoralis_major", "pectoralis_minor", "subclavius", "serratus_anterior"),
     "abs": ("rectus_abdominis", "external_oblique"),
     "delt": ("deltoid",),
@@ -276,7 +289,8 @@ VARIANTS = {
         "label": "หญิง 1.60 ม. ผิวแทน หน้าแบบเอเชียตะวันออกเฉียงใต้ ผมดำตรงมวยสูง สะโพกผาย",
         "label_en": "female 1.60 m, tan skin, Southeast Asian face, straight black hair in a high bun, pear shape",
         "sex": "f", "stature": 1.60, "fat": 1.0,
-        "muscle": {"all": 0.72, "neck": 0.58, "trap": 0.50, "delt": 0.56, "chest": 0.60, "arm": 0.64, "farm": 0.76,
+        # 0.14 (natural): แขนท่อนล่างคงสัดส่วนเดิมกับต้นแขน (เทียบอ้างอิงหญิง)
+        "muscle": {"all": 0.72, "neck": 0.58, "trap": 0.50, "delt": 0.56, "chest": 0.60, "arm": 0.64, "farm": shp(0.76, 0.66),
                    "abs": 0.78, "back": 0.70, "glute": 0.86, "thigh": 0.86, "calf": 0.90, "face": 0.70},
         "fat_seg": {"thigh": 1.38, "shank": 1.22, "uarm": 1.15, "farm": 1.05, "neck": 1.15},
         "fat_rseg": {"thigh": 1.12, "shank": 1.12, "uarm": 1.15, "farm": 1.10, "neck": 1.30},
@@ -317,6 +331,11 @@ VARIANTS = {
         "brow_shape": {"dy": 0.0012, "w": 0.0045, "arch": 0.0012, "soft": 0.002},
         "face_smooth": 80.0, "lowlift": 0.09, "eyelift": 0.02,
         "detail_head_zmin": -0.165, "detail_head_ymax": 1.84,
+        # ใหม่ 0.14 (natural): สามเหลี่ยมเพิ่มที่มุมคอ-สายเสื้อด้านหลัง (mid: ขอบผ้า G11) และยอดมวยผม (min: ความสูง G4)
+        "lod_spots": shp(None, {"mid": [((sx * 0.080, 1.492, -0.062), (0.030, 0.030, 0.035), 0.45) for sx in (1.0, -1.0)],
+                                "min": [((0.0, 1.796, -0.085), (0.035, 0.030, 0.035), 0.6),
+                                        ((0.0, 1.450, -0.120), (0.030, 0.035, 0.030), 0.5)]}),   # + กลางหลังบน (min: สมมาตร G3)
+        "lod_band": shp(None, {"mid": 0.35}),       # 0.14 (natural): mid เก็บจุดยอดตามขอบเสื้อ (คอหน้า G11)
         "ranges": {"stature": (158, 163), "chest": (80, 92), "waist": (62, 74), "hips": (88, 100), "neck": (30, 34.5),
                    "thigh": (49, 58), "calf": (31.5, 36.5), "upper_arm": (24, 30), "forearm": (20.5, 25.5),
                    "wrist": (14, 16), "head_height": (20.5, 23.5), "head_breadth": (13.8, 15.6),
@@ -326,8 +345,10 @@ VARIANTS = {
         "label": "หญิง 1.73 ม. ผิวน้ำตาลเข้ม ผมหยิกฟูสีน้ำตาลดำ โหนกแก้มกว้าง ร่างนักกีฬาตรง",
         "label_en": "female 1.73 m, dark brown skin, full curly dark hair, wide cheekbones, straight athletic build",
         "sex": "f", "stature": 1.73, "fat": 0.80,
-        "muscle": {"all": 0.84, "neck": 0.66, "trap": 0.62, "delt": 0.66, "chest": 0.70, "arm": 0.80, "farm": 0.86,
+        # 0.14 (natural): แขนท่อนล่างคงสัดส่วนเดิมกับต้นแขน (เทียบอ้างอิงหญิง)
+        "muscle": {"all": 0.84, "neck": 0.66, "trap": 0.62, "delt": 0.66, "chest": 0.70, "arm": 0.80, "farm": shp(0.86, 0.80),
                    "abs": 0.90, "back": 0.82, "glute": 1.0, "thigh": 1.0, "calf": 1.0, "face": 0.75},
+        "lod_band": shp(None, {"hi": 0.35, "mid": 0.35}),   # 0.14 (natural): hi/mid เก็บจุดยอดตามขอบเสื้อ (ขอบผ้า G11)
         "fat_seg": {"thigh": 1.0, "shank": 1.0, "uarm": 1.0, "neck": 1.05},
         "fat_rseg": {"neck": 1.30},
         "blobs": _blob_f(0.40) + [NECK_SH] + _jaw_blobs(1.3, 1.6),
@@ -544,6 +565,23 @@ def muscle_k(name):
     """ระดับกล้าม (คูณความหนาท้องกล้าม) ของมัดนี้"""
     m = CUR.get("muscle", {})
     return float(m.get(M2G.get(name, ""), m.get("all", 1.0)))
+
+
+# ใหม่ 0.14 (natural): ร่างหลัก lo มีจุดยอดข้างกระดูกอกเหนือรอยต่อ chest/spine (จุดลงแผลอกของเกม: กระดูกตื้น เห็นในแผล)
+BASE_LOD_SPOTS = shp(None, {"lo": [((sx * 0.025, 1.402, 0.110), (0.015, 0.012, 0.030), 0.9) for sx in (1.0, -1.0)]})
+
+
+def lod_spots(V, lv, G):
+    """ใหม่ 0.14: น้ำหนักเก็บสามเหลี่ยมเพิ่มตอนลดระดับ lv ตาม lod_spots ของร่าง [(จุดกลาง, รัศมี, น้ำหนัก)]
+    และ lod_band (ระดับ -> น้ำหนักแถบรอบขอบเสื้อ: คอ/วงแขน/สาย) ; ไม่มี = 0"""
+    w = np.zeros(len(V))
+    for c, r, k in ((CUR.get("lod_spots") if CUR is not None else BASE_LOD_SPOTS) or {}).get(lv, ()):
+        w = np.maximum(w, k * np.exp(-np.sum(((V - np.asarray(c)) / np.asarray(r)) ** 2, axis=1)))
+    kb = (CUR.get("lod_band") or {}).get(lv, 0.0) if CUR is not None else 0.0
+    if kb > 0 and CUR.get("top"):
+        t = top_mask(V, G, hem=False)
+        w = np.maximum(w, kb * 4 * t * (1 - t))
+    return w
 
 
 def detail_boxes(boxes):

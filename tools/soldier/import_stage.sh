@@ -93,6 +93,8 @@ for f in rig.tscn skin.res soldier_skin.tres body_hi.res body_mid.res body_lo.re
   if [ -f "$OUTG/$f" ]; then cp "$OUTG/$f" "$WORK/out/godot/"; fi
 done
 if [ -f "$STAGE/out/data/rig.json" ]; then cp "$STAGE/out/data/rig.json" "$WORK/out/data/"; fi
+# the body's closed-eyelid colour (face.json of build.py): kept as meta on body_material.tres
+if [ -f "$STAGE/out/data/face.json" ]; then cp "$STAGE/out/data/face.json" "$WORK/out/data/"; fi
 cp "$STAGE/src/gd/soldier_skin.gdshader" "$WORK/src/gd/"
 for f in soldier_skin_face.gdshader soldier_skin_wound.gdshader wound.gdshaderinc face.gdshaderinc; do
   if [ -f "$STAGE/src/gd/$f" ]; then cp "$STAGE/src/gd/$f" "$WORK/src/gd/"; fi

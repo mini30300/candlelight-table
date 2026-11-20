@@ -18,6 +18,7 @@ import json
 import os
 import time
 import numpy as np
+import mesh as ME
 import rig
 import variants as VR
 from inner_layers import read_bin, SkinDepth
@@ -181,7 +182,7 @@ def poke(sk, M, P, B, W, part, full=False):
 
 
 def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bind_margin=0.0015, rounds=4, cap=0.03,
-               allow=None, iters=20, passes=1):
+               allow=None, iters=20, passes=1, only=None, skip_inverted=False):
     """ร่างแบบอื่น: เลื่อนจุดเนื้อ (กรอบที่ส่งออก) ที่โผล่พ้นผิว (หรือลึกไม่ถึง margin) ในท่าใดของเกม ในท่าผูก
     allow (ม. ต่อจุด กรอบที่ส่งออก) = โผล่ได้ถึงเท่านี้แทน margin (inf = ไม่เลื่อน: กระดูกนอกบริเวณที่ดู)
     ทุกท่าที่จุดนั้นโผล่เป็นเงื่อนไขเชิงเส้น g·d >= ระยะที่ขาด (g = A^T n: การหมุนผสมของจุดย้อนนอร์มอลของผิวในท่านั้น ;
@@ -199,14 +200,20 @@ def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bi
         if it_ and it_ % rounds == 0:
             total[:] = 0.0
         cons = {}                                     # จุด -> [(ระยะที่ขาด, g)] ในกรอบ 1.78 ม.
+        nb = ME.vnormals(V, F) if skip_inverted else None
         for _cn, _fr, M in frames:
             s, _, _, Nq = poke(sk, M, V / k, B, W, part, full=True)
             need = s + margin / k if allow is None else s - allow / k
             idx = np.flatnonzero(need > 0)
+            if only is not None:                      # ใหม่ 0.14: เฉพาะจุดที่ขอ (mask)
+                idx = idx[only[idx]]
             if len(idx) == 0:
                 continue
             A = sum(W[idx, j, None, None] * M[B[idx, j], :3, :3] for j in range(B.shape[1]))
             g = np.einsum('nji,nj->ni', A, Nq[idx])
+            if skip_inverted:                         # ไม่นับท่าที่ LBS หมุนระยะลึกสวนผิว (แบบเกต: แก้ด้วยการเลื่อนไม่ได้)
+                keep = np.einsum('ij,ij->i', g, nb[idx]) >= 0.0
+                idx, g = idx[keep], g[keep]
             for i, r, gi in zip(idx, need[idx], g):
                 cons.setdefault(int(i), []).append((float(r), gi))
         if not cons:
@@ -242,6 +249,22 @@ def push_posed(V, F, B, W, part, data, k, clips, skins, step=2, margin=0.001, bi
         total[ids] += np.linalg.norm(D, axis=1)
         moved[ids[np.linalg.norm(D, axis=1) > 0]] = True
     return V, int(moved.sum()), float(total.max())
+
+
+def still_out(V, F, B, W, part, data, k, clips, step=2):
+    """ใหม่ 0.14: mask จุดเนื้อ (กรอบที่ส่งออก) ที่ยังโผล่เกิน POKE_MM ในท่าของเกต (ทุก step เฟรม) ที่ LBS ไม่สวนผิว"""
+    sk = skin_data(data, k)
+    V = np.asarray(V, np.float64)
+    nb = ME.vnormals(V, F)
+    bad = np.zeros(len(V), bool)
+    for _cn, _fr, M in pose_frames(clips, step):
+        s, _, _, Nq = poke(sk, M, V / k, B, W, part, full=True)
+        o = np.flatnonzero(s * k * 1000.0 > POKE_MM)
+        if len(o):
+            A = sum(W[o, j, None, None] * M[B[o, j], :3, :3] for j in range(B.shape[1]))
+            g = np.einsum('nji,nj->ni', A, Nq[o])
+            bad[o[np.einsum('ij,ij->i', g, nb[o]) >= 0.0]] = True
+    return bad
 
 
 def push_bone(V, B, W, part, data, k, clips, skins, step=2):

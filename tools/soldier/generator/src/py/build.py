@@ -169,6 +169,8 @@ def detail_weights(Gb, sculpt=False, lv=None):
         if VR.CUR is not None and lv in ("hi", "mid", "lo") and EDGE_W > 0:
             # ร่างหลากหลาย: จุดยอดถี่ขึ้นตามขอบผ้า (คอเสื้อ วงแขน ขากางเกง)
             abd = np.maximum(abd, (EDGE_W if lv in ("hi", "mid") else EDGE_W_LO) * VR.edge_band(V, Gb))
+        if lv is not None:
+            abd = np.maximum(abd, VR.lod_spots(V, lv, Gb))  # ใหม่ 0.14: จุด/แถบที่ร่างนั้นขอสามเหลี่ยมเพิ่ม
         return 1.0 - np.maximum.reduce([face, 0.9 * feat, hands, abd])
     return wfun
 
@@ -309,6 +311,7 @@ def main():
     ap.add_argument("--no-shapes", dest="shapes", action="store_false", help="ไม่ส่งออก blend shape")
     args = ap.parse_args()
     VR.use(args.variant)
+    print("shape (BODY_SHAPE): %s" % VR.SHAPE, flush=True)
     if VR.CUR is not None:
         vroot = os.path.join(os.path.dirname(ROOT), VR.NAME)
         if args.out == os.path.join(ROOT, "out"):

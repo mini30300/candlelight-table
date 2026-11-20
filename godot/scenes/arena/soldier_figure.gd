@@ -1127,7 +1127,9 @@ static func _load_static(body := DIR) -> Dictionary:
 		var plain := mat.shader
 		var fp := body + FACE_FILE
 		if ResourceLoader.exists(fp):
-			var lid: Variant = mat.get_shader_parameter("face_lid_colour")
+			# สีเปลือกตาของร่าง: meta จาก import (body.gdshader ไม่มี uniform หน้า ค่า uniform ไม่ติดมากับ duplicate)
+			var lid: Variant = mat.get_meta("face_lid_colour") if mat.has_meta("face_lid_colour") \
+				else mat.get_shader_parameter("face_lid_colour")
 			mat.shader = load(fp) as Shader        # hi/mid/lo: ผิว + หน้า
 			if lid != null:
 				mat.set_shader_parameter("face_lid_colour", lid)

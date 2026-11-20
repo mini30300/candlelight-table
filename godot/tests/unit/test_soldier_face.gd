@@ -83,6 +83,17 @@ func test_assets_per_body() -> void:
 			if FACE_BONES.has(String(skin.get_bind_name(i))):
 				face_binds[i] = true
 		assert_eq(face_binds.size(), 5, "%s: one bind per face bone" % tag)
+		# สีเปลือกตาปิดของร่างนี้ (meta ของวัสดุจาก import) ไม่ใช่ค่าเริ่มของเชดเดอร์
+		var bm := load(d + "body_material.tres") as Material
+		var lid: Variant = bm.get_meta("face_lid_colour") if bm.has_meta("face_lid_colour") else null
+		assert_true(lid is Vector3 and not (lid as Vector3).is_equal_approx(Vector3(0.62, 0.45, 0.37)),
+			"%s: own closed-eyelid colour in body_material.tres (%s)" % [tag, lid])
+		# เกมส่งสีนี้ถึงวัสดุหน้า (hi/mid/lo) และวัสดุ pv
+		var st: Dictionary = S.call("_load_static", d)
+		for k in ["mat", "mat_pv"]:
+			var got: Variant = (st[k] as ShaderMaterial).get_shader_parameter("face_lid_colour") if st[k] != null else null
+			assert_true(lid is Vector3 and got is Vector3 and (got as Vector3).is_equal_approx(lid),
+				"%s: the face material (%s) gets the body's eyelid colour (%s)" % [tag, k, got])
 		for lv in LEVELS:
 			var m: ArrayMesh = S.call("body_mesh", lv, d)
 			var arr := m.surface_get_arrays(0)
