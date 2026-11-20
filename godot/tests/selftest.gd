@@ -35,10 +35,10 @@ func _initialize() -> void:
 ## are not in the tree yet, and tests/unit/test_app.gd and friends check for that).
 func _process(_delta: float) -> bool:
 	if _ran:
-		return true
+		return false
 	_ran = true
-	_run()
-	return true
+	_run()                 # a coroutine: test methods and the physics check await frames, then it quits
+	return false
 
 
 func _run() -> void:
@@ -67,13 +67,16 @@ func _run() -> void:
 		for m: Dictionary in t.get_method_list():
 			var name: String = m["name"]
 			if name.begins_with("test_") and m["args"].size() == 0:
-				t.call(name)
+				await t.call(name)
 		passed += int(t.get("passed"))
 		failed += int(t.get("failed"))
 		# บรรทัด FAIL ลงรายงานด้วย (บันทึก CI ตัดหัวทิ้ง เหลือแต่รายงาน)
 		var fl: Variant = t.get("fail_lines")
 		if fl is PackedStringArray:
 			_lines.append_array(fl)
+	var phys: Array = await _physics_check()
+	passed += int(phys[0])
+	failed += int(phys[1])
 	var secs := (Time.get_ticks_msec() - started) / 1000.0
 	if scripts.is_empty():
 		_say("FAIL  no test scripts found under " + TESTS_DIR + " (are tests/**/*.gd in the export?)")
@@ -81,6 +84,62 @@ func _run() -> void:
 	_say("%s  %d passed, %d failed in %d scripts (%.1fs)" % ["PASS " if ok else "FAIL ", passed, failed, scripts.size(), secs])
 	_write_report()
 	quit(0 if ok else 1)
+
+
+## Jolt is the 3D engine (the project setting, the module present, and a ray on a one-triangle concave shape giving
+## face index -1, Jolt's default where Godot Physics gives 0), and a soldier ragdoll on hi runs 60 physics frames
+## without NaN (ใหม่ 0.14 item 3). Returns [passed, failed]; the lines go to the report.
+func _physics_check() -> Array:
+	var res := [0, 0]
+	var tri := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var cp := ConcavePolygonShape3D.new()
+	cp.set_faces(PackedVector3Array([Vector3(-1, 0, -1), Vector3(1, 0, -1), Vector3(0, 0, 1)]))
+	cs.shape = cp
+	tri.add_child(cs)
+	tri.position = Vector3(0.0, -50.0, 0.0)
+	root.add_child(tri)
+	await physics_frame
+	await physics_frame
+	var q := PhysicsRayQueryParameters3D.create(Vector3(0, -49, 0), Vector3(0, -51, 0))
+	var hit: Dictionary = root.get_world_3d().direct_space_state.intersect_ray(q)
+	tri.queue_free()
+	var setting := str(ProjectSettings.get_setting("physics/3d/physics_engine", ""))
+	var jolt := setting == "Jolt Physics" and ClassDB.class_exists("JoltPhysicsServer3D") and not hit.is_empty() \
+		and int(hit.get("face_index", 0)) == -1
+	_tally(res, jolt, "Jolt Physics is the active 3D engine (setting '%s', ray face index %s)" % [setting, str(hit.get("face_index", "none"))])
+	if not ResourceLoader.exists("res://assets/figures/soldier/rig.tscn"):
+		_say("info  no soldier rig in this build: the ragdoll frames are skipped")
+		return res
+	var fig: Node3D = (load("res://scenes/arena/soldier_figure.gd") as GDScript).new()
+	fig.position = Vector3(0.0, -40.0, 0.0)
+	root.add_child(fig)
+	fig.call("setup", {"role": &"player", "level": "hi", "seed": 7})
+	fig.call("set_hit_push", Vector3(0.0, 0.0, -2.4))
+	fig.call("play", &"die", 1.0)
+	var fell := 0
+	var finite := true
+	for i in 60:
+		await physics_frame
+		var rag: Variant = fig.call("ragdoll")
+		if rag == null:
+			continue
+		if bool(rag.call("is_falling")):
+			fell += 1
+		for pb: PhysicalBone3D in rag.call("bodies"):
+			finite = finite and pb.global_transform.is_finite()
+	await process_frame
+	var sk: Skeleton3D = fig.call("skeleton")
+	for b in sk.get_bone_count():
+		finite = finite and sk.get_bone_global_pose(b).is_finite()
+	fig.queue_free()
+	_tally(res, fell >= 40 and finite, "a soldier ragdoll (hi) falls through 60 physics frames without NaN (%d frames falling)" % fell)
+	return res
+
+
+func _tally(res: Array, ok: bool, what: String) -> void:
+	_say(("ok    " if ok else "FAIL  ") + what)
+	res[0 if ok else 1] += 1
 
 
 func _renderer() -> String:

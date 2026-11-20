@@ -5,7 +5,9 @@ extends SceneTree
 ##  - alone, per level (hi/mid/lo/min): one draw call and the level's triangles within the soldier budget
 ##    (SoldierFigure.BUDGET); a strip of the four levels is saved;
 ##  - foot slide <= 15 mm while planted, walking and running at the deck speeds and the arena speeds (the figure's own
-##    playback-rate rule), and the measure has teeth (moving 10 % too slow slides well past the gate);
+##    playback-rate rule: with the own clips the arena W is the jog), standing (idle) and turning on the spot at the
+##    A/D rate both ways (turn_l / turn_r, the node rotated about the figure's origin), and the measure has teeth
+##    (the arena W jog, the walk and the sprint moved 10 % too slow slide well past the gate);
 ##  - the deck: the avatar becomes the soldier (egg hidden, deck speeds), W walks and Shift+W runs at the matching clip
 ##    rate, releasing stops processing; every level within the deck targets with no more draw calls than the egg; standing
 ##    on lo and on min the soldier holds a still pose, and on min nothing under the deck processes;
@@ -15,7 +17,7 @@ extends SceneTree
 ##  - the campaign's "normal" hero card shows the soldier on every level within §4 with head and chest in the frame; the
 ##    card's clock moves it on hi/mid, and on lo/min (drawn once) its animation player does not advance;
 ##  - the other bodies (Figures "soldier_m2", "soldier_m3", "soldier_f1", "soldier_f2"): foot slide <= 15 mm at that
-##    body's own deck speeds and at the arena speeds with its own S; on the deck at hi and min the avatar is that body,
+##    body's own deck speeds and at the arena speeds with its own S, standing and turning; on the deck at hi and min the avatar is that body,
 ##    takes its deck speeds and stays within the deck targets; the arena player is that body and the overview at hi
 ##    stays within §11.2; the "normal" hero card at hi and min shows that body lit, head and chest in the frame;
 ##  - English mode: the dressing room names it "Infantry (preview)" and the four other bodies by their English names,
@@ -158,18 +160,35 @@ func _footslide() -> void:
 	fig.call("setup", {"role": &"deck", "level": "mid", "seed": 0})
 	var deck: Vector2 = fig.call("deck_speeds")
 	fig.queue_free()
-	for c in [["deck walk", deck.x, false], ["deck run", deck.y, true], ["arena walk", float(ArenaData.PLAYER["walk"]), false],
-			["arena run", float(ArenaData.PLAYER["run"]), true]]:
-		var r := _slide(float(c[1]), bool(c[2]), 1.0)
+	for c in _slide_cases(deck):
+		var r := _slide(float(c[1]), bool(c[2]), 1.0, "", float(c[3]))
 		_check(float(r["mm"]) <= MAX_SLIDE_MM and int(r["plants"]) > 2,
-			"%s at %.2f m/s: foot slide %.2f mm while planted (%d plants) <= %.0f mm" % [c[0], c[1], r["mm"], r["plants"], MAX_SLIDE_MM], str(r))
-	var ctl := _slide(float(ArenaData.PLAYER["walk"]), false, 0.9)
-	_check(float(ctl["mm"]) > 3.0 * MAX_SLIDE_MM, "control: moving 10 %% too slow slides %.1f mm (the measure has teeth)" % ctl["mm"])
+			"%s at %.2f m/s: %s, foot slide %.2f mm while planted (%d plants) <= %.0f mm" % [c[0], c[1], r["clip"], r["mm"], r["plants"], MAX_SLIDE_MM], str(r))
+	# 0.14: with the own clips 3 m/s (the old control) is the jog; its short contacts read less 10 % slow (about 49 mm on
+	# the base body, 51 on m2, 44 on f1) but still past the gate here; the walk (deck speed) and the run (arena Shift)
+	# are added as controls. 0.14 item 1b: arena W is the 2.7 jog (PLAYER.jog) and Shift the 5.6 sprint; within a gait the
+	# slide does not depend on the speed (speed / rate is the clip's own), so the controls keep their teeth
+	for c in [["arena W (jog)", float(ArenaData.PLAYER["jog"]), false], ["walk", deck.x, false], ["sprint", float(ArenaData.PLAYER["run"]), true]]:
+		var ctl := _slide(float(c[1]), bool(c[2]), 0.9)
+		_check(float(ctl["mm"]) > 3.0 * MAX_SLIDE_MM, "control: the %s moved 10 %% too slow slides %.1f mm (the measure has teeth)" % [c[0], ctl["mm"]])
 
 
-## {mm, plants}: the soldier (body: "" = the base) walks at `speed` (set_move) for 3 s at 240 samples/s while its root
-## moves speed × k
-func _slide(speed: float, running: bool, k: float, body := "") -> Dictionary:
+## the foot-slide cases at the deck speeds `deck`: [name, speed, running, yaw rate rad/s]; the turns at the A/D rate
+## (turn clips exist only in the soldier's own clips.res, which tests/unit/test_soldier_clips.gd requires; the humanoid
+## fallback has none, its feet slide when it turns on the spot, as before)
+func _slide_cases(deck: Vector2) -> Array:
+	# 0.14 item 1b: the arena speeds are the Ctrl walk 1.5, the W jog 2.7, the tired speed CS 3.2 and the Shift sprint 5.6
+	var out := [["deck walk", deck.x, false, 0.0], ["deck run", deck.y, true, 0.0], ["arena W (jog)", float(ArenaData.PLAYER["jog"]), false, 0.0],
+		["arena sprint", float(ArenaData.PLAYER["run"]), true, 0.0], ["arena Ctrl walk", float(ArenaData.PLAYER["walk"]), false, 0.0],
+		["arena tired", float(ArenaData.PLAYER["cs"]), true, 0.0], ["idle", 0.0, false, 0.0]]
+	if bool(S.call("own_clips")):
+		out.append_array([["turn left", 0.0, false, ArenaPlayer.TURN_RATE], ["turn right", 0.0, false, -ArenaPlayer.TURN_RATE]])
+	return out
+
+
+## {mm, plants, clip}: the soldier (body: "" = the base) walks at `speed` (set_move) for 3 s at 240 samples/s while its
+## root moves speed × k, and turns on the spot at `yaw` rad/s (the node rotated about the figure's origin)
+func _slide(speed: float, running: bool, k: float, body := "", yaw := 0.0) -> Dictionary:
 	var fig: Node3D = S.new()
 	root.add_child(fig)
 	fig.call("set_manual", true)
@@ -180,13 +199,17 @@ func _slide(speed: float, running: bool, k: float, body := "") -> Dictionary:
 	var anchor := {}
 	var worst := 0.0
 	var plants := 0
+	var clip := ""
 	var dt := 1.0 / RATE
 	for i in int(3.6 * RATE):
+		fig.rotation.y += yaw * dt
+		fig.call("set_move", speed, running)
 		fig.call("step", dt)
 		fig.position.z += speed * k * dt
 		if i < int(0.6 * RATE):
 			continue
 		var anim := ap.get_animation(ap.current_animation)
+		clip = String(ap.current_animation)
 		var t := ap.current_animation_position
 		for side in ["L", "R"]:
 			for point in ["heel", "toe"]:
@@ -202,7 +225,7 @@ func _slide(speed: float, running: bool, k: float, body := "") -> Dictionary:
 				var a: Vector3 = anchor[key]
 				worst = maxf(worst, Vector2(p.x - a.x, p.z - a.z).length())
 	fig.queue_free()
-	return {"mm": worst * 1000.0, "plants": plants}
+	return {"mm": worst * 1000.0, "plants": plants, "clip": clip}
 
 
 static func _planted(anim: Animation, side: String, point: String, t: float) -> bool:
@@ -478,11 +501,10 @@ func _bodies() -> void:
 		var deck: Vector2 = probe.call("deck_speeds")
 		var sc := (probe.call("skeleton") as Skeleton3D).motion_scale
 		probe.queue_free()
-		for c in [["deck walk", deck.x, false], ["deck run", deck.y, true], ["arena walk", float(ArenaData.PLAYER["walk"]), false],
-				["arena run", float(ArenaData.PLAYER["run"]), true]]:
-			var r := _slide(float(c[1]), bool(c[2]), 1.0, body)
+		for c in _slide_cases(deck):
+			var r := _slide(float(c[1]), bool(c[2]), 1.0, body, float(c[3]))
 			_check(float(r["mm"]) <= MAX_SLIDE_MM and int(r["plants"]) > 2,
-				"%s %s at %.2f m/s (S %.4f): foot slide %.2f mm while planted (%d plants)" % [body, c[0], c[1], sc, r["mm"], r["plants"]], str(r))
+				"%s %s at %.2f m/s (S %.4f): %s, foot slide %.2f mm while planted (%d plants)" % [body, c[0], c[1], sc, r["clip"], r["mm"], r["plants"]], str(r))
 		# the deck at hi and min
 		Figures.select(id, "original")
 		for level in ["hi", "min"]:
@@ -611,7 +633,8 @@ func _english() -> void:
 	ds.call("use_selection")
 	await _frames(2)
 	_check(str(Figures.selected()["figure"]) == "soldier_f1", "English: soldier_f1 is the selection")
-	ds.call("close")
+	if is_instance_valid(ds):      # use_selection() has usually closed and freed the dressing screen already
+		ds.call("close")
 	await _frames(4)
 	var hall: Node = _app().call("current")
 	if hall != null and hall.has_method("refresh"):

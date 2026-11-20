@@ -20,6 +20,7 @@ import layers as LY
 import fatmap as FM
 import parts as PT
 import variants as VR
+import face as FC
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -117,6 +118,8 @@ FACE_HM, HAND_HM = 1.35, 1.4   # ขั้น 1c: hi/mid ชดเชยหน�
 FACE_LO, HAND_LO = 1.45, 1.10  # ขั้น 1c ปรับ: lo ชดเชยหน้าและมือ (หน้าท้องได้แถวจุดยอดเพิ่ม ; หน้า/มือคงจำนวนเดิม)
 EDGE_W, EDGE_W_LO = 0.0, 0.0    # ร่างหลากหลาย: แถบขอบผ้า (รอบปรับ: ปิด ; ตัดเมชตามขอบแทน)
 KN_FACE = 0.9       # ร่างหลากหลาย: แก้ม/กราม hi/mid เฉลี่ยนอร์มอลกว้าง (เดิม 0.3 ทั้งหน้า)
+SEAM_RESERVE = {"hi": 45, "mid": 30}     # ใหม่ 0.14: ลดเป้าก่อนรอยต่อปาก (สามเหลี่ยมที่รอยต่อเพิ่ม ~ เท่านี้)
+SEAM_SLACK = (150, 100)                   # ร่างหลัก: หลังรอยต่อต่ำกว่า/เกินเป้าได้ไม่เกินนี้ (ยังต่ำกว่างบเกม 24k/16k)
 KC_LO_EYE = 0.22    # ร่างหลากหลาย: ตาระดับ lo เฉลี่ยสีแคบ (เดิม 0.45)
 
 
@@ -166,6 +169,8 @@ def detail_weights(Gb, sculpt=False, lv=None):
         if VR.CUR is not None and lv in ("hi", "mid", "lo") and EDGE_W > 0:
             # ร่างหลากหลาย: จุดยอดถี่ขึ้นตามขอบผ้า (คอเสื้อ วงแขน ขากางเกง)
             abd = np.maximum(abd, (EDGE_W if lv in ("hi", "mid") else EDGE_W_LO) * VR.edge_band(V, Gb))
+        if lv is not None:
+            abd = np.maximum(abd, VR.lod_spots(V, lv, Gb))  # ใหม่ 0.14: จุด/แถบที่ร่างนั้นขอสามเหลี่ยมเพิ่ม
         return 1.0 - np.maximum.reduce([face, 0.9 * feat, hands, abd])
     return wfun
 
@@ -306,6 +311,7 @@ def main():
     ap.add_argument("--no-shapes", dest="shapes", action="store_false", help="ไม่ส่งออก blend shape")
     args = ap.parse_args()
     VR.use(args.variant)
+    print("shape (BODY_SHAPE): %s" % VR.SHAPE, flush=True)
     if VR.CUR is not None:
         vroot = os.path.join(os.path.dirname(ROOT), VR.NAME)
         if args.out == os.path.join(ROOT, "out"):
@@ -428,6 +434,8 @@ def main():
     hashes = {}
     lods = {}
     gates = {"G1": {"sculpt": topo_s}, "G3": {}, "G4": {}}
+    FCF = FC.features(prims)
+    face_info = {"bones": rig.FACE, "levels": {}}
     if si <= 3:
         t0 = time.time()
         Ns = ME.vnormals(Vs, Fs)
@@ -435,19 +443,34 @@ def main():
         heights = {}
         cuts = {}
         for lv, tris in ME.LOD_TRIS.items():
-            if VR.CUR is None:
+            rows = None
+            if VR.CUR is None and lv not in FC.SEAM_LV:
                 V, F = lod_mesh(Vs, Fs, tris, lv, seam, Gb)
+            elif VR.CUR is None:
+                # ใหม่ 0.14: รอยต่อปาก (hi/mid) แล้วปรับเป้าจนจำนวนสามเหลี่ยมใกล้เป้าเดิม
+                tt = tris - SEAM_RESERVE[lv]
+                for _ in range(4):
+                    V, F = lod_mesh(Vs, Fs, int(tt), lv, seam, Gb)
+                    n0 = len(F)
+                    V, F, rows = FC.mouth_seam(V, F, Gb, FCF)
+                    if tris - SEAM_SLACK[0] <= len(F) <= tris + SEAM_SLACK[1]:
+                        break
+                    tt += tris - len(F)
+                cuts[lv] = {"decimated": int(n0), "after_seam": int(len(F)), "target": int(tt)}
             else:
                 # ร่างหลากหลาย: ตัดเมชตามขอบผ้า (ขอบสีเรียบตามเส้นจริง) ; เป้าลดลงเผื่อสามเหลี่ยมที่เพิ่มจากการตัด
-                tt = tris - VR.CUT_RESERVE[lv] * (1.0 if VR.CUR.get("top") else 0.45)
+                tt = tris - VR.CUT_RESERVE[lv] * (1.0 if VR.CUR.get("top") else 0.45) - SEAM_RESERVE.get(lv, 0)
                 for _ in range(4):
                     V, F = lod_mesh(Vs, Fs, int(tt), lv, seam, Gb)
                     n0 = len(F)
                     V, F = VR.cut_garments(V, F, Gb, VR.GARM_D[lv], Vs, Ns, VR.HAIR_D.get(lv, 0.0))
+                    n1 = len(F)
+                    if lv in FC.SEAM_LV:
+                        V, F, rows = FC.mouth_seam(V, F, Gb, FCF)       # ใหม่ 0.14: รอยต่อปาก
                     if tris - 2 * VR.CUT_SLACK[lv] <= len(F) <= tris + VR.CUT_SLACK[lv]:
                         break
                     tt += tris - len(F)            # เกินงบ -> ลดเป้า ; ต่ำกว่างบมาก -> เพิ่มเป้า
-                cuts[lv] = {"decimated": int(n0), "after_cut": int(len(F)), "target": int(tt)}
+                cuts[lv] = {"decimated": int(n0), "after_cut": int(n1), "after_seam": int(len(F)), "target": int(tt)}
             Vo = V if KV == 1.0 else V * KV      # ร่างหลากหลาย: ตำแหน่งที่ส่งออก (ส่วนสูงจริง)
             topo = ME.topology(V, F)
             gate_g1(lv, topo)
@@ -497,10 +520,26 @@ def main():
                                     mt=(np.zeros(0) if mt_ is None else mt_))
             src_w = Wm4 if lv == "min" else Wh4
             Wl = ME.transfer(Vs, V, src_w, k=3)
+            Hf = FC.head_coords(V, Gb)
+            if lv in FC.SEAM_LV:
+                # ใหม่ 0.14: กระดูกหน้า (กราม มุมปาก คิ้ว) แบ่งจาก head ; แถวล่างของรอยต่อปากตามกราม
+                side = np.sign(FC.mouth_s(Hf, FCF)[0])
+                if rows is not None:
+                    side[rows[0]], side[rows[1]], side[rows[2]] = 1.0, -1.0, 0.0
+                Wl = WT.add_face(Wl, Hf, side, FCF)
             bi, bw = WT.top4(Wl)
             arrays = {"pos": Vo, "nrm": N, "col": np.c_[C, np.ones(len(V))],
                       "cus": np.c_[np.zeros(len(V)), np.zeros(len(V)), fl, PT.part_ids(bi)],   # w = ส่วนร่างกาย (แผล)
                       "bones": bi, "weights": bw, "idx": F[:, ::-1]}          # Godot: หน้าตามเข็มนาฬิกา
+            if lv in FC.CUSTOM_LV:
+                arrays["face"] = FC.custom1(Hf, FCF, lv, rows)                # CUSTOM1: พิกัดตา/ปาก (face.py)
+                face_info["levels"][lv] = {"seam_upper": 0 if rows is None else int(len(rows[0])),
+                                           "seam_strip_tris": 0 if rows is None else int(2 * len(rows[0])),
+                                           "lid_grow_mm": FC.LID_GROW[lv] * 1000.0}
+            if lv == "hi":
+                lc, nlc = FC.lid_colour(Hf, C, FCF)
+                face_info["lid_colour"] = [round(float(v), 4) for v in lc]
+                face_info["lid_colour_verts"] = nlc
             shapes = []
             if lv in ("hi", "mid") and SHAPES:
                 for sname in CR.SHAPES:
@@ -510,7 +549,8 @@ def main():
                     Nt = N + (ME.vnormals(Vt, F) - Ng)
                     arrays["bs_nrm_" + sname] = Nt / np.maximum(np.linalg.norm(Nt, axis=1, keepdims=True), 1e-9)
                     shapes.append(sname)
-            meta = {"level": lv, "verts": len(V), "tris": len(F), "shapes": shapes, "bones": rig.BONES}
+            meta = {"level": lv, "verts": len(V), "tris": len(F), "shapes": shapes, "bones": rig.BONES,
+                    "seam_rows": None if rows is None else [r.tolist() for r in rows]}
             LY.write_bin(os.path.join(DATA, "body_%s.bin" % lv), arrays, meta)
             lods[lv] = {"verts": int(len(V)), "tris": int(len(F)), "blend_shapes": len(shapes),
                         "bones_used": int(len(np.unique(bi[bw > 0])))}
@@ -543,6 +583,13 @@ def main():
                       "driver": {k: round(v, 4) for k, v in CR.driver_weights(p["local"]).items()}}
         json.dump(pj, open(os.path.join(DATA, "poses.json"), "w"), indent=1)
         json.dump(gates, open(os.path.join(DATA, "gates_mesh.json"), "w"), indent=1)
+        e = FCF["eye"]
+        face_info.update({"k": KV, "mouth_half_width_m": FCF["c"] * KV, "mouth_corner_I": FCF["ml"][-1].tolist(),
+                          "eye_I": {"c": e["c"].tolist(), "hw": e["hw"], "hu": e["hu"], "hl": e["hl"], "tilt_deg": e["tilt"]},
+                          "custom1": "eye u, eye v, mouth x, mouth y (face.py) ; seam rows in eye u/v: upper (16,8) lower (8,16) "
+                                     "corners (12,12)", "far": FC.FAR, "seam_drop_mm": FC.DROP * 1000.0 * KV,
+                          "jaw_pivot_I": list(rig.FACE_PTS["head_jaw"])})
+        json.dump(face_info, open(os.path.join(DATA, "face.json"), "w"), indent=1)
     # ---------------- 5) ชั้นโครงกระดูก/กล้ามเนื้อ (ภาพ) ----------------
     if si <= 4 and args.layers:
         t0 = time.time()
@@ -579,7 +626,7 @@ def main():
         nfib = sum(m["K"] for _, m in MU.DEFS)
         numbers = {"height_m": rig.H * KV, "rig_scale_S": rig.S * KV, "fat_level": FAT, "fat": fe,
                    "bones_total": len(rig.BONES), "bones_game": len(rig.MAIN),
-                   "bones_helper": len(rig.HELPERS), "helpers": [n for n, _, _ in rig.HELPERS],
+                   "bones_helper": len(rig.HELPERS), "helpers": [n for n, _, _ in rig.HELPERS], "bones_face": rig.FACE,
                    "muscles_per_side": len(A.MUSCLES_L), "muscles_total": nmus, "muscle_fibres_total": nfib,
                    "skin_structures": {"cores": len(A.cores()), "landmarks": len(A.lands()), "fat_pads": len(A.pads()),
                                        "face_parts": len(A.face())},

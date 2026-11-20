@@ -40,7 +40,7 @@ public, so the creature gets our own neutral name, §1.)
 | Lights | As on the deck: **no dynamic lights, no shadows** on any level; light baked into vertex colours (`HallBuilder.bake`); unshaded materials. The kit uses its own shader light (`figure.gdshader` uniforms, no `TIME`). |
 | Per-frame work | The deck gains **nothing** per frame. In the arena, per-frame work runs only while something moves (§11.3); on min an idle arena (bot off, player still, no effect alive) processes nothing. Motion-only touches (flame flicker, beacon spin, additive effects, camera shake, tweens) on hi/mid only. |
 | Randomness | Local single-player mode, so AGENTS rule 5 does not bind it, but every random choice (attack and death variants, spark directions) uses a `RandomNumberGenerator` with a fixed seed from `ArenaData.RANGE.seed`, re-seeded on reset, so tests repeat. No global `randf()` / `randi()`; game logic uses accumulated `delta`, never `Time` (only measurements read `Time`). |
-| Sound | Out of scope this round (the `snd` setting exists; hooks are the `clip_event` / `shot` events, §9). |
+| Sound | Out of scope this round (the `snd` setting exists; hooks are the `clip_event` / `shot` events, §9). Since ใหม่ 0.14 (1b) the player has footsteps and panting of its own (§9.7). |
 | Release | `APP_VER` "ใหม่ 0.3" → **"ใหม่ 0.4"**, a Thai note in `web/`; godot-only change, **no candlelight-server PR** (§15). |
 
 ## 1. Names and every new string
@@ -72,8 +72,8 @@ step R0 (§12.1): `ui/i18n/arena.json` (ROOM), `ui/i18n/arena_hud.json` (PLAYER)
 | รีเซ็ตแล้ว | Reset done | `arena.json` | toast |
 | หยุดชั่วคราว | Paused | `arena.json` | pause panel title |
 | เดินเข้าอารีน่าแล้วจะถือปืน | Walk into the arena to draw your gun | `arena_hud.json` (PLAYER) | corridor hint |
-| คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Esc หยุด | Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Esc to pause | `arena_hud.json` | shooter hint, keyboard |
-| ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง | Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right | `arena_hud.json` | shooter hint, touch |
+| คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Shift วิ่ง · Ctrl เดินช้า · Esc หยุด | Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Shift to sprint · Ctrl to walk · Esc to pause | `arena_hud.json` | shooter hint, keyboard |
+| ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง · ดันจอยสุดขอบเพื่อวิ่ง | Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right · push the stick to the edge to sprint | `arena_hud.json` | shooter hint, touch |
 | กำลังบรรจุกระสุน… | Reloading… | `arena_hud.json` | ammo line while reloading |
 | บรรจุ | Reload | `arena_hud.json` | touch button |
 | คุณล้ม! กำลังลุกขึ้น… | You're down! Getting up… | `arena_hud.json` | downed overlay |
@@ -243,8 +243,11 @@ pillars (`shell`: the shooter camera's arm collides with them), stands, the swit
 | 4 `PROP` | stands, switch post, reset pedestal (walk-blocking; the camera arm ignores them) | — |
 | 8 `BEAST` | the beast's capsule (its hurt box too); 0 while dead | 1, 4, 2 |
 | 16 `TARGET` | the switch plate (sphere r 0.45), shots only | — |
+| 32 `RAGDOLL` | a dead soldier's ragdoll bodies on hi/mid (§9.8), visual only, while it falls | 64, 1, 4 |
+| 64 `RAGDOLL_FLOOR` | each falling ragdoll's own floor (a 6 × 6 m box at its feet, 2 cm up for Jolt's slop) | — |
 
-Shot rays use mask 1 | 4 | 8 | 16 and exclude the player. The shooter camera's spring arm uses mask 1.
+Shot rays use mask 1 | 4 | 8 | 16 and exclude the player, so they pass through a corpse (32); nothing else has 32 or 64
+in its mask. The shooter camera's spring arm uses mask 1. The 3D engine is Jolt Physics (`project.godot`, ใหม่ 0.14).
 
 ### 4.4 Look and build (`ArenaBuilder`, `scenes/arena/arena_builder.gd`)
 
@@ -286,11 +289,12 @@ restored behind the avatar.
 
 | Input | Action | Input map |
 | --- | --- | --- |
-| W A S D / arrows | move, camera-relative (strafe; the body keeps facing the camera yaw) | existing `move_*` |
+| W A S D / arrows | move, camera-relative (strafe; the body keeps facing the camera yaw); W jogs, S backs off slower (§9.7) | existing `move_*` |
 | mouse motion | look / aim: yaw and pitch at `LOOK_SPEED` 0.0025 rad per pixel; pitch in [−0.9, 0.6] | — (captured motion) |
 | left button (hold) | fire the current weapon: rifle full-auto, saw sword swings (repeats while held at its cooldown) | **new** `fire` (mouse button 1) |
 | right button or F | punch | **new** `melee` (mouse button 2, physical F 70) |
-| Shift | run | existing `run` |
+| Shift | sprint, forward only; it fades as the hidden stamina runs out (§9.7) | existing `run` |
+| Ctrl | walk (caps every direction at the walk) | **new** `walk` (physical Ctrl, added in code like `dodge`) |
 | 1 / 2, wheel | rifle / saw sword; the wheel cycles | **new** `weapon_1` (physical 49), `weapon_2` (physical 50); wheel read in code (press-only events) |
 | R | reload | **new** `reload` (physical 82) |
 | E | use the switch or the reset button in reach | existing `interact` |
@@ -313,7 +317,7 @@ half the size), `focus_mode` none, at least 44 × 44.
 
 | Node (under `Hud/Touch`) | Shape | Centre, from the bottom-right safe corner (dx, dy) | Behaviour |
 | --- | --- | --- | --- |
-| `Stick` | the existing `TouchStick` (instanced, not edited) | bottom-left, as on the deck (180 × 180) | move; past 0.85 runs |
+| `Stick` | the existing `TouchStick` (instanced, not edited) | bottom-left, as on the deck (180 × 180) | move; inside the ring the push scales the jog (a light push walks), past 0.85 sprints (§9.7) |
 | `FireButton` | circle r 62, text "ยิง" | (−106, −116) | hold = fire; a drag that starts on it also aims (one thumb shoots and steers) |
 | `MeleeButton` | circle r 46, text "หมัด" | (−234, −60) | punch |
 | `ReloadButton` | circle r 38, text "บรรจุ" | (−218, −198) | reload |
@@ -336,7 +340,8 @@ stick and the deck-style orbit drag show; the four shooter buttons hide.
 - **Aim**: the crosshair sits at the exact viewport centre. `aim_ray()`: from the camera through the centre, 80 m,
   mask 1 | 4 | 8 | 16, excluding the player → the aim point (or the far end). The shot then runs from the muzzle to the aim
   point with the same mask; its first hit is the real target (a pillar beside the muzzle can block a shot the crosshair
-  showed clear — honest cover).
+  showed clear — honest cover). The muzzle is the figure's `muzzle()`; the soldier's is a fixed point, not the animated
+  hand (§9).
 - `_process` / `_physics_process` only while blending, following a moving player, or the arm is not settled (the deck's
   settle rule); otherwise off.
 - Camera shake on melee hits (0.1 s, 0.04 m) on hi/mid only.
@@ -794,6 +799,30 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   reverse walk, dodge, paint, the min still pose), `tests/render/test_arena_figures.gd` (the arena with a kit selected
   and with the dressed fixture `tests/fixtures/figure_pack_paint`: figure and scheme, the §11.2 overview budget on
   hi/mid/lo/min, a tracer from the muzzle, D turning without sliding, min idle; `arena_fig_<kit|pack>_<mid|min>.png`).
+- **The soldier's own clips** (ใหม่ 0.14, visual only except the fixed shot origin below; `assets/figures/soldier/clips.res` from
+  `tools/soldier/bake_clips.sh`, one library at S = 1 for all five bodies): requests map from each clip's
+  `kind` / `from` metadata (`SoldierFigure.clip_map`). Gaits by rig speed (speed / S: walk < 2.0 <= jog < 3.6 <= run,
+  5 % hysteresis, step phase kept), so W (3 m/s then; 2.7 since 1b, §9.7) jogs and Shift (5 m/s then; a 5.6 sprint fading to 3.2 since 1b) runs at about rate 1; standing turns (A/D,
+  mouse) step `turn_l` / `turn_r` at yaw rate / 2.618 rad/s, clamped to 0.6–1.6× (a yaw jump over 0.35 rad or faster
+  than 6 rad/s is a placement, not a turn); punch / swing at rate 1.0 with the shot at the weapons' `active`
+  (0.12 / 0.18 s; the fist or blade lands straight ahead); `play(&"reload")` returns 1.6 and plays the clip on the
+  upper body over the loop (ArenaWeapons keeps its own timer); hits and falls by the side from `set_hit_from` in the
+  figure's frame (z > |x| front, z < −|x| back, x > 0 left), falls die_back / die_fwd / die_spin (on its side) or a
+  seeded die_knees, each lying still with its limbs on the floor by 1.4 s (the revive comes at 2 s); new `clip_event`
+  kinds `knees`, `mag_out`, `mag_in`, `ready`. min: loops while moving, still within 10 frames standing and after
+  `die_min_*`, no turns, no reload layer, hit_front only, nothing per frame. Speeds (ArenaData, deck 1.61 / 4.0147 × S),
+  timings and `RULES_V` unchanged. Without `clips.res` the humanoid copy as before. The shot origin does not follow the
+  clips: `muzzle()`, where the §5.4 shot ray starts, is a fixed point in the figure's frame, 0.13's standing-aim muzzle
+  (the humanoid copy's front hand, mean over its 8.4 s idle loop) × S, turned about the chest by `set_aim` (× 0.8),
+  + 0.35 m forward (base body at pitch 0: (−0.062, 1.498, 0.873)); so it is the same on every level, in every state and
+  without `clips.res`. What is left over from 0.13, whose point followed the playing clip's front hand (and the levels
+  play different things: min stands still, has no turn steps, no reload layer and only hit_front): standing, the old
+  point swayed with the idle up to 2 cm around this mean; walking (W) it sat on average 6 cm lower and 2 cm further
+  forward and bobbed ±2.4 cm; running (Shift) 19 cm lower and 9 cm further forward (±2.7 cm); in hits and turns it
+  followed those clips. The tracer starts at this point, about 14 cm from the muzzle of the shouldered rifle the own
+  clips show (visual only). The arena shot is in no network or replay data (offline only, §16). Tests:
+  `tests/unit/test_soldier_clips.gd` (with the muzzle on five bodies at pitch 0 / ±0.3), foot slide (idle, walk, jog,
+  run, turns on all five bodies) in `tests/render/test_soldier.gd`.
 - **Wounds on the soldier** (visual only; owner: "เวลาตายหรือโดนอะไรจะได้เห็นเป็นกระดูก กับเนื้อ"):
   `SoldierFigure.add_wound(bone, local_offset, radius)` puts a wound sphere on a bone (centre in the bone's frame). It
   affects only that bone's body part (`body_part()`: torso, head, left/right arm, left/right leg; every skin and inner
@@ -827,6 +856,137 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   instead of `material_overlay`, so nothing washes over a fresh hole. Tests: `tests/unit/test_soldier_wounds.gd`,
   `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`: the four levels, a close-up, seven poses, the run strip,
   and the f1 body alone and in the arena). Every body has its own wound layers and wound spots (keyed by its folder).
+
+### 9.7 Speeds, hidden stamina and body sounds (ใหม่ 0.14, 1b, 19 Nov; the owner asked for slower humans, hidden fatigue, footsteps and panting)
+
+Offline single player (no lockstep, no replay), so `RULES_V`, `DATA_HASH` and the server stay as they are. Every number is
+in `ArenaData` (`PLAYER`, `MOVE_CLASS`, `MOVE_KITS`, `BREATH`, `STEPS`); the model is `ArenaStamina`
+(`ui/arena/arena_stamina.gd`, pure, fixed step, no random, no clock). `ArenaPlayer` drives it (the arena and the campaign
+missions); the deck avatar and the bots are unchanged.
+
+| Class (from H12) | walk (Ctrl) | jog (W) | back (S) | sprint (Shift, fresh) | CS | D′ |
+| --- | --- | --- | --- | --- | --- | --- |
+| human (default; the egg, the soldier, kits not listed) | 1.5 | 2.7 | 1.8 | 5.6 | 3.2 | 30 m |
+| armoured (`MOVE_KITS`: knight, kblade, kcapt, cxw) | 1.6 | 3.2 | 2.0 | 6.5 | 4.2 | 40 m |
+| machine (rwar) | 1.4 | 2.5 | 1.6 | 4.5 (always) | — (never tires) | — |
+
+- **Stamina** (critical speed CS + reserve D′, as in real runners): above CS the reserve drains at (v − CS)·dt on the real
+  ground speed after walls (a dodge pays its burst too, about 2.8 m); below CS it refills with time constant D′ / (CS − v)
+  (9.4 s standing, 17.6 s walking, 60 s jogging). Under the knee (half the reserve) the top speed falls smoothly
+  (smoothstep) from the sprint to CS: 5.6 for about 6 s, half-way at about 11 s, 3.4 at 20 s, never below CS. Speeding
+  up into a sprint grows the speed at `sprint_accel` 4 /s; the direction (turns while sprinting) and everything else
+  follow at `accel` 12 /s. `place()`, getting up and `heal_full()` fill the reserve. The figure's run flag is the sprint
+  itself (Shift forward), not the raw Shift key.
+- **Sync**: the stamina tick rides the player's physics tick (only while moving). Frames the tick slept through count as
+  standing rest, credited once in closed form by `_stamina_sync()` (physics-frame counter, not the clock); pause banks
+  the rest before it and does not count the paused frames.
+- **No bar.** The cues are the speed fade, the soldier's run → jog clip when tired, panting and footsteps. Fatigue is
+  never written on screen; aim and hit logic are untouched.
+- **Panting**: a one-shot `Timer` child `Breath` (physics callback; about 2 events/s, never per frame). On at effort
+  e = 1 − reserve ≥ 0.20, off below 0.15; 16 + 40·e breaths a minute, the inhale 45 % of the period; loudness
+  0.15 → 0.8 (smoothstep from e 0.2 to 0.9); the hard set from e 0.55 (back to soft below 0.5). Voice from H12:
+  `low`, `high` (soldier bodies f1/f2) or `none` (machines, the swarm alien); armoured × 0.6 loudness and pitch 0.94
+  (a closed helmet), the egg pitch 1.2. Played 3D at the head (+1.6 m) through `ArenaSound.body`. Breaths lock to strides:
+  an inhale due within 0.25 s moves onto the next foot strike. Each breath peeks at the slept frames for its loudness
+  and puts the reserve back (sound never changes the rules). It stops when rested, downed, paused (`paused`), hidden or
+  out of the tree, and keeps panting while the player's tick sleeps.
+- **Footsteps** (all levels; checked in the moving tick): the soldier reads its own clip's foot strikes through H13
+  `step_phase()` (right at 0, left at 0.5, crossed either way, so the reversed backwards walk steps too); other figures
+  use a stride wheel at `ArenaStamina.cadence(v)` steps a minute (90 at a standstill, 103 at 1.45, 164 at 3.0, 180 at
+  5.0, 195 at 6.5 m/s); the egg (feet `none`) has none. `step_boot` (human) or `step_metal` (armoured, machine; pitch × 0.9),
+  loudness 0.35 walk → 0.55 jog → 0.8 sprint, × (1 + 0.2·e); left foot pitch 0.98, right 1.02, 0.1 m to the side.
+- **Sounds**: `assets/body_sfx/` (`body_sfx.json`, merged into `Sfx` by `Sfx.add_kinds`): CC0 boot and metal footstep
+  recordings and our own synthesized panting (`tools/sound/make_body_sfx.py`, credits in `CREDITS.md`); not in
+  `ArenaData.SOUNDS`, which maps only old-page kinds.
+- **Inputs**: Ctrl = `walk` (added in code); touch: the stick's ring edge sprints, inside the ring the push scales the jog.
+  Hints: "… · Space หลบ · Shift วิ่ง · Ctrl เดินช้า · Esc หยุด" and "… · ดันจอยสุดขอบเพื่อวิ่ง" (§1).
+- **Hooks** (both optional, PACK_SPEC §4): H12 `move_profile() -> Dictionary` `{"class", "voice", "pitch", "feet"}`
+  (missing = human, voice low, pitch 1, boots), read once at setup; H13 `step_phase() -> float` (0..1 of the gait loop
+  playing, −1 when none), read in the moving tick.
+- Tests: `tests/unit/test_arena_stamina.gd` (the model against the design simulation; speeds, sync, levels, profiles,
+  `test_footsteps`, `test_sleeps_while_panting`), `tests/unit/test_body_sfx.gd`, `test_audio.gd`, `test_arena_hud_text.gd`,
+  and `tests/flow/test_arena_flow.gd` step 3c (25 s of Shift in the real loop: 3.15–3.6 m/s, panting asked of Sfx).
+
+### 9.8 Ragdoll deaths (ใหม่ 0.14 item 3, 19 Nov; the owner asked for bodies that fall with the hit)
+
+Visual only, offline single player: the game position, HP, revive and respawn are untouched (the figure node never
+moves), so `RULES_V`, `DATA_HASH` and the server stay as they are. Code: `SoldierRagdoll`
+(`scenes/arena/soldier_ragdoll.gd`, a `PhysicalBoneSimulator3D`) driven by `SoldierFigure`.
+
+| Level | Death |
+| --- | --- |
+| hi | the side-hit clip for 0.1 s, then a ragdoll of 15 bodies (pelvis, spine, chest, neck, head, upper arms, forearms with the hands, thighs, shins, feet) |
+| mid | the same with 13 bodies (spine merged into the chest, neck into the head, their joint limits added) |
+| lo | the clip of the side hit (front: `die_back`, back: `die_fwd`, sides: `die_spin`, or the seeded fall to the knees), as before |
+| min | unchanged: `die_min_back` / `die_min_fwd` by side, nothing per frame |
+
+- **Bodies**: capsules fitted once per body folder from `body_lo` (the skin points each bone carries most, in its bind
+  frame; trunk across, head upright, feet along the sole, limbs toward the child joint; radius = median distance from
+  the axis, length = the 3–97 % span). Masses: Winter's segment fractions of 70 kg. Layer 32, mask 64, CCD on.
+  Angular damping 2.0 on the trunk, neck and head, 0.3 on the limbs (they flop instead of keeping the clip's shape).
+  Jolt looks only 2 cm ahead for contacts, so while falling a body's downward speed is capped at its gap to the floor
+  + 1 cm per step (no deep sink and bounce on a fast impact).
+- **Joints**: 6DOF, limits copied from `tools/soldier` `rig.py` LIMITS (degrees from the I-pose, the right side mirrored;
+  the shoulder's 180° capped at 150°); the joint frames are rebuilt from the I-pose before every fall, so the limits
+  read exactly as LIMITS. Ragdoll only (rig.py unchanged): elbows and knees stop 12° short of straight (dead limbs keep
+  a bend), and one seeded knee stays folded 40–70° for that fall. Jolt's 6DOF reads these angles with the opposite sign (measured: unnegated, elbows and knees bend backward), so the
+  ranges are set negated.
+- **Prebuilt, idle**: the player's figure builds its ragdoll on hi/mid at setup (other roles at their first death):
+  simulator off, bodies static, no collision, top level, so standing or walking costs nothing extra.
+- **A death**: `ArenaPlayer.take_hit` sends `set_hit_push(-toward_attacker × ArenaData.PUSH.speed)` (2.4 m/s = a claw's
+  real ~0.6 m/s × visual 4) before `play(&"die")`; without it the push is 1.6 m/s away from `set_hit_from`. After
+  `LEAD` 0.1 s of the clip the bodies start where the clip put them, with the clip's own velocities plus the push
+  (share per body: chest/neck/head 1.0 … feet 0.1, 15 % lift), a seeded spread of ±12°, ±15 % and a torso twist of
+  ±1.5 rad/s (the figure's `opts.seed`, its own generator). One-sided, so no two front hits fold alike: the trunk
+  rolls 1.5–2.5 rad/s about the push (either way), one arm and the opposite shin get a 0.5–0.8 m/s kick sideways,
+  and the knee on the arm's side folds (6 seeded numbers per death). The lead-in runs on physics ticks (the
+  AnimationPlayer switches to the physics callback for those 6 steps of 1/60 s, then back), so the hand-over pose and
+  velocities depend on game time, not on frame timing; the ragdoll is built (and fitted) at the death, before it. The simulator's influence rises 0 → 1 over 0.15 s;
+  helper bones follow the physics pose (a modifier after the simulator), wounds follow through `skeleton_updated`
+  and `wound_point()` reads that pose.
+- **Stop**: when every body is under 0.12 m/s and 1 rad/s for 0.3 s, or 3 s after the start, the pose is baked into the
+  skeleton (the clip paused) and everything stops: no simulation, no floor, nothing per frame. Getting up (`play` of
+  a loop), a level change (bakes where it is) or freeing the figure stops it at once.
+- **Caps**: at most 4 ragdolls falling at once on hi, 2 on mid; a death over the cap plays its clip as on lo.
+- **Walls**: the bodies' mask is 64 | 1 | 4, so a corpse lands against walls, pillars and props instead of passing
+  through them. Players (2) and the beast (8) are not in it, and nothing has 32 in its mask, so shots, the camera and
+  movement still ignore corpses.
+- Tests: `tests/unit/test_soldier_ragdoll.gd` (real physics, 4× clock: build, limits against rig.py, 8 push directions
+  with settle/speed/travel/stretch/angle/floor bounds, `wound_point`, the mid cap with 6 deaths, the m2 and f1 bodies,
+  revive, a wall on layer 1 stops a fall that goes past it without the wall), `test_arena_figure_hooks.gd` (none on lo/min, clips by side), `tests/flow/test_arena_flow.gd` step 10e (a
+  shot ray through a corpse hits nothing of it), `tests/selftest.gd` (Jolt active, a ragdoll runs 60 frames without
+  NaN, also in the exported game). `tests/run_tests.gd` and `selftest.gd` await test methods that await frames.
+
+### 9.9 Faces (ใหม่ 0.14 item 2, 19 Nov; the owner asked for blinking, feelings and a mouth that moves with speech)
+
+Visual only (no rules, no sync, no `RULES_V` change). Code: `SoldierFace` (`scenes/arena/soldier_face.gd`) owned by
+`SoldierFigure` and ticked from its mixer callback (so it never runs where the figure stands still), `FaceSpeech`
+(`scenes/arena/face_speech.gd`), the generator's 5 face bones, `CUSTOM1` and `face.gdshaderinc` (tools/soldier STAGES).
+
+| Level | Face |
+| --- | --- |
+| hi / mid | bones `head_jaw` (rotation), `head_lipL/R`, `head_browL/R` (translations, × the body's S ratio; the brows also tilt ±10° about the forward axis) + the lids in the shader |
+| lo | the shader only: lids and a painted mouth (`face_state` z/w); the deck's lo stands still, so no blink there |
+| min | nothing: the shared min material runs the plain `body.gdshader` (no face code at all; hi/mid/lo share `body_face.gdshader`), no timer, no write |
+
+- `face_state` is an instance uniform (x upper lid, y lower lid, z painted mouth, w mouth width): no material copy, it
+  survives the wound material. Every write (bone or uniform) happens only when the value changes; at most 6 a tick.
+- **Blink**: every 2–6 s (uniform), 12 % doubles, the figure's own generator from `opts.seed` (`* 2731 + 5419`).
+- **Moods** (10): neutral, happy, sad, angry, pain, fear, surprise, focus, tired, shout, within the rig's ranges (jaw ≤ 8°),
+  at the ends of the ranges plus brow tilt and lids (moves of 2 mm or less did not show; the render test asks each mood
+  for 150 changed pixels). A closed jaw is set 0.4° shut (the lower lip over the upper) and the hi/mid mouth cavity is
+  as opaque as the jaw is open (`face_state.w` 0..1), so a closed mouth draws no broken dark line without MSAA.
+  Hooks: a hit → pain 0.9 s, punch/swing/attack → angry 1.0 s, aiming → focus (narrowed eyes), death → the eyes close,
+  or stay open for about 1 in 4 soldiers (`SoldierFace.eyes_stay_open(seed)`), written once; getting up resets it.
+- **Speech**: `say(text, lang)` → `FaceSpeech.visemes` (8 mouth shapes; Thai: leading vowels after their consonant,
+  silent tone marks, ็ and ์, closing ม บ ป พ ภ ฟ shut the lips, TextServer word breaks, ๆ; English: letters and
+  digraphs). Silent: the text shows in a `SpeechBubble` (`ui/widgets/speech_bubble.gd`) while the mouth moves — the
+  dressing room greets (not on min), the "normal" hero card speaks every 9 s on hi/mid. Lines: `SpeechBubble.LINES`,
+  English in `ui/i18n/face.json`.
+- Extras outside `FIGURE_API` (still 12): `set_mood(mood, hold)`, `say(text, lang)`, `face()`.
+- Tests: `tests/unit/test_soldier_face.gd`, `test_soldier.gd` (`test_drivers_per_level`), `test_soldier_wounds.gd`
+  (`test_skin_light_copies`), `test_i18n.gd`; `tests/render/test_soldier_face.gd` (lids hide the whites, an open mouth
+  darkens, min draws nothing, the bubbles; face sheets `soldier_face_<body>.png`).
 
 ## 10. Screens, flow and transitions (ROOM)
 
@@ -1252,8 +1412,8 @@ readable; nothing clips through the egg); the data lint; the deck's measured num
 
 ## 16. Out of scope now
 
-Sound and music; more enemies, waves, scores or a timer; aim assist, gamepads, hit zones (head shots); ragdolls and
-runtime IK (the hold's leg IK); online play in the arena; saving anything; the reward system (the deck's treasure
+Sound and music; more enemies, waves, scores or a timer; aim assist, gamepads, hit zones (head shots); runtime IK
+(the hold's leg IK; the soldier's death ragdoll is in §9.8); online play in the arena; saving anything; the reward system (the deck's treasure
 chest); the owner's private figures themselves (only the swap point is built); a camera that tilts up to the deck's vault.
 
 ## 17. As built (filled at integration)

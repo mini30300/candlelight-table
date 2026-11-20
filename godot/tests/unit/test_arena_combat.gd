@@ -43,8 +43,11 @@ func test_tables_positive() -> void:
 				bad.append(k)
 		assert_eq(bad, [], "every number is positive in %s" % str(table.keys().slice(0, 3)))
 	assert_eq(str(ArenaData.BEAST["kit"]), "warrior", "the public build's beast kit is warrior")
+	# 0.14 item 1b: W is the 2.7 jog and Shift a 5.6 sprint that fades toward the critical speed (CS 3.2), so the chase
+	# also sits above CS: a fresh sprint pulls away, a tired runner is caught
 	assert_true(float(ArenaData.BEAST["run"]) > float(ArenaData.PLAYER["walk"]) and
-		float(ArenaData.BEAST["run"]) < float(ArenaData.PLAYER["run"]), "the beast chases faster than walking, slower than running")
+		float(ArenaData.BEAST["run"]) < float(ArenaData.PLAYER["run"]), "the beast chases faster than walking, slower than a fresh sprint")
+	assert_true(float(ArenaData.BEAST["run"]) > float(ArenaData.PLAYER["cs"]), "...and faster than a tired runner (CS)")
 	assert_true(float(ArenaData.BEAST["strike_reach"]) > float(ArenaData.BEAST["attack_range"]),
 		"the claw reaches past the distance that starts a wind-up")
 
@@ -178,5 +181,10 @@ func test_time_to_kill() -> void:
 	assert_within(float(counts["gun"] - 1) * ArenaCombat.fire_interval("gun"), 3.0, 0.1, "about 3 s of steady fire")
 	var claws := ceili(float(ArenaData.PLAYER["hp"]) / float(ArenaData.BEAST["strike_damage"]))
 	assert_eq(claws, 6, "six claws down the player")
-	assert_within(float(ArenaData.PLAYER["walk"]) * float(ArenaData.BEAST["windup"]), 1.8, 0.0001,
-		"stepping back during the wind-up covers 1.8 m")
+	# 0.14 item 1b: backwards is capped at PLAYER.back 1.8 m/s (it was the 3 m/s W speed), so stepping back during the
+	# wind-up covers 1.08 m instead of 1.8, which still takes the player out of the claw's reach
+	var back := float(ArenaData.PLAYER["back"]) * float(ArenaData.BEAST["windup"])
+	assert_within(back, 1.08, 0.0001, "stepping back during the wind-up covers 1.08 m")
+	assert_true(float(ArenaData.BEAST["attack_range"]) + back > float(ArenaData.BEAST["strike_reach"]) + float(ArenaData.PLAYER["radius"]),
+		"...which steps out of the claw's reach (%.2f > %.2f)" % [float(ArenaData.BEAST["attack_range"]) + back,
+		float(ArenaData.BEAST["strike_reach"]) + float(ArenaData.PLAYER["radius"])])

@@ -126,6 +126,10 @@ pointing/emulate_mouse_from_touch=true
 
 locale/include_text_server_data=true
 
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true

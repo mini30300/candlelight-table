@@ -480,7 +480,7 @@ func _arena() -> void:
 		_check(n >= 4 and n <= 5, "hi: death adds two or three wounds to the two (%d in all)" % n)
 		# a camera above the body (the arena camera follows the player's feet)
 		var sk: Skeleton3D = fig.call("skeleton")
-		var pel := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("spine")).origin
+		var pel := _spine_now(fig, sk)
 		var old_cam := root.get_viewport().get_camera_3d()
 		var cam := Camera3D.new()
 		cam.fov = 40.0
@@ -560,7 +560,7 @@ func _arena_f1() -> void:
 	var n := int(fig.call("wound_count"))
 	_check(n >= 4 and n <= 5, "f1 hi: death adds two or three wounds to the two (%d in all)" % n)
 	var sk: Skeleton3D = fig.call("skeleton")
-	var pel := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("spine")).origin
+	var pel := _spine_now(fig, sk)
 	cam.look_at_from_position(pel + Vector3(0.7, 1.9, 1.0), pel + Vector3(0.0, 0.25, 0.0))
 	cam.current = true
 	await _frames(6)
@@ -751,3 +751,12 @@ func _check(cond: bool, msg: String, detail: String = "") -> void:
 	else:
 		_failed += 1
 		print("FAIL  " + msg + ("" if detail == "" else " " + detail.left(1500)))
+
+
+## Where the spine is on screen: on hi the death hands over to a ragdoll (ใหม่ 0.14 item 3) whose pose the skeleton's
+## stored pose does not show while it falls, so the camera aims at the ragdoll's spine body then
+func _spine_now(fig: Node3D, sk: Skeleton3D) -> Vector3:
+	var rag: Variant = fig.call("ragdoll") if fig.has_method("ragdoll") else null
+	if rag != null and bool(rag.call("is_falling")) and (rag as Node).has_node("spine"):
+		return ((rag as Node).get_node("spine") as Node3D).global_position
+	return sk.global_transform * sk.get_bone_global_pose(sk.find_bone("spine")).origin

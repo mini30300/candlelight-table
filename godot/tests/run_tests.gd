@@ -27,10 +27,15 @@ func _initialize() -> void:
 
 func _process(_delta: float) -> bool:
 	if _ran:
-		return true
+		return false
 	_ran = true
-	quit(_run())
-	return true
+	_go()
+	return false
+
+
+## A test method may await frames (tests/unit/test_soldier_ragdoll.gd runs real physics): the runner waits for it.
+func _go() -> void:
+	quit(await _run())
 
 
 func _run() -> int:
@@ -58,7 +63,7 @@ func _run() -> int:
 		for m in t.get_method_list():
 			var name: String = m["name"]
 			if name.begins_with("test_") and m["args"].size() == 0:
-				t.call(name)
+				await t.call(name)
 		passed += t.get("passed")
 		failed += t.get("failed")
 	var secs := (Time.get_ticks_msec() - started) / 1000.0

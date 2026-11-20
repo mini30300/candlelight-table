@@ -3,6 +3,7 @@ extends "res://scenes/campaign/hero_base.gd"
 ## ฉากหลังดำ/เทาเงามืด ไฟส่องจากเหนือศีรษะ (sun_dir ของ figure.gdshader ชี้ขึ้น ambient ต่ำ) ลำแสงจาง ๆ จากบน ขอบแสงเย็น
 ## hi/mid: ท่ายืน idle ช้า 0.6 + กล้องเลื่อนเข้าออกช้า ๆ · lo/min: ท่านิ่งท่าเดียว
 ## สัญญาฉาก (CampaignHeroes): setup(ctx) สร้างทุกอย่างเองรวม Camera3D (current) · set_active(on) หยุด/เล่นต่อ
+## ตัวที่พูดได้ (say) บน hi/mid: พูดบท SpeechBubble "hero" ในกรอบคำพูดข้างหัวทุก SAY_EVERY วิ ตามเวลาฉาก t (ไม่มีเสียง)
 
 const FOV := 28.0
 const SUN_DIR := Vector3(0.0, 1.0, 0.15)
@@ -13,6 +14,9 @@ const IDLE_RATE := 0.6
 const PUSH := 0.035          # กล้องเลื่อนเข้าออก (สัดส่วนของระยะ)
 const PUSH_T := 7.0
 const YAW := 0.42           # หันเฉียงเล็กน้อย (ชุดถือโล่ไม่บังหน้า) ยังหันหน้าเข้ากล้อง
+const SAY_T := 0.5          # วิหลังเริ่มฉาก: บทแรก
+const SAY_EVERY := 9.0
+const SAY_HOLD := 1.2       # กรอบค้างหลังปากหยุด
 
 var figure: Node3D
 var head := 1.5
@@ -20,6 +24,9 @@ var _wide := 0.0             # ตัวที่ไม่มีโครง (�
 var _manual := false
 var _eye := Vector3.ZERO
 var _look := Vector3.ZERO
+var _bubble: SpeechBubble
+var _say_k := -1
+var _say_end := 0.0
 
 
 func _build() -> void:
@@ -59,6 +66,12 @@ func _build() -> void:
 	var halo := HeroKit.glow(self, 0, Color(0.6, 0.58, 0.55), 0.22, Vector2(2.4, 2.4))
 	halo.name = "Halo"
 	halo.position = Vector3(0.0, head + 0.15, -0.9)
+	if _moves() and fig.has_method("say"):
+		var layer := CanvasLayer.new()
+		layer.name = "Speech"
+		add_child(layer)
+		_bubble = SpeechBubble.new()
+		layer.add_child(_bubble)
 
 
 ## ครึ่งบน: กว้าง = หัวถึงอก · แนวตั้ง = หัวถึงเอว (เห็นตัวมากขึ้น ไม่เล็กเกิน)
@@ -86,6 +99,43 @@ func _tick(_dt: float) -> void:
 	var k := 1.0 - PUSH * (0.5 - 0.5 * cos(TAU * t / PUSH_T))
 	var eye := _look + (_eye - _look) * k
 	camera.transform = Transform3D(Basis.looking_at(_look - eye, Vector3.UP), eye)
+	_speech()
+
+
+func _reset() -> void:
+	_say_k = -1
+	if _bubble != null:
+		_bubble.hide_line()
+		figure.call("say", "")
+
+
+## บทที่ floor((t − SAY_T) / SAY_EVERY): เริ่มพูดเมื่อถึงรอบใหม่ · กรอบแสดงเท่าที่ปากขยับ + SAY_HOLD วางข้างหัว
+func _speech() -> void:
+	if _bubble == null:
+		return
+	var k := floori((t - SAY_T) / SAY_EVERY) if t >= SAY_T else -1
+	if k >= 0 and k != _say_k:
+		_say_k = k
+		var text := I18n.t(SpeechBubble.line("hero", k))
+		var dur := float(figure.call("say", text, "en" if I18n.english else "th"))
+		_say_end = SAY_T + k * SAY_EVERY + dur + SAY_HOLD
+		if dur > 0.0:
+			_bubble.show_line(text)
+	if not _bubble.visible:
+		return
+	if t >= _say_end:
+		_bubble.hide_line()
+	elif camera.is_inside_tree():
+		var p := camera.unproject_position(figure.to_global(Vector3(0.1, head + 0.1, 0.0)))
+		var vs := camera.get_viewport().get_visible_rect().size
+		var sz := _bubble.get_combined_minimum_size()
+		_bubble.position = Vector2(clampf(p.x + 12.0, 4.0, maxf(vs.x - sz.x - 4.0, 4.0)),
+			clampf(p.y - sz.y - 14.0, 4.0, maxf(vs.y - sz.y - 4.0, 4.0)))
+
+
+## กรอบคำพูดของฉาก (เทส) · null = ตัวนี้ไม่พูด หรือ lo/min
+func speech_bubble() -> SpeechBubble:
+	return _bubble
 
 
 func _on_active(on: bool) -> void:

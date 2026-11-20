@@ -4,13 +4,16 @@ extends Node3D
 ## ตัวในห้องแต่งตัว (Figures kind builtin): เดินบนดาดฟ้า เป็นตัวผู้เล่นในห้องทดลองและภารกิจ และในการ์ด "ธรรมดา"
 ## สัญญาตัวละคร (ARENA_SPEC §9.1): 12 เมธอด + clip_event · ดาดฟ้า (PACK_SPEC §3) + deck_speeds · H6 H8 H9 แบบ KitFighter
 ## ไฟล์ทั้งหมดใน assets/figures/soldier/ (tools/soldier/import_stage.sh นำเข้า) · ร่างอื่น (body_id) ใน assets/figures/soldier_<id>/
-## ชุดเดียวกัน (ไม่มี blend shape ได้: hi/mid ใช้กระดูกช่วยอย่างเดียว) · S จาก motion_scale ของ rig แต่ละร่าง · ท่า: clips.res ของทหารถ้ามี
-## ไม่งั้นสำเนาท่าใน humanoid.res ที่แต่งข้อมือแล้ว (ผิวต่อเนื่องบิดเกือบรอบไม่ได้) · โครง 23 กระดูกของเกม + กระดูกช่วย
+## ชุดเดียวกัน (ไม่มี blend shape ได้: hi/mid ใช้กระดูกช่วยอย่างเดียว) · S จาก motion_scale ของ rig แต่ละร่าง · ท่า: clips.res ของทหารเอง
+## (ทุกร่างใช้ร่วม ที่ S = 1 · คำขอ → ท่าจากเมตา kind/from · เดิน/วิ่งเหยาะ/วิ่งตามความเร็ว หมุนตัวตอนยืน โดน/ล้มตามด้านที่ถูกตี
+## รีโหลดท่อนบน) ไม่งั้นสำเนาท่าใน humanoid.res ที่แต่งข้อมือแล้ว (ผิวต่อเนื่องบิดเกือบรอบไม่ได้) · โครง 23 กระดูกของเกม + กระดูกช่วย
 ## ตัวขับกระดูกช่วย/ท่าแก้ทำงานใน mixer_applied (ไม่มี _process): hi/mid = กระดูกช่วย + ท่าแก้ · lo = กระดูกช่วย ·
 ## min = ไม่มีงานเพิ่ม ยืนนิ่งท่าเดียว · ดาดฟ้ายืนนิ่งทั้ง lo และ min · เมช วัสดุ เก็บ static ต่อโฟลเดอร์ร่าง ท่าใช้ร่วม · ภาพล้วน
 ## บาดแผล (add_wound, โดน/ตายลงแผลสุ่มแบบมี seed ≤ 8 แผล ติดกระดูก ด้านที่ถูกตีถ้ารู้ set_hit_from): hi/mid = ผิวขาด
 ## เห็นเนื้อและกระดูก (inner_*.res ซ่อนจนแผลแรก) · lo = สีแผลบนผิว · min = ไม่มีเลย (วัสดุร่วมไม่มีโค้ดแผล) ·
 ## แผลตัดเฉพาะส่วนร่างกายเดียวกับกระดูกแผล · อัปเดตตามท่าเฉพาะตอนมีแผล ล้างตอน setup / ลุกขึ้นใหม่
+## ล้มตามฟิสิกส์ (ใหม่ 0.14 ข้อ 3, SoldierRagdoll): hi/mid เล่นท่าล้ม 0.1 วิแล้วร่างตกตามแรงผลัก (set_hit_push) นิ่งแล้วอบท่าลงโครง
+## (ภาพล้วน ตำแหน่งของเกมไม่ขยับ) · lo/min ท่าล้มตามด้านที่ถูกตีเหมือนเดิม
 
 signal clip_event(kind: StringName)
 
@@ -32,6 +35,27 @@ const PLAYER_CLIPS := {"idle": ["idle"], "walk": ["walk"], "run": ["run"], "fire
 const ENEMY_CLIPS := {"idle": ["idle"], "walk": ["walk"], "run": ["run"], "attack": ["bash_0", "bash_1", "bash_2"],
 	"hit": ["flinch"], "hit_heavy": ["flinch_heavy"], "die": ["die_back", "die_fwd", "die_spin"]}
 const LOOPS: Array[StringName] = [&"idle", &"walk", &"run"]
+## ท่าของทหารเอง: ขั้นท่าตามความเร็วโครง (ม./วิ ÷ S) walk < 2.0 ≤ jog < 3.6 ≤ run · ท่าเดิมอยู่ต่อจนเลยเส้น 5 %
+const GAITS: Array[StringName] = [&"walk", &"jog", &"run"]
+const GAIT_STEPS := Vector2(2.0, 3.6)
+const GAIT_HYST := 0.05
+## ลำดับท่าที่มีหลายแบบตามเมตา from (ด้านที่ถูกตี) แล้วชื่อ · set_variant เลือกตามลำดับนี้ (die 0..2 = back fwd spin แบบเดิม)
+const FROM_ORDER: PackedStringArray = ["front", "back", "left", "right", "side", "any"]
+const KNEES_P := 0.25            # โอกาสล้มคุกเข่า (สุ่มแบบมี seed ของตัวเอง _vrng)
+## หมุนตัวตอนยืน (เรเดียน/วิ): เริ่มเมื่อเร็วกว่า TURN_ON · หยุดเมื่อช้ากว่า TURN_OFF นานเกิน TURN_HOLD วิ · ต่อเฟรมเกิน TURN_JUMP
+## หรือเร็วกว่า TURN_FAST = วางตัว/หันทันที (ไม่ใช่หมุน)
+const TURN_ON := 0.9
+const TURN_OFF := 0.35
+const TURN_HOLD := 0.15
+const TURN_SMOOTH := 0.08
+const TURN_JUMP := 0.35
+const TURN_FAST := 6.0
+const TURN_RATES := Vector2(0.6, 1.6)
+const BLEND_MELEE := 0.06
+## ความเร็วดาดฟ้าเดิม (ม./วิ ต่อ S) = ท่าเดิน/วิ่งของ humanoid.res × DECK_RATE · ท่าของทหารเองใช้ค่านี้ (ความเร็วไม่เปลี่ยน)
+const DECK_SPEEDS := Vector2(1.61, 4.0147058)
+## รีโหลด: ท่อนบนจากท่า reload ซ้อนท่าวน ค่อย ๆ เข้า/ออก (วิ)
+const RELOAD_FADE := 0.15
 const BONES := {&"head": "head", &"chest": "chest", &"hand_r": "handR", &"hand_l": "handL"}
 const BLEND := 0.15
 const BLEND_DIE := 0.3
@@ -44,10 +68,13 @@ const WRIST_SWING := 45.0
 const AIM_BONES: PackedStringArray = ["chest", "neck", "head", "shoulderL", "elbowL", "wristL", "handL", "shoulderR",
 	"elbowR", "wristR", "handR"]
 const AIM_PITCH_K := 0.8
-const MELEE_RATE := 1.8
+const MELEE_RATE := 1.8          # สำเนาจาก humanoid.res เท่านั้น (ท่าของทหารเองเล่น 1.0)
 const RECOIL_T := 0.16
 const RECOIL_SPAN := 0.08
 const MUZZLE_AHEAD := 0.35
+## จุดยิงคงที่ (กรอบตัว ที่ S = 1): มือหน้าของท่าเล็งยืนใน 0.13 (สำเนา humanoid เฉลี่ยตลอดท่ายืน) + จุดหมุนอก
+const MUZZLE_HAND := Vector3(-0.05584, 1.34624, 0.46998)
+const MUZZLE_PIVOT := Vector3(0.00171, 1.31041, 0.01656)
 const DODGE_LEAN := 0.35
 const DODGE_DIP := 0.18
 const FLASH_COLOUR := Color(1.0, 1.0, 1.0)
@@ -69,6 +96,7 @@ const DOWN := Vector3(0.0, -1.0, 0.0)
 const INNER := {"flesh": "inner_flesh.res", "bone": "inner_bone.res"}
 const WOUND_SHADER := DIR + "body_wound.gdshader"
 const WOUND_FILE := "body_wound.gdshader"
+const FACE_FILE := "body_face.gdshader"   # ผิว + หน้า (hi/mid/lo) · body.gdshader ไม่มีหน้า (min)
 const MAX_WOUNDS := 8
 ## ส่วนร่างกาย (CUSTOM0.w ของผิว / CUSTOM0.x ของชั้นใน จาก parts.py ของ tools/soldier): แผลมีผลเฉพาะส่วนของกระดูกแผล
 const PARTS: PackedStringArray = ["torso", "head", "armL", "armR", "legL", "legR"]
@@ -93,11 +121,15 @@ const WOUND_SEAM_K := 1.35
 const WOUND_SEAM_PAD := 0.01
 const WOUND_ROOM := 0.6          # จุดที่รัศมีลงได้ < ค่านี้ × รัศมีต่ำสุดของช่วง ไม่ใช้
 const WOUND_FACING := 0.25       # set_hit_from: ลงแผลเฉพาะจุดที่นอร์มอลตามท่า · ทิศหาผู้ตี > ค่านี้ (ไม่มีจุดเลย = ทุกจุด)
+const RAG_PUSH := 1.6         # ม./วิ: แรงผลักร่างเมื่อรู้แค่ด้านที่ถูกตี (ไม่ได้เรียก set_hit_push)
 
 static var _bodies: Dictionary = {}       # โฟลเดอร์ร่าง -> {rig, skin, mat, mat_pv, drv, scale, rules, rules_ready}
 static var _mesh_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ระดับ -> ผิว
 static var _lib: AnimationLibrary
 static var _lib_from := ""
+static var _own_lib := false               # ท่าของทหารเอง (คิดครั้งเดียวตอนโหลดท่า)
+static var own_clips_path := OWN_CLIPS     # เทส/ภาพเทียบก่อน-หลัง: ชี้ที่อื่นแล้ว reload_clips() = ใช้สำเนาจาก humanoid.res
+static var _maps: Dictionary = {}          # "player"/"enemy" -> คำขอ → ชื่อท่า (ท่าของทหารเอง)
 static var _baked: Dictionary = {}
 static var _inner_cache: Dictionary = {}   # โฟลเดอร์ร่าง + ชั้น -> เมช
 static var _spots: Dictionary = {}         # โฟลเดอร์ร่าง -> จุดลงแผล
@@ -117,6 +149,7 @@ var _sk: Skeleton3D
 var _mi: MeshInstance3D
 var _ap: AnimationPlayer
 var _clips: Dictionary = PLAYER_CLIPS
+var _own := false                # ท่าของทหารเองตอน setup (คู่กับ _clips)
 var _loop: StringName = &"idle"
 var _loop_rate := 1.0
 var _oneshot: StringName = &""
@@ -168,6 +201,25 @@ var _drv: Dictionary = {}
 var _scale := 1.0
 var _rules: Array = []           # [ดัชนี, ชนิด, ต้นทาง, ต้นทาง 2, ข้าง ±1] ของกระดูกช่วยที่ต้องขับ
 var _wound_sh: Shader
+var _vrng := RandomNumberGenerator.new()   # สุ่มท่า (ล้มคุกเข่า) แยกจาก _rng/_wrng: ลำดับเดิมไม่เลื่อน
+var _turn_ok := false            # ท่าหมุนตัวตอนยืน (ท่าของทหารเอง · ผู้เล่น/ศัตรู)
+var _yaw_ok := false
+var _yaw_prev := 0.0
+var _yaw_rate := 0.0
+var _turn_quiet := 0.0
+var _reload_anim: Animation
+var _reload_tracks: Dictionary = {}
+var _reload_t := -1.0            # เวลาในท่า reload (−1 = ไม่รีโหลด)
+var _reload_w := 0.0
+var _rag: SoldierRagdoll         # ร่างล้มตามฟิสิกส์ (hi/mid · ผู้เล่นสร้างค้างไว้ ตัวอื่นสร้างตอนตาย) · null = ไม่มี
+var _rag_t := -1.0               # วิในท่าล้มก่อนส่งให้ฟิสิกส์ (−1 = ไม่รอ)
+var _rag_prev: Dictionary = {}   # จุดกลางชิ้นร่างเฟรมก่อน (ความเร็วของท่า)
+var _rag_pose: Dictionary = {}   # ท่าโลก (กรอบโครง) ของกระดูกแผลระหว่างร่างตก (wound_point)
+var _rag_push := Vector3.ZERO
+var _push := Vector3.ZERO        # แรงผลัก (โลก ม./วิ) ของการตายครั้งถัดไป (set_hit_push)
+var _prng := RandomNumberGenerator.new()   # สุ่มแรงผลักของร่าง แยกจากตัวอื่น: ลำดับเดิมไม่เลื่อน
+var _face: SoldierFace           # หน้า (0.14): กะพริบ อารมณ์ ปากพูด · เดินด้วย _on_applied (min/ยืนนิ่ง = ไม่เดิน)
+var _mat_min: ShaderMaterial     # วัสดุของ min (ใช้ร่วม): face_on ปิด (เมช min ไม่มี CUSTOM1)
 
 
 # ================= สัญญาตัวละคร =================
@@ -185,13 +237,25 @@ func setup(opts: Dictionary) -> void:
 			push_warning("soldier: no body %s, using the base body" % body_id)
 			_body = DIR
 	role = StringName(str(opts.get("role", "player")))
-	_clips = ENEMY_CLIPS if role == &"enemy" else PLAYER_CLIPS
+	_clips = clip_map(role == &"enemy")
+	_own = own_clips()
+	_turn_ok = role != &"deck" and _clips.has("turn_l")
 	_rng.seed = int(opts.get("seed", 1))
 	_wrng.seed = int(opts.get("seed", 1)) * 7919 + 104729
+	_vrng.seed = int(opts.get("seed", 1)) * 6007 + 7727
+	_prng.seed = int(opts.get("seed", 1)) * 4241 + 3907
+	_push = Vector3.ZERO
+	_reload_t = -1.0
+	_yaw_ok = false
 	level = str(opts.get("level", level))
 	if not LEVELS.has(level):
 		level = "mid"
 	_build()
+	if _face == null and _sk != null:
+		_face = SoldierFace.new()
+		_face.attach(_sk, _mi, _scale / maxf(float(_load_static(DIR)["scale"]), 0.001))
+	if _face != null:
+		_face.reseed(int(opts.get("seed", 1)))
 	_wounds.clear()
 	_wound_next = 0
 	apply_level(level)
@@ -211,6 +275,7 @@ func clip_names() -> Dictionary:
 
 ## เริ่มท่า: ท่าวนเปลี่ยนท่าวน · ท่าครั้งเดียวเล่นจากต้นแล้วกลับท่าวน (die ค้าง) · ยิง = สะบัดในท่าเล็ง · คืนความยาว (วิ)
 func play(logical: StringName, speed: float = 1.0) -> float:
+	var own := _own
 	match logical:
 		&"fire":
 			if _fire_anim == null:
@@ -219,44 +284,66 @@ func play(logical: StringName, speed: float = 1.0) -> float:
 				_recoil = 0.0
 			return RECOIL_T
 		&"reload":
-			return 0.0
+			return _start_reload() if own else 0.0
 		&"punch", &"swing":
-			speed *= MELEE_RATE
+			if not own:
+				speed *= MELEE_RATE
 	if _ap == null:
 		return 0.0
 	var names: Array = _clips.get(String(logical), [])
+	if own and logical == &"die" and level == "min":
+		names = _clips.get("die_min", names)
 	if names.is_empty():
 		return 0.0
-	var idx := 0
-	if names.size() > 1:
-		idx = posmod(_variant_next, names.size()) if _variant_next >= 0 else _rng.randi_range(0, names.size() - 1)
+	var idx := _pick(logical, names.size(), own)
 	_variant_next = -1
 	var clip := "humanoid/" + str(names[idx])
 	if not _ap.has_animation(clip):
 		return 0.0
 	var anim := _ap.get_animation(clip)
 	speed = maxf(speed, 0.01)
-	if logical in LOOPS and (_dead or _oneshot == &"die"):
+	var looping := logical in LOOPS or (own and anim.loop_mode != Animation.LOOP_NONE)
+	if looping and (_dead or _oneshot == &"die"):
+		_rag_stop()              # ลุกขึ้นใหม่: ร่างฟิสิกส์หยุด ท่าวนทับท่าที่อบไว้
+		if _face != null:
+			_face.revive()
 		clear_wounds()           # ลุกขึ้นใหม่ด้วยตัวเดิม (เกิดใหม่): แผลหาย
+		_yaw_ok = false          # วางตัวใหม่ ไม่นับเป็นหมุน
+		_yaw_rate = 0.0
+	if logical == &"idle" or logical == &"die":
+		_reload_t = -1.0         # รีโหลดถูกยกเลิก (เกม play idle) / ล้ม
 	_still = false
 	_still_wait = -1.0
 	_dead = false
-	if logical in LOOPS:
+	if looping:
 		_oneshot = &""
 		_loop = logical
 		_loop_rate = speed
 		_start(clip, speed, false)
 	else:
 		_oneshot = logical
-		_start(clip, speed, true)
+		var bl := -1.0
+		if own and (logical == &"punch" or logical == &"swing" or logical == &"attack"):
+			bl = BLEND_MELEE
+		elif own and logical == &"die" and level == "min":
+			bl = BLEND           # ท่าล้มของ min สั้นกว่า BLEND_DIE (นิ่งตั้งแต่คีย์ 6)
+		_start(clip, speed, true, bl)
 	match logical:
 		&"hit", &"hit_heavy":
 			_random_wound(WOUND_HIT * (1.25 if logical == &"hit_heavy" else 1.0), WOUND_HIT)
 			_hit_from = Vector3.ZERO
+			if _face != null:
+				_face.event(&"pain")
+		&"punch", &"swing", &"attack":
+			if _face != null:
+				_face.event(&"angry")
 		&"die":
 			for i in 2 + (1 if _wrng.randf() < 0.5 else 0):      # สุ่มทุกระดับ (min ด้วย): ลำดับสุ่มไม่ขึ้นกับระดับ
 				_random_wound(WOUND_DIE, WOUND_DIE_LIMB)
+			_rag_arm()
 			_hit_from = Vector3.ZERO
+			if _face != null:
+				_face.die()              # ตาปิด (ราว 3 ใน 4 ตัว ตาม seed) หรือเปิดค้าง
 	return anim.length / speed
 
 
@@ -271,6 +358,11 @@ func _move(speed: float, running: bool) -> void:
 	if _ap == null or _dead:
 		return
 	var logical: StringName = &"idle" if speed < 0.05 else (&"run" if running else &"walk")
+	var own := _own
+	if own and logical != &"idle":
+		logical = &"walk" if _back else _gait(speed / maxf(_scale, 0.01))
+	elif own and (_loop == &"turn_l" or _loop == &"turn_r"):
+		return                   # หมุนตัวตอนยืน: _watch_turn คุมท่าเอง
 	var rate := 1.0
 	if logical != &"idle":
 		var clip := "humanoid/" + str(_clips[String(logical)][0])
@@ -281,8 +373,14 @@ func _move(speed: float, running: bool) -> void:
 		_loop = logical
 		return
 	if logical != _loop or (not _ap.is_playing() and not _still):
+		# เปลี่ยนขั้นท่า walk/jog/run: คงจังหวะเท้า (ทุกท่าเริ่มเท้าขวาลงที่ 0 ซ้ายที่ครึ่งท่า)
+		var ph := -1.0
+		if own and _loop in GAITS and logical in GAITS and _ap.is_playing() and _ap.current_animation_length > 0.0:
+			ph = _ap.current_animation_position / _ap.current_animation_length
 		_loop = logical
 		_start("humanoid/" + str(_clips[String(logical)][0]), rate, false)
+		if ph >= 0.0:
+			_ap.seek(ph * _cur_anim.length, false)
 	elif not _still:
 		_ap.speed_scale = rate
 	if _back and _ap.is_playing() and logical != &"idle":
@@ -311,7 +409,8 @@ func set_telegraph(a: float) -> void:
 	_update_overlay()
 
 
-## จุดปากกระบอก: มือที่อยู่หน้าสุด + MUZZLE_AHEAD ไปทางหน้าตัว (วางตอนถาม ไม่มีงานต่อเฟรม) · ศัตรูไม่มี
+## จุดปากกระบอก (จุดเริ่มกระสุนของเกม): ไม่ตามท่า (ท่าต่างกันตามระดับภาพ) = มือหน้าของท่าเล็งยืนใน 0.13 × S
+## หมุนรอบอกตาม set_aim + MUZZLE_AHEAD ไปทางหน้าตัว (วางตอนถาม ไม่มีงานต่อเฟรม) · ศัตรูไม่มี
 func muzzle() -> Node3D:
 	if role == &"enemy" or _sk == null:
 		return null
@@ -319,16 +418,11 @@ func muzzle() -> Node3D:
 		_muzzle = Marker3D.new()
 		_muzzle.name = "Muzzle"
 		add_child(_muzzle)
-	var hr := anchor(&"hand_r")
-	var hl := anchor(&"hand_l")
-	if hr == null or not hr.is_inside_tree():
-		_muzzle.position = Vector3(0.0, _height * 0.72, 0.5)
+	var h := (MUZZLE_PIVOT + Basis(Vector3.RIGHT, -_pitch * AIM_PITCH_K) * (MUZZLE_HAND - MUZZLE_PIVOT)) * _scale
+	if not is_inside_tree():
+		_muzzle.position = h + Vector3(0.0, 0.0, MUZZLE_AHEAD)
 		return _muzzle
-	var fwd := global_basis.z.normalized()
-	var h := hr
-	if hl != null and hl.is_inside_tree() and (hl.global_position - hr.global_position).dot(fwd) > 0.0:
-		h = hl
-	_muzzle.global_position = h.global_position + fwd * MUZZLE_AHEAD
+	_muzzle.global_position = to_global(h) + global_basis.z.normalized() * MUZZLE_AHEAD
 	return _muzzle
 
 
@@ -350,13 +444,21 @@ func apply_level(l: String) -> void:
 	if not _built:
 		return
 	_set_mesh(level)
+	if _face != null:
+		_face.set_level(level)
 	_show_wounds()
 	_update_overlay()
 	if level == "min":
 		_reset_helpers()
+	_rag_level()
 	if _ap == null:
 		return
+	_yaw_ok = false              # เปลี่ยนระดับ: เริ่มวัดการหมุนใหม่ (ไม่หมุนค้าง)
+	_yaw_rate = 0.0
 	if _still_level():
+		_reload_t = -1.0
+		if _loop == &"turn_l" or _loop == &"turn_r":
+			_loop = &"idle"
 		if _oneshot == &"" and _loop == &"idle" and not _dead:
 			_go_still()
 	elif _still:
@@ -366,12 +468,45 @@ func apply_level(l: String) -> void:
 
 # ================= ตะขอเสริม (ไม่อยู่ใน FIGURE_API) =================
 
+## แรงผลัก (โลก ม./วิ ที่อก) ของ play(&"die") ครั้งถัดไป: hi/mid ร่างล้มตามฟิสิกส์ไปทางนี้ (ใช้ครั้งเดียว · ไม่เรียก = จาก
+## ด้านที่ถูกตี set_hit_from × RAG_PUSH) · นอกสัญญาตัวละคร (ผู้เรียกเช็ก has_method)
+func set_hit_push(world_push: Vector3) -> void:
+	_push = world_push if world_push.is_finite() else Vector3.ZERO
+
+
+## ร่างล้มตามฟิสิกส์ (SoldierRagdoll) · null = lo/min หรือยังไม่สร้าง (เทส)
+func ragdoll() -> SoldierRagdoll:
+	return _rag
+
+
+## อารมณ์ของหน้า (SoldierFace.MOODS) · hold > 0 = ชั่วคราว (วิ) แล้วกลับอารมณ์หลัก · นอกสัญญาตัวละคร (has_method)
+func set_mood(mood: StringName, hold := 0.0) -> bool:
+	return _face != null and _face.set_mood(mood, hold)
+
+
+## พูดข้อความ (ปากขยับ ไม่มีเสียง: กรอบคำพูดเป็นของฉาก) · lang "th"/"en" ("" = ดูจากตัวอักษร) · คืนความยาว (วิ)
+## 0 = ไม่พูด: min, ยืนนิ่ง (ดาดฟ้า lo), ตายแล้ว หรือไม่มีท่า · ข้อความว่าง = หยุดพูด · นอกสัญญาตัวละคร
+func say(text: String, lang := "") -> float:
+	if _face == null:
+		return 0.0
+	if _ap == null or _still_level() or _dead or _oneshot == &"die":
+		return _face.say("")
+	return _face.say(text, lang)
+
+
+## หน้าของตัวนี้ (เทส/ภาพเทียบ) · null = ยังไม่สร้าง
+func face() -> SoldierFace:
+	return _face
+
+
 ## (เดิน, วิ่ง) ม./วิ บนดาดฟ้าที่ท่าไม่ไถล (HallAvatar ใช้แทน 3 / 6)
 func deck_speeds() -> Vector2:
 	var lib := clip_library()
 	if lib == null or not lib.has_animation(&"walk") or not lib.has_animation(&"run"):
 		return Vector2(HallAvatar.WALK, HallAvatar.RUN)
 	_use_body()
+	if own_clips():
+		return DECK_SPEEDS * _scale
 	return Vector2(float(lib.get_animation(&"walk").get_meta("speed", 1.0)) * _scale * DECK_RATE,
 		float(lib.get_animation(&"run").get_meta("speed", 2.0)) * _scale * DECK_RATE)
 
@@ -379,6 +514,19 @@ func deck_speeds() -> Vector2:
 ## H9: ไม่เดินเยื้อง (A/D หมุนตัว) เพราะไม่มีท่าก้าวข้าง
 func uses_strafe() -> bool:
 	return false
+
+
+## H12: คนปกติ (ความเหนื่อยของ ArenaStamina) เสียงหอบตามร่าง (หญิง f1/f2 = high) เท้ารองเท้าบูต
+func move_profile() -> Dictionary:
+	return {"class": "human", "voice": "high" if _body != DIR and body_id in ["f1", "f2"] else "low", "feet": "boot"}
+
+
+## H13: จังหวะเท้าของท่าเดินของตัวเองที่เล่นอยู่ 0..1 (เท้าขวาลงที่ 0 ซ้ายที่ 0.5) · ไม่ได้เล่นท่าเดิน = −1
+func step_phase() -> float:
+	if not _own or _dead or _oneshot != &"" or _ap == null or not (_loop in GAITS) or not _ap.is_playing() \
+			or _ap.current_animation_length <= 0.0:
+		return -1.0
+	return _ap.current_animation_position / _ap.current_animation_length
 
 
 ## H6: ขาเดินหน้า (y ≥ −0.5) หรือถอยหลัง (walk เล่นกลับ ไม่วิ่งถอยหลัง)
@@ -545,7 +693,8 @@ func wound_point(i: int) -> Vector3:
 	if i < 0 or i >= _wounds.size() or _sk == null:
 		return Vector3.ZERO
 	var w: Array = _wounds[i]
-	return _sk.global_transform * (_sk.get_bone_global_pose(int(w[1])) * (w[2] as Vector3))
+	var g: Transform3D = _rag_pose.get(int(w[1]), _sk.get_bone_global_pose(int(w[1])))    # ร่างตก: ท่าฟิสิกส์
+	return _sk.global_transform * (g * (w[2] as Vector3))
 
 
 ## ชั้นในที่สร้างแล้ว [เนื้อ, กระดูก] (ว่าง = ยังไม่เคยมีแผลบน hi/mid)
@@ -724,14 +873,15 @@ static func _bind_index(bone: StringName, skin: Skin = null) -> int:
 	return -1
 
 
-## ท่าของทหาร (ใช้ร่วมทุกตัว): clips.res ของขั้นปั้นถ้ามี ไม่งั้นสำเนาท่าที่ใช้จาก humanoid.res แต่งข้อมือ (ease_wrists)
+## ท่าของทหาร (ใช้ร่วมทุกตัว): clips.res ของทหารเองถ้ามี ไม่งั้นสำเนาท่าที่ใช้จาก humanoid.res แต่งข้อมือ (ease_wrists)
 ## humanoid.res เองไม่ถูกแตะ (ชุดโมเดลอื่นใช้ร่วม) · ไม่มีทั้งสองไฟล์ = null (ยืนท่าพักของโครง)
 static func clip_library() -> AnimationLibrary:
 	if _lib != null:
 		return _lib
-	if ResourceLoader.exists(OWN_CLIPS):
-		_lib = load(OWN_CLIPS) as AnimationLibrary
-		_lib_from = OWN_CLIPS
+	_maps.clear()
+	if ResourceLoader.exists(own_clips_path):
+		_lib = load(own_clips_path) as AnimationLibrary
+		_lib_from = own_clips_path
 	elif ResourceLoader.exists(LIB_PATH):
 		var src := load(LIB_PATH) as AnimationLibrary
 		if src != null:
@@ -749,6 +899,8 @@ static func clip_library() -> AnimationLibrary:
 			_lib = lib
 			_lib_from = LIB_PATH
 	_baked.clear()
+	_own_lib = _lib != null and _lib_from != LIB_PATH and str(_lib.get_meta("source", "")).begins_with("soldier clips") \
+		and _lib.has_animation(&"walk") and _lib.has_animation(&"jog") and _lib.has_animation(&"run")
 	if _lib != null:
 		for n in _lib.get_animation_list():
 			var a := _lib.get_animation(n)
@@ -765,6 +917,65 @@ static func clip_library() -> AnimationLibrary:
 static func clip_source() -> String:
 	clip_library()
 	return _lib_from
+
+
+## ใช้ท่าของทหารเอง (clips.res จาก bake_clips.sh: source "soldier clips …" มี walk/jog/run) อยู่ไหม
+## ไฟล์ชื่อนี้ที่เป็นสำเนาชื่อท่าแบบ humanoid (ขั้นปั้นเก่า) = ใช้คำขอแบบเดิม (PLAYER_CLIPS / ENEMY_CLIPS)
+## คิดครั้งเดียวตอนโหลด (clip_library) · ตัวที่สร้างแล้วจำค่าตอน setup (_own)
+static func own_clips() -> bool:
+	clip_library()
+	return _own_lib
+
+
+## เทส/ภาพ: โหลดท่าใหม่ตอนถามครั้งถัดไป (หลังเปลี่ยน own_clips_path) · ตัวที่สร้างแล้วใช้ชุดเดิมต่อ
+static func reload_clips() -> void:
+	_lib = null
+	_lib_from = ""
+	_own_lib = false
+	_maps.clear()
+	for b in _bodies:
+		_bodies[b]["rules_ready"] = false
+
+
+## คำขอของเกม → ชื่อท่า · ท่าของทหารเอง: จากเมตา kind ของแต่ละท่า เรียงตาม from (FROM_ORDER) แล้วชื่อ
+## + turn_l/turn_r แยก · ศัตรู: คำขอแบบ ENEMY_CLIPS (+ jog หมุน ล้มของ min) attack = ท่าต่อย
+## ไม่มี clips.res = PLAYER_CLIPS / ENEMY_CLIPS (humanoid.res)
+static func clip_map(enemy := false) -> Dictionary:
+	if not own_clips():
+		return ENEMY_CLIPS if enemy else PLAYER_CLIPS
+	var key := "enemy" if enemy else "player"
+	if _maps.has(key):
+		return _maps[key]
+	var by := {}
+	for n in _lib.get_animation_list():
+		var a := _lib.get_animation(n)
+		var k := str(a.get_meta("kind", ""))
+		if k == "":
+			continue
+		if not by.has(k):
+			by[k] = []
+		(by[k] as Array).append("%d|%s" % [FROM_ORDER.find(str(a.get_meta("from", ""))) + 1, n])
+	var all := {}
+	for k: String in by:
+		var l: Array = by[k]
+		l.sort()
+		var ns := []
+		for e: String in l:
+			ns.append(e.get_slice("|", 1))
+		all[k] = ns
+	for t in ["turn_l", "turn_r"]:
+		if _lib.has_animation(t):
+			all[t] = [t]
+	var out := all
+	if enemy:
+		out = {}
+		for k in ["idle", "walk", "jog", "run", "turn", "turn_l", "turn_r", "hit", "hit_heavy", "die", "die_min"]:
+			if all.has(k):
+				out[k] = all[k]
+		if all.has("punch"):
+			out["attack"] = all["punch"]
+	_maps[key] = out
+	return out
 
 
 ## ข้อมือของผิวต่อเนื่อง: ท่าที่ปรับอาวุธของชุดโมเดลแข็งหมุนมือ/ข้อมือเกือบรอบ (ผิวบิดเป็นหนาม)
@@ -813,6 +1024,8 @@ static func twist_deg(q: Quaternion) -> float:
 ## half = ครึ่งมุมของข้อ · upper_twist = หมุนกลับครึ่งหนึ่งของการบิดต้นแขน · fore_twist = รับการบิดข้อมือ+มือส่วนหนึ่ง
 ## clavicle = ไหล่ยก/ยื่นตามทิศต้นแขน
 static func helper_rule(name: String, parent: String) -> Array:
+	if name.begins_with("head_"):
+		return ["face", "", ""]       # กระดูกหน้า (0.14): SoldierFace ขยับเอง ไม่มีตัวขับจากกระดูกอื่น
 	var side := name.right(1)
 	if side != "L" and side != "R":
 		return ["", "", ""]
@@ -900,7 +1113,8 @@ static func _clamp_turn(q: Quaternion, max_deg: float) -> Quaternion:
 static func _load_static(body := DIR) -> Dictionary:
 	if _bodies.has(body):
 		return _bodies[body]
-	var d := {"rig": null, "skin": null, "mat": null, "mat_pv": null, "drv": {}, "scale": 1.0, "rules": [], "rules_ready": false}
+	var d := {"rig": null, "skin": null, "mat": null, "mat_pv": null, "mat_min": null, "drv": {}, "scale": 1.0, "rules": [],
+		"rules_ready": false}
 	_bodies[body] = d
 	if ResourceLoader.exists(body + "rig.tscn"):
 		d["rig"] = load(body + "rig.tscn") as PackedScene
@@ -909,10 +1123,25 @@ static func _load_static(body := DIR) -> Dictionary:
 	var mp := body + "body_material.tres" if ResourceLoader.exists(body + "body_material.tres") else MATERIAL
 	var mat := load(mp) as ShaderMaterial if ResourceLoader.exists(mp) else null
 	if mat != null:
+		mat = mat.duplicate() as ShaderMaterial   # สำเนา: เปิดหน้า (face_on) โดยไม่แตะไฟล์ที่แคชไว้
+		var plain := mat.shader
+		var fp := body + FACE_FILE
+		if ResourceLoader.exists(fp):
+			# สีเปลือกตาของร่าง: meta จาก import (body.gdshader ไม่มี uniform หน้า ค่า uniform ไม่ติดมากับ duplicate)
+			var lid: Variant = mat.get_meta("face_lid_colour") if mat.has_meta("face_lid_colour") \
+				else mat.get_shader_parameter("face_lid_colour")
+			mat.shader = load(fp) as Shader        # hi/mid/lo: ผิว + หน้า
+			if lid != null:
+				mat.set_shader_parameter("face_lid_colour", lid)
+		mat.set_shader_parameter("face_on", true)
 		d["mat"] = mat
 		var pv := mat.duplicate() as ShaderMaterial
 		pv.set_shader_parameter("per_vertex", true)
 		d["mat_pv"] = pv
+		var mn := pv.duplicate() as ShaderMaterial
+		mn.shader = plain                          # min: body.gdshader ไม่มีโค้ดหน้าเลย (ไม่มี CUSTOM1)
+		mn.set_shader_parameter("face_on", false)
+		d["mat_min"] = mn
 	# ค่าคงที่ของตัวขับ: meta ของราก rig.tscn (rig.json ของขั้นปั้น) ทับค่าของขั้น 1
 	var drv := DRIVERS.duplicate()
 	drv["arm_keys"] = {}
@@ -957,10 +1186,12 @@ func _use_body() -> void:
 	_skin = d["skin"]
 	_mat = d["mat"]
 	_mat_pv = d["mat_pv"]
+	_mat_min = d["mat_min"]
 	_drv = d["drv"]
 	_scale = float(d["scale"])
 	_wound_sh = wound_shader(_body)
-	if _own_mat != null and _mat != null and _own_mat.shader != _mat.shader:
+	if _own_mat != null and _mat != null and _own_mat.shader != _mat.shader \
+			and not (_mat_min != null and _own_mat.shader == _mat_min.shader):   # min ใช้เชดเดอร์ไม่มีหน้าของร่างเดียวกัน
 		var old := _own_mat
 		_own_mat = _mat.duplicate() as ShaderMaterial
 		for p in ["sun_dir", "sun_colour", "ambient_colour"]:
@@ -1019,6 +1250,15 @@ func _build() -> void:
 			var tr := _fire_anim.find_track(NodePath("Skeleton3D:" + b), Animation.TYPE_ROTATION_3D)
 			if bi >= 0 and tr >= 0:
 				_aim_tracks[bi] = tr
+	_reload_tracks.clear()
+	var rl := "humanoid/" + str((_clips.get("reload", [""]) as Array)[0])
+	_reload_anim = _ap.get_animation(rl) if _own and _ap.has_animation(rl) else null
+	if _reload_anim != null:
+		for b in AIM_BONES:
+			var bi := _sk.find_bone(b)
+			var tr := _reload_anim.find_track(NodePath("Skeleton3D:" + b), Animation.TYPE_ROTATION_3D)
+			if bi >= 0 and tr >= 0:
+				_reload_tracks[bi] = tr
 	_set_mesh(level)
 
 
@@ -1056,7 +1296,12 @@ func _material_for(l: String) -> ShaderMaterial:
 	var pv := l == "lo" or l == "min"
 	if _own_mat != null and (_own_lit or l != "min"):
 		_own_mat.set_shader_parameter("per_vertex", pv and not _own_pp)
+		_own_mat.set_shader_parameter("face_on", l != "min")
+		if _own_mat.shader != _wound_sh and _mat_min != null and _mat != null:
+			_own_mat.shader = _mat_min.shader if l == "min" else _mat.shader   # min: ไม่มีโค้ดหน้า
 		return _own_mat
+	if l == "min":
+		return _mat_min
 	return _mat_pv if pv else _mat
 
 
@@ -1079,13 +1324,13 @@ func _refresh_still() -> void:
 		_ap.seek(0.0, true)
 
 
-func _start(clip: String, speed: float, from_start: bool) -> void:
+func _start(clip: String, speed: float, from_start: bool, blend := -1.0) -> void:
 	_cur_anim = _ap.get_animation(clip)
 	_still = false
 	if from_start and _ap.current_animation == clip:
 		_ap.seek(0.0, true)
 	if from_start:
-		_ap.play(clip, BLEND_DIE if _oneshot == &"die" else BLEND, speed)
+		_ap.play(clip, blend if blend >= 0.0 else (BLEND_DIE if _oneshot == &"die" else BLEND), speed)
 		_ap.speed_scale = 1.0
 	else:
 		_ap.play(clip, BLEND)
@@ -1110,10 +1355,14 @@ func _go_still() -> void:
 
 
 func _on_applied() -> void:
-	var dt := _dt if _manual else get_process_delta_time()
+	var dt := _dt if _manual else (get_physics_process_delta_time() if _rag_t >= 0.0 else get_process_delta_time())
 	_dt = 0.0
 	if _aim_on():
 		_aim_pose(dt)
+	if _reload_t >= 0.0:
+		_reload_pose(dt)
+	if _turn_ok and not _still_level():
+		_watch_turn(dt)
 	var anim: Animation = _ap.get_animation(_ap.current_animation) if _ap.current_animation != "" else _cur_anim
 	if anim != null and _oneshot != &"":
 		var pos := _ap.current_animation_position
@@ -1122,10 +1371,14 @@ func _on_applied() -> void:
 			if t > _ev_prev and t <= pos:
 				clip_event.emit(StringName(str(e.get("kind", ""))))
 		_ev_prev = pos
-	if level != "min":
+	if _rag_t >= 0.0:
+		_rag_lead(dt)
+	if level != "min" and not (_rag != null and _rag.is_falling()):     # ร่างตก: กระดูกช่วย/แผลตามท่าฟิสิกส์แทน
 		_drive()
 		if not _wounds.is_empty():
 			_update_wounds()
+	if _face != null and level != "min" and not _still_level():
+		_face.tick(dt, _aim_on())
 	if _still_wait >= 0.0:
 		_still_wait -= dt
 		if _still_wait < 0.0 and _still_level() and _oneshot == &"" and _loop == &"idle" and not _dead:
@@ -1164,6 +1417,131 @@ func _aim_pose(dt: float) -> void:
 	var pq := _sk.get_bone_global_pose(par).basis.get_rotation_quaternion() if par >= 0 else Quaternion.IDENTITY
 	var r := Quaternion(Vector3.RIGHT, -_pitch * AIM_PITCH_K)
 	_sk.set_bone_pose_rotation(c, (pq.inverse() * r * pq * _sk.get_bone_pose_rotation(c)).normalized())
+
+
+## ขั้นท่าตามความเร็วโครง v (ม./วิ ÷ S): walk / jog / run · ท่าเดิมอยู่ต่อจนเลยเส้น GAIT_HYST (ไม่สลับไปมา)
+func _gait(v: float) -> StringName:
+	var a := GAIT_STEPS.x
+	var b := GAIT_STEPS.y
+	var k := 1.0 + GAIT_HYST
+	match _loop:
+		&"walk":
+			a *= k
+			b *= k
+		&"jog":
+			a /= k
+			b *= k
+		&"run":
+			a /= k
+			b /= k
+	var g: StringName = &"walk" if v < a else (&"jog" if v < b else &"run")
+	return g if _clips.has(String(g)) else &"walk"
+
+
+## แบบของท่าที่มีหลายแบบ: set_variant ก่อน · ท่าของทหารเอง: โดน/ล้มตามด้านที่ถูกตี (_hit_from ก่อนล้าง) ล้มคุกเข่าสุ่มจาก
+## _vrng (สุ่มทุกครั้งที่ล้ม ทุกระดับ: ลำดับไม่ขึ้นกับระดับ) · min: โดนท่าหน้าอย่างเดียว ล้มหงาย/คว่ำ · อื่น ๆ สุ่ม _rng แบบเดิม
+func _pick(logical: StringName, n: int, own: bool) -> int:
+	var r := _vrng.randf() if own and logical == &"die" else 0.0
+	if _variant_next >= 0:
+		return posmod(_variant_next, n)
+	if n <= 1:
+		return 0
+	if own and logical == &"hit":
+		return clampi(_hit_side(), 0, n - 1) if level != "min" else 0
+	if own and logical == &"die":
+		var s := _hit_side()
+		if level == "min":
+			return 1 if s == 1 and n > 1 else 0
+		if r < KNEES_P:
+			return mini(3, n - 1)
+		if s < 0:
+			return mini(int((r - KNEES_P) / (1.0 - KNEES_P) * 3.0), mini(2, n - 1))
+		return mini([0, 1, 2, 2][s], n - 1)
+	return _rng.randi_range(0, n - 1)
+
+
+## ด้านที่ถูกตีในกรอบตัว (จาก _hit_from): 0 หน้า (+Z) 1 หลัง 2 ซ้าย (+X) 3 ขวา · ไม่รู้ = −1
+func _hit_side() -> int:
+	if _hit_from == Vector3.ZERO:
+		return -1
+	var b := global_basis if is_inside_tree() else basis
+	var l := b.orthonormalized().inverse() * _hit_from
+	if l.z > absf(l.x):
+		return 0
+	if l.z < -absf(l.x):
+		return 1
+	return 2 if l.x > 0.0 else 3
+
+
+## รีโหลด (ท่าของทหารเอง): คืนความยาวท่า (1.6 วิ = เวลารีโหลดของเกม ArenaWeapons นับเอง ภาพล้วน) · ท่อนบนซ้อนท่าวน
+## (ขาเดินต่อได้) · min / ยืนนิ่ง / ตาย: ไม่เล่น (ไม่มีงานต่อเฟรม)
+func _start_reload() -> float:
+	if _reload_anim == null:
+		return 0.0
+	if _ap != null and not _dead and not _still_level() and not _reload_tracks.is_empty():
+		_reload_t = 0.0
+		_reload_w = 0.0
+	return _reload_anim.length
+
+
+## ท่อนบน (AIM_BONES) จากท่า reload ทับท่าที่วางแล้ว · ซ่อนระหว่างท่าครั้งเดียว (โดน) · เหตุการณ์ mag_out mag_in ready
+func _reload_pose(dt: float) -> void:
+	var t0 := _reload_t
+	_reload_t += dt
+	for e in _reload_anim.get_meta("events", []):
+		var t := float(e.get("t", -1.0))
+		if t > t0 and t <= _reload_t:
+			clip_event.emit(StringName(str(e.get("kind", ""))))
+	var left := _reload_anim.length - _reload_t
+	if left <= 0.0:
+		_reload_t = -1.0
+		return
+	var want := 1.0 if _oneshot == &"" and not _dead and left > RELOAD_FADE else 0.0
+	_reload_w = move_toward(_reload_w, want, dt / RELOAD_FADE)
+	if _reload_w <= 0.0:
+		return
+	for bi: int in _reload_tracks:
+		var q := _reload_anim.rotation_track_interpolate(_reload_tracks[bi], _reload_t)
+		_sk.set_bone_pose_rotation(bi, _sk.get_bone_pose_rotation(bi).slerp(q, _reload_w))
+
+
+## หมุนตัวตอนยืน (yaw ของตัวเปลี่ยน: A/D เมาส์ หันหาเป้า) → turn_l / turn_r อัตรา = ความเร็วหมุน ÷ (turn ÷ ความยาวท่า)
+## ท่าไม่ขยับตัว (เกมหมุนตัวเอง) · ผู้เล่น/ศัตรู ไม่ใช่ระดับยืนนิ่ง (min ไม่มี) · ภาพล้วน
+func _watch_turn(dt: float) -> void:
+	var f := global_basis.z if is_inside_tree() else basis.z
+	var yaw := atan2(f.x, f.z)
+	if not _yaw_ok or dt <= 0.0:
+		_yaw_ok = true
+		_yaw_prev = yaw
+		return
+	var d := angle_difference(_yaw_prev, yaw)
+	_yaw_prev = yaw
+	if absf(d) > TURN_JUMP or absf(d) > TURN_FAST * dt:
+		d = 0.0                  # วางตัวใหม่ ไม่ใช่หมุน
+	_yaw_rate = lerpf(_yaw_rate, d / dt, clampf(dt / TURN_SMOOTH, 0.0, 1.0))
+	var turning := _loop == &"turn_l" or _loop == &"turn_r"
+	if _oneshot != &"" or _dead or not (turning or _loop == &"idle"):
+		return
+	var want := _loop
+	var r := absf(_yaw_rate)
+	if r > TURN_ON or (turning and r > TURN_OFF):
+		want = &"turn_l" if _yaw_rate > 0.0 else &"turn_r"
+		_turn_quiet = 0.0
+	elif turning:
+		_turn_quiet += dt
+		if _turn_quiet > TURN_HOLD:
+			want = &"idle"
+	var rate := 1.0
+	if want != &"idle":
+		var a := _ap.get_animation("humanoid/" + str(_clips[String(want)][0]))
+		var per := absf(float(a.get_meta("turn", 0.0))) / maxf(a.length, 0.01)
+		rate = clampf(r / maxf(per, 0.01), TURN_RATES.x, TURN_RATES.y)
+	_loop_rate = rate
+	if want != _loop:
+		_loop = want
+		_start("humanoid/" + str(_clips[String(want)][0]), rate, false)
+	elif turning:
+		_ap.speed_scale = rate
 
 
 ## ตัวขับ: กระดูกช่วย (hi/mid/lo) แล้วท่าแก้ (hi/mid ที่เมชมี blend shape) จากท่าข้อที่วางเสร็จแล้ว
@@ -1402,3 +1780,121 @@ func _sync_inner_light() -> void:
 		if v != null:
 			for m: ShaderMaterial in _inner_mats:
 				m.set_shader_parameter(k, v)
+
+
+# ================= ร่างล้มตามฟิสิกส์ (hi/mid) =================
+
+func _rag_ok() -> bool:
+	return _built and _ap != null and not _manual and role != &"deck" and (level == "hi" or level == "mid") \
+		and is_inside_tree()
+
+
+## ตาย: hi/mid รอท่าล้ม LEAD วิแล้วส่งให้ฟิสิกส์ · แรงผลักจาก set_hit_push ไม่งั้นจากด้านที่ถูกตี
+func _rag_arm() -> void:
+	_rag_stop()
+	var push := _push
+	_push = Vector3.ZERO
+	if not _rag_ok():
+		return
+	if push == Vector3.ZERO and _hit_from != Vector3.ZERO:
+		push = -_hit_from * RAG_PUSH
+	if _rag == null or _rag.level != level:
+		_rag_build()             # สร้าง/วัดร่างก่อนช่วงนำ ไม่ใช่กลางท่าล้ม
+	if _rag == null:
+		return
+	_rag_push = push
+	_rag_t = 0.0
+	_rag_tick(true)
+
+
+## ช่วงนำ: ท่าเดินตามจังหวะฟิสิกส์ (ก้าวละ 1/60 วิของเกม) ท่าและความเร็วตอนส่งต่อจึงไม่ขึ้นกับจังหวะเฟรม · จบแล้วเดินทุกเฟรมตามเดิม
+func _rag_tick(on: bool) -> void:
+	if _ap != null and not _manual:
+		_ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS if on \
+			else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+
+
+## ท่าล้มช่วงแรก (mixer_applied ทุกจังหวะฟิสิกส์): จำจุดกลางชิ้นร่าง ครบ LEAD = ส่งให้ฟิสิกส์พร้อมความเร็วของท่า
+## · เต็ม CAP = เล่นท่าต่อ
+func _rag_lead(dt: float) -> void:
+	if _rag == null or _rag.level != level:
+		_rag_stop()
+		return
+	var now := _rag.centres()
+	_rag_t += dt
+	if _rag_t < SoldierRagdoll.LEAD - 0.001 or _rag_prev.is_empty() or dt <= 0.0:
+		_rag_prev = now
+		return
+	_rag_t = -1.0
+	_rag_tick(false)
+	var vel := {}
+	for b: int in now:
+		vel[b] = ((now[b] as Vector3) - (_rag_prev.get(b, now[b]) as Vector3)) / dt
+	_rag_prev.clear()
+	var j := PackedFloat32Array()
+	for i in SoldierRagdoll.JITTER:
+		j.append(_prng.randf_range(-1.0, 1.0))
+	if _rag.start(vel, _rag_push, j):
+		_rag_pose.clear()
+		if not _sk.skeleton_updated.is_connected(_rag_seen):
+			_sk.skeleton_updated.connect(_rag_seen)
+
+
+## ระหว่างร่างตก (หลังตัวจำลองวางท่าในชั้นปรับโครง): แผลตามท่าฟิสิกส์
+func _rag_seen() -> void:
+	for w: Array in _wounds:
+		_rag_pose[int(w[1])] = _sk.get_bone_global_pose(int(w[1]))
+	if not _wounds.is_empty():
+		_update_wounds()
+
+
+## ร่างนิ่ง/ครบเวลา (SoldierRagdoll.freeze): ท่าหลักหยุด อบท่าฟิสิกส์ลงโครง แล้วไม่มีงานต่อเฟรม
+func _rag_frozen(g: Dictionary) -> void:
+	_rag_unhook()
+	if _ap != null and _ap.is_playing():
+		_ap.pause()
+	_dead = true
+	var ks := g.keys()
+	ks.sort()
+	for b: int in ks:
+		_sk.set_bone_global_pose(b, g[b])
+	_drive()
+	_update_wounds()
+
+
+func _rag_stop() -> void:
+	if _rag_t >= 0.0:
+		_rag_tick(false)
+	_rag_t = -1.0
+	_rag_prev.clear()
+	if _rag != null:
+		_rag.stop()
+	_rag_unhook()
+
+
+func _rag_unhook() -> void:
+	_rag_pose.clear()
+	if _sk != null and _sk.skeleton_updated.is_connected(_rag_seen):
+		_sk.skeleton_updated.disconnect(_rag_seen)
+
+
+func _rag_build() -> void:
+	if _rag != null:
+		_rag.discard()
+		_rag = null
+	if _rag_ok():
+		_rag = SoldierRagdoll.make(self, _sk, _skin, _body, level)
+
+
+## เปลี่ยนระดับ: กำลังตก = หยุดตรงนั้น (อบท่า) · ผู้เล่น hi/mid สร้างค้างไว้ (ตายไม่สะดุด) · lo/min ไม่มี
+func _rag_level() -> void:
+	if _rag != null and _rag.is_falling():
+		_rag.freeze()
+	if _rag_t >= 0.0:
+		_rag_tick(false)
+	_rag_t = -1.0
+	if _rag != null and (_rag.level != level or not _rag_ok()):
+		_rag.discard()
+		_rag = null
+	if _rag == null and role == &"player" and _rag_ok():
+		_rag_build()

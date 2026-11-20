@@ -6,6 +6,7 @@ extends Control
 ## "ใช้ตัวนี้" = Figures.select แล้วปิด (closed(true)) ห้องที่เปิดมาสร้างตัวผู้เล่นใหม่ · ‹ กลับ / Esc = ปิดเฉย ๆ
 ## จอกว้าง: ซ้าย = ภาพ ชุดสี ปุ่มใช้ตัวนี้ (เห็นเสมอ) ขวา = รายชื่อตัวละคร (เลื่อนได้) กับช่องบันทึก · จอแคบ/แนวตั้ง: บนลงล่าง
 ## ชุดสี = ตารางการ์ดมีชื่อ เลื่อนได้ (Figures.palettes ของตัวที่เลือก: ชุดสำเร็จรูป + ชุดของตัวชุดเสริม หลายสิบชุด)
+## ตัวที่พูดได้ (say: ทหารราบ hi/mid) ทักในกรอบคำพูดตอนขึ้นจอ ปากขยับระหว่างที่กรอบแสดง (ไม่มีเสียง) · min ไม่ทัก
 
 signal closed(used: bool)
 
@@ -24,6 +25,7 @@ const SAVED := "บันทึกช่อง {n} แล้ว"
 const USE := "ใช้ตัวนี้"
 const DRAG := "ลากเพื่อหมุน"
 const ORIGINAL := "เดิม"
+const SAY_HOLD := 1.2            # วิที่กรอบคำพูดค้างหลังปากหยุด
 const SPIN := 0.35
 const DRAG_TURN := 0.012
 const FOV := 30.0
@@ -78,6 +80,10 @@ var _slots_label: Label
 var _slot_box: VBoxContainer
 var _note_label: Label
 var _use: Button
+var _bubble: SpeechBubble
+var _greet_n := 0
+var _say_id := 0
+var _say_key := ""               # คีย์ไทยของบทที่กรอบแสดงอยู่ (refresh แปลใหม่)
 
 
 ## Figures ที่ใช้อยู่ (ตัวแทนของเทส หรือ app/figures.gd) · null = ยังไม่มีไฟล์
@@ -142,6 +148,8 @@ func refresh() -> void:
 	_own_label.text = I18n.t(OWN_COLOURS)
 	_use.text = I18n.t(USE)
 	_drag_label.text = I18n.t(DRAG)
+	if _bubble != null and _bubble.visible:
+		_bubble.show_line(I18n.t(_say_key))      # เปลี่ยนภาษาระหว่างพูด: กรอบเป็นภาษาใหม่
 	for b: Button in char_buttons():
 		b.text = PackRooms.text(_list[int(b.get_meta(&"i"))]["name"])
 		b.set_pressed_no_signal(str(b.get_meta(&"id")) == figure_id)
@@ -451,6 +459,10 @@ func _build_preview() -> void:
 	_drag_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_drag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_view.add_child(_drag_label)
+	_bubble = SpeechBubble.new()
+	_bubble.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_KEEP_SIZE, 12)
+	_bubble.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_view.add_child(_bubble)
 
 
 func _fill_chars() -> void:
@@ -665,6 +677,7 @@ func _show_figure() -> void:
 			_fig.call("play", &"idle", 1.0)
 			_fig.call("set_move", 0.0, false)
 		paint(_fig, _api, figure_id, scheme_id)
+		_greet()
 	else:
 		var egg := MeshInstance3D.new()
 		egg.name = "Egg"
@@ -676,10 +689,37 @@ func _show_figure() -> void:
 
 
 func _clear_figure() -> void:
+	_say_id += 1
+	if _bubble != null:
+		_bubble.hide_line()
 	if _fig != null:
 		_fig.get_parent().remove_child(_fig)
 		_fig.queue_free()
 		_fig = null
+
+
+## ทักทาย: บทถัดไปของ SpeechBubble "greet" ในกรอบคำพูดเท่าที่ปากขยับ + SAY_HOLD (ตัวที่ say คืน 0 ไม่มีกรอบ)
+func _greet() -> void:
+	if _bubble == null or level == "min" or not _fig.has_method("say") or not is_inside_tree():
+		return
+	_say_key = SpeechBubble.line("greet", _greet_n)
+	var text := I18n.t(SpeechBubble.line("greet", _greet_n))
+	var dur := float(_fig.call("say", text, "en" if I18n.english else "th"))
+	if dur <= 0.0:
+		return
+	_greet_n += 1
+	_bubble.show_line(text)
+	get_tree().create_timer(dur + SAY_HOLD).timeout.connect(_end_say.bind(_say_id))
+
+
+func _end_say(id: int) -> void:
+	if id == _say_id and _bubble != null:
+		_bubble.hide_line()
+
+
+## กรอบคำพูดของห้อง (เทส)
+func speech_bubble() -> SpeechBubble:
+	return _bubble
 
 
 ## กล้องเห็นทั้งตัว (กล่องของเมช ไม่เจอใช้ 1.8 ม.)

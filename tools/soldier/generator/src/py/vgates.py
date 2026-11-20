@@ -157,7 +157,9 @@ def g12_bust(work):
     """ยอดอก (จุดหน้าสุดที่ |x| 8 ซม.) 0.71-0.72 H ; ใต้อก: ขั้นต่อ 2 % H ≤ 1.5 ซม. ; ลาดบน (3 ซม. เหนือยอด) รายงาน"""
     z = np.load(os.path.join(work, "stage_skin.npz"))
     V = z["Vs"]
-    ys, zs = front_profile(V)
+    # มัธยฐาน 5 ช่อง (คิดเกินปลายละ 2 ช่อง): ไม่ขึ้นกับจุดยอดเดียวที่ตกช่อง ; ลาดทางเดียวได้ค่าเดิม
+    ys, zs = front_profile(V, y0=1.16 - 0.004, y1=1.42 + 0.004)
+    ys, zs = ys[2:-2], np.median(np.lib.stride_tricks.sliding_window_view(zs, 5), axis=1)
     m = (ys > 1.22) & (ys < 1.36)
     ia = np.nonzero(m)[0][np.argmax(zs[m])]
     ya, za = ys[ia], zs[ia]

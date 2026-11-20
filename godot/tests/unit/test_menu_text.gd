@@ -68,7 +68,9 @@ func test_version_label_never_shows_thai() -> void:
 	# Hamachi / Radmin VPN / Tailscale and the pack palettes grid in the dressing room (0.11 -> 0.12)
 	# 0.13 (PACK_SPEC builtin kind): the infantry preview figure in the dressing room, deck, arena, campaign and hero
 	# card (0.12 -> 0.13)
-	assert_eq(v, "0.13", "this release is ใหม่ 0.13")
+	# 0.14 (ARENA_SPEC §9): the infantry figure's own body clips (deck walk, arena jog and run, turns, aim, reload,
+	# melee, hits, falls), visual only apart from the fixed shot origin (0.13 -> 0.14)
+	assert_eq(v, "0.14", "this release is ใหม่ 0.14")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 

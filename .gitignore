@@ -19,3 +19,6 @@ desktop/dist/battle-table.html
 
 # Godot exports (godot/export_presets.cfg writes here; CI uploads them as artifacts)
 dist-godot/
+
+# Python bytecode (tools/soldier/generator and other scripts run without -B)
+__pycache__/

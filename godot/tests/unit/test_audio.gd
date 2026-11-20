@@ -235,3 +235,32 @@ func test_buttons_click_through_one_tree_hook() -> void:
 	b.pressed.emit()
 	assert_eq(int((Sfx.stats["ask"] as Dictionary).get("ui", 0)), before + 1, "a new button anywhere in the tree clicks (ui) when pressed")
 	b.free()
+
+
+## Body sounds (assets/body_sfx, tools/sound/make_body_sfx.py): add_kinds merges a second manifest into the page's
+## kinds, and its takes load from that manifest's own folder; load_manifest still replaces everything.
+func test_extra_manifest() -> void:
+	var s := _fresh_sfx()
+	var page := (s.get("kinds") as Dictionary).size()
+	assert_true(bool(s.call("add_kinds", "res://assets/body_sfx/body_sfx.json")), "add_kinds reads body_sfx.json")
+	var kinds: Dictionary = s.get("kinds")
+	assert_eq(kinds.size(), page + 10, "the 10 body kinds (2 steps, 8 panting) join the page's kinds")
+	assert_true(bool(s.call("has", &"stomp")) and bool(s.call("has", &"step_boot")) and bool(s.call("has", &"pant_out_hard_high")),
+		"page and body kinds side by side")
+	assert_eq(str((kinds["step_boot"] as Dictionary).get("dir", "")), "res://assets/body_sfx/", "a merged kind remembers its folder")
+	assert_false((kinds["stomp"] as Dictionary).has("dir"), "page kinds keep the default folder")
+	var st := s.call("_stream", "step_boot", 0) as AudioStreamWAV
+	assert_true(st != null and st.resource_path.begins_with("res://assets/body_sfx/"), "a body take loads from the body folder")
+	var page_st := s.call("_stream", "stomp", 0) as AudioStreamWAV
+	assert_true(page_st != null and page_st.resource_path.begins_with("res://assets/sfx/"), "page takes still load from assets/sfx")
+	assert_true(bool(s.call("play", &"step_boot", Vector3.ZERO, 0.55, 1.02)), "a body kind plays through play(kind, at, gain, pitch)")
+	assert_false(bool(s.call("add_kinds", TEST_DIR + "/no_such_manifest.json")), "a missing manifest adds nothing")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(TEST_DIR))
+	var bad := FileAccess.open(TEST_DIR + "/bad_manifest.json", FileAccess.WRITE)
+	bad.store_string("{\"kinds\": [1, 2]}")
+	bad.close()
+	assert_false(bool(s.call("add_kinds", TEST_DIR + "/bad_manifest.json")), "a manifest without a kinds table is refused")
+	assert_eq((s.get("kinds") as Dictionary).size(), page + 10, "a refused manifest changes nothing")
+	s.call("load_manifest")
+	assert_false(bool(s.call("has", &"step_boot")), "load_manifest replaces every kind (ArenaSound.ensure_body merges again)")
+	s.free()

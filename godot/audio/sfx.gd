@@ -68,6 +68,26 @@ func load_manifest(path: String = MANIFEST) -> bool:
 	return true
 
 
+## เพิ่มชนิดเสียงจากรายการอื่น (เช่น assets/body_sfx/body_sfx.json ฝีเท้า/หอบ) รวมกับชนิดเดิม
+## ไฟล์ของชนิดที่เพิ่มอยู่ในโฟลเดอร์ของรายการนั้น ("dir") · load_manifest() ล้างทิ้ง ต้องเรียกใหม่หลังจากนั้น
+func add_kinds(path: String) -> bool:
+	if not FileAccess.file_exists(path):
+		return false
+	var m: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not m is Dictionary or not (m as Dictionary).get("kinds") is Dictionary:
+		push_warning("sfx: cannot parse " + path)
+		return false
+	var add: Dictionary = (m as Dictionary)["kinds"]
+	for k: Variant in add:
+		if not add[k] is Dictionary:
+			continue
+		var d: Dictionary = (add[k] as Dictionary).duplicate()
+		d["dir"] = path.get_base_dir() + "/"
+		kinds[str(k)] = d
+		_streams.erase(str(k))
+	return true
+
+
 ## ช่องเสียง Master / Effects / Music / UI (มีในไฟล์ audio/bus_layout.tres แล้ว; ไม่มีก็สร้าง)
 static func ensure_buses() -> void:
 	for b in BUSES:
@@ -279,7 +299,7 @@ func _stream(k: String, take: int) -> AudioStream:
 	if not _streams.has(k):
 		var list: Array = []
 		for f: Variant in (kinds[k] as Dictionary).get("files", []):
-			var path := DIR + str(f)
+			var path := str((kinds[k] as Dictionary).get("dir", DIR)) + str(f)
 			list.append(load(path) if ResourceLoader.exists(path) else null)
 		_streams[k] = list
 	var l: Array = _streams[k]

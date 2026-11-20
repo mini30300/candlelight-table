@@ -10,7 +10,8 @@ extends "res://tests/testing.gd"
 ## physics tick alternate) and whose grip never enters the egg; the punch peaks at 0.12 s; a punch cutting a swing (or a
 ## swing cutting a punch) after its hit starts from the pose on screen and blends into its own pose within 0.08 s;
 ## the rifle slung on the back shows with the sword on hi / mid / lo only, never inside the egg; H7 shrinks the held
-## weapon on hi and does nothing on min. The contract (FIGURE_API) still has twelve names.
+## weapon on hi and does nothing on min. The contract (FIGURE_API) still has twelve names. The soldier's ragdoll
+## (ใหม่ 0.14 item 3) exists on hi/mid only: none on lo or min, where the death clip follows the side hit.
 
 const PRIM := "res://tests/fixtures/figure_pack/prim_figure.gd"
 const DIR_FIG := "res://tests/fixtures/figure_pack/dir_figure.gd"
@@ -425,3 +426,43 @@ func test_egg_begin_switch() -> void:
 	assert_false(m.is_processing(), "min: begin_switch starts nothing")
 	assert_within((m.get("weapon_root") as Node3D).transform.basis.x.length(), 1.0, 1e-4, "min: the rifle keeps its size")
 	m.free()
+
+
+## ใหม่ 0.14 item 3: the soldier's ragdoll lives on hi/mid only. On lo and min no SoldierRagdoll and no PhysicalBone3D
+## exists under the figure (the engine's own inactive compatibility simulator inside every Skeleton3D does not count)
+## before or after a death with a push (set_hit_push), and the death plays the clip of the side hit (min:
+## die_min_back from the front, die_min_fwd from the back; lo: die_back / die_fwd or the seeded fall to the knees);
+## dropping a hi figure to lo frees its prebuilt ragdoll.
+func test_soldier_ragdoll_only_hi_mid() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	var bad := ""
+	for lv: String in ["lo", "min"]:
+		for side: Vector3 in [Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+			var f := _new("res://scenes/arena/soldier_figure.gd")
+			tree.root.add_child(f)
+			f.call("setup", {"role": &"player", "level": lv, "seed": 4})
+			var sims := _ragdoll_nodes(f)
+			f.call("set_hit_from", side)
+			f.call("set_hit_push", -side * 2.4)
+			f.call("play", &"die", 1.0)
+			sims += _ragdoll_nodes(f)
+			var clip := str(f.call("playing_clip")).get_file()
+			var front := side.z > 0.0
+			var ok := clip == ("die_min_back" if front else "die_min_fwd") if lv == "min" \
+				else clip in [("die_back" if front else "die_fwd"), "die_knees"]
+			if sims > 0 or f.call("ragdoll") != null or not ok:
+				bad += "%s from the %s: %d ragdoll nodes, clip %s; " % [lv, "front" if front else "back", sims, clip]
+			f.free()
+	assert_true(bad == "", "lo and min: no ragdoll, the death clip follows the side hit", bad)
+	var g := _new("res://scenes/arena/soldier_figure.gd")
+	tree.root.add_child(g)
+	g.call("setup", {"role": &"player", "level": "hi", "seed": 4})
+	var had: Node = g.call("ragdoll")
+	g.call("apply_level", "lo")
+	assert_true(had != null and g.call("ragdoll") == null and had.is_queued_for_deletion(),
+		"hi -> lo: the prebuilt ragdoll is freed")
+	g.free()
+
+
+func _ragdoll_nodes(f: Node) -> int:
+	return f.find_children("*", "SoldierRagdoll", true, false).size() + f.find_children("*", "PhysicalBone3D", true, false).size()

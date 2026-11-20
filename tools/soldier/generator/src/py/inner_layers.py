@@ -7,7 +7,7 @@
 #   ร่างแบบอื่น (variants: out/data/variant.json มี k และชื่อร่าง) ผิวปั้นอยู่ในกรอบ 1.78 ม. -> คิดในกรอบนั้นแล้วคูณ k
 #   ไขมันจากแผนที่ของร่างนั้นเอง (variants.use) + ความหนาของชิ้น pad (เต้านม แผ่นลาดอก ไขมันใต้ไหปลาร้า) ไม่เกิน FAT_HI_V
 #   แล้วจุดเนื้อที่โผล่พ้นผิว hi ในท่าใดของเกมถูกกดลงในท่าผูก (inner_posed.push_posed ; ตรวจซ้ำด้วย inner_posed.py)
-#   และจุดกระดูกอกหน้า/สะโพกที่โผล่ในท่าเกินร่างหลักถูกกดลงในท่าผูก (inner_posed.push_bone)
+#   และจุดกระดูกอกหน้า/สะโพกที่โผล่ในท่าเกินร่างหลักถูกกดลงในท่าผูก (inner_posed.push_bone) ; ใหม่ 0.14: ทุกร่างรวมร่างหลัก
 #   /usr/bin/python3 inner_layers.py [--out DIR] [--work DIR]      (~5 วินาที ; ต่อด้วย src/gd/assemble_inner.gd)
 import argparse
 import json
@@ -146,11 +146,14 @@ class SkinDepth:
         return np.einsum('ij,ij->i', P - Qb, Nq), Nq
 
 
-def _push_under(V, skins, margin, it=4):
-    """กดจุดที่อยู่นอกผิวใด ๆ หรือลึกไม่ถึง margin เข้าใต้ผิวทุกชั้นใน skins ; คืน (V, จำนวนที่เลื่อน)"""
+def _push_under(V, skins, margin, it=4, floor=None, more=0):
+    """กดจุดที่อยู่นอกผิวใด ๆ หรือลึกไม่ถึง margin เข้าใต้ผิวทุกชั้นใน skins ; คืน (V, จำนวนที่เลื่อน)
+    floor: ครบ it รอบแล้วยังมีจุดลึกไม่ถึง floor (ผิว hi/mid ดันกันไปมา เช่นมุมปาก) -> ทำต่ออีกไม่เกิน more รอบ"""
     V = np.array(V, np.float64)
     moved = np.zeros(len(V), bool)
-    for _ in range(it):
+    for n_ in range(it + more):
+        if n_ == it and (floor is None or min(-float(sk.query(V)[0].max()) for sk in skins) >= floor):
+            break
         any_m = False
         for sk in skins:
             s, Nq = sk.query(V)
@@ -261,8 +264,14 @@ def flesh_layer(work, Gb, Vs, Fs, Ns, fat, k, skins):
         t = np.clip(T * fat + pad_inset(V, Gb), FAT_LO, FAT_HI_V)
     Vi = ME.taubin(V - N * t[:, None], F, it=FLESH_SMOOTH)
     Wl = ME.transfer(Vs, V, W, k=3)                   # จากตำแหน่งบนผิว (ก่อนหด)
+    # ใหม่ 0.14: เนื้อใต้ปากล่าง/คางตามกราม มุมปาก คิ้ว (แบบเดียวกับผิว hi/mid ; แนวปากแบ่งบน/ล่าง)
+    import anatomy as AN
+    import face as FC
+    fcf = FC.features(AN.all_skin_prims())
+    H = FC.head_coords(V, Gb)
+    Wl = WT.add_face(Wl, H, np.sign(FC.mouth_s(H, fcf)[0]), fcf)
     Vi, moved = _under_skin(Vi * k, Vs * k, Ns, FLESH_UNDER)
-    Vi, moved2 = _push_under(Vi, skins, FLESH_PUSH)
+    Vi, moved2 = _push_under(Vi, skins, FLESH_PUSH, floor=FLESH_MIN, more=12)
     bi, bw = WT.top4(Wl)
     return Vi, F, ME.vnormals(Vi, F), bi, bw, t * k, moved + moved2
 
@@ -301,7 +310,7 @@ def main():
     w4[:, 0] = 1.0
     part_b = PT.part_ids(Bb)
     posed_b = None
-    if VR.CUR is not None:
+    if True:                                   # ใหม่ 0.14: ทุกร่าง (ร่างหลักด้วย) กดกระดูกที่โผล่ในท่าของเกม
         import inner_posed as IP
         clips = json.load(open(IP.clip_path(args.out)))["clips"]
         Vb, npb, dmb = IP.push_bone(Vb, bones4.astype(np.int64), w4, part_b.astype(np.int64), data, k, clips,
@@ -315,10 +324,19 @@ def main():
     Vf, Ff, Nf, bi, bw, t, moved_f = flesh_layer(args.work, Gb, Vs, Fs, Ns, float(z["fat"]), k, list(skins.values()))
     part_f = PT.part_ids(bi)
     posed = None
-    if VR.CUR is not None:
+    if True:                                   # ใหม่ 0.14: ทุกร่าง กดเนื้อที่โผล่ในท่าของเกม (+ ท่าหน้า)
         import inner_posed as IP
         clips = json.load(open(IP.clip_path(args.out)))["clips"]
-        Vf, npush, dmax = IP.push_posed(Vf, Ff, bi, bw, part_f.astype(np.int64), data, k, clips, list(skins.values()))
+        Vf, npush, dmax = IP.push_posed(Vf, Ff, bi, bw, part_f.astype(np.int64), data, k, clips, list(skins.values()),
+                                        passes=3)
+        # ใหม่ 0.14: จุดที่ยังโผล่เกินเกตในท่าที่ LBS ไม่สวนผิว เลื่อนต่ออีกชุดโดยไม่นับท่าที่สวน (ไม่มีจุดแบบนี้ = ผลเดิมทุกไบต์)
+        bad = IP.still_out(Vf, Ff, bi, bw, part_f.astype(np.int64), data, k, clips)
+        if bad.any():
+            Vf, n2, d2 = IP.push_posed(Vf, Ff, bi, bw, part_f.astype(np.int64), data, k, clips, list(skins.values()),
+                                       only=bad, skip_inverted=True)
+            npush, dmax = npush + n2, max(dmax, d2)
+            print("inner flesh: %d verts still out after the passes, pushed again without the LBS-inverted frames"
+                  % int(bad.sum()))
         Nf = ME.vnormals(Vf, Ff)
         posed = {"pushed_verts": npush, "max_push_mm": round(dmax * 1000, 2)}
         print("inner flesh: %d verts pushed down for the game's poses (at most %.1f mm)" % (npush, dmax * 1000))

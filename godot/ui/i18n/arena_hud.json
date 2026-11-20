@@ -1,7 +1,7 @@
 {
   "เดินเข้าอารีน่าแล้วจะถือปืน": "Walk into the arena to draw your gun",
-  "คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Esc หยุด": "Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Esc to pause",
-  "ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง": "Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right",
+  "คลิกซ้ายยิง · คลิกขวาหรือ F ต่อย · R บรรจุกระสุน · 1 / 2 เปลี่ยนอาวุธ · Space หลบ · Shift วิ่ง · Ctrl เดินช้า · Esc หยุด": "Left click to fire · right click or F to punch · R to reload · 1 / 2 to switch weapons · Space to dodge · Shift to sprint · Ctrl to walk · Esc to pause",
+  "ลากจอด้านขวาเพื่อเล็ง · ปุ่มยิง หมัด หลบ และอาวุธอยู่ขวาล่าง · ดันจอยสุดขอบเพื่อวิ่ง": "Drag the right side to aim · fire, punch, dodge and weapon buttons are at the bottom right · push the stick to the edge to sprint",
   "กำลังบรรจุกระสุน…": "Reloading…",
   "บรรจุ": "Reload",
   "คุณล้ม! กำลังลุกขึ้น…": "You're down! Getting up…",

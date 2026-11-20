@@ -5,7 +5,7 @@ extends "res://tests/testing.gd"
 ## own material on body_wound.gdshader, wound_mode 2) and show the inner flesh and bone layers, which do not exist or
 ## stay hidden until the first wound; lo tints the skin only (wound_mode 1, per vertex, no inner layers); min does
 ## nothing at all (no wound, no material copy, no per-frame update) and its shared material runs body.gdshader, which
-## has no wound code and no discard. Every random draw happens on every level, so the level does not change where later
+## has no wound code, no face code (hi/mid/lo share body_face.gdshader) and no discard. Every random draw happens on every level, so the level does not change where later
 ## wounds go. Body parts: every skin and inner vertex carries its part (CUSTOM0.w / CUSTOM0.x: torso, head, arms, legs,
 ## from the dominant bone) and a wound cuts only its own bone's part. Wound spots come from body_lo and carry the
 ## largest radius that keeps the cut off the part seams and, on the forearm and shin, within the limb (0.55 x the
@@ -90,7 +90,8 @@ func test_api_and_cap() -> void:
 			"set_hit_from"]:
 		assert_true(f.has_method(m), "SoldierFigure." + m)
 	var shared := _skin_mat(f)
-	assert_true(shared != null and shared.shader.resource_path == DIR + "body.gdshader", "unwounded: the shared material on body.gdshader")
+	# 0.14 review (intended): hi/mid/lo share body_face.gdshader (skin + face); the plain body.gdshader is min's alone
+	assert_true(shared != null and shared.shader.resource_path == DIR + "body_face.gdshader", "unwounded: the shared material on body_face.gdshader")
 	assert_eq(int(f.call("wound_count")), 0, "set up: no wounds")
 	assert_eq(_visible_inner(f), 0, "set up: no inner layer is visible")
 	assert_true((f.call("inner_layers") as Array).is_empty(), "…none is even made before the first wound")
@@ -105,7 +106,7 @@ func test_api_and_cap() -> void:
 	var mat := _skin_mat(f)
 	assert_true(mat != shared, "the wounded figure gets its own skin material")
 	assert_true(mat.shader != null and mat.shader.resource_path == DIR + "body_wound.gdshader", "…on the wound shader")
-	assert_true(shared.shader.resource_path == DIR + "body.gdshader", "…while the shared material keeps body.gdshader")
+	assert_true(shared.shader.resource_path == DIR + "body_face.gdshader", "…while the shared material keeps body_face.gdshader")
 	assert_eq(int(mat.get_shader_parameter("wound_count")), 1, "its wound_count is 1")
 	assert_eq(int(mat.get_shader_parameter("wound_mode")), 2, "hi: wound_mode 2 (cut the skin)")
 	var c: PackedVector4Array = mat.get_shader_parameter("wounds")
@@ -454,7 +455,9 @@ func _assert_plain_shader(sh: Shader, label: String) -> void:
 		return
 	var bare := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/").sub(sh.code, "", true)
 	assert_false(bare.contains("discard"), label + ": no discard (early depth and hidden-surface removal stay on)")
+	# 0.14 review: strict again — no include at all (the face code lives in body_face.gdshader, so min does no face work)
 	assert_false(bare.contains("wound") or bare.contains("#include"), label + ": no wound uniforms or code")
+	assert_false(bare.contains("face_") or bare.contains("CUSTOM1"), label + ": no face code")
 	var names := (sh.get_shader_uniform_list() as Array).map(func(u: Dictionary) -> String: return u["name"])
 	assert_false(names.any(func(n: String) -> bool: return n.begins_with("wound")), label + ": no wound_ uniforms", str(names))
 
@@ -501,12 +504,12 @@ func test_flash_on_wounded() -> void:
 func test_shaders() -> void:
 	var strip := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/")
 	var src := {}
-	for name in ["body.gdshader", "body_wound.gdshader", "inner.gdshader", "wound.gdshaderinc"]:
+	for name in ["body.gdshader", "body_face.gdshader", "body_wound.gdshader", "inner.gdshader", "wound.gdshaderinc"]:
 		var code := FileAccess.get_file_as_string(DIR + name)
 		src[name] = strip.sub(code, "", true)
 		assert_true((src[name] as String).length() > 100, name + " is there")
 		assert_true(RegEx.create_from_string("\\bTIME\\b").search(src[name]) == null, name + ": no TIME (comments aside)")
-	for name in ["body.gdshader", "body_wound.gdshader", "inner.gdshader"]:
+	for name in ["body.gdshader", "body_face.gdshader", "body_wound.gdshader", "inner.gdshader"]:
 		assert_true(RegEx.create_from_string("render_mode[^;]*\\bunshaded\\b").search(src[name]) != null, name + ": unshaded (computes its own light)")
 	# the plain skin (shared, min): no wound code at all
 	_assert_plain_shader(load(DIR + "body.gdshader") as Shader, "body.gdshader")
@@ -550,12 +553,14 @@ func test_skin_light_copies() -> void:
 	S = load(SCRIPT)
 	var gen := ProjectSettings.globalize_path("res://").path_join("../tools/soldier/generator/src/gd/")
 	var strip := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/")
-	for name in ["body.gdshader", "body_wound.gdshader"]:
+	var gen_name := {"body.gdshader": "soldier_skin.gdshader", "body_face.gdshader": "soldier_skin_face.gdshader",
+		"body_wound.gdshader": "soldier_skin_wound.gdshader"}
+	for name: String in gen_name:
 		var base := FileAccess.get_file_as_string(DIR + name)
 		for body in BODIES:
 			var d := str(S.call("folder", body))
 			assert_true(FileAccess.get_file_as_string(d + name) == base, "%s: %s is the same as the base body's" % [body, name])
-		var src := gen.path_join("soldier_skin.gdshader" if name == "body.gdshader" else "soldier_skin_wound.gdshader")
+		var src := gen.path_join(str(gen_name[name]))
 		if FileAccess.file_exists(src):
 			assert_true(FileAccess.get_file_as_string(src) == base, "the generator's %s is the same as %s" % [src.get_file(), name])
 		else:
@@ -572,6 +577,30 @@ func test_skin_light_copies() -> void:
 		assert_true(pv_v.contains("skin_light("), name + ": per_vertex lights in the vertex with skin_light()")
 		assert_eq(pv_f.strip_edges(), "lit = v_col * v_light;", name + ": the per_vertex fragment only multiplies the vertex light")
 		assert_eq(code.count("skin_gloss("), 2, name + ": skin_gloss is defined once and called once (per pixel)")
+	# ใหม่ 0.14 item 2: both skin shaders include face.gdshaderinc; every body carries the same copy as the base and the
+	# generator, with no TIME and no discard, the face off by default and face_state per instance
+	var face := FileAccess.get_file_as_string(DIR + "face.gdshaderinc")
+	assert_true(face != "", "the base body has face.gdshaderinc")
+	for body in BODIES:
+		var d := str(S.call("folder", body))
+		assert_true(FileAccess.get_file_as_string(d + "face.gdshaderinc") == face, "%s: face.gdshaderinc is the same as the base body's" % body)
+	var fsrc := gen.path_join("face.gdshaderinc")
+	if FileAccess.file_exists(fsrc):
+		assert_true(FileAccess.get_file_as_string(fsrc) == face, "the generator's face.gdshaderinc is the same as the base body's")
+	else:
+		print("skip  the generator's copy of face.gdshaderinc is not here (exported self-test)")
+	var fcode := strip.sub(face, "", true)
+	assert_false(fcode.contains("TIME") or fcode.contains("discard"), "face.gdshaderinc: no TIME, no discard")
+	assert_true(fcode.contains("uniform bool face_on = false;") and fcode.contains("instance uniform vec4 face_state"),
+		"face.gdshaderinc: face_on off by default, face_state per instance")
+	# 0.14 review (intended): the face moved from body.gdshader to body_face.gdshader (min's shader does no face work)
+	for name in ["body_face.gdshader", "body_wound.gdshader"]:
+		assert_true(FileAccess.get_file_as_string(DIR + name).contains("#include \"face.gdshaderinc\""), name + " includes the face")
+	assert_false(FileAccess.get_file_as_string(DIR + "body.gdshader").contains("face.gdshaderinc"), "body.gdshader (min) has no face")
+	var plain := strip.sub(FileAccess.get_file_as_string(DIR + "body.gdshader"), "", true)
+	var with_face := strip.sub(FileAccess.get_file_as_string(DIR + "body_face.gdshader"), "", true)
+	for fn in ["vec3 skin_light(", "vec3 skin_gloss("]:
+		assert_eq(_fn(with_face, fn), _fn(plain, fn), "body_face.gdshader: the same %s..) as body.gdshader" % fn)
 
 
 ## ตัวฟังก์ชันที่ขึ้นต้นด้วย head จนถึง } ปิดที่ต้นบรรทัด ("" = ไม่มี)
@@ -750,7 +779,10 @@ func test_variant_wounds() -> void:
 
 ## depth of a point under a closed skin mesh (bind pose): distance to the closest triangle, negative outside (the sign
 ## from the vertex normals interpolated at the closest point, as inner_layers.py does). Exact: the closest vertex bounds
-## the distance to the surface, and every triangle whose box meets that ball is tested (a grid of triangle boxes)
+## the distance to the surface, and every triangle whose box meets that ball is tested (a grid of triangle boxes).
+## 0.14 (face): an "outside" sign is confirmed by ray parity (3 rays, majority), because in a concave spot (the inner eye
+## corner of the re-decimated mid skin) the interpolated normal can be tangent and flip the sign of a point ~20 mm deep.
+## The 2 mm / 1 mm limits are unchanged and a point really outside still reads negative (even parity on every ray).
 class _SkinDepth:
 	const CELL := 0.03
 	var pos: PackedVector3Array
@@ -820,7 +852,21 @@ class _SkinDepth:
 							var w := Geometry3D.get_triangle_barycentric_coords(q, a, b, c)
 							var n := nrm[tri[3 * t]] * w.x + nrm[tri[3 * t + 1]] * w.y + nrm[tri[3 * t + 2]] * w.z
 							sgn = -1.0 if (p - q).dot(n) > 0.0 else 1.0
+		if sgn < 0.0 and _inside(p):
+			sgn = 1.0
 		return best * sgn
+
+	## ray parity against every triangle: odd hits on at least 2 of 3 fixed directions = inside the closed skin
+	func _inside(p: Vector3) -> bool:
+		var odd := 0
+		for dir: Vector3 in [Vector3(0.31, 0.83, 0.47).normalized(), Vector3(-0.6, -0.2, 0.77).normalized(),
+				Vector3(0.1, -0.95, -0.3).normalized()]:
+			var n := 0
+			for t in tri.size() / 3:
+				if Geometry3D.ray_intersects_triangle(p, dir, pos[tri[3 * t]], pos[tri[3 * t + 1]], pos[tri[3 * t + 2]]) != null:
+					n += 1
+			odd += n % 2
+		return odd >= 2
 
 	static func _closest(p: Vector3, a: Vector3, b: Vector3, c: Vector3) -> Vector3:
 		var ab := b - a

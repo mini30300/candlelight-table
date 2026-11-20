@@ -3,6 +3,7 @@
 //   CUSTOM0.w = ส่วนร่างกาย: แผลตัดเฉพาะผิวส่วนเดียวกับกระดูกของแผล ; ไม่มี TIME
 //   wound_mode 2 (hi/mid) = ทิ้งผิวในแผล + ขอบแดงคล้ำ (เห็นเนื้อ/กระดูกข้างใน) ; 1 (lo หรือไม่มีชั้นใน) = สีแผลต่อจุดยอด
 //   แสงวาบ/สีเตือนของตัวที่มีแผลมาทาง uniform flash/telegraph (ไม่มี material_overlay ทับรูแผล)
+//   หน้า (เปลือกตา ช่องปาก) อยู่ใน face.gdshaderinc เหมือน soldier_skin.gdshader
 shader_type spatial;
 render_mode unshaded, cull_back;
 
@@ -23,6 +24,7 @@ uniform int wound_mode = 2;
 uniform vec3 wound_colour = vec3(0.30, 0.02, 0.02);    // ขอบแผลบนผิว / สีแผลของ lo
 
 #include "wound.gdshaderinc"
+#include "face.gdshaderinc"
 
 varying vec3 v_col;
 varying vec3 v_light;
@@ -52,6 +54,7 @@ vec3 skin_gloss(vec3 col, vec3 n, vec3 l, vec3 up, vec3 v, float flesh) {
 void vertex() {
 	v_col = COLOR.rgb;
 	v_flesh = CUSTOM0.z;
+	v_face = CUSTOM1;
 	v_pos = VERTEX;
 	v_part = CUSTOM0.w;
 	v_wound = 0.0;
@@ -75,6 +78,17 @@ void fragment() {
 		vec3 l = normalize(v_light);
 		vec3 up = VIEW_MATRIX[1].xyz;
 		lit = v_col * skin_light(n, l, up, v_flesh) + skin_gloss(v_col, n, l, up, VIEW, v_flesh);
+	}
+	// หน้า (face.gdshaderinc): เปลือกตา/ช่องปาก/ปากทาสี ทับด้วยแสงเดียวกับผิว (ไม่มีเงาผิว)
+	if (face_on) {
+		vec4 fp = face_paint(v_face);
+		if (fp.a > 0.0) {
+			vec3 lt = v_light;
+			if (!per_vertex) {
+				lt = skin_light(normalize(NORMAL), normalize(v_light), VIEW_MATRIX[1].xyz, v_flesh);
+			}
+			lit = mix(lit, fp.rgb * lt, fp.a);
+		}
 	}
 	if (wound_count > 0) {
 		if (wound_mode >= 2) {

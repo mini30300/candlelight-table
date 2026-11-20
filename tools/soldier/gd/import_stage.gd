@@ -12,6 +12,8 @@ const SHADER_SRC := "res://src/gd/soldier_skin.gdshader"
 const INNER_SHADER_SRC := "res://src/gd/soldier_inner.gdshader"
 const WOUND_SHADER_SRC := "res://src/gd/soldier_skin_wound.gdshader"
 const WOUND_INC_SRC := "res://src/gd/wound.gdshaderinc"
+const FACE_INC_SRC := "res://src/gd/face.gdshaderinc"
+const FACE_SHADER_SRC := "res://src/gd/soldier_skin_face.gdshader"   # ผิว + หน้า (hi/mid/lo) -> body_face.gdshader
 ## โฟลเดอร์ปลายทางของร่าง (import_stage.sh --as: SOLDIER_DST) ค่าเริ่ม = ร่างหลัก
 var DST := OS.get_environment("SOLDIER_DST") if OS.get_environment("SOLDIER_DST") != "" else "res://assets/figures/soldier/"
 const OLD := "res://old/"
@@ -32,6 +34,16 @@ func _run() -> bool:
 	if not FileAccess.file_exists(SHADER_SRC):
 		push_error("no shader at " + SHADER_SRC)
 		return false
+	# ส่วนหน้า (ใหม่ 0.14) ที่เชดเดอร์ผิว+หน้าและผิวมีแผล include: ก่อนเชดเดอร์
+	if FileAccess.file_exists(FACE_SHADER_SRC) or FileAccess.get_file_as_string(SHADER_SRC).contains("face.gdshaderinc"):
+		if not _copy_text(FACE_INC_SRC, "face.gdshaderinc", report):
+			return false
+	if FileAccess.file_exists(FACE_SHADER_SRC):
+		if not _copy_text(FACE_SHADER_SRC, "body_face.gdshader", report):
+			return false
+		if load(DST + "body_face.gdshader") as Shader == null:
+			push_error("the face skin shader does not load")
+			return false
 	var f := FileAccess.open(DST + "body.gdshader", FileAccess.WRITE)
 	f.store_string(FileAccess.get_file_as_string(SHADER_SRC))
 	f.close()
@@ -57,6 +69,12 @@ func _run() -> bool:
 			var v: Variant = src_mat.get_shader_parameter(u["name"])
 			if v != null:
 				mat.set_shader_parameter(u["name"], v)
+	# สีเปลือกตาปิดของร่างนี้ (face.json): body.gdshader ไม่มี uniform หน้า จึงเก็บเป็น meta ; SoldierFigure ใส่ในวัสดุผิว+หน้า
+	if FileAccess.file_exists("res://out/data/face.json"):
+		var fj: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://out/data/face.json"))
+		if fj is Dictionary and (fj as Dictionary).has("lid_colour"):
+			var lc: Array = (fj as Dictionary)["lid_colour"]
+			mat.set_meta("face_lid_colour", Vector3(lc[0], lc[1], lc[2]))
 	if not _save(mat, "body_material.tres", 0, report):
 		return false
 	mat = load(DST + "body_material.tres") as ShaderMaterial
@@ -117,17 +135,7 @@ func _run() -> bool:
 	if ResourceLoader.exists(SRC + "inner_bone.res") or ResourceLoader.exists(SRC + "inner_flesh.res"):
 		if not _inner(report):
 			return false
-	# ชุดท่าของทหารเอง (ถ้าขั้นปั้นทำมา)
-	for name in ["clips.res", "soldier_clips.res", "humanoid_soldier.res"]:
-		if ResourceLoader.exists(SRC + name):
-			var lib := load(SRC + name) as AnimationLibrary
-			if lib == null:
-				push_error(SRC + name + " is not an AnimationLibrary")
-				return false
-			if not _save(lib, "clips.res", ResourceSaver.FLAG_COMPRESS, report):
-				return false
-			report["clips"] = {"from": name, "count": lib.get_animation_list().size()}
-			break
+	# ชุดท่าไม่มาจากขั้นปั้น (import_stage.sh ไม่คัดลอกมา): clips.res ของร่างหลักมาจาก tools/soldier/bake_clips.sh
 	var out := FileAccess.open(REPORT, FileAccess.WRITE)
 	out.store_string(JSON.stringify(report, " ", true))
 	out.close()
