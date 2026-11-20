@@ -289,5 +289,91 @@ def checks_sheet(W):
     stack(rows, W).save(os.path.join(OUT, "sheet_checks.png"))
 
 
+# ---------------- ชุด (ใหม่ 0.14 ข้อ 4): sheet.py --outfit <ชื่อ> --bodies base=<โฟลเดอร์>,f1=<โฟลเดอร์> [--out DIR] ----------------
+#   ภาพจาก vrender.gd (OUTFIT=<ชื่อ>): <โฟลเดอร์>/out/renders/outfit_<ชื่อ>/<ร่าง>_<ชื่อ>_<มุม>.png
+BODY_TH = {"base": "ทหารฐาน", "m2": "ชาย 2", "m3": "ชาย 3", "f1": "หญิง 1", "f2": "หญิง 2"}
+STRIP_TH = {"walk": "เดิน", "jog": "วิ่งเหยาะ", "run": "วิ่ง", "aim": "เล็ง", "punch_0": "ต่อย", "swing_1": "ฟัน",
+            "reload": "บรรจุกระสุน", "hit_front": "โดนยิง", "die_back": "ล้ม"}
+
+
+def outfit_sheet(name, bodies, out):
+    os.makedirs(out, exist_ok=True)
+    oj = {}
+    for tag, root in bodies:
+        p = os.path.join(root, "out", "data", "outfit_%s.json" % name)
+        if os.path.exists(p):
+            oj[tag] = json.load(open(p))
+    lab = next(iter(oj.values()))["label"] if oj else name
+
+    def img(tag, root, view):
+        p = os.path.join(root, "out", "renders", "outfit_" + name, "%s_%s_%s.png" % (tag, name, view))
+        return Image.open(p).convert("RGB") if os.path.exists(p) else None
+    W, pw, ph = 1800, 600, 900
+    rows = [title(W, "%s: หน้า ข้าง หลัง ทุกร่าง" % lab, "ท่าผูก A ระดับ hi ไฟบนของเกม ; ผ้าห่างผิว เสื้อ 2-3 ซม. แขน 1.5 กางเกง 2-3.8 ซม. ; รองเท้า 6 มม.")]
+    for tag, root in bodies:
+        ims = [img(tag, root, v) for v in ("front", "side", "back")]
+        if any(i is None for i in ims):
+            continue
+        row = Image.new("RGB", (W, ph + 60), BG)
+        for i, im in enumerate(ims):
+            row.paste(fit(crop_fig(im), pw - 10, ph - 10), (i * pw + 5, 5))
+        r = oj.get(tag, {}).get("levels", {})
+        txt = "%s  ·  สามเหลี่ยม hi/mid/lo/min %s" % (BODY_TH.get(tag, tag), " / ".join(str(r[lv]["tris"]) for lv in r)) if r else tag
+        text_c(ImageDraw.Draw(row), (0, ph), W, txt, font(40))
+        rows.append(row)
+    stack(rows, W).save(os.path.join(out, "sheet_%s_bodies.png" % name))
+    for tag, root in bodies:
+        d = os.path.join(root, "out", "renders", "outfit_" + name)
+        pre = "%s_%s_strip_" % (tag, name)
+        names = [k for k in STRIP_TH if os.path.exists(os.path.join(d, pre + k + ".png"))]
+        if names:
+            cols, sw, sh = 5, 440, 640
+            gr = Image.new("RGB", (cols * sw, ((len(names) + cols - 1) // cols) * (sh + 50)), BG)
+            for i, k in enumerate(names):
+                im = fit(crop_fig(Image.open(os.path.join(d, pre + k + ".png")).convert("RGB")), sw - 10, sh - 10)
+                x, y = (i % cols) * sw, (i // cols) * (sh + 50)
+                gr.paste(im, (x + 5, y + 5))
+                text_c(ImageDraw.Draw(gr), (x, y + sh), sw, STRIP_TH[k], font(36))
+            stack([title(gr.width, "%s: ท่าจากคลิปของเกม (%s)" % (lab, BODY_TH.get(tag, tag))), gr],
+                  gr.width).save(os.path.join(out, "sheet_%s_poses_%s.png" % (name, tag)))
+        # ท่าเดียวกันต่อระดับ (vrender STRIP_LEVELS): แถว hi / lo / min
+        ks = [k for k in ("walk", "run", "aim", "punch_0", "die_back") if os.path.exists(os.path.join(d, pre + k + ".png"))]
+        lvs = [lv for lv in ("hi", "lo", "min") if lv == "hi" or os.path.exists(os.path.join(d, "%s%s_%s.png" % (pre, lv, ks[0] if ks else "")))]
+        if ks and len(lvs) > 1:
+            sw, sh = 420, 600
+            gr = Image.new("RGB", (len(ks) * sw + 120, len(lvs) * (sh + 10) + 50), BG)
+            for j, k in enumerate(ks):
+                text_c(ImageDraw.Draw(gr), (120 + j * sw, 5), sw, STRIP_TH[k], font(36))
+            for i, lv in enumerate(lvs):
+                y0 = 50 + i * (sh + 10)
+                text_c(ImageDraw.Draw(gr), (0, y0 + sh // 2 - 20), 120, lv, font(40))
+                for j, k in enumerate(ks):
+                    fn = os.path.join(d, pre + (k if lv == "hi" else "%s_%s" % (lv, k)) + ".png")
+                    if os.path.exists(fn):
+                        gr.paste(fit(crop_fig(Image.open(fn).convert("RGB")), sw - 10, sh - 10), (120 + j * sw + 5, y0))
+            stack([title(gr.width, "%s: ท่าของเกมต่อระดับ (%s)" % (lab, BODY_TH.get(tag, tag))), gr],
+                  gr.width).save(os.path.join(out, "sheet_%s_strip_levels_%s.png" % (name, tag)))
+        lods = [img(tag, root, "lod_" + lv) for lv in ("hi", "mid", "lo", "min")]
+        if all(i is not None for i in lods):
+            r = oj.get(tag, {}).get("levels", {})
+            gr = Image.new("RGB", (4 * 450, 760), BG)
+            for i, (lv, im) in enumerate(zip(("hi", "mid", "lo", "min"), lods)):
+                gr.paste(fit(crop_fig(im), 440, 690), (i * 450 + 5, 5))
+                text_c(ImageDraw.Draw(gr), (i * 450, 700), 450, "%s  %s สามเหลี่ยม" % (lv, r.get(lv, {}).get("tris", "?")), font(36))
+            stack([title(gr.width, "%s: ระดับรายละเอียด (%s)" % (lab, BODY_TH.get(tag, tag))), gr],
+                  gr.width).save(os.path.join(out, "sheet_%s_lods_%s.png" % (name, tag)))
+    print("outfit sheets ->", out)
+
+
 if __name__ == "__main__":
-    main()
+    if "--outfit" in sys.argv:
+        import argparse
+        ap = argparse.ArgumentParser()
+        ap.add_argument("--outfit", required=True)
+        ap.add_argument("--bodies", required=True, help="tag=<build folder>,... (base=..., f1=...)")
+        ap.add_argument("--out", default="")
+        a = ap.parse_args()
+        bl = [tuple(x.split("=", 1)) for x in a.bodies.split(",")]
+        outfit_sheet(a.outfit, bl, a.out or os.path.join(bl[0][1], "out", "renders"))
+    else:
+        main()

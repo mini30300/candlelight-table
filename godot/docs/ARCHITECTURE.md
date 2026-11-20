@@ -451,6 +451,11 @@ chosen by `seedOf(attacker, target, round, turn, stage)` so every screen shows t
 a physics body; the one rigid-body simulation is the soldier's death ragdoll on hi/mid (`SoldierRagdoll`, a
 `PhysicalBoneSimulator3D` of 15 / 13 capsules on layer 32 with its own floor on 64, stopped by walls and props (1, 4),
 ≤ 4 / 2 at once, baked and stopped when it settles; ARENA_SPEC §9.8). lo and min keep the death clips and add nothing per frame.
+**Outfits** (ใหม่ 0.15): the soldier wears training shorts (the bare body, default) or the field uniform (`setup` opts
+`"outfit": "uniform"`, chosen in the dressing room for the player only): one mesh per level, `outfit_uniform_<level>.res`
+in the body's folder, replaces `body_<level>.res` on the same skeleton, Skin and materials, so it is still one draw call
+and the face, blink, mouth and wounds work (wound spots come from the outfit's lo mesh, so wounds cut the cloth). A body
+without all four files, or an unknown name, falls back to training shorts (`outfit_shown()`); ARENA_SPEC §9.6.
 **Props**: flat-coloured composites ≤ 300 tris in `assets/props/`. **Fonts**: Sarabun (exists). **Audio**: a handful of
 small OGG effects and three music loops rendered offline from the page's `SND` definitions (`SND.probe`), no runtime
 synthesis. **Size**: kits ~100 KB imported each, loaded lazily.

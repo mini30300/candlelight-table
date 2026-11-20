@@ -94,6 +94,22 @@ func _run() -> void:
 		await _frames(2)
 		_frame_view(Vector3(0, 0.92, 0), 1.98, 25.0, 0.0)
 		await _shot("idle")
+	# STRIP=<json> (ชุด ใหม่ 0.14): ท่าจากคลิปของทหาร (outfits.strip_poses) มุม 3/4 ทีละท่า -> <TAG>_strip_<ท่า>.png
+	if what.contains("strip"):
+		var sp: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(OS.get_environment("STRIP")))
+		# STRIP_LEVELS="hi lo min": ระดับอื่นได้ชื่อ strip_<ระดับ>_<ท่า>
+		var sls: PackedStringArray = OS.get_environment("STRIP_LEVELS").split(" ", false)
+		if sls.is_empty():
+			sls = PackedStringArray(["hi"])
+		for sl in sls:
+			_level(sl)
+			for nm in sp:
+				poses[nm] = sp[nm]
+				_pose(nm)
+				await _frames(2)
+				var pv: Array = sp[nm]["pelvis"]
+				_frame_view(Vector3(pv[0], 0.92 if pv[1] > 0.7 * K else 0.55, pv[2]), 2.05, 35.0, 4.0)
+				await _shot(("strip_" if sl == "hi" else "strip_%s_" % sl) + nm)
 	if what == "" or what.contains("lod"):
 		for l in ["hi", "mid", "lo", "min"]:
 			_level(l)

@@ -856,6 +856,21 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   instead of `material_overlay`, so nothing washes over a fresh hole. Tests: `tests/unit/test_soldier_wounds.gd`,
   `tests/render/test_soldier_wounds.gd` (`soldier_wound_*.png`: the four levels, a close-up, seven poses, the run strip,
   and the f1 body alone and in the arena). Every body has its own wound layers and wound spots (keyed by its folder).
+- **The soldier's outfits** (ใหม่ 0.15, visual only): `setup` opts `"outfit"` (or the `outfit` field set before
+  `setup`, as `Figures.make_builtin` does) = `""` training shorts, the bare body and the default, or `"uniform"` the
+  field uniform (`SoldierFigure.OUTFITS`). A worn outfit is one mesh per level, `outfit_<name>_{hi,mid,lo,min}.res` in the
+  body's folder (`tools/soldier` outfits), that replaces `body_<level>.res` on the same skeleton, `Skin` and shared
+  materials: still one draw call, the face shader on hi/mid/lo (exposed head, neck and hands keep class 0 and the face
+  data), the plain shader on min, no blend shapes (the helpers still drive). An unknown name, or a body without all four
+  files, falls back to `""` without an error; `outfit_shown()` returns what is worn, `has_outfit(name, folder)` and
+  `outfit_mesh(name, level, folder)` (cached with the body meshes) are static. Wounds go through the cloth: the wound
+  spots come from `outfit_<name>_lo.res` (`wound_spots(folder, outfit)`, `wound_spot(..., outfit)`), so the centre sits
+  under the cloth, the cloth is cut like skin and the flesh and bone layers show (lo tints the cloth, min nothing).
+  The `""` path draws exactly what it drew before and adds nothing per frame on any level. The player's figure wears the
+  dressing room's choice (PACK_SPEC §10, Outfit row); other soldiers and bots keep training shorts. 0.15 ships the uniform on m2
+  and m3 (the base body and f2 when their builds are imported; f1 later). Tests: `tests/unit/test_soldier_outfit.gd`,
+  `tests/render/test_soldier_outfit.gd` (`soldier_outfit_*.png`: bare | uniform per level, a chest wound on the uniform,
+  the dressing room, the arena), the Outfit row in `tests/flow/dressing_steps.gd`.
 
 ### 9.7 Speeds, hidden stamina and body sounds (ใหม่ 0.14, 1b, 19 Nov; the owner asked for slower humans, hidden fatigue, footsteps and panting)
 

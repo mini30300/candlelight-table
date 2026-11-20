@@ -70,7 +70,9 @@ func test_version_label_never_shows_thai() -> void:
 	# card (0.12 -> 0.13)
 	# 0.14 (ARENA_SPEC §9): the infantry figure's own body clips (deck walk, arena jog and run, turns, aim, reload,
 	# melee, hits, falls), visual only apart from the fixed shot origin (0.13 -> 0.14)
-	assert_eq(v, "0.14", "this release is ใหม่ 0.14")
+	# 0.15: the soldier's field uniform (SoldierFigure opts "outfit", the dressing room's Outfit row), visual only
+	# (0.14 -> 0.15)
+	assert_eq(v, "0.15", "this release is ใหม่ 0.15")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 

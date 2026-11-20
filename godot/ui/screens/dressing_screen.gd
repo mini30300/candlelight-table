@@ -7,6 +7,8 @@ extends Control
 ## จอกว้าง: ซ้าย = ภาพ ชุดสี ปุ่มใช้ตัวนี้ (เห็นเสมอ) ขวา = รายชื่อตัวละคร (เลื่อนได้) กับช่องบันทึก · จอแคบ/แนวตั้ง: บนลงล่าง
 ## ชุดสี = ตารางการ์ดมีชื่อ เลื่อนได้ (Figures.palettes ของตัวที่เลือก: ชุดสำเร็จรูป + ชุดของตัวชุดเสริม หลายสิบชุด)
 ## ตัวที่พูดได้ (say: ทหารราบ hi/mid) ทักในกรอบคำพูดตอนขึ้นจอ ปากขยับระหว่างที่กรอบแสดง (ไม่มีเสียง) · min ไม่ทัก
+## แถว "ชุด" (ใหม่ 0.15, เฉพาะทหารราบ kind builtin): กางเกงฝึก / ชุดสนาม · เก็บกับ "ใช้ตัวนี้" (Figures.select_outfit) และช่องบันทึก
+## ร่างที่ยังไม่มีไฟล์ชุดใส่กางเกงฝึก (ตัวอย่างบอกไว้ใต้แถว)
 
 signal closed(used: bool)
 
@@ -25,6 +27,9 @@ const SAVED := "บันทึกช่อง {n} แล้ว"
 const USE := "ใช้ตัวนี้"
 const DRAG := "ลากเพื่อหมุน"
 const ORIGINAL := "เดิม"
+const OUTFIT := "ชุด"
+const OUTFIT_TEXT := {"": "กางเกงฝึก", "uniform": "ชุดสนาม"}   # ปุ่มตามลำดับ SoldierFigure.OUTFITS
+const OUTFIT_MISSING := "ร่างนี้ยังไม่มีชุดสนาม"
 const SAY_HOLD := 1.2            # วิที่กรอบคำพูดค้างหลังปากหยุด
 const SPIN := 0.35
 const DRAG_TURN := 0.012
@@ -46,6 +51,7 @@ var level := "mid"
 var touch_mode := false
 var figure_id := ""
 var scheme_id := ""
+var outfit_id := ""              # ชุดที่เลือกในแถว "ชุด" ("" = กางเกงฝึก)
 var spinning := false
 
 var _api: Object
@@ -78,6 +84,9 @@ var _swatches: GridContainer
 var _own_label: Label
 var _slots_label: Label
 var _slot_box: VBoxContainer
+var _outfit_label: Label
+var _outfit_row: HBoxContainer
+var _outfit_note: Label
 var _note_label: Label
 var _use: Button
 var _bubble: SpeechBubble
@@ -124,6 +133,7 @@ func _ready() -> void:
 		var sel: Dictionary = _api.call("selected")
 		figure_id = str(sel.get("figure", ""))
 		scheme_id = str(sel.get("scheme", ""))
+		outfit_id = str(_api.call("outfit")) if _outfits() else ""
 	if _index(figure_id) < 0 and not _list.is_empty():
 		figure_id = str(_list[0]["id"])
 	_schemes = schemes_of(_api, figure_id)
@@ -162,6 +172,14 @@ func refresh() -> void:
 		b.modulate.a = 0.35 if fixed else 1.0
 		b.set_pressed_no_signal(str(b.get_meta(&"id")) == scheme_id)
 	_own_label.visible = fixed
+	var dress := _wears_outfit()
+	_outfit_label.visible = dress
+	_outfit_row.visible = dress
+	_outfit_label.text = I18n.t(OUTFIT)
+	for b: Button in outfit_buttons():
+		b.text = I18n.t(str(OUTFIT_TEXT.get(str(b.get_meta(&"id")), "")))
+		b.set_pressed_no_signal(str(b.get_meta(&"id")) == outfit_id)
+	_outfit_hint()
 	var sn := PackRooms.text(_scheme(scheme_id).get("name"))
 	_scheme_label.text = I18n.t(SCHEMES) + ("" if fixed or sn == "" else " · " + sn)
 	_fill_slots()
@@ -190,10 +208,23 @@ func pick_scheme(id: String) -> void:
 	_repaint()
 
 
+## ชุด id ("" กางเกงฝึก / "uniform" ชุดสนาม): สร้างตัวอย่างใหม่ในชุดนั้น (ยังไม่เก็บจนกด "ใช้ตัวนี้")
+func pick_outfit(id: String) -> void:
+	if not SoldierFigure.OUTFITS.has(id) or id == outfit_id or not _wears_outfit():
+		return
+	outfit_id = id
+	_note = ""
+	refresh()
+	_show_figure()
+
+
 func save_slot(i: int) -> void:
 	if _api == null or i < 0 or i >= SLOTS or figure_id == "":
 		return
-	_api.call("save_slot", i, StringName(figure_id), StringName(scheme_id))
+	var args := [i, StringName(figure_id), StringName(scheme_id)]
+	if _outfits():
+		args.append(outfit_id if _wears_outfit() else "")    # ช่องของตัวที่ไม่ใส่ชุด = แบบเดิม
+	_api.callv("save_slot", args)
 	_note = SAVED
 	_note_n = i + 1
 	refresh()
@@ -210,6 +241,10 @@ func load_slot(i: int) -> void:
 	_reload_schemes()
 	if not _scheme(str(s.get("scheme", ""))).is_empty():
 		scheme_id = str(s["scheme"])
+	if _outfits() and _wears_outfit():
+		var o := str(s.get("outfit", ""))
+		same = same and o == outfit_id
+		outfit_id = o if SoldierFigure.OUTFITS.has(o) else ""
 	refresh()
 	if same:
 		_repaint()
@@ -230,6 +265,8 @@ func _repaint() -> void:
 func use_selection() -> void:
 	if _api == null or figure_id == "" or _closing:
 		return
+	if _outfits():
+		_api.call("select_outfit", outfit_id)    # ก่อน select: select แจ้ง App.figure_changed ให้สร้างตัวใหม่ในชุดนี้
 	_api.call("select", StringName(figure_id), StringName(scheme_id))
 	_used = true
 	close()
@@ -268,6 +305,16 @@ func slot_buttons() -> Array[Button]:
 	for row in _slot_box.get_children():
 		out.append(row.get_child(0) as Button)
 	return out
+
+
+## ปุ่มแถว "ชุด" ตามลำดับ SoldierFigure.OUTFITS (meta id)
+func outfit_buttons() -> Array[Button]:
+	return _buttons(_outfit_row)
+
+
+## ข้อความเตือนใต้แถวชุด (เทส)
+func outfit_note() -> Label:
+	return _outfit_note
 
 
 func save_buttons() -> Array[Button]:
@@ -371,6 +418,24 @@ func _build() -> void:
 	_chars.add_theme_constant_override(&"h_separation", 8)
 	_chars.add_theme_constant_override(&"v_separation", 8)
 	scroll.add_child(_chars)
+	_outfit_label = _label(box, 24)
+	_outfit_row = HBoxContainer.new()
+	_outfit_row.name = "Outfits"
+	_outfit_row.add_theme_constant_override(&"separation", 8)
+	box.add_child(_outfit_row)
+	var og := ButtonGroup.new()
+	for o in SoldierFigure.OUTFITS:
+		var ob := Button.new()
+		ob.name = "Outfit_" + (o if o != "" else "shorts")
+		ob.toggle_mode = true
+		ob.button_group = og
+		ob.focus_mode = Control.FOCUS_NONE
+		ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ob.set_meta(&"id", o)
+		CandleStyle.button(ob)
+		ob.pressed.connect(pick_outfit.bind(o))
+		_outfit_row.add_child(ob)
+	_outfit_note = _label(box, 19, true)
 	_slots_label = _label(box, 24)
 	_slot_box = VBoxContainer.new()
 	_slot_box.name = "Slots"
@@ -610,6 +675,8 @@ func _fill_slots() -> void:
 			var sn := PackRooms.text(_scheme_of_figure(str(s.get("scheme", "")), str(s["figure"])).get("name"))
 			if sn != "" and bool(_list[_index(str(s["figure"]))].get("schemes", false)):
 				nm += " · " + sn
+			if str(s.get("outfit", "")) != "":
+				nm += " · " + I18n.t(str(OUTFIT_TEXT.get(str(s["outfit"]), "")))
 		sl[i].text = I18n.t(SLOT).format({"n": i + 1}) + ": " + nm
 		sl[i].disabled = s.is_empty()
 		sv[i].text = I18n.t(SAVE)
@@ -647,6 +714,27 @@ func _scheme(id: String) -> Dictionary:
 	return {}
 
 
+## Figures มีชุด (ตัวแทนของเทสรุ่นเก่าไม่มี)
+func _outfits() -> bool:
+	return _api != null and _api.has_method("select_outfit")
+
+
+## ตัวที่เลือกใส่ชุดได้: ทหารราบ (kind builtin)
+func _wears_outfit() -> bool:
+	var i := _index(figure_id)
+	return _outfits() and i >= 0 and str(_list[i].get("kind", "")) == "builtin"
+
+
+## เตือนเมื่อเลือกชุดที่ร่างนี้ยังไม่มี (ตัวอย่างใส่กางเกงฝึกแทน)
+func _outfit_hint() -> void:
+	if _outfit_note == null:
+		return
+	var miss := _wears_outfit() and outfit_id != "" and _fig != null and _fig.has_method("outfit_shown") \
+		and str(_fig.call("outfit_shown")) != outfit_id
+	_outfit_note.visible = miss
+	_outfit_note.text = I18n.t(OUTFIT_MISSING) if miss else ""
+
+
 func _takes_schemes() -> bool:
 	var i := _index(figure_id)
 	return i >= 0 and bool(_list[i].get("schemes", false))
@@ -672,7 +760,10 @@ func _show_figure() -> void:
 		_fig = fig
 		_pivot.add_child(_fig)
 		if _fig.has_method("setup"):
-			_fig.call("setup", {"role": &"deck", "level": level, "team_colour": team, "seed": 0})
+			var opts := {"role": &"deck", "level": level, "team_colour": team, "seed": 0}
+			if _fig.has_method("outfit_shown"):
+				opts["outfit"] = outfit_id       # ชุดของแถว "ชุด" (ยังไม่เก็บ)
+			_fig.call("setup", opts)
 			_fig.call("set_weapon", &"none")
 			_fig.call("play", &"idle", 1.0)
 			_fig.call("set_move", 0.0, false)
@@ -685,6 +776,7 @@ func _show_figure() -> void:
 		egg.material_override = HallBuilder.material()
 		_fig = egg
 		_pivot.add_child(_fig)
+	_outfit_hint()
 	_frame()
 
 

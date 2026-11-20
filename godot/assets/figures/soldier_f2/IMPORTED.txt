@@ -15,24 +15,37 @@ posed (374 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inve
 posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.82 mm, hips 6.33 mm, worst 19.73 mm (swing_0 frame 8)
 face (G13, inner_posed.py): PASS
 
+outfits (one mesh per level in place of the skin, one draw; build.py --outfit, outfits.py)
+outfit uniform (ชุดสนาม / Field uniform)
+hi            1  11712  23152             0   578203
+mid           1   7841  15458             0   389077
+lo            1   4445   8678             0   222351
+min           1   2494   4832             0    88559
+gates (closed pieces, tris <= budget - 3 %, symmetry, soles at y = 0 +- 1.5 mm, CUSTOM0): PASS; pieces 11 / 11 / 11 / 7
+posed (hi 374 frames, mid 193 frames): skin above cloth at most 0.50 / 0.50 mm, gear in the cloth at most 0.8 / 1.9 mm: PASS
+
 bones (38): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR head_jaw head_lipL head_lipR head_browL head_browR
 motion_scale: 1.0812
 driver constants: from the stage's rig.json
 soldier clip library: assets/figures/soldier/clips.res (made by tools/soldier/bake_clips.sh, not by the stage)
 
 sha256:
-  8711e4dfbcb6e4d63ddf179c774358dfe75d04f33772a4fe82119baf4926480e  body.gdshader  5245 bytes
-  060cb1c41fdf25ea49c3af34179d86fc5e9213f4a256c77eda4e1d8d64f917f6  body_face.gdshader  5825 bytes
+  2ecf6f19c688061bb069c5e0b37fa6e136d782b589133c1d7070bdcb71416ddc  body.gdshader  6423 bytes
+  1452bcc1263cf9e451211a1d9589acd0af662dc1878b786969d1642b9ac1a06b  body_face.gdshader  7003 bytes
   b199656b2fc5e557079baa3e5d5765cc5017889b0506a6d24c11307d17078121  body_hi.res  573056 bytes
   199a7d1cf0a9133acf399d7377a9116283819f595bf4bd7c167929c5992a0495  body_lo.res  223388 bytes
   745c8cfb55fdef2cd938d9c01bf1e984918cb626975cd2cdba6963953d96179b  body_material.tres  732 bytes
   e3e7c2aab59118010deec640000aa3a110fc01cc226b36a4527459ec0cbdccb8  body_mid.res  393434 bytes
   4d0f5257f7b0b5c757ca9b5d5e4ca337f3c798abadff85b3df4002622a72c3e0  body_min.res  90128 bytes
-  3413fe6d7f7910fe3ba7eb99acd431854d26ed6285be1a3555d679d8d2ec0c8f  body_wound.gdshader  5795 bytes
+  fa745d2bec0202d826c7f26e552b9370b97d00f9913e193584fa957376463da3  body_wound.gdshader  6969 bytes
   c624a3ca16aa810a884c1fb723b61f7e63c39a56e873eba4fdb56c5df989f103  face.gdshaderinc  4844 bytes
   7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
   5e1b4f2bc486eac9d4b3e97b96df25550579cf7cf4a09ef5f7bcd20aa8b7c995  inner_bone.res  76020 bytes
   69281e71d5412c6f0cdbe0a7ecaabd59b3ef57b87c677a30a2512ea70cab67dc  inner_flesh.res  118399 bytes
+  7c69b71e8a075f8da2b73f300997693c4fea4e98fdc8dc82894ab80fa70223a8  outfit_uniform_hi.res  578203 bytes
+  d233496dd8eed0bcd0964b088bfeabbf6e020cca9b6a775738d004e167168009  outfit_uniform_lo.res  222351 bytes
+  e1da633424906bf3f9fdf5fa811ddc427346de750b066ba29e73d35cb4dbe71a  outfit_uniform_mid.res  389077 bytes
+  b678656a554ea9b5c5ab8fcda86fc420514571248a1200ef675160de110941b2  outfit_uniform_min.res  88559 bytes
   2af39412bdbbbdc3f7d7937410dc6faa9926fd372abb51c9bacd859629354428  rig.tscn  12455 bytes
   b8823f1fc2a47fc81d3331f7688b6a44301abe869e1e319582f7c79306a57f69  skin.res  5513 bytes
   41ed3ca5a9bab06a3dfd2716639d12ffd171a8665825d6e1f1efb51501e9d405  wound.gdshaderinc  3211 bytes

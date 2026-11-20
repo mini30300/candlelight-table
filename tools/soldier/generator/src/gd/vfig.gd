@@ -112,7 +112,9 @@ static func _load_static() -> void:
 
 static func body_mesh(l: String) -> ArrayMesh:
 	if not _mesh_cache.has(l):
-		_mesh_cache[l] = load(DIR + "body_%s.res" % l)
+		# OUTFIT=<ชื่อ>: เมชชุด outfit_<ชื่อ>_<ระดับ>.res แทนผิวตัวเปล่า (ภาพแผ่นสรุปของชุด)
+		var o := OS.get_environment("OUTFIT")
+		_mesh_cache[l] = load(DIR + ("outfit_%s_%s.res" % [o, l] if o != "" else "body_%s.res" % l))
 	return _mesh_cache[l]
 
 

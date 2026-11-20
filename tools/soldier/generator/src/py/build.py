@@ -309,6 +309,7 @@ def main():
     ap.add_argument("--variant", default="", help="ร่างหลากหลาย (variants.py)")
     ap.add_argument("--shapes", dest="shapes", action="store_true", default=None, help="บังคับให้มี blend shape")
     ap.add_argument("--no-shapes", dest="shapes", action="store_false", help="ไม่ส่งออก blend shape")
+    ap.add_argument("--outfit", default="", help="ชุด (outfits.py) คั่นด้วยจุลภาค: สร้างเฉพาะเมชชุดจากผลสร้างตัวเปล่าที่มีแล้ว")
     args = ap.parse_args()
     VR.use(args.variant)
     print("shape (BODY_SHAPE): %s" % VR.SHAPE, flush=True)
@@ -318,6 +319,11 @@ def main():
             args.out = os.path.join(vroot, "out")
         if args.work == os.path.join(ROOT, "work"):
             args.work = os.path.join(vroot, "work")
+    if args.outfit:
+        import outfits as OF                  # ใหม่ 0.14 ข้อ 4: ไม่ใส่ --outfit = ทางเดิมทุกไบต์
+        for name in args.outfit.split(","):
+            OF.build(name.strip(), args.out, args.work)
+        return
     SHAPES = VR.shapes_on() if args.shapes is None else args.shapes
     KV = VR.scale()                       # ร่างหลากหลาย: ย่อขยายทั้งตัวตอนส่งออก (1.0 = ทหารฐาน)
     OUT = args.out

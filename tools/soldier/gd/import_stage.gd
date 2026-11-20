@@ -18,6 +18,7 @@ const FACE_SHADER_SRC := "res://src/gd/soldier_skin_face.gdshader"   # ผิว
 var DST := OS.get_environment("SOLDIER_DST") if OS.get_environment("SOLDIER_DST") != "" else "res://assets/figures/soldier/"
 const OLD := "res://old/"
 const RIG_JSON := "res://out/data/rig.json"
+const FACE_JSON := "res://out/data/face.json"
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min", "crowd"]
 const REPORT := "res://report.json"
 
@@ -77,6 +78,15 @@ func _run() -> bool:
 			mat.set_meta("face_lid_colour", Vector3(lc[0], lc[1], lc[2]))
 	if not _save(mat, "body_material.tres", 0, report):
 		return false
+	# Godot ไม่บันทึกค่าที่ body.gdshader ไม่มี: สีเปลือกตาของร่าง (face.json) เขียนต่อท้ายวัสดุ ; เกมอ่านไปใส่วัสดุผิว+หน้า
+	if FileAccess.file_exists(FACE_JSON):
+		var fj: Variant = JSON.parse_string(FileAccess.get_file_as_string(FACE_JSON))
+		var txt := FileAccess.get_file_as_string(DST + "body_material.tres")
+		if fj is Dictionary and (fj as Dictionary).has("lid_colour") and not txt.contains("face_lid_colour"):
+			var lc: Array = fj["lid_colour"]
+			var fm := FileAccess.open(DST + "body_material.tres", FileAccess.WRITE)
+			fm.store_string(txt.rstrip("\n") + "\nshader_parameter/face_lid_colour = Vector3(%s, %s, %s)\n" % [lc[0], lc[1], lc[2]])
+			fm.close()
 	mat = load(DST + "body_material.tres") as ShaderMaterial
 	# โครง (+ ค่าคงที่ของตัวขับจาก rig.json ของขั้นปั้น เป็น meta "soldier_rig" ของราก) + bind
 	var src_rig := load(SRC + "rig.tscn") as PackedScene
@@ -131,6 +141,9 @@ func _run() -> bool:
 			"tris": (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, "shapes": shapes.size(),
 			"bytes": FileAccess.get_file_as_bytes(DST + "body_%s.res" % lv).size()}
 		report["shapes"][lv] = shapes
+	# ชุด (ใหม่ 0.14 ข้อ 4): outfit_<ชื่อ>_<ระดับ>.res ข้างไฟล์ของร่าง (วัสดุของเกม บีบอัด) ; ชุดหนึ่งต้องมาครบ 4 ระดับ
+	if not _outfits(mat, report):
+		return false
 	# ชั้นในของบาดแผล (ถ้าขั้นปั้นทำมา ต้องมาครบชุด): เชดเดอร์ชื่อใหม่ + วัสดุฝังในเมช ค่าเดิมของขั้นปั้น
 	if ResourceLoader.exists(SRC + "inner_bone.res") or ResourceLoader.exists(SRC + "inner_flesh.res"):
 		if not _inner(report):
@@ -195,6 +208,31 @@ func _copy_text(src: String, name: String, report: Dictionary) -> bool:
 	f.store_string(FileAccess.get_file_as_string(src))
 	f.close()
 	report["files"].append(name)
+	return true
+
+
+## เมชชุดทุกชุดที่ import_stage.sh คัดลอกมา (OUTFITS เลือกได้) -> report["outfits"][ชื่อ][ระดับ]
+func _outfits(mat: ShaderMaterial, report: Dictionary) -> bool:
+	report["outfits"] = {}
+	var names := {}
+	for fn in DirAccess.get_files_at(SRC):
+		if fn.begins_with("outfit_") and fn.ends_with(".res"):
+			names[fn.trim_prefix("outfit_").get_slice(".", 0).rsplit("_", true, 1)[0]] = true
+	for o: String in names:
+		report["outfits"][o] = {}
+		for lv in ["hi", "mid", "lo", "min"]:
+			var name := "outfit_%s_%s.res" % [o, lv]
+			var m := load(SRC + name) as ArrayMesh if ResourceLoader.exists(SRC + name) else null
+			if m == null or m.get_surface_count() != 1:
+				push_error("outfit %s: missing or not one surface: %s" % [o, name])
+				return false
+			m.surface_set_material(0, mat)
+			if not _save(m, name, ResourceSaver.FLAG_COMPRESS, report):
+				return false
+			var arr := m.surface_get_arrays(0)
+			report["outfits"][o][lv] = {"surfaces": m.get_surface_count(), "verts": (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(),
+				"tris": (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, "shapes": m.get_blend_shape_count(),
+				"bytes": FileAccess.get_file_as_bytes(DST + name).size()}
 	return true
 
 
