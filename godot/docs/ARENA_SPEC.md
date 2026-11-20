@@ -243,7 +243,7 @@ pillars (`shell`: the shooter camera's arm collides with them), stands, the swit
 | 4 `PROP` | stands, switch post, reset pedestal (walk-blocking; the camera arm ignores them) | — |
 | 8 `BEAST` | the beast's capsule (its hurt box too); 0 while dead | 1, 4, 2 |
 | 16 `TARGET` | the switch plate (sphere r 0.45), shots only | — |
-| 32 `RAGDOLL` | a dead soldier's ragdoll bodies on hi/mid (§9.8), visual only, while it falls | 64 |
+| 32 `RAGDOLL` | a dead soldier's ragdoll bodies on hi/mid (§9.8), visual only, while it falls | 64, 1, 4 |
 | 64 `RAGDOLL_FLOOR` | each falling ragdoll's own floor (a 6 × 6 m box at its feet, 2 cm up for Jolt's slop) | — |
 
 Shot rays use mask 1 | 4 | 8 | 16 and exclude the player, so they pass through a corpse (32); nothing else has 32 or 64
@@ -948,9 +948,12 @@ moves), so `RULES_V`, `DATA_HASH` and the server stay as they are. Code: `Soldie
   skeleton (the clip paused) and everything stops: no simulation, no floor, nothing per frame. Getting up (`play` of
   a loop), a level change (bakes where it is) or freeing the figure stops it at once.
 - **Caps**: at most 4 ragdolls falling at once on hi, 2 on mid; a death over the cap plays its clip as on lo.
+- **Walls**: the bodies' mask is 64 | 1 | 4, so a corpse lands against walls, pillars and props instead of passing
+  through them. Players (2) and the beast (8) are not in it, and nothing has 32 in its mask, so shots, the camera and
+  movement still ignore corpses.
 - Tests: `tests/unit/test_soldier_ragdoll.gd` (real physics, 4× clock: build, limits against rig.py, 8 push directions
   with settle/speed/travel/stretch/angle/floor bounds, `wound_point`, the mid cap with 6 deaths, the m2 and f1 bodies,
-  revive), `test_arena_figure_hooks.gd` (none on lo/min, clips by side), `tests/flow/test_arena_flow.gd` step 10e (a
+  revive, a wall on layer 1 stops a fall that goes past it without the wall), `test_arena_figure_hooks.gd` (none on lo/min, clips by side), `tests/flow/test_arena_flow.gd` step 10e (a
   shot ray through a corpse hits nothing of it), `tests/selftest.gd` (Jolt active, a ragdoll runs 60 frames without
   NaN, also in the exported game). `tests/run_tests.gd` and `selftest.gd` await test methods that await frames.
 

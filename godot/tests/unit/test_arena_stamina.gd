@@ -233,6 +233,22 @@ func test_recovery() -> void:
 		assert_within(c.bal, c.dprime * 0.3, 1e-9, "%s: at exactly CS nothing changes" % name)
 
 
+## A full reserve below CS skips the exp() (Codex, PR #31): it stays exactly full, and a reserve just under full still
+## refills by the same formula, bit for bit.
+func test_full_skips_exp() -> void:
+	var st := ArenaStamina.new()
+	for v in [0.0, st.walk, st.jog, st.cs * 0.999]:
+		st.bal = st.dprime
+		for i in range(120):
+			st.tick(v, DT)
+		assert_true(st.bal == st.dprime, "full at %.2f m/s, below CS: stays exactly full" % v, st.bal)
+	var b := st.dprime * 0.999
+	st.bal = b
+	st.tick(st.walk, DT)
+	var want := st.dprime - (st.dprime - b) * exp(-(st.cs - st.walk) * DT / st.dprime)
+	assert_true(st.bal == want, "just under full: the same refill formula, bit for bit", [st.bal, want])
+
+
 func test_lazy_equals_ticks() -> void:
 	var a := ArenaStamina.new()
 	var b := ArenaStamina.new()

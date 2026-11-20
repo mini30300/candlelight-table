@@ -1,7 +1,7 @@
 class_name SoldierRagdoll
 extends PhysicalBoneSimulator3D
 ## ร่างล้มตามฟิสิกส์ตอนตายของ SoldierFigure (ใหม่ 0.14 ข้อ 3, ARENA_SPEC §9.8) · hi 15 ชิ้น mid 13 ชิ้น · lo/min ไม่สร้าง
-## ภาพล้วน: ตำแหน่งของเกมไม่ขยับ · ชิ้นร่างชั้น 32 ชนแค่พื้นของร่างเอง (ชั้น 64) กระสุน กล้อง ตัวละครไม่ชน
+## ภาพล้วน: ตำแหน่งของเกมไม่ขยับ · ชิ้นร่างชั้น 32 ชนพื้นของร่างเอง (ชั้น 64) ผนัง (1) ของในห้อง (4) · กระสุน กล้อง ตัวละครไม่ชน
 ## แคปซูลวัดจากผิว body_lo (ต่อร่าง ครั้งเดียว) · ช่วงข้อสำเนาจาก tools/soldier rig.py LIMITS (นับจากท่า I)
 ## สร้างค้างไว้ไม่ทำงาน: active ปิด ชิ้นร่าง static ไม่ชน top_level ไม่ตามตัว = ไม่มีงานต่อเฟรม
 ## start: ข้อต่อใหม่จากท่า I แล้ววางชิ้นร่างตามท่าล้มตอนนั้น ใส่ความเร็วของท่า + แรงผลัก ค่อย ๆ เพิ่ม influence 0 → 1
@@ -9,6 +9,7 @@ extends PhysicalBoneSimulator3D
 
 const LAYER := 32
 const FLOOR_LAYER := 64
+const WORLD_MASK := 1 | 4         # ผนัง/เสา (1) และของในห้อง (4): ร่างไม่ทะลุ · ตัวละคร (2) สัตว์ (8) ไม่ชน
 const SETS := {
 	"hi": ["pelvis", "spine", "chest", "neck", "head", "shoulderL", "elbowL", "shoulderR", "elbowR", "hipL", "kneeL",
 		"ankleL", "hipR", "kneeR", "ankleR"],
@@ -104,7 +105,7 @@ static func make(fig: Node3D, sk: Skeleton3D, skin: Skin, body: String, l: Strin
 		pb.linear_damp = 0.05
 		pb.angular_damp = DAMP_LIMB if ["shoulder", "elbow", "hip", "knee", "ankle"].has(_base(str(f[0]))) else DAMP_TRUNK
 		pb.collision_layer = LAYER
-		pb.collision_mask = FLOOR_LAYER
+		pb.collision_mask = FLOOR_LAYER | WORLD_MASK
 		pb.top_level = true
 		var cs := CollisionShape3D.new()
 		var cap := CapsuleShape3D.new()

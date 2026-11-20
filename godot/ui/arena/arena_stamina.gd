@@ -75,7 +75,7 @@ func tick(v: float, dt: float) -> void:
 		return
 	if v > cs:
 		bal = maxf(bal - (v - cs) * dt, 0.0)
-	else:
+	elif bal < dprime:      # เต็มแล้วข้าม exp(): สูตรให้ dprime พอดีอยู่แล้ว ค่าเท่าเดิมทุกบิต
 		bal = dprime - (dprime - bal) * exp(-(cs - v) * dt / dprime)
 
 

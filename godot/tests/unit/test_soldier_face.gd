@@ -240,6 +240,12 @@ func test_blinks() -> void:
 	var tc: PackedFloat32Array = (c.call("face") as SoldierFace).blink_times()
 	assert_true(ta.size() >= 4 and ta == tb, "seed 5 twice: the same %d blink times" % ta.size())
 	assert_true(ta != tc, "seed 6: other blink times")
+	# a long stay keeps only the last TIMES_KEEP blink times (no growing list)
+	var fl: SoldierFace = c.call("face")
+	for i in 36000:
+		fl.tick(DT)
+	assert_true(fl.blinks() > SoldierFace.TIMES_KEEP and fl.blink_times().size() == SoldierFace.TIMES_KEEP,
+		"20 minutes: %d blinks, the last %d times kept" % [fl.blinks(), fl.blink_times().size()])
 	# dead: no more blinks, nothing written after the death face
 	a.call("play", &"die", 1.0)
 	var fa: SoldierFace = a.call("face")

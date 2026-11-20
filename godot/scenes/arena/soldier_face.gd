@@ -43,6 +43,7 @@ const BLINK_CLOSE := 0.07
 const BLINK_HOLD := 0.04
 const BLINK_OPEN := 0.11
 const DOUBLE_GAP := 0.09
+const TIMES_KEEP := 64                 # เก็บเวลากะพริบล่าสุดเท่านี้ (เทส/ภาพ) ไม่โตไปเรื่อย ๆ
 const DEAD_OPEN := 0.25                # ตายแล้วตายังเปิด (สุ่มต่อตัวด้วย seed ราว 1 ใน 4)
 const DEAD_JAW := 2.0
 const RATE_MOOD := 9.0                 # ต่อวิ: คิ้ว เปลือกตา
@@ -297,6 +298,8 @@ func _blink_step(dt: float) -> float:
 			return 0.0
 		_blink = 0.0
 		_blinks += 1
+		if _times.size() >= TIMES_KEEP:
+			_times.remove_at(0)
 		_times.append(_clock)
 		_double = not _second and _rng.randf() < BLINK_DOUBLE
 	else:

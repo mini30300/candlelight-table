@@ -234,12 +234,13 @@ func test_built_inactive_and_limits() -> void:
 		var shapes := ""
 		for pb: PhysicalBone3D in rh.bodies():
 			idle = idle and not pb.is_simulating_physics() and pb.top_level
-			idle = idle and pb.collision_layer == SoldierRagdoll.LAYER and pb.collision_mask == SoldierRagdoll.FLOOR_LAYER
+			# 0.14 รอบปล่อย: ร่างชนผนัง (1) และของในห้อง (4) ด้วย ไม่ทะลุ (เดิมชนแค่พื้นของตัวเอง 64)
+			idle = idle and pb.collision_layer == SoldierRagdoll.LAYER and pb.collision_mask == SoldierRagdoll.FLOOR_LAYER | 1 | 4
 			mass += pb.mass
 			var cap := (pb.get_child(0) as CollisionShape3D).shape as CapsuleShape3D
 			if cap.radius < 0.025 or cap.radius > 0.2 or cap.height < 0.08 or cap.height > 0.6:
 				shapes += "%s r %.3f h %.3f; " % [pb.bone_name, cap.radius, cap.height]
-		assert_true(idle, "hi: prebuilt inactive (simulator off, no body simulating, top level, layer 32, mask 64)")
+		assert_true(idle, "hi: prebuilt inactive (simulator off, no body simulating, top level, layer 32, mask 64 | 1 | 4)")
 		assert_true(shapes == "", "the capsules from body_lo have plausible sizes", shapes)
 		assert_true(mass > 40.0 and mass < 100.0, "the body weighs %.1f kg in all" % mass)
 	var l := SoldierRagdoll.limits_for("elbowL", "hi")
@@ -358,6 +359,29 @@ func test_mid_cap_six_deaths() -> void:
 	_free_all(figs)
 
 
+## hi: six deaths at once, at most four falling (CAP), the other two play their clip as on lo
+func test_hi_cap_six_deaths() -> void:
+	_fast(true)
+	var figs := []
+	for i in 6:
+		figs.append(_new_fig("hi", 60 + i, Vector3(SPACING * i, 0, 150)))
+	await _tree().process_frame
+	for i in 6:
+		_kill(figs[i], (DIRS[i] as Vector3).normalized())
+	var out: Dictionary = await _watch(figs)
+	var fell := 0
+	var clip := 0
+	for i in 6:
+		if float(out["st"][i]["started"]) > 0.0:
+			fell += 1
+		elif str((figs[i].call("animation_player") as AnimationPlayer).assigned_animation).contains("/die"):
+			clip += 1
+	assert_true(int(out["live"]) <= 4 and fell == 4 and clip == 2,
+		"hi: six deaths at once, at most four falling (%d), four fell (%d), two played the clip (%d)" % [int(out["live"]), fell, clip])
+	_fast(false)
+	_free_all(figs)
+
+
 func test_other_bodies() -> void:
 	_fast(true)
 	var figs := [_new_fig("hi", 5, Vector3(0, 0, -60), "m2"), _new_fig("hi", 6, Vector3(SPACING, 0, -60), "f1")]
@@ -434,6 +458,50 @@ func test_front_hits_differ() -> void:
 func _pelvis(f: Node3D) -> Vector3:
 	var sk: Skeleton3D = f.call("skeleton")
 	return sk.global_transform * sk.get_bone_global_pose(sk.find_bone("pelvis")).origin - Vector3(0, 0, 60)
+
+
+## A wall on layer 1 stops a body that falls toward it; the same seed without the wall falls past that line.
+func test_wall_stops_the_fall() -> void:
+	_fast(true)
+	var wall_x := 0.55
+	var base := Vector3(0, 0, 120)
+	var wall := StaticBody3D.new()
+	wall.collision_layer = 1
+	wall.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.4, 3.0, 4.0)
+	cs.shape = box
+	wall.add_child(cs)
+	_tree().root.add_child(wall)
+	wall.global_position = base + Vector3(wall_x + 0.2, 1.5, 0)
+	var walled := _new_fig("hi", 5, base)
+	var open := _new_fig("hi", 5, base + Vector3(0, 0, SPACING))
+	await _tree().process_frame
+	_kill(walled, Vector3(1, 0, 0))
+	_kill(open, Vector3(1, 0, 0))
+	var out: Dictionary = await _watch([walled, open])
+	await _tree().process_frame
+	var reach := []
+	for f: Node3D in [walled, open]:
+		var sk: Skeleton3D = f.call("skeleton")
+		var far := -INF
+		for b in sk.get_bone_count():
+			far = maxf(far, (sk.global_transform * sk.get_bone_global_pose(b).origin).x - f.global_position.x)
+		reach.append(far)
+	var st: Array = out["st"]
+	print("wall test: reach with the wall %.3f m, without %.3f m, lasted %.2f / %.2f s" % [float(reach[0]), float(reach[1]),
+		float(st[0]["lasted"]), float(st[1]["lasted"])])
+	assert_true(float(st[0]["lasted"]) > 0.0 and _settled_ok(walled), "against the wall: the fall starts and stops (%.2f s)"
+		% float(st[0]["lasted"]))
+	assert_true(float(reach[1]) >= wall_x + 0.15, "without the wall the body reaches %.2f m along the push (the wall: %.2f m)"
+		% [float(reach[1]), wall_x])
+	assert_true(float(reach[0]) <= wall_x, "the wall stops the body: no bone past %.2f m (furthest %.2f m)" % [wall_x,
+		float(reach[0])])
+	_fast(false)
+	walled.free()
+	open.free()
+	wall.free()
 
 
 func test_revive_stops_the_fall() -> void:
