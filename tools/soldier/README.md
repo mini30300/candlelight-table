@@ -303,7 +303,7 @@ OUTFITS="uniform heavy" bash <stage>/src/run_all.sh                # or the whol
   them. Where linear skinning turns a lifted layer into the skin (armpit, front armpit fold, crotch, front groin fold)
   the cloth is a copy of the bare skin (same triangles, same weights) 0.4 mm above it, growing back to 3.5 mm at the
   zone's edge; the flat bare sole is copied the same way. A body whose posed gate still fails gets local fixes and is
-  rebuilt (at most 4 rounds): ease at each failing spot first, a thin copy zone where that does not help or next to a
+  rebuilt (at most 6 rounds): ease at each failing spot first, a thin copy zone where that does not help or next to a
   thin zone; `outfit_<name>.json` lists them (`extra_ease`, `extra_thin`), and the rounds are deterministic.
 - Gates (stop the build): closed pieces after welding coincident vertices (body genus 0, belt genus 1), triangles
   within `BUDGET` - 3 %, mirror symmetry (≤ 0.5 mm), soles at y = 0 ± 1.5 mm, `CUSTOM0` classes/regions known, `min` on

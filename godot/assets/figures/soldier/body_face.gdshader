@@ -1,6 +1,6 @@
 // soldier_skin_face.gdshader — ผิวทหาร + หน้า (hi/mid/lo) = soldier_skin.gdshader + face.gdshaderinc · min ใช้ soldier_skin.gdshader
 //   (ของแอปปกติ เขียนใหม่ทั้งหมด): ไม่รับไฟจากฉาก (unshaded) คิดแสงเองแบบฉากอารีน่า/ดาดฟ้า
-//   COLOR.rgb = สีผิว × AO (sRGB) ; CUSTOM0 = (ธงทาสีได้ 0, ดัชนีจานสี 0, ความเป็นเนื้อ 0..1, ส่วนร่างกาย 0..5)
+//   COLOR.rgb = สีผิว × AO (sRGB) ; CUSTOM0 = (ชนิดวัสดุ 0 = ผิว, เขตจานสี, ความเป็นเนื้อ 0..1, ส่วนร่างกาย 0..5)
 //   ไม่มีโค้ดแผล (วัสดุร่วมทุกตัว รวม min): ตัวที่มีแผลบน hi/mid/lo ใช้ soldier_skin_wound.gdshader บนวัสดุของตัวเอง
 //   Compatibility renderer ไม่มี subsurface: ใช้แสงห่อ (wrap) + สีอุ่นตรงขอบเงา เฉพาะส่วนที่เป็นเนื้อ
 //   แสงรอบตัวแบบครึ่งฟ้า: ด้านที่หันขึ้นสว่างอุ่น ด้านที่หันลงมืดลง (คูณ ambient_colour ฉากที่ตั้งไฟเองยังคุมได้) ตัวจึงมีมิติ
@@ -29,6 +29,7 @@ uniform vec3 telegraph_colour = vec3(0.9, 0.08, 0.06);
 varying vec3 v_col;
 varying vec3 v_light;
 varying float v_flesh;
+varying vec3 v_mat;
 
 // แสงกระจาย + ครึ่งฟ้า: n, l, up อยู่ในกรอบเดียวกัน (world ใน vertex, view ใน fragment)
 vec3 skin_light(vec3 n, vec3 l, vec3 up, float flesh) {
@@ -40,23 +41,39 @@ vec3 skin_light(vec3 n, vec3 l, vec3 up, float flesh) {
 	return amb + sun_colour * diff + warm * edge * 0.35;
 }
 
-// ต่อพิกเซลเท่านั้น: แสงขอบจากฟ้า (ด้านที่หันขึ้น คูณสีผิว) + เงาผิวจาง ๆ ของเนื้อ ; v = ทิศไปหากล้อง
-vec3 skin_gloss(vec3 col, vec3 n, vec3 l, vec3 up, vec3 v, float flesh) {
+// ชนิดวัสดุ (CUSTOM0.x: ชุดของ tools/soldier outfits.py) -> (คูณแสงขอบ, เงาเพิ่ม, ความคมของเงา) ; 0 = ผิว (ค่าเดิมทุกตัว)
+vec3 mat_gloss(float c) {
+	int k = int(c + 0.5);
+	if (k == 1) { return vec3(0.55, 0.012, 6.0); }   // ผ้า: ด้าน แสงขอบนุ่ม
+	if (k == 2) { return vec3(0.85, 0.10, 18.0); }   // หนัง (รองเท้า)
+	if (k == 3) { return vec3(0.60, 0.02, 8.0); }    // สายรัด/กระเป๋า
+	if (k == 4) { return vec3(0.40, 0.01, 6.0); }    // พื้นยาง
+	if (k == 5) { return vec3(1.00, 0.30, 40.0); }   // แผ่นเกราะ (เซรามิก/คาร์บอน)
+	if (k == 6) { return vec3(0.80, 0.12, 16.0); }   // ชุดชั้นในคาร์บอน
+	if (k == 7) { return vec3(0.70, 0.04, 10.0); }   // ผม
+	if (k == 8) { return vec3(0.85, 0.25, 40.0); }   // โลหะ
+	return vec3(1.0, 0.0, 24.0);
+}
+
+// ต่อพิกเซลเท่านั้น: แสงขอบจากฟ้า (ด้านที่หันขึ้น คูณสีผิว) + เงาผิวจาง ๆ ของเนื้อ ; v = ทิศไปหากล้อง ; m = mat_gloss
+vec3 skin_gloss(vec3 col, vec3 n, vec3 l, vec3 up, vec3 v, float flesh, vec3 m) {
 	float f = 1.0 - max(dot(n, v), 0.0);
-	float r = f * f * f * rim_light * clamp(dot(n, up) * 0.6 + 0.6, 0.0, 1.0);
-	float s = pow(max(dot(n, normalize(l + v)), 0.0), 24.0) * sheen * flesh * smoothstep(0.0, 0.25, dot(n, l));
+	float r = f * f * f * rim_light * m.x * clamp(dot(n, up) * 0.6 + 0.6, 0.0, 1.0);
+	float s = pow(max(dot(n, normalize(l + v)), 0.0), m.z) * (sheen * flesh + m.y) * smoothstep(0.0, 0.25, dot(n, l));
 	return col * ambient_colour * sky_tint * r + sun_colour * s;
 }
 
 void vertex() {
 	v_col = COLOR.rgb;
 	v_flesh = CUSTOM0.z;
+	v_mat = vec3(1.0, 0.0, 24.0);
 	v_face = CUSTOM1;
 	vec3 n = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 	if (per_vertex) {
 		v_light = skin_light(n, normalize(sun_dir), vec3(0.0, 1.0, 0.0), v_flesh);
 	} else {
 		v_light = (VIEW_MATRIX * vec4(normalize(sun_dir), 0.0)).xyz;
+		v_mat = mat_gloss(CUSTOM0.x);
 	}
 }
 
@@ -68,7 +85,7 @@ void fragment() {
 		vec3 n = normalize(NORMAL);
 		vec3 l = normalize(v_light);
 		vec3 up = VIEW_MATRIX[1].xyz;
-		lit = v_col * skin_light(n, l, up, v_flesh) + skin_gloss(v_col, n, l, up, VIEW, v_flesh);
+		lit = v_col * skin_light(n, l, up, v_flesh) + skin_gloss(v_col, n, l, up, VIEW, v_flesh, v_mat);
 	}
 	// หน้า (face.gdshaderinc): เปลือกตา/ช่องปาก/ปากทาสี ทับด้วยแสงเดียวกับผิว (ไม่มีเงาผิว)
 	if (face_on) {

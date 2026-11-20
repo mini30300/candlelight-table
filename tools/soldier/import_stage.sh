@@ -16,7 +16,7 @@
 #  1. Godot re-saves the stage's files in a scratch project, so every path inside them points at the game's copy:
 #     godot/assets/figures/<target>/{rig.tscn, skin.res, body_<level>.res, body.gdshader, body_material.tres,
 #     body_face.gdshader, body_wound.gdshader, wound.gdshaderinc, face.gdshaderinc, inner_bone.res, inner_flesh.res,
-#     inner.gdshader};
+#     inner.gdshader, outfit_<name>_<level>.res (OUTFITS="uniform heavy" picks; default every outfit the stage built)};
 #     rig.json's driver constants travel inside rig.tscn (metadata "soldier_rig"); existing UIDs are kept.
 #  2. The stage's generator source is checked for the banned names of AGENTS.md rule 1.
 #  3. Assets go to godot/assets/figures/<target>/ (files the stage no longer makes are removed) and, for the base body or
@@ -91,6 +91,20 @@ for f in rig.tscn skin.res soldier_skin.tres body_hi.res body_mid.res body_lo.re
     continue ;;
   esac
   if [ -f "$OUTG/$f" ]; then cp "$OUTG/$f" "$WORK/out/godot/"; fi
+done
+# outfits (ใหม่ 0.14 item 4): every outfit the stage built (out/godot/outfit_<name>_<level>.res, all four levels), or only
+# the ones in OUTFITS="uniform heavy"; they go next to the body's files and IMPORTED.txt records them
+for f in "$OUTG"/outfit_*_hi.res; do
+  [ -f "$f" ] || continue
+  o="$(basename "$f" _hi.res)"; o="${o#outfit_}"
+  if [ -n "${OUTFITS:-}" ] && [[ " $OUTFITS " != *" $o "* ]]; then continue; fi
+  for lv in hi mid lo min; do
+    [ -f "$OUTG/outfit_${o}_$lv.res" ] || { echo "missing $OUTG/outfit_${o}_$lv.res (an outfit comes with all four levels)" >&2; exit 1; }
+    cp "$OUTG/outfit_${o}_$lv.res" "$WORK/out/godot/"
+  done
+done
+for o in ${OUTFITS:-}; do
+  [ -f "$WORK/out/godot/outfit_${o}_hi.res" ] || { echo "the stage has no outfit '$o' (build.py --outfit $o)" >&2; exit 1; }
 done
 if [ -f "$STAGE/out/data/rig.json" ]; then cp "$STAGE/out/data/rig.json" "$WORK/out/data/"; fi
 # the body's closed-eyelid colour (face.json of build.py): kept as meta on body_material.tres
@@ -231,6 +245,27 @@ if rep.get("inner"):
         if g:
             # ใหม่ 0.14: หน้า (กระดูกหน้า CUSTOM1 รอยต่อปาก เปลือกตาปิด ท่าหน้า)
             lines.append("face (G13, inner_posed.py): %s" % ("PASS" if g.get("pass") else "FAIL: " + "; ".join(g.get("fails", []))))
+if rep.get("outfits"):
+    # ใหม่ 0.14 ข้อ 4: ชุด (เมชเดียวต่อระดับแทนผิว) + เกตของ build.py --outfit (outfit_<ชื่อ>.json)
+    lines += ["", "outfits (one mesh per level in place of the skin, one draw; build.py --outfit, outfits.py)"]
+    for o in sorted(rep["outfits"]):
+        oj = os.path.join(os.path.dirname(sys.argv[4]), "outfit_%s.json" % o)
+        j = json.load(open(oj)) if os.path.exists(oj) else {}
+        lines.append("outfit %s (%s / %s)" % (o, j.get("label", "?"), j.get("label_en", "?")))
+        for lv in ["hi", "mid", "lo", "min"]:
+            r = rep["outfits"][o][lv]
+            lines.append("%-6s %8d %6d %6d %13d %8d" % (lv, r["surfaces"], r["verts"], r["tris"], r["shapes"], r["bytes"]))
+        if j:
+            g = j["levels"]
+            lines.append("gates (closed pieces, tris <= budget - 3 %%, symmetry, soles at y = 0 +- 1.5 mm, CUSTOM0): %s; pieces %s"
+                         % ("PASS" if all(v["pass"] for lv in g for v in g[lv]["gates"].values()) else "FAIL",
+                            " / ".join(str(len(g[lv]["gates"]["closed"]["pieces"])) for lv in ["hi", "mid", "lo", "min"])))
+            p = j.get("posed", {}).get("levels", {})
+            lines.append("posed (%s): skin above cloth at most %s mm, gear in the cloth at most %s mm: %s" % (
+                ", ".join("%s %d frames" % (lv, p[lv]["frames"]) for lv in p),
+                " / ".join("%.2f" % max(p[lv]["skin_above_cloth_max_mm"], 0.0) for lv in p),
+                " / ".join("%.1f" % max(list(p[lv]["gear_in_cloth_mm"].values()) + [0.0]) for lv in p),
+                "PASS" if j.get("posed", {}).get("pass") else "FAIL"))
 lines += ["", "bones (%d): %s" % (len(rep["bones"]), " ".join(rep["bones"])), "motion_scale: %.4f" % rep["motion_scale"]]
 lines.append("driver constants: %s" % ("from the stage's rig.json" if "drivers" in rep else "none (the figure's stage-1 defaults)"))
 # the clip library is never imported: one clips.res in the base folder (bake_clips.sh) for all five bodies

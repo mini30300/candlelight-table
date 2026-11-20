@@ -39,6 +39,11 @@ static func cols(a: PackedFloat32Array) -> PackedColorArray:
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
+	# ONLY=outfits: เฉพาะเมชชุด (ไฟล์ตัวเปล่าของขั้นปั้นคงเดิม) ใช้วัสดุ soldier_skin.tres ที่มีอยู่
+	if OS.get_environment("ONLY") == "outfits":
+		_outfits(load(OUT + "soldier_skin.tres") as ShaderMaterial, {})
+		quit()
+		return
 	var rig: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DATA + "rig.json"))
 	# ---- โครงกระดูก ----
 	var root := Node3D.new()
@@ -130,6 +135,7 @@ func _initialize() -> void:
 		report[lv] = {"verts": int(meta["verts"]), "tris": int(meta["tris"]), "shapes": shapes.size(),
 			"bytes": FileAccess.get_file_as_bytes(outp).size()}
 		print("body_%s: %d verts %d tris %d shapes %d bytes" % [lv, meta["verts"], meta["tris"], shapes.size(), report[lv]["bytes"]])
+	_outfits(mat, report)
 	# ---- ผิวนิ่งไว้เทียบระดับไขมัน (body_static_<tag>.bin จาก build.py --static) ----
 	var dst := DirAccess.open(DATA)
 	for fn in dst.get_files():
@@ -202,3 +208,35 @@ func _initialize() -> void:
 	var fo := FileAccess.open(DATA + "godot_assets.json", FileAccess.WRITE)
 	fo.store_string(JSON.stringify(report, " "))
 	quit()
+
+
+## ชุด (ใหม่ 0.14 ข้อ 4): outfit_<ชื่อ>_<ระดับ>.bin (build.py --outfit) -> outfit_<ชื่อ>_<ระดับ>.res ; 1 พื้นผิว ไม่มี blend shape
+## CUSTOM0 = (ชนิดวัสดุ, เขตจานสี, ความเป็นเนื้อ, ส่วนร่างกาย) ; CUSTOM1 = พิกัดหน้า (hi/mid/lo) เหมือนผิว
+func _outfits(mat: ShaderMaterial, report: Dictionary) -> void:
+	var da := DirAccess.open(DATA)
+	for fn in da.get_files():
+		if not (fn.begins_with("outfit_") and fn.ends_with(".bin")):
+			continue
+		var d := read_bin(DATA + fn)
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = v3(d["pos"])
+		arr[Mesh.ARRAY_NORMAL] = v3(d["nrm"])
+		arr[Mesh.ARRAY_COLOR] = cols(d["col"])
+		arr[Mesh.ARRAY_CUSTOM0] = d["cus"]
+		var flags := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+		if d.has("face"):
+			arr[Mesh.ARRAY_CUSTOM1] = d["face"]
+			flags |= Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT
+		arr[Mesh.ARRAY_BONES] = d["bones"]
+		arr[Mesh.ARRAY_WEIGHTS] = d["weights"]
+		arr[Mesh.ARRAY_INDEX] = d["idx"]
+		var am := ArrayMesh.new()
+		am.resource_name = "soldier_" + fn.replace(".bin", "")
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, flags)
+		am.surface_set_material(0, mat)
+		var outp := OUT + fn.replace(".bin", ".res")
+		ResourceSaver.save(am, outp, ResourceSaver.FLAG_COMPRESS)
+		var meta: Dictionary = d["meta"]
+		report[fn.replace(".bin", "")] = {"verts": int(meta["verts"]), "tris": int(meta["tris"]), "bytes": FileAccess.get_file_as_bytes(outp).size()}
+		print("%s: %d verts %d tris %d bytes" % [fn.replace(".bin", ""), meta["verts"], meta["tris"], FileAccess.get_file_as_bytes(outp).size()])
