@@ -316,3 +316,22 @@ OUTFITS="uniform heavy" bash <stage>/src/run_all.sh                # or the whol
   strip"`), then `sheet.py --outfit <name> --bodies base=<dir>,f1=<dir> --out <dir>`.
 - Sizes: about 1.25 MB per outfit and body (hi 0.57, mid 0.38, lo 0.22, min 0.08 MB).
 
+
+### Status (ใหม่ 0.15, 2026-11-20) and next steps
+
+- The field uniform is imported for `soldier` (base), `soldier_m2`, `soldier_m3` and `soldier_f2`; every gate passes.
+- `soldier_f1` has none yet; the runtime falls back to training shorts. Its `min` level cannot pass, for two reasons:
+  1. f1's own `min` body LOD is lopsided: one vertex at about (0.0008, 1.580, -0.068) has no mirror partner (1.6 mm).
+     Every other level and body is symmetric to under 0.3 mm. The outfit symmetry gate (0.5 mm) also measures the
+     exposed skin, so make f1's `min` body symmetric first; do not loosen the gate.
+  2. After `cut_bare` the collar hem at the back of the neck is lopsided: one hem vertex is 0.49 mm off its mirror and
+     one sits at x = +0.05 mm with no partner. The cloth is decimated on the left half and mirrored, so those hem
+     vertices are lost (`hem vertices lost in decimation`). A pre-step that makes the hem symmetric before the cloth is
+     built fixed the matching in a test (not committed): an unpaired hem vertex within 0.1 mm of the midline goes to
+     x = 0, and an unpaired right vertex goes to the mirror of the nearest unpaired left one (within 1 mm).
+- Do not fill midline gaps by closing boundary chains "vertex -> seam vertex -> its mirror": that also closes real hem
+  points on the midline (the V-neck tip, the back of the neck) and broke the `closed` gate on every level of base and f2.
+- Next: f1's uniform (above); heavy armour (classes 5/6 and regions 8-11 are reserved); outfit colours from the
+  dressing-room palettes; scorch and blood on cloth around wounds; an export to .glb/.fbx (skeleton, weights, vertex
+  colours, clips) so the figures open in Blender and import into Roblox Studio (use `mid`: Roblox takes at most about
+  20,000 triangles per mesh).
