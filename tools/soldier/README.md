@@ -332,12 +332,15 @@ OUTFITS="uniform heavy" bash <stage>/src/run_all.sh                # or the whol
      seam offsets, inside the 0.5 mm gate.
   2. After `cut_bare` the collar hem at the back of the neck was lopsided (one hem vertex 0.49 mm off its mirror, one at
      x = +0.05 mm with no partner), and the cloth (decimated on the left half, then mirrored) lost those hem vertices.
-     Fix: `garments.sym_hem()` before the cloth is built: an unpaired hem vertex within 0.1 mm of the midline goes to
-     x = 0, an unpaired right vertex goes to the mirror of the nearest unpaired left one (within 1 mm). It returns the
-     same array when every hem vertex has a mirror within 1e-9 m, which holds for base, m2, m3 and f2 at every level
-     (checked; the hem comes from the collar and cuff fields only, not from a round's ease/thin fixes, so it holds in
-     every round), so their outfits are unchanged. No gate was loosened. f1's uniform needed all 6 posed rounds (6
-     extra ease spots, 9 thin zones; the others passed in 4-5): posed 0.50 / 0.50 mm, gear 1.4 / 1.3 mm.
+     This came from item 1: with the `keep_mid` body, f1's hem is symmetric at every level (the f1 build logged no
+     `hem:` line). `garments.sym_hem()` stays before the cloth as a guard (an unpaired hem vertex within 0.1 mm of the
+     midline goes to x = 0; an unpaired right vertex goes to the mirror of the nearest unpaired left one, within 1 mm).
+     It returns the same array when every hem vertex has a mirror within 1e-9 m, which holds for all five bodies at
+     every level (checked; the hem comes from the collar and cuff fields only, not from a round's ease/thin fixes, so it
+     holds in every round), so no output depends on it. No gate was loosened. f1's uniform needed all 6 posed rounds (6
+     extra ease spots, 9 thin zones; the others passed in 4-5): posed 0.50 / 0.50 mm, gear 1.4 / 1.3 mm. It passed on
+     the last allowed round (rounds 3-4 failed on a pouch 12.2 / 11.8 mm into the cloth, limit 10 mm), so there is
+     little headroom: rebuild and check f1's uniform after any change to the f1 body.
 - Do not fill midline gaps by closing boundary chains "vertex -> seam vertex -> its mirror": that also closes real hem
   points on the midline (the V-neck tip, the back of the neck) and broke the `closed` gate on every level of base and f2.
 - Next: heavy armour (classes 5/6 and regions 8-11 are reserved); outfit colours from the dressing-room palettes;
