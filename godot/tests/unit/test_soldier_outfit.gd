@@ -7,14 +7,15 @@ extends "res://tests/testing.gd"
 ## (on the cloth), so a wound on a uniformed soldier cuts the cloth and shows its inner layers; min still does nothing.
 ## Figures (app/figures.gd) keeps the dressing room's choice (outfit / select_outfit, and in the slots) and gives it to the
 ## player's figure only (make_builtin); a soldier made otherwise keeps training shorts. The uniform checks run on every
-## body that has the files (m2 and m3 today), so they stay valid as more bodies get them; "heavy" is a name no body has.
+## body that has the files (all five since 0.16), so they stay valid as more bodies get them; "heavy" is a name no body has,
+## and a body without the uniform files is simulated through has_outfit's cache (since 0.16 no body lacks them).
 
 const SCRIPT := "res://scenes/arena/soldier_figure.gd"
 const STORE := "user://test_soldier_outfit.cfg"
 const LEVELS: PackedStringArray = ["hi", "mid", "lo", "min"]
 const BODIES: PackedStringArray = ["", "m2", "m3", "f1", "f2"]
-## bodies the 0.15 release ships with the field uniform (the base body and f2 follow when their builds are imported)
-const UNIFORMED: PackedStringArray = ["m2", "m3"]
+## bodies that ship with the field uniform: all five since ใหม่ 0.16 (f1 had none in 0.15)
+const UNIFORMED: PackedStringArray = ["", "m2", "m3", "f1", "f2"]
 
 var S: GDScript
 
@@ -59,7 +60,7 @@ func test_outfit_option() -> void:
 	var have := _with_uniform()
 	for b in UNIFORMED:
 		assert_true(have.has(b), "%s ships with the field uniform (all four levels)" % b, str(have))
-	assert_false(have.has("f1"), "f1 has no uniform in this release (it keeps training shorts)")
+	assert_eq(have.size(), BODIES.size(), "every soldier body wears the field uniform (f1 since ใหม่ 0.16): %s" % str(have))
 	for b in have:
 		var dir: String = S.call("folder", b)
 		for lv in LEVELS:
@@ -103,6 +104,19 @@ func test_fallback() -> void:
 			assert_eq(str(g.call("outfit_shown")), "", tag + ": no uniform files: training shorts")
 			assert_eq(_mesh(g), S.call("body_mesh", "hi", dir), tag + ": no uniform files: the body mesh")
 			g.free()
+	# 0.16: every body has the uniform files, so a body without them is simulated through has_outfit's cache (as
+	# test_no_inner_layers does for the wound layers); a folder without the four files has no uniform
+	assert_false(bool(S.call("has_outfit", "uniform", "res://assets/figures/no_such_body/")), "a folder without the files has no uniform")
+	var ok: Dictionary = S.get("_outfit_ok")
+	var saved := ok.duplicate()
+	var fdir: String = S.call("folder", "f1")
+	ok[fdir + "uniform"] = false
+	var h := _fig("hi", "f1", {"outfit": "uniform"})
+	assert_eq(str(h.call("outfit_shown")), "", "a body without the uniform files (simulated on f1): training shorts")
+	assert_eq(_mesh(h), S.call("body_mesh", "hi", fdir), "a body without the uniform files (simulated on f1): the body mesh")
+	h.free()
+	ok.clear()
+	ok.merge(saved)
 	assert_eq(S.call("outfit_mesh", "heavy", "hi", S.call("folder", "m2")), null, "no file: no outfit mesh")
 	assert_eq(S.call("outfit_mesh", "", "hi", S.call("folder", "m2")), null, "\"\" is the body, not an outfit mesh")
 

@@ -524,6 +524,28 @@ def mirror_pairs(V, tol=1e-9):
 
 # ---------------- ลดสามเหลี่ยมเมชเปิดแบบสมมาตร (จุดล็อกคงที่ทุกบิต) ----------------
 
+def sym_hem(V, hem):
+    """ผ้าสร้างจากซีกซ้ายแล้วสะท้อน: ขอบผ้าสองซีกต้องเป็นเงากันพอดี ; ร่างระดับต่ำบางร่างเหลื่อม <1 มม. ->
+    จุดขอบไม่มีคู่ชิดแนวกลาง (<0.1 มม.) วางบน x = 0 ; จุดขอบซีกขวาไม่มีคู่ -> เงาของจุดซีกซ้ายไม่มีคู่ที่ใกล้ที่สุด"""
+    P = V[hem]
+    M = P * np.array([-1.0, 1.0, 1.0])
+    d, _ = cKDTree(P).query(M)
+    lone = d > 1e-9
+    if not lone.any():
+        return V
+    V = V.copy()
+    mid = lone & (np.abs(P[:, 0]) < 1e-4)
+    V[hem[mid], 0] = 0.0
+    L = np.flatnonzero(lone & ~mid & (P[:, 0] > 0))
+    R = np.flatnonzero(lone & ~mid & (P[:, 0] < 0))
+    if len(L) and len(R):
+        dr, jr = cKDTree(P[R]).query(M[L])
+        ok = (dr < 1e-3) & (np.bincount(jr, minlength=len(R))[jr] == 1)
+        V[hem[R[jr[ok]]]] = M[L[ok]]
+    OF.log("hem: %d unpaired vertices -> %d on the midline, %d mirrored" % (int(lone.sum()), int(mid.sum()), int(ok.sum()) if len(L) and len(R) else 0))
+    return V
+
+
 def decimate_open(V, F, target, lock, factor=50.0):
     import bldec
     c = V[F].mean(1)
@@ -936,6 +958,7 @@ def build_level(ctx, lv, name):
     eu, Fe = sub(V, F, ~cmask)
     cu, Fc0 = sub(V, F, cmask)
     hem = np.intersect1d(eu, cu)
+    V = sym_hem(V, hem)
     Vc0 = V[cu]
     lockc = np.isin(cu, hem)
     # ฝ่าเท้าเรียบ + รักแร้: ผ้าเป็นสำเนาของผิวเดิม (สามเหลี่ยม น้ำหนักเดียวกัน) ห่างตามนอร์มอล -> สองชั้นขยับเหมือนกันทุกท่า

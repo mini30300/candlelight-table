@@ -72,7 +72,8 @@ func test_version_label_never_shows_thai() -> void:
 	# melee, hits, falls), visual only apart from the fixed shot origin (0.13 -> 0.14)
 	# 0.15: the soldier's field uniform (SoldierFigure opts "outfit", the dressing room's Outfit row), visual only
 	# (0.14 -> 0.15)
-	assert_eq(v, "0.15", "this release is ใหม่ 0.15")
+	# 0.16: the field uniform for the f1 body too, so all five soldier bodies wear it (0.15 -> 0.16)
+	assert_eq(v, "0.16", "this release is ใหม่ 0.16")
 	assert_true(en.contains(v) and th.contains(v), "both labels carry the version number %s (%s / %s)" % [v, th, en])
 
 

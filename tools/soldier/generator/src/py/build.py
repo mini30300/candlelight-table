@@ -469,7 +469,7 @@ def main():
                 for _ in range(4):
                     V, F = lod_mesh(Vs, Fs, int(tt), lv, seam, Gb)
                     n0 = len(F)
-                    V, F = VR.cut_garments(V, F, Gb, VR.GARM_D[lv], Vs, Ns, VR.HAIR_D.get(lv, 0.0))
+                    V, F = VR.cut_garments(V, F, Gb, VR.GARM_D[lv], Vs, Ns, VR.HAIR_D.get(lv, 0.0), keep_mid=lv == "min")
                     n1 = len(F)
                     if lv in FC.SEAM_LV:
                         V, F, rows = FC.mouth_seam(V, F, Gb, FCF)       # ใหม่ 0.14: รอยต่อปาก

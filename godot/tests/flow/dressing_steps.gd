@@ -10,8 +10,9 @@ extends SceneTree
 ## "ใช้ตัวนี้" selects, closes and the room's avatar is the new figure with the scheme; a reload keeps the selection and the
 ## slot; ‹ กลับ closes without a change; on min nothing under the dressing screen processes after 10 frames.
 ## Outfit row (ใหม่ 0.15, real Figures only): the infantry shows ชุด with กางเกงฝึก / ชุดสนาม, ชุดสนาม dresses the preview,
-## a body without the uniform (f1) wears training shorts and says so, English leaves no Thai, other figures hide the row,
-## slot 3 keeps the outfit, and ใช้ตัวนี้ saves it (it persists after a reload).
+## a body without the uniform wears training shorts and says so (f1 until 0.15; since 0.16 f1 wears the uniform and the
+## missing case is simulated through SoldierFigure's has_outfit cache), English leaves no Thai, other figures hide the
+## row, slot 3 keeps the outfit, and ใช้ตัวนี้ saves it (it persists after a reload).
 
 const SCENE := "res://scenes/main.tscn"
 const SETTINGS_FILE := "user://test_dressing.cfg"
@@ -287,14 +288,27 @@ func _check_outfit(ds: Node) -> void:
 	var sl: Array = _api.call("slots")
 	_check(str((sl[2] as Dictionary).get("outfit", "")) == "uniform" and ds.slot_buttons()[2].text.ends_with(" · ชุดสนาม"),
 		"slot 3 keeps the outfit and names it", "%s / %s" % [sl[2], ds.slot_buttons()[2].text])
-	var f1 := ids.has("soldier_f1") and not bool(load("res://scenes/arena/soldier_figure.gd").call("has_outfit", "uniform",
-		"res://assets/figures/soldier_f1/"))
+	var sf: GDScript = load("res://scenes/arena/soldier_figure.gd")
+	var f1 := ids.has("soldier_f1") and not bool(sf.call("has_outfit", "uniform", "res://assets/figures/soldier_f1/"))
+	var ok: Dictionary = sf.get("_outfit_ok")
+	var saved := ok.duplicate()
+	if ids.has("soldier_f1") and not f1:
+		# ใหม่ 0.16: f1 มีชุดสนามแล้ว -> ใส่ชุด ไม่มีหมายเหตุ
+		ds.pick_figure("soldier_f1")
+		await _frames(2)
+		_check(str(ds.preview_figure().call("outfit_shown")) == "uniform" and not (ds.outfit_note() as Label).is_visible_in_tree(),
+			"f1 has the uniform since ใหม่ 0.16: it wears it and no note shows", str(ds.preview_figure().call("outfit_shown")))
+		# ทุกร่างมีชุดแล้ว: จำลองร่างที่ไม่มีไฟล์ชุดผ่านแคชของ has_outfit -> ยังเทสหมายเหตุได้
+		ds.pick_figure("soldier_m2")
+		await _frames(2)
+		ok["res://assets/figures/soldier_f1/uniform"] = false
+		f1 = true
 	if f1:
 		ds.pick_figure("soldier_f1")
 		await _frames(2)
 		var note := ds.outfit_note() as Label
 		_check(str(ds.preview_figure().call("outfit_shown")) == "" and note.is_visible_in_tree() and note.text == "ร่างนี้ยังไม่มีชุดสนาม",
-			"f1 has no uniform yet: it wears training shorts and the row says so", note.text)
+			"a body without the uniform (f1 in 0.15, simulated since 0.16) wears training shorts and the row says so", note.text)
 	_app().call("set_lang", "en")
 	ds.refresh()
 	await _frames(2)
@@ -302,6 +316,8 @@ func _check_outfit(ds: Node) -> void:
 	_check(thai.is_empty() and bs[0].text == "Training shorts" and bs[1].text == "Field uniform"
 		and (not f1 or (ds.outfit_note() as Label).text == "This body has no field uniform yet"),
 		"English mode: the outfit row has no Thai", ", ".join(thai))
+	ok.clear()
+	ok.merge(saved)
 	_app().call("set_lang", "th")
 	ds.refresh()
 	ds.load_slot(2)

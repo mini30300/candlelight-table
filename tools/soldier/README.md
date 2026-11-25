@@ -317,21 +317,30 @@ OUTFITS="uniform heavy" bash <stage>/src/run_all.sh                # or the whol
 - Sizes: about 1.25 MB per outfit and body (hi 0.57, mid 0.38, lo 0.22, min 0.08 MB).
 
 
-### Status (ใหม่ 0.15, 2026-11-20) and next steps
+### Status (ใหม่ 0.16, 2026-11-26) and next steps
 
-- The field uniform is imported for `soldier` (base), `soldier_m2`, `soldier_m3` and `soldier_f2`; every gate passes.
-- `soldier_f1` has none yet; the runtime falls back to training shorts. Its `min` level cannot pass, for two reasons:
-  1. f1's own `min` body LOD is lopsided: one vertex at about (0.0008, 1.580, -0.068) has no mirror partner (1.6 mm).
-     Every other level and body is symmetric to under 0.3 mm. The outfit symmetry gate (0.5 mm) also measures the
-     exposed skin, so make f1's `min` body symmetric first; do not loosen the gate.
-  2. After `cut_bare` the collar hem at the back of the neck is lopsided: one hem vertex is 0.49 mm off its mirror and
-     one sits at x = +0.05 mm with no partner. The cloth is decimated on the left half and mirrored, so those hem
-     vertices are lost (`hem vertices lost in decimation`). A pre-step that makes the hem symmetric before the cloth is
-     built fixed the matching in a test (not committed): an unpaired hem vertex within 0.1 mm of the midline goes to
-     x = 0, and an unpaired right vertex goes to the mirror of the nearest unpaired left one (within 1 mm).
+- The field uniform is imported for all five bodies: `soldier` (base), `soldier_m2`, `soldier_m3`, `soldier_f1` and
+  `soldier_f2`; every gate passes. f1 had none in 0.15 (it fell back to training shorts); two problems at `min`:
+  1. f1's own `min` body LOD was lopsided: a midline vertex at about (0.0008, 1.580, -0.068) had no mirror partner
+     (1.6 mm). Cause: `variants.cut_garments` projects the vertices that the garment/hairline cuts moved back onto the
+     sculpt (`to_surface`, along the normal of the nearest sculpt vertex); near the midline that normal leans sideways,
+     so a seam vertex (x = 0, its own mirror) left the midline. Fix: `cut_garments(..., keep_mid=True)` (used for `min`
+     only) puts the seam vertices that were on x = 0 before the projection back on x = 0. f1 `min` is now symmetric
+     (mirror max 0.000 mm); f1's hi/mid/lo body files did not change. It changes nothing on the other bodies: m2, m3
+     and f2 rebuilt with it give the same `body_*.bin` byte for byte at every level, and the base body never calls
+     `cut_garments`. It is on for `min` only, so no hi/mid/lo file changes; those levels keep their small (< 0.3 mm)
+     seam offsets, inside the 0.5 mm gate.
+  2. After `cut_bare` the collar hem at the back of the neck was lopsided (one hem vertex 0.49 mm off its mirror, one at
+     x = +0.05 mm with no partner), and the cloth (decimated on the left half, then mirrored) lost those hem vertices.
+     Fix: `garments.sym_hem()` before the cloth is built: an unpaired hem vertex within 0.1 mm of the midline goes to
+     x = 0, an unpaired right vertex goes to the mirror of the nearest unpaired left one (within 1 mm). It returns the
+     same array when every hem vertex has a mirror within 1e-9 m, which holds for base, m2, m3 and f2 at every level
+     (checked; the hem comes from the collar and cuff fields only, not from a round's ease/thin fixes, so it holds in
+     every round), so their outfits are unchanged. No gate was loosened. f1's uniform needed all 6 posed rounds (6
+     extra ease spots, 9 thin zones; the others passed in 4-5): posed 0.50 / 0.50 mm, gear 1.4 / 1.3 mm.
 - Do not fill midline gaps by closing boundary chains "vertex -> seam vertex -> its mirror": that also closes real hem
   points on the midline (the V-neck tip, the back of the neck) and broke the `closed` gate on every level of base and f2.
-- Next: f1's uniform (above); heavy armour (classes 5/6 and regions 8-11 are reserved); outfit colours from the
-  dressing-room palettes; scorch and blood on cloth around wounds; an export to .glb/.fbx (skeleton, weights, vertex
-  colours, clips) so the figures open in Blender and import into Roblox Studio (use `mid`: Roblox takes at most about
-  20,000 triangles per mesh).
+- Next: heavy armour (classes 5/6 and regions 8-11 are reserved); outfit colours from the dressing-room palettes;
+  scorch and blood on cloth around wounds; an export to .glb/.fbx (skeleton, weights, vertex colours, clips) so the
+  figures open in Blender and import into Roblox Studio (use `mid`: Roblox takes at most about 20,000 triangles per
+  mesh).

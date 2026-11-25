@@ -1116,9 +1116,9 @@ def paint_hair(V, G, rgb, flesh, aof, prims, d):
     return rgb, flesh * (1 - 0.80 * m)
 
 
-def cut_garments(V, F, G, d=0.003, Vs=None, Ns=None, hair_d=0.0):
+def cut_garments(V, F, G, d=0.003, Vs=None, Ns=None, hair_d=0.0, keep_mid=False):
     """ตัดเมชระดับตามขอบผ้า (ขอบเอว/ขากางเกง ; คอเสื้อ/วงแขน) + แถวจุดยอดข้างเส้นที่ ±d -> ขอบสีคมเรียบตามขอบจริง
-    hair_d > 0: ตัดตามไรผมด้วย (lo/min)"""
+    hair_d > 0: ตัดตามไรผมด้วย (lo/min) ; keep_mid: จุดบนแนวกลางตัวคงอยู่ที่ x = 0 หลังฉายลงผิว (ใหม่ 0.16, min)"""
     n0 = len(V)
     fields = [(shorts_sd, d)] + ([(lambda X: top_sd(X, G, cut=True), d)] if CUR.get("top") else [])
     if hair_d > 0:
@@ -1128,7 +1128,11 @@ def cut_garments(V, F, G, d=0.003, Vs=None, Ns=None, hair_d=0.0):
         V, F, on = cut_along(V, F, sf(V))
         V = band_rows(V, F, sf, on, dd)
     if Vs is not None:
+        mid = np.abs(V[:, 0]) < 1e-9
         moved = np.nonzero(np.r_[np.linalg.norm(V[:n0] - V0, axis=1) > 1e-9, np.ones(len(V) - n0, bool)])[0]
         V = to_surface(V, moved, Vs, Ns)
+        if keep_mid:
+            # นอร์มอลผิวปั้นเอียงข้าง -> จุดกลางตัวหลุดจาก x = 0 ไม่มีคู่สะท้อน (f1 min 0.8 มม.) : วางกลับบนแนวกลาง
+            V[mid & (np.abs(V[:, 0]) >= 1e-9), 0] = 0.0
     return V, F
 

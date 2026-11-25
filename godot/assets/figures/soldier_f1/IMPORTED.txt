@@ -6,7 +6,7 @@ level  surfaces  verts   tris  blend_shapes    bytes
 hi            1  11563  23122             0   572366
 mid           1   7678  15352             0   383271
 lo            1   4416   8828             0   222161
-min           1   2479   4954             0    88050
+min           1   2479   4954             0    88039
 
 wound layers (hi/mid, hidden until the first wound; depth = least depth under the hi / mid skin)
 bone          1   2853   5174             -    76838  depth 3.04 mm / 2.50 mm
@@ -14,6 +14,15 @@ flesh         1   3502   7000             -   119067  depth 1.40 mm / 1.22 mm
 posed (374 frames of the game's clips, inner_posed.py; flesh <= 0.5 mm (LBS-inverted points reported apart), chest front and hips <= 0.5 mm; bone chest front <= 1.32 mm, hips <= 6.83 mm (base + 0.5)): flesh above the hi skin at most 0.00 mm, chest front 0.00 mm, hips 0.00 mm; where LBS turns the depth against the skin: none
 posed bone above the hi skin (drawn only in the ring just outside a wound): chest front 0.82 mm, hips 0.95 mm, worst 19.29 mm (die_spin frame 4)
 face (G13, inner_posed.py): PASS
+
+outfits (one mesh per level in place of the skin, one draw; build.py --outfit, outfits.py)
+outfit uniform (ชุดสนาม / Field uniform)
+hi            1  11740  23192             0   577745
+mid           1   7516  14776             0   373441
+lo            1   4444   8696             0   222981
+min           1   2492   4836             0    86979
+gates (closed pieces, tris <= budget - 3 %, symmetry, soles at y = 0 +- 1.5 mm, CUSTOM0): PASS; pieces 11 / 11 / 11 / 7
+posed (hi 374 frames, mid 193 frames): skin above cloth at most 0.50 / 0.50 mm, gear in the cloth at most 1.4 / 1.3 mm: PASS
 
 bones (38): pelvis spine chest neck head shoulderL elbowL wristL handL shoulderR elbowR wristR handR hipL kneeL ankleL toeL heelL hipR kneeR ankleR toeR heelR clavicleL uparm_twistL elbow_halfL hip_halfL knee_halfL clavicleR uparm_twistR elbow_halfR hip_halfR knee_halfR head_jaw head_lipL head_lipR head_browL head_browR
 motion_scale: 1.0000
@@ -27,12 +36,16 @@ sha256:
   c129f7c32e9818797465fa5b5d387d0cd28f79de82ffa7be5b2f49eb955c2aed  body_lo.res  222161 bytes
   77c4e2b5c2fc873baa72466403ef7bba9be0d1c323a675e1873475508dfb405a  body_material.tres  732 bytes
   27dd6a1bddc7f2000433c3ec0f657706a505b53c0e7055334a11fab448ffa517  body_mid.res  383271 bytes
-  0e4bee4ee927c92d2dd39345969a99c3ba27ac59b577154bca5d728a3da0e607  body_min.res  88050 bytes
+  ca5be828991eb178dbde968d0dc8878c1f0c641c82cd942a22f887e675a349fd  body_min.res  88039 bytes
   fa745d2bec0202d826c7f26e552b9370b97d00f9913e193584fa957376463da3  body_wound.gdshader  6969 bytes
   c624a3ca16aa810a884c1fb723b61f7e63c39a56e873eba4fdb56c5df989f103  face.gdshaderinc  4844 bytes
   7379f97e5d9c3a12bf8a5883c4ea678da18c63067abcac408f43aea024ae00e8  inner.gdshader  6096 bytes
   a00aac5669007745c55bacb3a209b772f644ee9d8f4c4f1312cf822c14b96eec  inner_bone.res  76838 bytes
   ef104ace89bf2369ea83896928777b640e533f035005946dfe5d9584cbfd7fde  inner_flesh.res  119067 bytes
-  034113173971e20dc3a47b97905a07bdfa5b92958e602540dca0da43be2b6522  rig.tscn  12026 bytes
+  a98ec12d5402a808772d3e11ad332a590361b9c26af567186ed665e66688cc5d  outfit_uniform_hi.res  577745 bytes
+  8f18a30de9e14c942a0ec39ad96aa41bacf462450d0b162f03f4a882cdb71822  outfit_uniform_lo.res  222981 bytes
+  0f5c7fb850d714621d0e880a608dccc6c8b156da51c83a19d95f918c34ef8298  outfit_uniform_mid.res  373441 bytes
+  7943fa5cc3c38e89273a1c4dae7717a17d2085a2728000033dccebdd8988e33e  outfit_uniform_min.res  86979 bytes
+  fdbcad1c60a34a96c139f695df93468f67fd8e02683e643bb235491aeca169c1  rig.tscn  12026 bytes
   10ebd789612bc74e0ad1ec00286c461991a55c4d54af27b52cb79aa9c064eba8  skin.res  5513 bytes
   41ed3ca5a9bab06a3dfd2716639d12ffd171a8665825d6e1f1efb51501e9d405  wound.gdshaderinc  3211 bytes
