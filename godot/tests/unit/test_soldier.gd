@@ -349,6 +349,58 @@ func _folder_bytes(d: String) -> int:
 
 ## เพดานไฟล์ release ใน CI (เป้า 3 GB ใต้ 2 GiB ของ GitHub): APK และ zip ของ Windows ไม่เกิน 1900 MB
 ## (อ่าน .github/workflows/godot.yml ของ repo ; ในแอปที่ส่งออกไม่มีไฟล์นี้)
+## ใหม่ 0.17: ร่างหลักกับหญิง 1 ปรับตามภาพอ้างอิง (BODY_SHAPE=realistic ของ tools/soldier) · วัดบนเมชที่นำเข้าแล้ว (ท่าผูก)
+## ค่าที่ตรวจอยู่ระหว่างค่าก่อน (0.16) กับค่าหลัง จึงล้มถ้านำเข้าร่างเก่ากลับมาโดยไม่ตั้งใจ · ระยะหารด้วย k = ส่วนสูง / 1.78
+func _shape_numbers(folder: String, level: String, k: float) -> Dictionary:
+	var m := load(folder + "body_%s.res" % level) as ArrayMesh
+	var arr := m.surface_get_arrays(0)
+	var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var cs: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+	var top := 0.0
+	for v in vs:
+		top = maxf(top, v.y)
+	var slope := 0.0     # ผิวบนสุดที่ห่างแนวกลาง 10.5-11.5 ซม. = แนวบ่าที่ลาดจากคอ
+	var back := 0.0      # จุดหลังสุดของศีรษะที่ระดับหู (มวยผมต่ำของหญิง 1)
+	var neck := {}       # ครึ่งกว้างของคอ ทุก 4 มม. ช่วง y 1.50-1.56
+	var lum := 0.0
+	var n := 0
+	for i in vs.size():
+		var v := vs[i] / k
+		var ax := absf(v.x)
+		if ax >= 0.105 and ax <= 0.115:
+			slope = maxf(slope, v.y)
+		if v.y > 1.60 and v.y < 1.70:
+			back = minf(back, v.z)
+		var row := int(round(v.y / 0.004))
+		if row >= 375 and row <= 390:
+			neck[row] = maxf(float(neck.get(row, 0.0)), ax)
+		if vs[i].y > top - 0.02:
+			lum += cs[i].get_luminance()
+			n += 1
+	var nw := 9.0
+	for row in neck:
+		nw = minf(nw, float(neck[row]))
+	return {"top": top, "slope": slope, "back": back, "neck": nw, "crown": lum / maxf(n, 1)}
+
+
+func test_reference_shape() -> void:
+	for lv in ["hi", "min"]:
+		var b := _shape_numbers(DIR, lv, 1.0)
+		assert_true(float(b["slope"]) >= 1.505 and float(b["slope"]) <= 1.520,
+			"base %s: the shoulder line falls from the neck (skin top 11 cm out at %.4f m; 1.498 before 0.17, the reference reads 1.513)" % [lv, float(b["slope"])])
+		assert_true(float(b["crown"]) <= 0.22, "base %s: a near-black buzz cut (crown luminance %.3f; 0.35 before 0.17)" % [lv, float(b["crown"])])
+		assert_true(float(b["top"]) > 1.775 and float(b["top"]) < 1.785, "base %s: still 1.78 m (%.4f)" % [lv, float(b["top"])])
+	var kf := 1.6 / 1.78
+	var d1 := SoldierFigure.folder("f1")
+	for lv in ["hi", "min"]:
+		var f := _shape_numbers(d1, lv, kf)
+		assert_true(float(f["back"]) <= -0.140, "f1 %s: the bun sits low at the back of the head (%.4f m behind the centre at ear level; -0.110 with the high bun)" % [lv, float(f["back"])])
+		assert_true(float(f["top"]) <= 1.615 and float(f["top"]) >= 1.595, "f1 %s: no bun on top, 1.60 m with her hair (%.4f m; 1.622 before 0.17)" % [lv, float(f["top"])])
+	var fh := _shape_numbers(d1, "hi", kf)
+	assert_true(float(fh["neck"]) <= 0.043 and float(fh["neck"]) >= 0.032, "f1 hi: a slimmer neck (half width %.4f m at 1.78 m scale; 0.047 before 0.17)" % float(fh["neck"]))
+	assert_true(float(fh["slope"]) >= 1.5005, "f1 hi: the shoulder line falls from the neck (%.4f m; 1.4995 before 0.17)" % float(fh["slope"]))
+
+
 func test_release_size_gates() -> void:
 	if OS.has_feature("template"):
 		print("skip  the CI workflow is not inside the exported self-test")

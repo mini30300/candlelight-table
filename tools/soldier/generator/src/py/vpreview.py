@@ -56,7 +56,7 @@ def main():
         V, F, _ = ME.mirror_weld(Vh, Fh)
         sampler = lambda P: FD.sample_sym(g, P)
     print("field+mc %.1fs  %d tris" % (time.time() - t0, len(F)), flush=True)
-    if VR.CUR is not None:
+    if VR.cfg():
         V = VR.smooth_lowface(V, F, None, G) if a.part == "head" else V
     N = ME.vnormals(V, F)
     rgb, flesh, _ = ME.colours(V, N, sampler, G, F, prims, fat=fat)

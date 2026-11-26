@@ -144,6 +144,9 @@ unit tests also read each other body's `IMPORTED.txt` for the posed bone check.
 
 ## Sizes (ใหม่ 0.14: base body plus four bodies, with face coordinates)
 
+ใหม่ 0.17: `soldier/` 8.28 MB with its uniform (cap 10), `soldier_f1/` 2.80 MB (cap 4), all five 19.5 MB (cap 60); the
+caps did not need raising (the owner allows 12 MB and 6 MB if a later step needs them).
+
 The base (`soldier/`): `body_hi.res` 3.74 MB and `body_mid.res` 2.49 MB (14 uncompressed-float blend shapes each),
 `body_lo.res` 0.22 MB, `body_min.res` 0.09 MB, the wound layers and rig, skin, shaders and material: 6.75 MB. The other
 bodies have no blend shapes: 1.48-1.50 MB each with their own wound layers and shader copies (hi about 0.58 MB, mid
@@ -163,17 +166,68 @@ shapes on mid are still the next saving for the base.
 | --- | --- | --- | --- |
 | m2 | ทหารราบ ชาย 2 (ทดลอง) / Infantry M2 (preview) | man 1.86 m, deep brown skin, black buzz cut, broad jaw, heavy build | 1.1625 |
 | m3 | ทหารราบ ชาย 3 (ทดลอง) / Infantry M3 (preview) | man 1.70 m, light skin, short brown hair, long narrow face, wiry | 1.0625 |
-| f1 | ทหารราบ หญิง 1 (ทดลอง) / Infantry W1 (preview) | woman 1.60 m, tan skin, Southeast Asian face, high bun, pear shape, khaki top | 1.0 |
+| f1 | ทหารราบ หญิง 1 (ทดลอง) / Infantry W1 (preview) | woman 1.60 m, light tan skin, Southeast Asian face, low bun at the back of the head (a high bun before ใหม่ 0.17), pear shape, khaki top | 1.0 |
 | f2 | ทหารราบ หญิง 2 (ทดลอง) / Infantry W2 (preview) | woman 1.73 m, dark brown skin, curly hair, straight athletic build, sage top | 1.08125 |
 
-Each is a named configuration in `generator/src/py/variants.py`; with no variant every hook is skipped, so the default
-build still reproduces the base byte for byte (checked: every `body_*.bin`, both inner layers, `skeleton.bin`, the
+Each is a named configuration in `generator/src/py/variants.py`; with no variant and `BODY_SHAPE=natural` every hook is
+skipped, so that build still reproduces the ใหม่ 0.14-0.16 base byte for byte (checked: every `body_*.bin`, both inner layers, `skeleton.bin`, the
 muscle layers and the imported Godot files; `rig.tscn` differs only in Godot's node `unique_id`). `build.py --variant
 <id>` scales the whole body by k = stature / 1.78 at export (the head by k^-0.6 more, so its real size goes as
 k^0.4), exports no blend shapes and writes `out/data/variant.json`; `run_all.sh` with `VARIANT=<id>` builds in
 `../<id>/` next to the generator folder (`src` and `ref` linked).
 
-Body shape (ใหม่ 0.14): `BODY_SHAPE=natural`, the default, lowers and slopes the shoulder line (the trapezius falls
+Body shape (ใหม่ 0.17): `BODY_SHAPE=realistic`, the default, is `natural` plus the changes that bring the base body and
+f1 closer to the owner's reference images of November 2026 (a man and a woman in A-pose, front / side / back, and head
+close-ups; AI-generated pictures, only measured, never in the repository). m2, m3 and f2 are the same in `realistic`
+and `natural` (their settings, skin pieces, muscle levels and head scale hash the same in both).
+
+- Mechanism: `variants.REAL`, `variants.rl(natural, realistic)` for f1's settings, and `variants.BASE_REAL`, a small
+  settings block for the base body read through `variants.cfg()` (the base is still not a variant: 1.78 m, blend
+  shapes, no head scaling). `cfg()` feeds the same hooks the other bodies use: `edit_prims` (face and deep cores),
+  `muscle_k` (muscle levels per group), `smooth_lowface` (cheeks and jaw) and the new `slope_pad`.
+- Base: wider, squarer jaw and chin, cheeks and jaw smoothed like the other bodies, eyes 3 mm closer, nose base and
+  mouth 3 mm higher, a flatter mouth, smaller ears, the skull 1 % wider; a wider neck (core half width + 5 %, depth
+  - 5 to - 7 %); upper trapezius + 25 %, deltoid - 10 %, forearm - 7 %, calf + 3 %; `slope_pad`, a soft capsule from
+  the side of the neck to the shoulder tip, so the shoulder line falls from the neck in one slope instead of a level
+  collarbone shelf; skin colour (0.80, 0.625, 0.485), a black buzz cut that thins towards the sides and nape, darker
+  brows (`mesh.SKIN_R`, `HAIR_R`, `BROW_R`).
+- f1: the head 3 % smaller (`head_k` 1.035 instead of k^-0.6 = 1.066), a longer lower face, a wider and fuller mouth,
+  wider nose wings, cheekbones that no longer stand out sideways, lower and darker brows, the bun low at the back of
+  the head; a slimmer neck, deltoids, arms, forearms and wrists; a flatter waist seen from the side, slimmer thighs,
+  the same `slope_pad`; lighter skin (0.84, 0.66, 0.52).
+- The build's own gates set the limits, and none was loosened: G6 holds the base's neck girth to 42 cm, calf to 40 cm
+  and head breadth to 16 cm (now 41.8 / 39.6 / 15.8 cm; the first try at + 12 % neck, + 10 % calf and + 3 % skull read
+  42.2 / 40.8 / 16.1 and was taken back), and G12 holds f1's under-bust step to 1.50 cm (now 1.36; a flatter belly
+  above y 1.12 m read 1.72, so her waist is only slimmer below that and at the back).
+- Two robustness changes came with it. `face.mouth_seam` retries with a 9 mm and then a 12 mm cut window when the 6 mm
+  one leaves the seam broken between the mouth corners (the base's flatter mouth has longer triangles on mid; the 6 mm
+  try runs first, so a body that passed before builds byte for byte as before). `outfits.ROUNDS` is 10 instead of 6: the
+  base's uniform needed 8 posed rounds over the new shoulders (the gate itself is unchanged: skin at most 0.5 mm above
+  the cloth); `OUTFIT_RESUME=1 build.py --outfit <name>` continues a failed outfit from the rounds recorded in
+  `outfit_<name>.json` instead of starting over (the base's rounds 7-8 were built that way; a from-scratch run of all 8
+  rounds was not repeated).
+- G6 after the change (cm): base chest 99.2, waist 83.3, hips 99.9, thigh 54.7, calf 39.6, neck 41.8, upper arm 34.5,
+  forearm 28.8, wrist 17.3, head 23.5 x 15.8; f1 chest 84.6, waist 67.9, hips 95.6, thigh 50.2, calf 34.3, neck 30.3,
+  upper arm 24.7, forearm 21.6, wrist 15.0, head 21.4 x 14.6 (the tables further down are the ใหม่ 0.14 values).
+- Uniforms rebuilt for both bodies: base 8 rounds, posed 0.50 / 0.48 mm; f1 4
+  rounds, posed within 0.50 mm. Wound layers rebuilt and pushed for both; the base has one flesh point (back of the
+  neck, `die_knees`) where linear skinning turns the depth against the skin, 1.37 mm, reported apart as before.
+- **Open in ใหม่ 0.17 (not fixed): the base's chest wound spot.** `tests/render/test_soldier_wounds.gd` fails three
+  checks ("hi: bone shows through the flesh (0 px)", the hi close-up, and mid). The game takes the 5.5 cm chest spot
+  from `body_lo.res`: a vertex the chest bone holds at 0.8 or more, at least 8.4 cm from the neck's part seam. With
+  the new body no lo vertex beside the sternum qualifies (the best there, x 2.7 cm, has room for 5.0 cm), so the spot is
+  the one at x 6.8 cm (room 5.8 cm), over the pectoral, where the ribs lie too deep to show; flesh, rim and cavity
+  still draw, and hits and deaths in the arena are not affected by the test's fixed spot. It is the problem ใหม่ 0.14
+  solved with `BASE_LOD_SPOTS`, which needs new values for this body: trials on the lo level alone
+  (`build.py --from export --layers 0`, 33 s each) gave a 5.59 cm spot at x 4.6 cm, y 1.402 m with
+  `((±0.050, 1.400, 0.108), (0.012, 0.010, 0.030), 0.9)`, and 5.60 cm at x 4.2 cm with the current centre moved 2 mm
+  back (z 0.108); a spot lowered to y 1.392 lost every 5.5 cm spot. Whether bone then shows was not rendered. Changing the lo level means
+  rebuilding the uniform's lo from it (`OUTFIT_RESUME`, two rounds) and importing again; that was not done here.
+- What it cannot reach is listed in the Thai note of ใหม่ 0.17 (`web/`): the shoulder joints stay where the 23-bone
+  game rig puts them (about 2-3 cm further out per side than the references), limb lengths and joint heights are the
+  rig's, and skin, hair and face detail are vertex colours on a 24k-triangle mesh, not textures.
+
+Body shape (ใหม่ 0.14): `BODY_SHAPE=natural` (the default until ใหม่ 0.16) lowers and slopes the shoulder line (the trapezius falls
 from the neck to the shoulder point, the shoulder top carries less fat and a lower acromion mark, the deltoid is thin
 over the acromion and fullest lower down) and gives the arms, forearms and calves a modest gain (about 95-98% of the
 male reference below, inside the G6 ranges) and the upper back a little more fill. The pectoral keeps its 21ae37c
@@ -207,7 +261,8 @@ longer one vertex). A one-way slope keeps its exact values, so a real under-bust
 stays 1.50 cm. f1's natural build: 1.46 cm (21ae37c: 1.46); her earlier natural builds read 1.51-1.53 cm unsmoothed
 from a surface within 0.2 mm of the old one, and 1.43 cm with the median.
 
-The old bodies stay buildable (Mini asked to keep them): `BODY_SHAPE=original` builds every body as it was at 21ae37c.
+The old bodies stay buildable (Mini asked to keep them): `BODY_SHAPE=original` builds every body as it was at 21ae37c,
+and `BODY_SHAPE=natural` builds the base and f1 as they were in ใหม่ 0.14-0.16.
 
 ```bash
 BODY_SHAPE=original bash /tmp/soldier_build/src/run_all.sh               # the base
@@ -316,3 +371,34 @@ OUTFITS="uniform heavy" bash <stage>/src/run_all.sh                # or the whol
   strip"`), then `sheet.py --outfit <name> --bodies base=<dir>,f1=<dir> --out <dir>`.
 - Sizes: about 1.25 MB per outfit and body (hi 0.57, mid 0.38, lo 0.22, min 0.08 MB).
 
+
+### Status (ใหม่ 0.16, 2026-11-26) and next steps
+
+- The field uniform is imported for all five bodies: `soldier` (base), `soldier_m2`, `soldier_m3`, `soldier_f1` and
+  `soldier_f2`; every gate passes. f1 had none in 0.15 (it fell back to training shorts); two problems at `min`:
+  1. f1's own `min` body LOD was lopsided: a midline vertex at about (0.0008, 1.580, -0.068) had no mirror partner
+     (1.6 mm). Cause: `variants.cut_garments` projects the vertices that the garment/hairline cuts moved back onto the
+     sculpt (`to_surface`, along the normal of the nearest sculpt vertex); near the midline that normal leans sideways,
+     so a seam vertex (x = 0, its own mirror) left the midline. Fix: `cut_garments(..., keep_mid=True)` (used for `min`
+     only) puts the seam vertices that were on x = 0 before the projection back on x = 0. f1 `min` is now symmetric
+     (mirror max 0.000 mm); f1's hi/mid/lo body files did not change. It changes nothing on the other bodies: m2, m3
+     and f2 rebuilt with it give the same `body_*.bin` byte for byte at every level, and the base body never calls
+     `cut_garments`. It is on for `min` only, so no hi/mid/lo file changes; those levels keep their small (< 0.3 mm)
+     seam offsets, inside the 0.5 mm gate.
+  2. After `cut_bare` the collar hem at the back of the neck was lopsided (one hem vertex 0.49 mm off its mirror, one at
+     x = +0.05 mm with no partner), and the cloth (decimated on the left half, then mirrored) lost those hem vertices.
+     This came from item 1: with the `keep_mid` body, f1's hem is symmetric at every level (the f1 build logged no
+     `hem:` line). `garments.sym_hem()` stays before the cloth as a guard (an unpaired hem vertex within 0.1 mm of the
+     midline goes to x = 0; an unpaired right vertex goes to the mirror of the nearest unpaired left one, within 1 mm).
+     It returns the same array when every hem vertex has a mirror within 1e-9 m, which holds for all five bodies at
+     every level (checked; the hem comes from the collar and cuff fields only, not from a round's ease/thin fixes, so it
+     holds in every round), so no output depends on it. No gate was loosened. f1's uniform needed all 6 posed rounds (6
+     extra ease spots, 9 thin zones; the others passed in 4-5): posed 0.50 / 0.50 mm, gear 1.4 / 1.3 mm. It passed on
+     the last allowed round (rounds 3-4 failed on a pouch 12.2 / 11.8 mm into the cloth, limit 10 mm), so there is
+     little headroom: rebuild and check f1's uniform after any change to the f1 body.
+- Do not fill midline gaps by closing boundary chains "vertex -> seam vertex -> its mirror": that also closes real hem
+  points on the midline (the V-neck tip, the back of the neck) and broke the `closed` gate on every level of base and f2.
+- Next: heavy armour (classes 5/6 and regions 8-11 are reserved); outfit colours from the dressing-room palettes;
+  scorch and blood on cloth around wounds; an export to .glb/.fbx (skeleton, weights, vertex colours, clips) so the
+  figures open in Blender and import into Roblox Studio (use `mid`: Roblox takes at most about 20,000 triangles per
+  mesh).

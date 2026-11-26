@@ -152,8 +152,8 @@ def build(G, prims, ipose_ref=False):
             W0 = m["tend"][0] + (m["R"] - m["tend"][0]) * bel
             ft = 1.0 if not m.get("fthick") else m["fthick"][k]
             H0 = m["tend"][1] + (m["R"] * m["flat"] * thick * dips * ft - m["tend"][1]) * bel
-            if VR.CUR is not None:
-                # ร่างหลากหลาย: ระดับกล้าม (ท้องกล้ามหนา/บางลง ; กว้างเปลี่ยนน้อยกว่า)
+            if VR.cfg().get("muscle"):
+                # ร่างหลากหลาย / ร่างหลัก 0.17: ระดับกล้าม (ท้องกล้ามหนา/บางลง ; กว้างเปลี่ยนน้อยกว่า)
                 mk = VR.muscle_k(m["name"])
                 W0 = m["tend"][0] + (m["R"] * (1 + 0.35 * (mk - 1)) - m["tend"][0]) * bel
                 H0 = m["tend"][1] + (m["R"] * m["flat"] * thick * dips * ft * mk - m["tend"][1]) * bel

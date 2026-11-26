@@ -18,7 +18,7 @@ LEVELS = ("hi", "mid", "lo", "min")
 BUDGET = {"hi": 24000, "mid": 16000, "lo": 9000, "min": 5000}     # = SoldierFigure.BUDGET
 MARGIN = 0.03                                                       # ชุดใช้ได้ไม่เกินงบ - 3 %
 SOLE_MM = 1.5
-ROUNDS = 6            # เกตท่าไม่ผ่าน: เพิ่มผ้าหลวม/ผ้าบางเฉพาะที่แล้วสร้างใหม่ได้อีก 5 รอบ
+ROUNDS = 10           # เกตท่าไม่ผ่าน: เพิ่มผ้าหลวม/ผ้าบางเฉพาะที่แล้วสร้างใหม่ (เดิม 6 รอบ ; 0.17: ร่างหลักใหม่ใช้เกิน 6 ; เกณฑ์เกตเท่าเดิม)
 SYM_MM = 0.5
 
 # ชนิดวัสดุ (CUSTOM0.x): เชดเดอร์ผิวให้แสงตามชนิด (soldier_skin*.gdshader: mat_gloss)
@@ -189,6 +189,22 @@ def _cluster(pts, r=0.02):
     return out
 
 
+def _local_fixes(GM, points):
+    """จุดที่ผิวยังโผล่: รอบแรกเพิ่มผ้าหลวมเฉพาะที่ ; จุดเดิมที่ยังโผล่ = ผ้าบางแนบผิว (สำเนาผิว) ; ทุกค่ากำหนดแน่นอนจากเกต"""
+    for q in _cluster(points):
+        c = tuple(round(v, 4) for v in q[:3])
+        near = [b for b in GM.EXTRA_BLOBS if np.linalg.norm(np.subtract(b[0], c)) < 0.03]
+        thin = [np.linalg.norm(np.subtract(t[0], c)) for t in list(GM.THIN) + GM.EXTRA_THIN]
+        if near:
+            GM.EXTRA_BLOBS.remove(near[0])
+            GM.EXTRA_THIN.append((near[0][0], (0.03, 0.03, 0.03)))
+        elif min(thin) < 0.045:                  # ข้างโซนผ้าบาง (บริเวณที่ LBS หมุนชั้นผ้า) = ผ้าบางเลย
+            if min(thin) >= 0.015:
+                GM.EXTRA_THIN.append((c, (0.03, 0.03, 0.03)))
+        else:
+            GM.EXTRA_BLOBS.append((c, (0.035, 0.035, 0.035), 0.005))
+
+
 def build(name, out, work):
     """ชุด name ทุกระดับ + เกต ; เกตไม่ผ่าน = หยุด (SystemExit) หลังเขียนรายงาน"""
     import importlib
@@ -203,7 +219,18 @@ def build(name, out, work):
            "k": ctx["KV"], "levels": {}, "classes": CLS, "regions": REG, "palette": PALETTE.get(name, {})}
     import outfit_posed as OP
     GM.EXTRA_BLOBS[:], GM.EXTRA_THIN[:] = [], []
-    for rnd in range(ROUNDS):
+    start = 0
+    old = os.path.join(data, "outfit_%s.json" % name)
+    if os.environ.get("OUTFIT_RESUME") and os.path.exists(old):
+        # สร้างต่อจากรอบที่บันทึกไว้ (ผลรอบก่อนหน้ากำหนดแน่นอน จึงเท่ากับเริ่มใหม่ทั้งหมด): ใส่จุดแก้เดิม แล้วแก้จุดที่ยังโผล่ของรอบล่าสุด
+        prev = json.load(open(old))
+        if not prev.get("pass") and prev.get("rounds"):
+            GM.EXTRA_BLOBS[:] = [(tuple(c), (0.035, 0.035, 0.035), 0.005) for c in prev.get("extra_ease", [])]
+            GM.EXTRA_THIN[:] = [(tuple(c), (0.03, 0.03, 0.03)) for c in prev.get("extra_thin", [])]
+            _local_fixes(GM, prev["posed"].get("points", []))
+            start = int(prev["rounds"])
+            log("resume after round %d: extra ease %d, thin %d" % (start, len(GM.EXTRA_BLOBS), len(GM.EXTRA_THIN)))
+    for rnd in range(start, ROUNDS):
         built, fails, rep["levels"] = {}, [], {}
         ctx.pop("_dense", None)
         for lv in LEVELS:
@@ -222,21 +249,10 @@ def build(name, out, work):
         rep["posed"] = pz
         if pz["pass"] or fails or rnd == ROUNDS - 1:
             break
-        # จุดที่ผิวยังโผล่: รอบแรกเพิ่มผ้าหลวมเฉพาะที่ ; จุดเดิมที่ยังโผล่ = ผ้าบางแนบผิว (สำเนาผิว) ; ทุกค่ากำหนดแน่นอนจากเกต
-        for q in _cluster(pz.get("points", [])):
-            c = tuple(round(v, 4) for v in q[:3])
-            near = [b for b in GM.EXTRA_BLOBS if np.linalg.norm(np.subtract(b[0], c)) < 0.03]
-            thin = [np.linalg.norm(np.subtract(t[0], c)) for t in list(GM.THIN) + GM.EXTRA_THIN]
-            if near:
-                GM.EXTRA_BLOBS.remove(near[0])
-                GM.EXTRA_THIN.append((near[0][0], (0.03, 0.03, 0.03)))
-            elif min(thin) < 0.045:                  # ข้างโซนผ้าบาง (บริเวณที่ LBS หมุนชั้นผ้า) = ผ้าบางเลย
-                if min(thin) >= 0.015:
-                    GM.EXTRA_THIN.append((c, (0.03, 0.03, 0.03)))
-            else:
-                GM.EXTRA_BLOBS.append((c, (0.035, 0.035, 0.035), 0.005))
+        _local_fixes(GM, pz.get("points", []))
         log("round %d: posed gate failed (%s) -> extra ease %d, thin %d" % (
             rnd + 1, "; ".join(pz["fails"]), len(GM.EXTRA_BLOBS), len(GM.EXTRA_THIN)))
+    rep["rounds"] = rnd + 1
     rep["extra_ease"] = [list(b[0]) for b in GM.EXTRA_BLOBS]
     rep["extra_thin"] = [list(t[0]) for t in GM.EXTRA_THIN]
     if not pz["pass"]:

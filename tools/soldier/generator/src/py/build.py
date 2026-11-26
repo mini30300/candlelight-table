@@ -260,6 +260,8 @@ def skin_stage(Gb, prims, mus_b, fat, work):
     if VR.CUR is not None:
         Vs = VR.smooth_lowface(Vs, Fs, pair_s, Gb)      # ร่างหลากหลาย: แก้ม/กรามเรียบ (ไม่เป็นคราบใต้ไฟบน)
         Vs = VR.cloth_bridge(Vs, Fs, pair_s, Gb)        # เสื้อรัดคลุมร่องตื้น (ไม่เป็นจุดดำใต้สายเสื้อ)
+    elif VR.cfg().get("face_smooth"):
+        Vs = VR.smooth_lowface(Vs, Fs, pair_s, Gb)      # ร่างหลัก 0.17: แก้ม/กรามเรียบแบบเดียวกัน
     Ns = ME.vnormals(Vs, Fs)
     rgb, flesh, ao = ME.colours(Vs, Ns, lambda P: FD.sample_sym(gf, P), Gb, Fs, prims, fat=fat)
     extra = {}
@@ -469,7 +471,7 @@ def main():
                 for _ in range(4):
                     V, F = lod_mesh(Vs, Fs, int(tt), lv, seam, Gb)
                     n0 = len(F)
-                    V, F = VR.cut_garments(V, F, Gb, VR.GARM_D[lv], Vs, Ns, VR.HAIR_D.get(lv, 0.0))
+                    V, F = VR.cut_garments(V, F, Gb, VR.GARM_D[lv], Vs, Ns, VR.HAIR_D.get(lv, 0.0), keep_mid=lv == "min")
                     n1 = len(F)
                     if lv in FC.SEAM_LV:
                         V, F, rows = FC.mouth_seam(V, F, Gb, FCF)       # ใหม่ 0.14: รอยต่อปาก

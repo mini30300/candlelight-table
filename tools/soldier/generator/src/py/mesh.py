@@ -186,6 +186,10 @@ def transfer(Vsrc, Vdst, values, k=4):
 SKIN = np.array([0.84, 0.645, 0.505])
 HAIR = np.array([0.20, 0.16, 0.13])
 BROW = np.array([0.30, 0.22, 0.17])
+# ใหม่ 0.17 (realistic) ร่างหลักตามภาพอ้างอิง: ผิวออกน้ำผึ้ง ผมเกรียนดำ (ข้างไล่บาง) คิ้วดำ
+SKIN_R = np.array([0.80, 0.625, 0.485])
+HAIR_R = np.array([0.075, 0.065, 0.060])
+BROW_R = np.array([0.13, 0.10, 0.08])
 LIP = np.array([0.72, 0.47, 0.44])
 MOUTH = np.array([0.42, 0.25, 0.23])
 LASH = np.array([0.30, 0.22, 0.19])
@@ -264,6 +268,7 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
     import anatomy as AN
     import variants as VR
     PAL = VR.palette() if VR.CUR is not None else None     # ร่างหลากหลาย: สีผิว ผม ตา ปาก
+    skin0, hair0, brow0 = (SKIN_R, HAIR_R, BROW_R) if VR.REAL else (SKIN, HAIR, BROW)
     n = len(V)
     if ao is None:
         ao = sdf_ao(sampler, V, N)
@@ -279,7 +284,7 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
         d, _ = p.eval(V32[idx], rig.bone_xform(G, p.bone))
         return np.asarray(d, float)
 
-    rgb = np.tile(SKIN if PAL is None else PAL["SKIN"], (n, 1))
+    rgb = np.tile(skin0 if PAL is None else PAL["SKIN"], (n, 1))
     flesh = np.ones(n)
     H = head_local(V, G)
     Mh = rig.bone_xform(G, "head")
@@ -395,14 +400,16 @@ def colours(V, N, sampler, G, F, prims, ao=None, far=False, fat=1.0, far_abs=Fal
     browm = (1 - _ss(eb)) * _ss((z - 0.072) / 0.008) * head_w
     if PAL is not None and VR.CUR.get("brow_shape") is not None:
         browm = VR.brow_mask(ax, y, z) * head_w          # ร่างหญิง: คิ้วบางโค้ง สูงขึ้นเล็กน้อย
-    rgb = _mix(rgb, BROW if PAL is None else PAL["BROW"], ((0.46 if not far else 0.44) if PAL is None else PAL["BROW_A"]) * browm)
+    rgb = _mix(rgb, brow0 if PAL is None else PAL["BROW"],
+               ((0.46 if not far else 0.44) * (1.25 if VR.REAL else 1.0) if PAL is None else PAL["BROW_A"]) * browm)
     flesh = flesh * (1 - 0.4 * browm)
     # ---- ผมสั้นเกรียน (ไรผมนุ่ม) ----
     if PAL is None:
         th = np.degrees(np.arctan2(ax, z))
         yh = np.interp(th, [0, 25, 45, 70, 95, 120, 150, 180], [1.738, 1.733, 1.715, 1.690, 1.672, 1.640, 1.612, 1.600])
         hair = _ss((y - yh) / 0.013) * head_w * (1 - _ss(ear * 1.5))
-        rgb = _mix(rgb, HAIR, 0.64 * hair)
+        # 0.17: ผมบนเข้ม ข้าง/ท้ายทอยไล่บาง (เห็นหนังศีรษะ)
+        rgb = _mix(rgb, hair0, (0.50 + 0.36 * _ss((y - 1.690) / 0.050) if VR.REAL else 0.64) * hair)
         flesh = flesh * (1 - 0.65 * hair)
     elif hair:
         # ร่างหลากหลาย: ผมตามแนวไรผมของร่าง (+ ลอนหยิกเป็นแสงเงา + มวยผม) ; hair=False: ทาทีหลังที่จุดยอดของระดับ lo/min

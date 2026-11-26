@@ -11,16 +11,23 @@ BASE_H = 1.78
 CUR = None
 NAME = ""
 
-# รูปร่างพื้นฐาน (0.14): natural = ไหล่ลาดลง บ่าแคบลง แขน/น่องเต็มขึ้น (ค่าเริ่ม) ;
-#   original = ร่างเดิมก่อน 0.14 (ไบต์ต่อไบต์) : BODY_SHAPE=original bash src/run_all.sh
-SHAPE = os.environ.get("BODY_SHAPE", "natural")
-if SHAPE not in ("natural", "original"):
-    raise SystemExit("BODY_SHAPE must be natural or original (got %r)" % SHAPE)
+# รูปร่างพื้นฐาน: realistic (0.17 ค่าเริ่ม) = natural + ร่างหลักและหญิง 1 ปรับตามภาพอ้างอิงใหม่ (หน้า คอ บ่า แขน น่อง สีผิว) ;
+#   natural (0.14) = ไหล่ลาดลง บ่าแคบลง แขน/น่องเต็มขึ้น ; original = ร่างเดิมก่อน 0.14
+#   ร่างเก่ายังสร้างได้ไบต์ต่อไบต์: BODY_SHAPE=natural (หรือ original) bash src/run_all.sh ; ชาย 2/3 หญิง 2 เหมือนกันทั้ง realistic/natural
+SHAPE = os.environ.get("BODY_SHAPE", "realistic")
+if SHAPE not in ("realistic", "natural", "original"):
+    raise SystemExit("BODY_SHAPE must be realistic, natural or original (got %r)" % SHAPE)
+REAL = SHAPE == "realistic"
 
 
 def shp(orig, new):
-    """ค่าของรูปร่างเดิม (original) หรือรูปร่างใหม่ (natural)"""
+    """ค่าของรูปร่างเดิม (original) หรือรูปร่างใหม่ (natural / realistic)"""
     return orig if SHAPE == "original" else new
+
+
+def rl(nat, real):
+    """ค่าของ natural/original หรือค่าตามภาพอ้างอิง (realistic) ; ใช้เฉพาะร่างหลักกับหญิง 1"""
+    return real if REAL else nat
 
 # กลุ่มกล้าม (ระดับกล้ามต่อบริเวณ)
 MGROUP = {
@@ -164,6 +171,12 @@ def _face_f1():
          "mouth_mound": {"sr": (1.0, 1.0, 0.88)},
          "eye_open_L": {"set": {"hu": 0.0054, "hw": 0.0150, "hl": 0.0046, "tilt": 9.0}, "dc": (0.0010, 0, 0)},
          "lid_upper_L": {"set": {"t": 0.0030}}}
+    if REAL:
+        # ใหม่ 0.17 ตามภาพอ้างอิง: หน้าล่างยาวขึ้น ปากกว้างอิ่ม ปีกจมูกกว้างขึ้น
+        E = _fx(E, {"lip_upper": {"srt": 1.16}, "lip_lower": {"srt": 1.16}, "nose_ala_L": {"sr": (1.06, 1.0, 1.0)},
+                    "cheekbone_L": {"sr": (0.91, 1.0, 1.0), "dc": (-0.0015, 0, 0)},      # โหนกแก้มไม่ยื่นข้าง (หน้ารูปไข่)
+                    "head_base": {"sec": [("a", [(1.548, 1.04), (1.570, 1.06), (1.600, 1.04), (1.640, 1.0)])]}})
+        return _fx(E, _eyes(dx=0.0012), _chin(0.0015), _mouth(dy=0.0004, dz=-0.0010, sx=1.03), _ears(0.88, -0.0020, -12.0))
     return _fx(E, _eyes(dx=0.0012), _chin(0.0040), _mouth(dy=0.0012, dz=-0.0010, sx=0.95), _ears(0.88, -0.0020, -12.0))
 
 
@@ -229,6 +242,35 @@ def _face_m3():
                _chin(-0.0050), _ears(1.08, 0.0015, -26.0))
 
 
+def _face_base():
+    # ใหม่ 0.17 ร่างหลักตามภาพอ้างอิง: กรามกว้างเหลี่ยม คางกว้าง ตาชิดขึ้นเล็กน้อย ฐานจมูก/ปากสูงขึ้น ปากแคบอิ่ม หูเล็กลง
+    E = {"head_base": {"sec": [("a", [(1.548, 1.20), (1.556, 1.25), (1.570, 1.20), (1.585, 1.14), (1.600, 1.11),
+                                      (1.620, 1.06), (1.640, 1.01), (1.755, 1.01), (1.781, 1.0)])]},
+         "scalp": {"sr": (1.01, 1.0, 1.0)},
+         "chin_soft": {"sr": (1.25, 1.0, 1.0)},
+         "nose_body": {"sr": (1.15, 1.0, 1.0)},
+         "submental": {"sr": (1.12, 1.0, 1.0)},
+         "nose_bridge": {"srr": 1.08, "da": (0, 0, -0.0015)},
+         "nose_ala_L": {"sr": (1.08, 1.0, 1.0), "dc": (0.0008, 0, 0)},
+         "lip_upper": {"srt": 1.06}, "lip_lower": {"srt": 1.06},
+         "mouth_mound": {"sr": (1.0, 1.0, 0.75)},
+         "eye_open_L": {"set": {"hu": 0.0050, "hl": 0.0042, "tilt": 7.0}}}
+    return _fx(E, _eyes(dx=-0.0015), _nose_base(dy=0.0030), _mouth(dy=0.0030, dz=-0.0025, sx=0.95),
+               _ears(0.92, -0.0010, -18.0))
+
+
+# ใหม่ 0.17 (realistic): ร่างหลักตามภาพอ้างอิง (ไม่ใช่ร่างหลากหลาย: ยังมี blend shape ส่วนสูง 1.78 ม. ศีรษะไม่ขยาย)
+BASE_REAL = {
+    "face": _face_base(),
+    "cores": {"neck_core": {"sec": [("a", [(1.455, 1.02), (1.50, 1.05), (1.60, 1.05), (1.635, 1.02)]),
+                                    ("bf", [(1.455, 1.0), (1.50, 0.95), (1.60, 0.95), (1.635, 1.0)]),
+                                    ("bb", [(1.455, 1.0), (1.50, 0.93), (1.60, 0.93), (1.635, 1.0)])]}},
+    "muscle": {"all": 1.0, "trap": 1.25, "delt": 0.90, "farm": 0.93, "calf": 1.03},
+    "face_smooth": 40.0,          # แก้ม/กรามเรียบแบบร่างหลากหลาย (ไม่เป็นคลื่นใต้ไฟบน)
+    # เนินบ่า: คอลาดลงถึงปลายบ่าเป็นเส้นเดียว (ภาพอ้างอิง) ไม่เป็นชั้นไหปลาร้าแนวนอน : (ต้น, ปลาย, รัศมีต้น, รัศมีปลาย, k)
+    "slope_pad": ((0.070, 1.505, -0.030), (0.170, 1.468, -0.022), 0.022, 0.014, 0.020),
+}
+
 _JUG_F = ((0.0, 1.492, 0.038), (0.013, 0.013, 0.011))      # หญิง: แอ่งเหนือกระดูกอก (เล็กลง คอมีไขมันมากขึ้นแล้ว)
 _INFRA = ((0.125, 1.425, 0.058), (0.040, 0.020, 0.018), 0.020)    # หญิง: ร่องใต้ไหปลาร้า/ร่องอก-ไหล่ ใต้สายเสื้อ
 _MALAR = ((0.034, 1.640, 0.082), (0.016, 0.012, 0.010), 0.020)    # หญิง: เนื้อแก้มสูง (ใต้ตา) แทนแก้มล่างอูม
@@ -289,10 +331,13 @@ VARIANTS = {
         "label": "หญิง 1.60 ม. ผิวแทน หน้าแบบเอเชียตะวันออกเฉียงใต้ ผมดำตรงมวยสูง สะโพกผาย",
         "label_en": "female 1.60 m, tan skin, Southeast Asian face, straight black hair in a high bun, pear shape",
         "sex": "f", "stature": 1.60, "fat": 1.0,
+        "head_k": rl(None, 1.035),      # 0.17: ศีรษะเล็กลง (ภาพอ้างอิง ~7.3 หัว) ; None = k^-0.6 (1.066)
         # 0.14 (natural): แขนท่อนล่างคงสัดส่วนเดิมกับต้นแขน (เทียบอ้างอิงหญิง)
-        "muscle": {"all": 0.72, "neck": 0.58, "trap": 0.50, "delt": 0.56, "chest": 0.60, "arm": 0.64, "farm": shp(0.76, 0.66),
+        # 0.17 (realistic): คอ บ่า แขนเรียวลง ต้นขาบางลง ตามภาพอ้างอิง
+        "muscle": {"all": 0.72, "neck": rl(0.58, 0.48), "trap": rl(0.50, 0.58), "delt": rl(0.56, 0.50), "chest": 0.60,
+                   "arm": rl(0.64, 0.60), "farm": shp(0.76, rl(0.66, 0.60)),
                    "abs": 0.78, "back": 0.70, "glute": 0.86, "thigh": 0.86, "calf": 0.90, "face": 0.70},
-        "fat_seg": {"thigh": 1.38, "shank": 1.22, "uarm": 1.15, "farm": 1.05, "neck": 1.15},
+        "fat_seg": {"thigh": rl(1.38, 1.18), "shank": 1.22, "uarm": 1.15, "farm": 1.05, "neck": rl(1.15, 1.0)},
         "fat_rseg": {"thigh": 1.12, "shank": 1.12, "uarm": 1.15, "farm": 1.10, "neck": 1.30},
         "blobs": _blob_f(1.1) + [NECK_SH] + _jaw_blobs(1.3, 1.6),
         "cores": {"thorax": {"sec": [("a", [(1.18, 0.93), (1.375, 0.93), (1.46, 0.95), (1.49, 0.97)]),
@@ -300,16 +345,21 @@ VARIANTS = {
                                      ("bb", [(1.18, 0.96), (1.42, 0.96), (1.49, 0.98)])]},
                   "abdomen": {"sec": [("a", [(0.96, 1.03), (1.00, 1.02), (1.06, 0.97), (1.12, 0.90), (1.18, 0.90),
                                              (1.225, 0.92)]),
-                                      ("bf", [(0.96, 1.0), (1.06, 0.98), (1.12, 0.95), (1.225, 0.95)])]},
+                                      ("bf", rl([(0.96, 1.0), (1.06, 0.98), (1.12, 0.95), (1.225, 0.95)],
+                                                [(0.96, 1.0), (1.03, 0.93), (1.08, 0.92), (1.12, 0.95), (1.17, 1.0), (1.225, 1.0)]))]   # 0.17: เอวบางลง (มองข้าง) ; เหนือ 1.12 คงเดิม (เกต G12)
+                                      + rl([], [("bb", [(0.96, 1.0), (1.06, 0.92), (1.14, 0.90), (1.20, 0.95), (1.225, 1.0)])])},
                   "pelvis_core": {"sec": [("a", [(0.842, 1.0), (0.93, 1.05), (0.98, 1.06), (1.03, 1.05), (1.07, 1.02)]),
-                                          ("bb", [(0.842, 1.0), (0.93, 1.04), (1.07, 1.02)])]},
+                                          ("bb", rl([(0.842, 1.0), (0.93, 1.04), (1.07, 1.02)],
+                                                    [(0.842, 1.0), (0.93, 0.98), (1.07, 0.97)]))]},
                   "neck_core": {"sec": [("a", [(1.455, 0.92), (1.50, 0.88), (1.60, 0.88), (1.635, 0.92)]),
-                                        ("bf", [(1.455, 0.94), (1.50, 0.90), (1.60, 0.90), (1.635, 0.94)]),
-                                        ("bb", [(1.455, 0.94), (1.50, 0.90), (1.60, 0.90), (1.635, 0.94)])]},
+                                        ("bf", rl([(1.455, 0.94), (1.50, 0.90), (1.60, 0.90), (1.635, 0.94)],
+                                                  [(1.455, 0.94), (1.50, 0.80), (1.60, 0.80), (1.635, 0.94)])),
+                                        ("bb", rl([(1.455, 0.94), (1.50, 0.90), (1.60, 0.90), (1.635, 0.94)],
+                                                  [(1.455, 0.94), (1.50, 0.80), (1.60, 0.80), (1.635, 0.94)]))]},
                   "larynx": {"sr": (0.70, 0.75, 0.55), "dc": (0, 0, -0.0045)},
-                  "upperarm_core_L": {"srr": 0.88},
-                  "forearm_core_L": {"srt": 0.94},
-                  "wrist_block_L": {"sr": (0.95, 1.0, 0.95)}},
+                  "upperarm_core_L": {"srr": rl(0.88, 0.85)},
+                  "forearm_core_L": {"srt": rl(0.94, 0.89)},
+                  "wrist_block_L": {"sr": rl((0.95, 1.0, 0.95), (0.90, 1.0, 0.92))}},
         # อกแบบเสื้อกีฬารัด: ก้มลง 15° ต่ำลง 6 มม. แบนลง ; แผ่นลาดอกบน (ไหปลาร้า -> ยอดอก เส้นตรง) ; สะพานกลางอกต่ำลง
         "breasts": {"c": (0.086, 1.292, 0.078), "r": (0.059, 0.055, 0.038), "yaw": 13.0, "pitch": -15.0, "k": 0.028,
                     "bridge": ((0.0, 1.294, 0.084), (0.040, 0.040, 0.030)),
@@ -317,23 +367,28 @@ VARIANTS = {
                     "lower": [((0.080, 1.226, 0.068), (0.060, 0.020, 0.032), 0.025),
                               ((0.080, 1.200, 0.064), (0.058, 0.020, 0.028), 0.025)]},
         "infraclav": _INFRA, "malar": _MALAR,
+        "slope_pad": rl(None, ((0.060, 1.500, -0.028), (0.165, 1.462, -0.020), 0.017, 0.012, 0.020)),   # 0.17: บ่าลาด
         "epicanthus": ((0.0188, 1.6655, 0.0868), (0.0034, 0.0046, 0.0020), 0.004),   # รอยพับหัวตา
         "grooves": {"all": 0.35, "pe": 0.0, "sl": 0.3, "nv": 0.35},
         "pec_band": 0.0, "ra_mask": 0.45, "jugular_pad": _JUG_F,
         "top": True, "racer": True, "top_col": (0.530, 0.490, 0.350),      # เสื้อกล้ามหลังไขว้สีทรายกากี
         "face": _face_f1(),
-        "skin": (0.800, 0.600, 0.450), "lip_k": (0.88, 0.70, 0.76), "lip_mix": 0.54, "iris": (0.18, 0.11, 0.07),
+        "skin": rl((0.800, 0.600, 0.450), (0.840, 0.660, 0.520)), "lip_k": (0.88, 0.70, 0.76), "lip_mix": 0.54,
+        "iris": (0.18, 0.11, 0.07),
         "sclera": (0.77, 0.73, 0.68), "brow": (0.07, 0.06, 0.055), "palm": (0.10, 0.08, 0.07),
-        "beard": 0.0, "lash": 0.32, "brow_a": 0.38,
+        "beard": 0.0, "lash": 0.32, "brow_a": rl(0.38, 0.55),
         "hair": {"col": (0.042, 0.038, 0.040), "cover": 0.96, "line": HL_FEM, "soft": 0.016, "thick": (4.5, 3.2, 4.0),
                  "rise": 0.028, "curl": 0.0,
-                 "bun": {"c": (0.0, 1.760, -0.084), "r": (0.040, 0.035, 0.033), "k": 0.012}},
-        "brow_shape": {"dy": 0.0012, "w": 0.0045, "arch": 0.0012, "soft": 0.002},
+                 # 0.17: มวยต่ำที่ท้ายทอย (ระดับหู) ตามภาพอ้างอิง ; เดิมมวยสูง
+                 "bun": rl({"c": (0.0, 1.760, -0.084), "r": (0.040, 0.035, 0.033), "k": 0.012},
+                           {"c": (0.0, 1.668, -0.118), "r": (0.040, 0.038, 0.034), "k": 0.012})},
+        "brow_shape": rl({"dy": 0.0012, "w": 0.0045, "arch": 0.0012, "soft": 0.002},
+                         {"dy": -0.0008, "w": 0.0050, "arch": 0.0008, "soft": 0.002}),      # 0.17: คิ้วต่ำลง ตรงขึ้น เข้มขึ้น
         "face_smooth": 80.0, "lowlift": 0.09, "eyelift": 0.02,
         "detail_head_zmin": -0.165, "detail_head_ymax": 1.84,
         # ใหม่ 0.14 (natural): สามเหลี่ยมเพิ่มที่มุมคอ-สายเสื้อด้านหลัง (mid: ขอบผ้า G11) และยอดมวยผม (min: ความสูง G4)
         "lod_spots": shp(None, {"mid": [((sx * 0.080, 1.492, -0.062), (0.030, 0.030, 0.035), 0.45) for sx in (1.0, -1.0)],
-                                "min": [((0.0, 1.796, -0.085), (0.035, 0.030, 0.035), 0.6),
+                                "min": [(rl((0.0, 1.796, -0.085), (0.0, 1.668, -0.150)), (0.035, 0.030, 0.035), 0.6),
                                         ((0.0, 1.450, -0.120), (0.030, 0.035, 0.030), 0.5)]}),   # + กลางหลังบน (min: สมมาตร G3)
         "lod_band": shp(None, {"mid": 0.35}),       # 0.14 (natural): mid เก็บจุดยอดตามขอบเสื้อ (คอหน้า G11)
         "ranges": {"stature": (158, 163), "chest": (80, 92), "waist": (62, 74), "hips": (88, 100), "neck": (30, 34.5),
@@ -392,6 +447,13 @@ VARIANTS = {
 }
 
 
+def cfg():
+    """ชุดค่าของร่างที่กำลังสร้าง: ร่างหลากหลาย หรือร่างหลักแบบ realistic (0.17) ; ร่างหลักแบบเดิม = ว่าง"""
+    if CUR is not None:
+        return CUR
+    return BASE_REAL if REAL else {}
+
+
 def use(name):
     """เลือกร่าง (None / "" = ทหารฐาน)"""
     global CUR, NAME
@@ -411,7 +473,7 @@ def scale():
 
 def head_scale():
     """ศีรษะไม่ย่อ/ขยายเต็มตามส่วนสูง: คูณเพิ่มในกรอบฐาน f = k^-0.6 (ขนาดศีรษะจริง ∝ k^0.4)"""
-    return 1.0 if CUR is None else float(CUR.get("head_k", scale() ** -0.6))
+    return 1.0 if CUR is None else float(CUR.get("head_k") or scale() ** -0.6)
 
 
 def shapes_on():
@@ -510,8 +572,20 @@ def _edit(p, e):
 
 def edit_prims(prims, which):
     """which = "face" | "cores" : แก้ชิ้นตามชื่อ (ข้างซ้าย/กลางตัว ; ข้างขวาสะท้อนทีหลังใน anatomy.both)"""
-    E = CUR.get(which, {})
+    E = cfg().get(which, {})
     return [_edit(p, E[p.name]) if p.name in E else p for p in prims]
+
+
+def slope_pad():
+    """ใหม่ 0.17: เนินบ่า (คอ -> ปลายบ่า) ของร่างที่มี slope_pad ; คืนทั้งซ้ายและขวา"""
+    import anatomy as AN
+    from sdfk import Prim
+    sp = cfg().get("slope_pad")
+    if not sp:
+        return []
+    a, b, ra, rb, k = sp
+    return AN.both([Prim("capsule", "clavicleL", a=np.asarray(a, float), b=np.asarray(b, float), ra=ra, rb=rb,
+                         name="shoulder_slope_L", tag="pad", outset=0.0, k=k, weights={"chest": 0.6, "clavicleL": 0.4})])
 
 
 def extra_prims():
@@ -558,12 +632,12 @@ def extra_prims():
     if hb:
         out.append(Prim("ellipsoid", "head", c=np.asarray(hb["c"], float), r=np.asarray(hb["r"], float), rot=np.eye(3),
                         name="hair_bun", tag="face", outset=0.0, k=hb["k"]))
-    return AN.both(out)
+    return AN.both(out) + slope_pad()
 
 
 def muscle_k(name):
     """ระดับกล้าม (คูณความหนาท้องกล้าม) ของมัดนี้"""
-    m = CUR.get("muscle", {})
+    m = cfg().get("muscle", {})
     return float(m.get(M2G.get(name, ""), m.get("all", 1.0)))
 
 
@@ -674,7 +748,7 @@ def smooth_lowface(V, F, pair, G, t=None):
     import mesh as ME
     from scipy.sparse import diags
     from scipy.sparse.linalg import spsolve
-    t = float(CUR.get("face_smooth", 15.0)) if t is None else float(t)
+    t = float(cfg().get("face_smooth", 15.0)) if t is None else float(t)
     if t <= 0:
         return V
     w = lowface_w(ME.head_local(V, G))
@@ -1116,9 +1190,9 @@ def paint_hair(V, G, rgb, flesh, aof, prims, d):
     return rgb, flesh * (1 - 0.80 * m)
 
 
-def cut_garments(V, F, G, d=0.003, Vs=None, Ns=None, hair_d=0.0):
+def cut_garments(V, F, G, d=0.003, Vs=None, Ns=None, hair_d=0.0, keep_mid=False):
     """ตัดเมชระดับตามขอบผ้า (ขอบเอว/ขากางเกง ; คอเสื้อ/วงแขน) + แถวจุดยอดข้างเส้นที่ ±d -> ขอบสีคมเรียบตามขอบจริง
-    hair_d > 0: ตัดตามไรผมด้วย (lo/min)"""
+    hair_d > 0: ตัดตามไรผมด้วย (lo/min) ; keep_mid: จุดบนแนวกลางตัวคงอยู่ที่ x = 0 หลังฉายลงผิว (ใหม่ 0.16, min)"""
     n0 = len(V)
     fields = [(shorts_sd, d)] + ([(lambda X: top_sd(X, G, cut=True), d)] if CUR.get("top") else [])
     if hair_d > 0:
@@ -1128,7 +1202,11 @@ def cut_garments(V, F, G, d=0.003, Vs=None, Ns=None, hair_d=0.0):
         V, F, on = cut_along(V, F, sf(V))
         V = band_rows(V, F, sf, on, dd)
     if Vs is not None:
+        mid = np.abs(V[:, 0]) < 1e-9
         moved = np.nonzero(np.r_[np.linalg.norm(V[:n0] - V0, axis=1) > 1e-9, np.ones(len(V) - n0, bool)])[0]
         V = to_surface(V, moved, Vs, Ns)
+        if keep_mid:
+            # นอร์มอลผิวปั้นเอียงข้าง -> จุดกลางตัวหลุดจาก x = 0 ไม่มีคู่สะท้อน (f1 min 0.8 มม.) : วางกลับบนแนวกลาง
+            V[mid & (np.abs(V[:, 0]) >= 1e-9), 0] = 0.0
     return V, F
 
