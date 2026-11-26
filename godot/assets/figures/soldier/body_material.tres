@@ -19,4 +19,4 @@ shader_parameter/sheen = null
 shader_parameter/flash = null
 shader_parameter/telegraph = null
 shader_parameter/telegraph_colour = null
-metadata/face_lid_colour = Vector3(0.8615, 0.6612, 0.5176)
+metadata/face_lid_colour = Vector3(0.8149, 0.6363, 0.4937)

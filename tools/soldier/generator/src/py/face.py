@@ -147,6 +147,9 @@ def weights(H, side, f):
     return out
 
 
+SEAM_WIN = (0.006, 0.009, 0.012)      # ครึ่งกว้างหน้าต่างตัดรอยต่อปาก (ม.) ตามลำดับที่ลอง
+
+
 def cut_window(V, F, s, win, snap=0.35, hx=None, xlim=None):
     """ตัดตามเส้น s = 0 เฉพาะขอบที่ปลายทั้งสองอยู่ใน win (แบบ variants.cut_along): จุดใกล้เส้นเลื่อนลงเส้นก่อน แล้วแบ่ง
     สามเหลี่ยมตามขอบที่ข้ามเส้น (ขอบเดียว = สองชิ้น, สองขอบ = สามชิ้น) ; ผิวยังปิด ; จุดกลางตัว (x = 0) ไม่เลื่อน
@@ -208,13 +211,28 @@ def cut_window(V, F, s, win, snap=0.35, hx=None, xlim=None):
     return Vn, np.array(out, np.int64), np.r_[s, np.zeros(len(newV))], np.r_[win, np.ones(len(newV), bool)]
 
 
+class _SeamBroken(Exception):
+    pass
+
+
 def mouth_seam(V, F, G, f, drop=DROP):
+    """รอยต่อปาก: ลองหน้าต่างตัดกว้าง 6 มม. ก่อน (ผลเดิมทุกไบต์) ; ใหม่ 0.17: ถ้าแนวขาดระหว่างมุมปาก (ขอบสามเหลี่ยมยาวกว่า
+    หน้าต่าง) ลองใหม่ที่ 9 และ 12 มม."""
+    for sw in SEAM_WIN:
+        try:
+            return _mouth_seam(V, F, G, f, drop, sw)
+        except _SeamBroken:
+            print("face: mouth seam broken with a %.0f mm window" % (sw * 1000), flush=True)
+    raise SystemExit("face: the mouth seam is broken between the mouth corners")
+
+
+def _mouth_seam(V, F, G, f, drop, sw):
     """รอยต่อปาก (hi/mid): ตัดตามแนวร่องปากระหว่างมุมปาก -> แถวจุดบนแนว (แถวบน = ขอบริมฝีปากบน) ; จุดในแถว (ยกเว้น
     มุมปาก) ซ้ำเป็นแถวล่าง (ขอบริมฝีปากล่าง ต่ำลง drop) ; สามเหลี่ยมใต้แนวใช้แถวล่าง ; แถบสามเหลี่ยมเชื่อมสองแถว (ช่องปากเมื่อ
     กรามอ้า) -> ผิวยังปิดสนิท ; คืน (V, F, rows) rows = (แถวบน, แถวล่าง, มุมปาก) ดัชนีจุด"""
     H = head_coords(V, G)
     s, zml = mouth_s(H, f)
-    win = (np.abs(H[:, 0]) <= f["c"] + 0.005) & (H[:, 2] > zml - 0.012) & (np.abs(s) < 0.006)
+    win = (np.abs(H[:, 0]) <= f["c"] + 0.005) & (H[:, 2] > zml - 0.012) & (np.abs(s) < sw)
     V, F, s, win = cut_window(V, F, s, win, hx=H[:, 0], xlim=f["c"] + 0.0003)
     win = win & (np.abs(head_coords(V, G)[:, 0]) <= f["c"] + 0.0004)
     n = len(V)
@@ -229,7 +247,7 @@ def mouth_seam(V, F, G, f, drop=DROP):
     i0, i1 = int(ids[np.argmin(V[ids, 0])]), int(ids[np.argmax(V[ids, 0])])
     dist, pred = dijkstra(A, indices=i0, return_predecessors=True)
     if not np.isfinite(dist[i1]):
-        raise SystemExit("face: the mouth seam is broken between the mouth corners")
+        raise _SeamBroken()
     path = [i1]
     while path[-1] != i0:
         path.append(int(pred[path[-1]]))

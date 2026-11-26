@@ -260,6 +260,8 @@ def skin_stage(Gb, prims, mus_b, fat, work):
     if VR.CUR is not None:
         Vs = VR.smooth_lowface(Vs, Fs, pair_s, Gb)      # ร่างหลากหลาย: แก้ม/กรามเรียบ (ไม่เป็นคราบใต้ไฟบน)
         Vs = VR.cloth_bridge(Vs, Fs, pair_s, Gb)        # เสื้อรัดคลุมร่องตื้น (ไม่เป็นจุดดำใต้สายเสื้อ)
+    elif VR.cfg().get("face_smooth"):
+        Vs = VR.smooth_lowface(Vs, Fs, pair_s, Gb)      # ร่างหลัก 0.17: แก้ม/กรามเรียบแบบเดียวกัน
     Ns = ME.vnormals(Vs, Fs)
     rgb, flesh, ao = ME.colours(Vs, Ns, lambda P: FD.sample_sym(gf, P), Gb, Fs, prims, fat=fat)
     extra = {}

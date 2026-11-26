@@ -406,8 +406,8 @@ def cores():
     for p in C:
         if p.tag == "core" or p.tag == "finger":
             pass
-    if VR.CUR is not None:
-        C = VR.edit_prims(C, "cores")        # ร่างหลากหลาย: แกนลึก (เอว อก คอ ลูกกระเดือก)
+    if VR.cfg():
+        C = VR.edit_prims(C, "cores")        # ร่างหลากหลาย / ร่างหลัก 0.17: แกนลึก (เอว อก คอ ลูกกระเดือก)
     return both(C)
 
 
@@ -573,8 +573,8 @@ def face():
             name="ear_concha_L", outset=0.0, neg=True, k=0.003)]
     for p in F:
         p.tag = "face" if p.tag == "core" else p.tag
-    if VR.CUR is not None:
-        F = VR.edit_prims(F, "face")         # ร่างหลากหลาย: รูปหน้า
+    if VR.cfg():
+        F = VR.edit_prims(F, "face")         # ร่างหลากหลาย / ร่างหลัก 0.17: รูปหน้า
     return both(F)
 
 
@@ -891,4 +891,6 @@ MUSCLES_L = muscles_left()
 def all_skin_prims():
     if VR.CUR is not None:
         return cores() + lands() + pads() + face() + VR.extra_prims()     # ร่างหลากหลาย: เต้านม มวยผม
+    if VR.cfg().get("slope_pad"):
+        return cores() + lands() + pads() + face() + VR.slope_pad()       # ร่างหลัก 0.17: เนินบ่า
     return cores() + lands() + pads() + face()
