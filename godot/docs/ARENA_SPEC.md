@@ -868,7 +868,9 @@ player is the figure picked in the dressing room (`Figures.selected()`, PACK_SPE
   under the cloth, the cloth is cut like skin and the flesh and bone layers show (lo tints the cloth, min nothing).
   The `""` path draws exactly what it drew before and adds nothing per frame on any level. The player's figure wears the
   dressing room's choice (PACK_SPEC §10, Outfit row); other soldiers and bots keep training shorts. 0.15 ships the uniform on
-  the base body, m2, m3 and f2; 0.16 adds f1, so all five bodies have it. Tests: `tests/unit/test_soldier_outfit.gd`,
+  the base body, m2, m3 and f2; 0.16 adds f1, so all five bodies have it. 0.17 reshapes the base body and f1 after the
+  owner's reference images (`tools/soldier/README.md`, `BODY_SHAPE=realistic`: shoulder line, neck, jaw, face, f1's low
+  bun, skin and hair colours) and rebuilds their uniforms and wound layers; the game code is unchanged. Tests: `tests/unit/test_soldier_outfit.gd`,
   `tests/render/test_soldier_outfit.gd` (`soldier_outfit_*.png`: bare | uniform per level, a chest wound on the uniform,
   the dressing room, the arena), the Outfit row in `tests/flow/dressing_steps.gd`.
 
